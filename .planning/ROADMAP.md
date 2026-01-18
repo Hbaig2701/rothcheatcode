@@ -111,18 +111,18 @@ Plans:
 ---
 
 ### Phase 06: Multi-Strategy Comparison
-**Status:** Not Started
+**Status:** Planned (3 plans ready)
 
 Calculate and display all 4 strategies side-by-side.
 
 **Goal:** Compare Conservative, Moderate, Aggressive, and IRMAA-Safe strategies with best highlighted.
 
-**Key Tasks:**
-- Strategy calculation logic (4 strategies)
-- Update engine to run all strategies
-- Strategy comparison table
-- Best strategy highlighting
-- Strategy selection for detail view
+**Plans:** 3 plans in 3 waves
+
+Plans:
+- [ ] 06-01-PLAN.md — Multi-strategy types, strategy definitions, and simulation wrapper
+- [ ] 06-02-PLAN.md — BestBadge and StrategyComparisonTable components
+- [ ] 06-03-PLAN.md — MultiStrategyResults container, API endpoint, and results page integration
 
 ---
 
@@ -196,39 +196,39 @@ Excel export and final QA for launch.
 
 ```
 Phase 00 (Scaffolding)
-    │
-    ▼
+    |
+    v
 Phase 01 (Auth)
-    │
-    ▼
+    |
+    v
 Phase 02 (Client CRUD)
-    │
-    ▼
+    |
+    v
 Phase 03 (Client Form)
-    │
-    ▼
-Phase 04 (Calculation Core) ────────────────┐
-    │                                        │
-    ▼                                        │
-Phase 05 (Results Summary)                   │
-    │                                        │
-    ▼                                        │
-Phase 06 (Multi-Strategy) ◄──────────────────┘
-    │
-    ▼
+    |
+    v
+Phase 04 (Calculation Core) ----------------+
+    |                                        |
+    v                                        |
+Phase 05 (Results Summary)                   |
+    |                                        |
+    v                                        |
+Phase 06 (Multi-Strategy) <------------------+
+    |
+    v
 Phase 07 (Deep Dive)
-    │
-    ▼
+    |
+    v
 Phase 08 (Advanced Features)
-    │
-    ├──────────────┬──────────────┐
-    ▼              ▼              │
-Phase 09 (PDF)  Phase 10 (Excel) │
-    │              │              │
-    └──────────────┴──────────────┘
-                   │
-                   ▼
-              LAUNCH MVP
+    |
+    +---------------+---------------+
+    v               v               |
+Phase 09 (PDF)  Phase 10 (Excel)    |
+    |               |               |
+    +---------------+---------------+
+                    |
+                    v
+               LAUNCH MVP
 ```
 
 ---
