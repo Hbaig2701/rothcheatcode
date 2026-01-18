@@ -18,3 +18,10 @@ export {
   ScheduleSummary,
   DeepDiveTabs,
 } from './deep-dive';
+
+// Advanced Features (Phase 08)
+export { BreakevenChart } from './breakeven-chart';
+export { SensitivityChart } from './sensitivity-chart';
+export { WidowAnalysis } from './widow-analysis';
+export { AuditPanel } from './audit-panel';
+export { AdvancedFeaturesSection } from './advanced-features-section';

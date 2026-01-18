@@ -3,7 +3,8 @@
 import { use } from 'react';
 import { useClient } from '@/lib/queries/clients';
 import { useProjection } from '@/lib/queries/projections';
-import { MultiStrategyResults, DeepDiveTabs } from '@/components/results';
+import { MultiStrategyResults, DeepDiveTabs, AdvancedFeaturesSection } from '@/components/results';
+import { transformToChartData } from '@/lib/calculations/transforms';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
@@ -73,6 +74,9 @@ export default function ResultsPage({ params }: ResultsPageProps) {
 
   const { projection } = projectionResponse;
 
+  // Transform projection data for charts
+  const chartData = transformToChartData(projection);
+
   return (
     <div className="container py-6 space-y-8">
       {/* Header with back navigation */}
@@ -95,6 +99,11 @@ export default function ResultsPage({ params }: ResultsPageProps) {
       <section>
         <h2 className="text-lg font-semibold mb-4">Deep Dive Analysis</h2>
         <DeepDiveTabs projection={projection} client={client} />
+      </section>
+
+      {/* Advanced Features Section */}
+      <section>
+        <AdvancedFeaturesSection client={client} chartData={chartData} />
       </section>
     </div>
   );
