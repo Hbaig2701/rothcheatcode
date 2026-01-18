@@ -5,7 +5,7 @@ import { useClient } from "@/lib/queries/clients";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Pencil, ArrowLeft } from "lucide-react";
+import { Loader2, Pencil, ArrowLeft, BarChart3 } from "lucide-react";
 import Link from "next/link";
 
 interface ClientDetailPageProps {
@@ -89,10 +89,16 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             Client since {formatDate(client.created_at)}
           </p>
         </div>
-        <Button render={<Link href={`/clients/${client.id}/edit`} />}>
-          <Pencil className="mr-2 h-4 w-4" />
-          Edit
-        </Button>
+        <div className="flex gap-2">
+          <Button render={<Link href={`/clients/${client.id}/results`} />}>
+            <BarChart3 className="mr-2 h-4 w-4" />
+            View Results
+          </Button>
+          <Button variant="outline" render={<Link href={`/clients/${client.id}/edit`} />}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
+        </div>
       </div>
 
       {/* Client info */}
@@ -121,18 +127,19 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
           </CardContent>
         </Card>
 
-        {/* Placeholder for future projections */}
-        <Card className="border-dashed">
+        {/* Roth Conversion Projections card */}
+        <Card>
           <CardHeader>
             <CardTitle>Roth Conversion Projections</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <p className="text-muted-foreground mb-4">
-                No projections yet. Add financial data to start optimizing Roth conversions.
+                Compare 4 Roth conversion strategies and find the optimal approach for this client.
               </p>
-              <Button variant="outline" disabled>
-                Coming soon
+              <Button render={<Link href={`/clients/${client.id}/results`} />}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                View Results
               </Button>
             </div>
           </CardContent>
