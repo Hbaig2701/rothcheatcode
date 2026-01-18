@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { clientCreateSchema } from "@/lib/validations/client";
+import { clientFullSchema } from "@/lib/validations/client";
 
 // GET /api/clients - List all clients for the authenticated user
 export async function GET(request: NextRequest) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Validate request body with Zod
-  const parsed = clientCreateSchema.safeParse(body);
+  const parsed = clientFullSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Validation failed", details: parsed.error.flatten() },
