@@ -12,7 +12,7 @@
 |--------|-------|
 | Active Phase | 03 |
 | Phase Status | In Progress (2/8 plans) |
-| Last Completed | Phase 03 Plan 02 (Validation Schema) |
+| Last Completed | Phase 03 Plan 01 (Foundation Components) |
 | Blockers | None |
 
 ---
@@ -84,6 +84,13 @@
 - ClientForm dual-mode: edit if client prop provided, create otherwise
 - react-hook-form with Zod resolver for form validation
 
+### Foundation Components (03-01)
+- react-currency-input-field for formatted currency inputs
+- CurrencyInput stores/accepts cents, displays dollars with $ prefix
+- PercentInput accepts percentage number, displays with % suffix
+- US_STATES has 51 entries with tax type and top rate
+- FormSection provides responsive 3-column grid layout
+
 ### Validation Schema (03-02)
 - Currency stored as cents (integers) for precision
 - Conditional validation via Zod superRefine for cross-field rules
@@ -103,8 +110,8 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed 03-02-PLAN.md |
-| Resume file | .planning/phases/03-client-data-entry-form/03-03-PLAN.md |
+| Stopped at | Completed 03-01-PLAN.md |
+| Resume file | .planning/phases/03-client-data-entry-form/03-02-PLAN.md |
 
 ---
 
@@ -129,4 +136,5 @@ Phase 02 Plan 02 complete - REST API endpoints for client CRUD operations ready.
 Phase 02 Plan 03 complete - TanStack Query hooks for all client CRUD operations with cache invalidation.
 Phase 02 Plan 04 complete - Clients list page with TanStack Table, sorting, filtering, delete confirmation.
 Phase 02 Plan 05 complete - Client form, new/edit/detail pages with react-hook-form validation.
+Phase 03 Plan 01 complete - CurrencyInput/PercentInput components, US state tax data, FormSection layout.
 Phase 03 Plan 02 complete - 28-field Zod validation schema with conditional validation, Client types expanded.
