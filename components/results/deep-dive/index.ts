@@ -4,3 +4,4 @@ export { IRMAAChart } from './irmaa-chart';
 export { NIITDisplay } from './niit-display';
 export { RothSeasoningTracker } from './roth-seasoning-tracker';
 export { ScheduleSummary } from './schedule-summary';
+export { DeepDiveTabs } from './deep-dive-tabs';
