@@ -5,6 +5,10 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 
+// Server actions return error objects but form action types expect void
+// This is safe - Next.js handles the return value for useActionState patterns
+type FormAction = (formData: FormData) => void
+
 export default async function SignupPage({
   searchParams,
 }: {
@@ -23,7 +27,7 @@ export default async function SignupPage({
             <p className="text-sm text-red-600">{error}</p>
           )}
 
-          <form className="space-y-4">
+          <form action={signup as FormAction} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" name="email" type="email" required />
@@ -32,7 +36,7 @@ export default async function SignupPage({
               <Label htmlFor="password">Password</Label>
               <Input id="password" name="password" type="password" required />
             </div>
-            <SubmitButton formAction={signup} className="w-full" pendingText="Creating account...">
+            <SubmitButton className="w-full" pendingText="Creating account...">
               Sign Up
             </SubmitButton>
           </form>

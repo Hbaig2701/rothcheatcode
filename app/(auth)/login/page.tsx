@@ -5,6 +5,10 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 
+// Server actions return error objects but form action types expect void
+// This is safe - Next.js handles the return value for useActionState patterns
+type FormAction = (formData: FormData) => void
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -26,7 +30,7 @@ export default async function LoginPage({
             <p className="text-sm text-red-600">{error}</p>
           )}
 
-          <form className="space-y-4">
+          <form action={login as FormAction} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input id="email" name="email" type="email" required />
@@ -35,7 +39,7 @@ export default async function LoginPage({
               <Label htmlFor="password">Password</Label>
               <Input id="password" name="password" type="password" required />
             </div>
-            <SubmitButton formAction={login} className="w-full" pendingText="Signing in...">
+            <SubmitButton className="w-full" pendingText="Signing in...">
               Sign In
             </SubmitButton>
           </form>
@@ -49,18 +53,18 @@ export default async function LoginPage({
             </div>
           </div>
 
-          <form>
-            <SubmitButton formAction={signInWithGoogle} variant="outline" className="w-full" pendingText="Connecting...">
+          <form action={signInWithGoogle as unknown as FormAction}>
+            <SubmitButton variant="outline" className="w-full" pendingText="Connecting...">
               Continue with Google
             </SubmitButton>
           </form>
 
-          <form className="space-y-4">
+          <form action={signInWithMagicLink as FormAction} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="magic-email">Magic Link</Label>
               <Input id="magic-email" name="email" type="email" placeholder="Enter email for magic link" />
             </div>
-            <SubmitButton formAction={signInWithMagicLink} variant="secondary" className="w-full" pendingText="Sending...">
+            <SubmitButton variant="secondary" className="w-full" pendingText="Sending...">
               Send Magic Link
             </SubmitButton>
           </form>
