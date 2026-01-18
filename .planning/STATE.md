@@ -192,6 +192,12 @@
 - Recalculate button for manual projection refresh
 - Conditional heir benefit card shown only when positive
 
+### Roth Seasoning & Schedule Summary (07-03)
+- 5-year rule: conversion year + 5 = seasoned year (starts January 1)
+- Age 59.5+ simplified to age >= 60 for penalty exemption check
+- Status colors: green (seasoned), yellow (pending), muted (future)
+- ConversionCohort interface for tracking seasoning status
+
 ---
 
 ## Session Continuity
@@ -199,7 +205,7 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed 07-02-PLAN.md |
+| Stopped at | Completed 07-03-PLAN.md |
 | Resume file | .planning/phases/07-deep-dive-views/ |
 
 ---
@@ -243,3 +249,4 @@ Phase 06 Plan 02 complete - StrategyComparisonTable and BestBadge components for
 Phase 05 Plan 02 complete - StatCard, ChartTooltip, WealthChart, SummarySection display components for results page.
 Phase 05 Plan 03 complete - ResultsSummary container, results page route, View Results navigation (checkpoint deferred).
 Phase 07 Plan 02 complete - IRMAAChart with 5-tier threshold reference lines, NIITDisplay with filing status thresholds.
+Phase 07 Plan 03 complete - RothSeasoningTracker with 5-year rule status, ScheduleSummary with conversion timeline.
