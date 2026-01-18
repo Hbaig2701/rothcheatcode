@@ -241,7 +241,7 @@ CREATE INDEX idx_audit_resource ON audit_logs(resource_type, resource_id);
 ## 5. Folder Structure
 
 ```
-/toiture
+/rothc
 ├── app/
 │   ├── (auth)/
 │   │   ├── login/page.tsx

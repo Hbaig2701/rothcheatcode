@@ -50,7 +50,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY # Supabase anonymous/public key
 
 **Hosting:**
 - Vercel (recommended per Next.js defaults)
-- GitHub repo: `Ayy-man/toiture`
+- GitHub repo: `Ayy-man/rothc`
 
 ---
 

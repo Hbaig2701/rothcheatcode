@@ -1,6 +1,6 @@
 # Roth IRA Conversion Optimizer - Project Overview
 
-**Project:** Roth Blueprint Clone (working title: "Toiture")
+**Project:** Roth Blueprint Clone (working title: "Rothc")
 **Started:** 2026-01-18
 **Status:** PLANNING COMPLETE - Ready for Sprint 0
 

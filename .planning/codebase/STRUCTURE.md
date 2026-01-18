@@ -5,7 +5,7 @@
 ## Directory Layout
 
 ```
-toiture/
+rothc/
 ├── app/                    # Next.js App Router pages and layouts
 ├── components/             # React components
 │   └── ui/                 # Reusable UI primitives (shadcn-style)

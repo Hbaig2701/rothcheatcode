@@ -43,7 +43,7 @@
 - [ ] Configure domain (if available)
 
 ### Deliverable
-Live URL showing "Toiture - Coming Soon"
+Live URL showing "Rothc - Coming Soon"
 
 ---
 
