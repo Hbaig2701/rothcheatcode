@@ -29,7 +29,7 @@
 | 05 | Results Summary Display | Complete ✓ | 3/3 verified |
 | 06 | Multi-Strategy Comparison | Complete ✓ | 3/3 verified |
 | 07 | Deep Dive Views | In Progress | 4/? complete |
-| 08 | Advanced Features | In Progress | 5/7 complete |
+| 08 | Advanced Features | In Progress | 6/7 complete |
 | 09 | PDF Export | Not Started | - |
 | 10 | Excel Export + Polish | Not Started | - |
 
@@ -247,6 +247,12 @@
 - formatRelativeTime helper: "2h ago" for recent, absolute dates for older entries
 - Table limited to first 10 years with "showing X of Y" footer for longer projections
 
+### Advanced Visualization Charts (08-05)
+- BreakevenChart: ReferenceLine for sustained breakeven, ReferenceArea for shaded green region
+- SensitivityChart: 7 scenario lines with SCENARIO_COLORS, Base Case emphasized (3px stroke)
+- Pessimistic/Optimistic dashed lines for visual distinction
+- transformToSensitivityChartData merges all scenarios by age
+
 ---
 
 ## Session Continuity
@@ -254,7 +260,7 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed 08-06-PLAN.md |
+| Stopped at | Completed 08-05-PLAN.md |
 | Resume file | .planning/phases/08-advanced-features/ |
 
 ---
@@ -306,3 +312,4 @@ Phase 08 Plan 01 complete - Analysis types (breakeven, sensitivity, widow) and A
 Phase 08 Plan 03 complete - Sensitivity analysis with 7 scenarios varying growth rate and tax multiplier, computing breakeven and wealth ranges.
 Phase 08 Plan 04 complete - Audit logging with append-only database table, immutability trigger, and fire-and-forget TypeScript integration.
 Phase 08 Plan 06 complete - WidowAnalysis component for bracket comparison visualization, AuditPanel component for calculation history display.
+Phase 08 Plan 05 complete - BreakevenChart with crossover markers and shaded benefit area, SensitivityChart with 7-scenario fan display.
