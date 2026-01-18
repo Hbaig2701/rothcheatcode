@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
-import type { ClientFullFormData } from "@/lib/validations/client";
+import type { ClientFormData } from "@/lib/validations/client";
 
 /**
  * Calculate life expectancy based on DOB using simplified actuarial estimate.
@@ -52,7 +52,7 @@ function calculateCurrentAge(dob: string): number | null {
   }
 }
 
-export function useSmartDefaults(form: UseFormReturn<ClientFullFormData>) {
+export function useSmartDefaults(form: UseFormReturn<ClientFormData>) {
   const dob = form.watch("date_of_birth");
 
   // Calculate default life expectancy from DOB

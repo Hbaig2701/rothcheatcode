@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Client, ClientUpdate } from "@/lib/types/client";
-import type { ClientCreateInput, ClientFullFormData } from "@/lib/validations/client";
+import type { ClientCreateInput, ClientFullFormData, ClientFormData } from "@/lib/validations/client";
 
 // Query key factory - provides consistent keys for caching
 export const clientKeys = {
@@ -49,7 +49,7 @@ export function useCreateClient() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (data: ClientCreateInput | ClientFullFormData): Promise<Client> => {
+    mutationFn: async (data: ClientCreateInput | ClientFullFormData | ClientFormData): Promise<Client> => {
       const res = await fetch("/api/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

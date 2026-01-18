@@ -1,27 +1,24 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, FormProvider, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import {
-  clientCreateSchema,
-  type ClientCreateInput,
-} from "@/lib/validations/client";
+import { clientFullSchema, type ClientFormData } from "@/lib/validations/client";
 import { useCreateClient, useUpdateClient } from "@/lib/queries/clients";
+import { useSmartDefaults } from "@/hooks/use-smart-defaults";
 import type { Client } from "@/lib/types/client";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
+
+// Import all 6 sections
+import { PersonalInfoSection } from "./sections/personal-info";
+import { AccountBalancesSection } from "./sections/account-balances";
+import { TaxConfigSection } from "./sections/tax-config";
+import { IncomeSourcesSection } from "./sections/income-sources";
+import { ConversionSection } from "./sections/conversion";
+import { AdvancedSection } from "./sections/advanced";
 
 interface ClientFormProps {
   client?: Client; // If provided, form is in edit mode
@@ -35,19 +32,60 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
 
-  const form = useForm<ClientCreateInput>({
-    resolver: zodResolver(clientCreateSchema),
+  const form = useForm<ClientFormData>({
+    // Type assertion needed because Zod .default() makes input types optional
+    // but our explicit ClientFormData type has all fields required for defaultValues
+    resolver: zodResolver(clientFullSchema) as Resolver<ClientFormData>,
     defaultValues: {
+      // Personal (use client values if editing)
       name: client?.name ?? "",
       date_of_birth: client?.date_of_birth ?? "",
       state: client?.state ?? "",
-      filing_status: client?.filing_status ?? "single",
+      filing_status: client?.filing_status ?? "married_filing_jointly",
+      spouse_dob: client?.spouse_dob ?? null,
+      life_expectancy: client?.life_expectancy ?? null,
+
+      // Account Balances (in cents)
+      traditional_ira: client?.traditional_ira ?? 0,
+      roth_ira: client?.roth_ira ?? 0,
+      taxable_accounts: client?.taxable_accounts ?? 0,
+      other_retirement: client?.other_retirement ?? 0,
+
+      // Tax Configuration
+      federal_bracket: client?.federal_bracket ?? "auto",
+      state_tax_rate: client?.state_tax_rate ?? null,
+      include_niit: client?.include_niit ?? true,
+      include_aca: client?.include_aca ?? false,
+
+      // Income Sources (in cents)
+      ss_self: client?.ss_self ?? 0,
+      ss_spouse: client?.ss_spouse ?? 0,
+      pension: client?.pension ?? 0,
+      other_income: client?.other_income ?? 0,
+      ss_start_age: client?.ss_start_age ?? 67,
+
+      // Conversion Settings
+      strategy: client?.strategy ?? "moderate",
+      start_age: client?.start_age ?? 65,
+      end_age: client?.end_age ?? 75,
+      tax_payment_source: client?.tax_payment_source ?? "from_taxable",
+
+      // Advanced Options
+      growth_rate: client?.growth_rate ?? 6,
+      inflation_rate: client?.inflation_rate ?? 2.5,
+      heir_bracket: client?.heir_bracket ?? "32",
+      projection_years: client?.projection_years ?? 40,
+      widow_analysis: client?.widow_analysis ?? false,
+      sensitivity: client?.sensitivity ?? false,
     },
   });
 
+  // Apply smart defaults (life expectancy, start age from DOB)
+  useSmartDefaults(form);
+
   const isPending = createClient.isPending || updateClient.isPending;
 
-  const onSubmit = async (data: ClientCreateInput) => {
+  const onSubmit = async (data: ClientFormData) => {
     try {
       if (isEditing && client) {
         await updateClient.mutateAsync({ id: client.id, data });
@@ -77,110 +115,35 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       <CardHeader>
         <CardTitle>{isEditing ? "Edit Client" : "New Client"}</CardTitle>
       </CardHeader>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <CardContent className="space-y-4">
-          {/* Name field */}
-          <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
-            <Input
-              id="name"
-              placeholder="John Doe"
-              {...form.register("name")}
-              aria-invalid={!!form.formState.errors.name}
-            />
-            {form.formState.errors.name && (
-              <p className="text-sm text-red-500">
-                {form.formState.errors.name.message}
-              </p>
+      <FormProvider {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <CardContent className="space-y-8">
+            <PersonalInfoSection />
+            <AccountBalancesSection />
+            <TaxConfigSection />
+            <IncomeSourcesSection />
+            <ConversionSection />
+            <AdvancedSection />
+
+            {/* API error display */}
+            {(createClient.isError || updateClient.isError) && (
+              <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+                {createClient.error?.message || updateClient.error?.message}
+              </div>
             )}
-          </div>
+          </CardContent>
 
-          {/* Date of Birth field */}
-          <div className="space-y-2">
-            <Label htmlFor="date_of_birth">Date of Birth</Label>
-            <Input
-              id="date_of_birth"
-              type="date"
-              {...form.register("date_of_birth")}
-              aria-invalid={!!form.formState.errors.date_of_birth}
-            />
-            {form.formState.errors.date_of_birth && (
-              <p className="text-sm text-red-500">
-                {form.formState.errors.date_of_birth.message}
-              </p>
-            )}
-          </div>
-
-          {/* State field */}
-          <div className="space-y-2">
-            <Label htmlFor="state">State</Label>
-            <Input
-              id="state"
-              placeholder="CA"
-              maxLength={2}
-              {...form.register("state")}
-              className="uppercase"
-              aria-invalid={!!form.formState.errors.state}
-            />
-            {form.formState.errors.state && (
-              <p className="text-sm text-red-500">
-                {form.formState.errors.state.message}
-              </p>
-            )}
-          </div>
-
-          {/* Filing Status field */}
-          <div className="space-y-2">
-            <Label htmlFor="filing_status">Filing Status</Label>
-            <Select
-              value={form.watch("filing_status")}
-              onValueChange={(value) =>
-                form.setValue("filing_status", value as ClientCreateInput["filing_status"], {
-                  shouldValidate: true,
-                })
-              }
-            >
-              <SelectTrigger id="filing_status">
-                <SelectValue placeholder="Select filing status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="single">Single</SelectItem>
-                <SelectItem value="married_filing_jointly">
-                  Married Filing Jointly
-                </SelectItem>
-                <SelectItem value="married_filing_separately">
-                  Married Filing Separately
-                </SelectItem>
-                <SelectItem value="head_of_household">
-                  Head of Household
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            {form.formState.errors.filing_status && (
-              <p className="text-sm text-red-500">
-                {form.formState.errors.filing_status.message}
-              </p>
-            )}
-          </div>
-
-          {/* API error display */}
-          {(createClient.isError || updateClient.isError) && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
-              {createClient.error?.message || updateClient.error?.message}
-            </div>
-          )}
-        </CardContent>
-
-        <CardFooter className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditing ? "Save Changes" : "Create Client"}
-          </Button>
-        </CardFooter>
-      </form>
+          <CardFooter className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isPending}>
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEditing ? "Save Changes" : "Create Client"}
+            </Button>
+          </CardFooter>
+        </form>
+      </FormProvider>
     </Card>
   );
 }
