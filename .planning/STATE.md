@@ -12,7 +12,7 @@
 |--------|-------|
 | Active Phase | 02 |
 | Phase Status | In Progress |
-| Last Completed | 02-03-PLAN.md (Query Hooks) |
+| Last Completed | 02-05-PLAN.md (Client Form Pages) |
 | Blockers | None |
 
 ---
@@ -23,7 +23,7 @@
 |-------|------|--------|-------|
 | 00 | Project Scaffolding | Complete | - |
 | 01 | Authentication | In Progress | 2/3 complete |
-| 02 | Client Management | In Progress | 3/5 complete |
+| 02 | Client Management | In Progress | 5/5 complete |
 | 03 | Client Data Entry Form | Not Started | - |
 | 04 | Calculation Engine Core | Not Started | - |
 | 05 | Results Summary Display | Not Started | - |
@@ -73,6 +73,11 @@
 - Query key factory pattern for consistent cache management
 - Hierarchical key structure enables granular cache invalidation
 
+### Client Form Pages (02-05)
+- Base UI render prop pattern for polymorphic buttons (instead of asChild)
+- ClientForm dual-mode: edit if client prop provided, create otherwise
+- react-hook-form with Zod resolver for form validation
+
 ### UX Decisions
 - Desktop-first (office use)
 - Comprehensive data entry (all fields visible)
@@ -85,9 +90,9 @@
 
 | Aspect | Value |
 |--------|-------|
-| Last session | 2026-01-18T12:30:00Z |
-| Stopped at | Completed 02-03-PLAN.md |
-| Resume file | .planning/phases/02-client-management/02-04-PLAN.md |
+| Last session | 2026-01-18T07:05:00Z |
+| Stopped at | Completed 02-05-PLAN.md |
+| Resume file | .planning/phases/03-client-data-entry-form/03-01-PLAN.md |
 
 ---
 
@@ -110,3 +115,4 @@ Phase 01 Plan 02 complete - login/signup pages with SubmitButton loading states.
 Phase 02 Plan 01 complete - TanStack Query, types, validation schemas, and Table component ready.
 Phase 02 Plan 02 complete - REST API endpoints for client CRUD operations ready.
 Phase 02 Plan 03 complete - TanStack Query hooks for all client CRUD operations with cache invalidation.
+Phase 02 Plan 05 complete - Client form, new/edit/detail pages with react-hook-form validation.
