@@ -11,8 +11,8 @@
 | Aspect | Value |
 |--------|-------|
 | Active Phase | 03 |
-| Phase Status | In Progress (4/8 plans) |
-| Last Completed | Phase 03 Plan 04 (Remaining Form Sections) |
+| Phase Status | In Progress (5/8 plans) |
+| Last Completed | Phase 03 Plan 06 (Database Migration & API Routes) |
 | Blockers | None |
 
 ---
@@ -24,7 +24,7 @@
 | 00 | Project Scaffolding | Complete | - |
 | 01 | Authentication | In Progress | 2/3 complete |
 | 02 | Client Management | Complete ✓ | 5/5 verified |
-| 03 | Client Data Entry Form | In Progress | 4/8 complete |
+| 03 | Client Data Entry Form | In Progress | 5/8 complete |
 | 04 | Calculation Engine Core | Not Started | - |
 | 05 | Results Summary Display | Not Started | - |
 | 06 | Multi-Strategy Comparison | Not Started | - |
@@ -109,6 +109,12 @@
 - Native HTML checkboxes with register() for boolean fields
 - Heir bracket dropdown excludes "auto" option (explicit bracket required)
 
+### Database Migration & API Routes (03-06)
+- BIGINT for currency fields to handle large account balances in cents
+- clientFullSchema for API validation (28 fields vs legacy 4 fields)
+- ADD COLUMN IF NOT EXISTS for idempotent migrations
+- CHECK constraints for database-level enum validation
+
 ### UX Decisions
 - Desktop-first (office use)
 - Comprehensive data entry (all fields visible)
@@ -122,8 +128,8 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed 03-04-PLAN.md |
-| Resume file | .planning/phases/03-client-data-entry-form/03-05-PLAN.md |
+| Stopped at | Completed 03-06-PLAN.md |
+| Resume file | .planning/phases/03-client-data-entry-form/03-07-PLAN.md |
 
 ---
 
@@ -152,3 +158,4 @@ Phase 03 Plan 01 complete - CurrencyInput/PercentInput components, US state tax 
 Phase 03 Plan 02 complete - 28-field Zod validation schema with conditional validation, Client types expanded.
 Phase 03 Plan 03 complete - PersonalInfoSection, AccountBalancesSection, TaxConfigSection with 14 fields.
 Phase 03 Plan 04 complete - IncomeSourcesSection, ConversionSection, AdvancedSection with 15 total fields.
+Phase 03 Plan 06 complete - Database migration for 25 new columns, API routes updated for full 28-field schema.
