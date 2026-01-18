@@ -44,9 +44,8 @@ export function logCalculation(
         engine_version: ENGINE_VERSION,
       };
 
-      // Insert to audit schema (note: Supabase client needs schema prefix)
+      // Insert to calculation_log table (public schema)
       const { error } = await supabase
-        .schema('audit')
         .from('calculation_log')
         .insert(entry);
 
@@ -70,7 +69,6 @@ export async function getCalculationHistory(
   limit = 10
 ): Promise<AuditLogSummary[]> {
   const { data, error } = await supabase
-    .schema('audit')
     .from('calculation_log')
     .select(`
       id,
@@ -104,7 +102,6 @@ export async function hasExistingCalculation(
   const inputHash = await hashClientInput(client);
 
   const { data, error } = await supabase
-    .schema('audit')
     .from('calculation_log')
     .select('id')
     .eq('client_id', client.id)
