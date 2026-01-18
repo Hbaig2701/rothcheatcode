@@ -22,7 +22,7 @@
 | Phase | Name | Status | Plans |
 |-------|------|--------|-------|
 | 00 | Project Scaffolding | Complete | - |
-| 01 | Authentication | In Progress | 1/3 complete |
+| 01 | Authentication | In Progress | 2/3 complete |
 | 02 | Client Management | In Progress | 3/5 complete |
 | 03 | Client Data Entry Form | Not Started | - |
 | 04 | Calculation Engine Core | Not Started | - |
@@ -55,6 +55,10 @@
 ### Auth Implementation (01-01)
 - Token hash flow for email confirmation (cross-browser reliable)
 - Server actions return error objects (allows form error handling)
+
+### Auth UI Pages (01-02)
+- FormAction type cast for base-ui compatibility with server action return types
+- SubmitButton uses useFormStatus for automatic loading state
 
 ### Client Management Foundation (02-01)
 - Zod v4 API syntax (message instead of errorMap)
@@ -102,6 +106,7 @@
 Sprint 0 (Scaffolding) completed during project initialization.
 Phases 01-02 have research and plans ready for execution.
 Phase 01 Plan 01 complete - auth server actions and callback routes ready.
+Phase 01 Plan 02 complete - login/signup pages with SubmitButton loading states.
 Phase 02 Plan 01 complete - TanStack Query, types, validation schemas, and Table component ready.
 Phase 02 Plan 02 complete - REST API endpoints for client CRUD operations ready.
 Phase 02 Plan 03 complete - TanStack Query hooks for all client CRUD operations with cache invalidation.
