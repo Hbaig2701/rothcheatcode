@@ -165,19 +165,18 @@ Plans:
 ---
 
 ### Phase 09: PDF Export
-**Status:** Not Started
+**Status:** Planned (3 plans ready)
 
 Generate professional PDF report.
 
-**Goal:** Downloadable PDF with summary, charts, and year-by-year tables.
+**Goal:** Downloadable PDF with summary, charts, and year-by-year tables. Performance: < 5 seconds.
 
-**Key Tasks:**
-- @react-pdf/renderer setup
-- PDF template layout
-- Header, summary, chart sections
-- Strategy comparison and year-by-year tables
-- Disclaimer footer
-- Download endpoint
+**Plans:** 3 plans in 3 waves
+
+Plans:
+- [ ] 09-01-PLAN.md — Install @react-pdf/renderer, @ag-media/react-pdf-table, html-to-image; create types and styles
+- [ ] 09-02-PLAN.md — Create PDF components (Header, Footer, Summary, StrategyTable, YearTable, Document)
+- [ ] 09-03-PLAN.md — Create API endpoint, export hook, and integrate button into results page (checkpoint)
 
 ---
 
