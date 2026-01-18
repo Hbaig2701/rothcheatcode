@@ -57,7 +57,7 @@ CRUD operations for clients with list/detail views.
 ---
 
 ### Phase 03: Client Data Entry Form
-**Status:** Complete ✓
+**Status:** Complete
 
 Complete data entry form with all 28 fields organized in sections.
 
@@ -77,20 +77,20 @@ Plans:
 ---
 
 ### Phase 04: Calculation Engine Core
-**Status:** Not Started
+**Status:** Planned (5 plans ready)
 
 Basic Baseline vs Blueprint projection engine.
 
 **Goal:** API returns year-by-year projection results for both scenarios.
 
-**Key Tasks:**
-- Seed reference data (tax brackets, RMD factors, IRMAA)
-- RMD calculation module
-- Federal tax bracket calculation
-- State tax calculation (all 50 states)
-- Year-by-year simulation engine
-- Baseline and Blueprint scenario logic
-- Projection storage in database
+**Plans:** 5 plans in 4 waves
+
+Plans:
+- [ ] 04-01-PLAN.md — Reference data (RMD factors, IRMAA, federal brackets) and calculation types
+- [ ] 04-02-PLAN.md — Core modules (RMD, federal tax, state tax, NIIT)
+- [ ] 04-03-PLAN.md — Income modules (Social Security taxation, IRMAA, ACA, inflation)
+- [ ] 04-04-PLAN.md — Simulation engine with Baseline and Blueprint scenarios
+- [ ] 04-05-PLAN.md — Projections API endpoint and database storage
 
 ---
 
