@@ -26,7 +26,7 @@
 | 02 | Client Management | Complete ✓ | 5/5 verified |
 | 03 | Client Data Entry Form | Complete ✓ | 7/7 verified |
 | 04 | Calculation Engine Core | Complete ✓ | 5/5 verified |
-| 05 | Results Summary Display | In Progress | 2/? complete |
+| 05 | Results Summary Display | In Progress | 3/? complete |
 | 06 | Multi-Strategy Comparison | In Progress | 2/? complete |
 | 07 | Deep Dive Views | Not Started | - |
 | 08 | Advanced Features | Not Started | - |
@@ -180,6 +180,12 @@
 - WealthChart parent div requires explicit 400px height for ResponsiveContainer
 - Trend indicator with TrendingUp/Down/Minus icons and green/red/muted colors
 
+### Results Page Wiring (05-03)
+- ResultsSummary container component orchestrates display components
+- Server/client split: page fetches client name server-side, projection client-side
+- Recalculate button for manual projection refresh
+- Conditional heir benefit card shown only when positive
+
 ---
 
 ## Session Continuity
@@ -187,7 +193,7 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed 05-02-PLAN.md |
+| Stopped at | Completed 05-03-PLAN.md (checkpoint deferred) |
 | Resume file | .planning/phases/05-results-summary-display/ |
 
 ---
@@ -229,3 +235,4 @@ Phase 05 Plan 01 complete - Recharts, react-countup libraries, transform utiliti
 Phase 06 Plan 01 complete - Multi-strategy simulation wrapper with runMultiStrategySimulation(), STRATEGY_DEFINITIONS, and comparison metrics.
 Phase 06 Plan 02 complete - StrategyComparisonTable and BestBadge components for 4-strategy comparison with highlighting.
 Phase 05 Plan 02 complete - StatCard, ChartTooltip, WealthChart, SummarySection display components for results page.
+Phase 05 Plan 03 complete - ResultsSummary container, results page route, View Results navigation (checkpoint deferred).
