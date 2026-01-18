@@ -111,18 +111,18 @@ Plans:
 ---
 
 ### Phase 06: Multi-Strategy Comparison
-**Status:** Planned (3 plans ready)
+**Status:** Complete
 
 Calculate and display all 4 strategies side-by-side.
 
 **Goal:** Compare Conservative, Moderate, Aggressive, and IRMAA-Safe strategies with best highlighted.
 
-**Plans:** 3 plans in 3 waves
+**Completed:** 2026-01-18
 
 Plans:
-- [ ] 06-01-PLAN.md — Multi-strategy types, strategy definitions, and simulation wrapper
-- [ ] 06-02-PLAN.md — BestBadge and StrategyComparisonTable components
-- [ ] 06-03-PLAN.md — MultiStrategyResults container, API endpoint, and results page integration
+- [x] 06-01-PLAN.md — Multi-strategy types, strategy definitions, and simulation wrapper
+- [x] 06-02-PLAN.md — BestBadge and StrategyComparisonTable components
+- [x] 06-03-PLAN.md — MultiStrategyResults container, API endpoint, and results page integration
 
 ---
 
