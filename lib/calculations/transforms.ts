@@ -1,5 +1,6 @@
 import { Projection } from '@/lib/types/projection';
 import { SimulationResult } from './types';
+import type { SensitivityResult } from './analysis/types';
 
 /**
  * Data point for wealth chart
@@ -117,4 +118,41 @@ export function formatAxisValue(cents: number): string {
     return `$${(dollars / 1_000).toFixed(0)}K`;
   }
   return `$${dollars.toFixed(0)}`;
+}
+
+/**
+ * Data point for sensitivity chart
+ * Has dynamic keys for each scenario
+ */
+export interface SensitivityChartPoint {
+  age: number;
+  [scenarioName: string]: number; // Dynamic keys for each scenario
+}
+
+/**
+ * Transform sensitivity results into chart-ready format
+ * Merges all scenarios into single dataset keyed by age
+ */
+export function transformToSensitivityChartData(
+  result: SensitivityResult
+): SensitivityChartPoint[] {
+  const ageMap = new Map<number, SensitivityChartPoint>();
+
+  // Build map of age -> scenario values
+  for (const [name, scenario] of Object.entries(result.scenarios)) {
+    for (const yearData of scenario.blueprint) {
+      const existing = ageMap.get(yearData.age);
+      if (existing) {
+        existing[name] = yearData.netWorth;
+      } else {
+        ageMap.set(yearData.age, {
+          age: yearData.age,
+          [name]: yearData.netWorth,
+        });
+      }
+    }
+  }
+
+  // Convert to sorted array
+  return Array.from(ageMap.values()).sort((a, b) => a.age - b.age);
 }
