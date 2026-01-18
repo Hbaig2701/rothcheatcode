@@ -12,7 +12,7 @@
 |--------|-------|
 | Active Phase | 08 |
 | Phase Status | In Progress |
-| Last Completed | Phase 08 Plan 04 (Audit Logging) |
+| Last Completed | Phase 08 Plan 06 (Widow Analysis & Audit Panel UI) |
 | Blockers | None |
 
 ---
@@ -29,7 +29,7 @@
 | 05 | Results Summary Display | Complete ✓ | 3/3 verified |
 | 06 | Multi-Strategy Comparison | Complete ✓ | 3/3 verified |
 | 07 | Deep Dive Views | In Progress | 4/? complete |
-| 08 | Advanced Features | In Progress | 4/7 complete |
+| 08 | Advanced Features | In Progress | 5/7 complete |
 | 09 | PDF Export | Not Started | - |
 | 10 | Excel Export + Polish | Not Started | - |
 
@@ -240,6 +240,13 @@
 - Web Crypto API for SHA-256 hashing (works in browser and Edge runtime)
 - Input hash excludes metadata fields for meaningful deduplication
 
+### Widow Analysis & Audit Panel UI (08-06)
+- WidowAnalysis: 4 summary cards + year-by-year bracket comparison table (MFJ vs Single)
+- AuditPanel: Relative timestamps, strategy badges, key metrics (breakeven, tax savings, wealth)
+- formatCurrency helper: cents-to-dollars with toLocaleString
+- formatRelativeTime helper: "2h ago" for recent, absolute dates for older entries
+- Table limited to first 10 years with "showing X of Y" footer for longer projections
+
 ---
 
 ## Session Continuity
@@ -247,7 +254,7 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed 08-04-PLAN.md |
+| Stopped at | Completed 08-06-PLAN.md |
 | Resume file | .planning/phases/08-advanced-features/ |
 
 ---
@@ -298,3 +305,4 @@ Phase 08 Plan 02 complete - Widow scenario runner and penalty analysis comparing
 Phase 08 Plan 01 complete - Analysis types (breakeven, sensitivity, widow) and ACA applicable percentage tables with precise subsidy calculation.
 Phase 08 Plan 03 complete - Sensitivity analysis with 7 scenarios varying growth rate and tax multiplier, computing breakeven and wealth ranges.
 Phase 08 Plan 04 complete - Audit logging with append-only database table, immutability trigger, and fire-and-forget TypeScript integration.
+Phase 08 Plan 06 complete - WidowAnalysis component for bracket comparison visualization, AuditPanel component for calculation history display.
