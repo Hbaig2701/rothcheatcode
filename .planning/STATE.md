@@ -97,6 +97,13 @@
 - Form/API type divergence: hooks accept union types for backwards compat
 - Enum schemas exported separately for UI select component reuse
 
+### Form Sections Part 1 (03-03)
+- Controller pattern for custom inputs (CurrencyInput, PercentInput, Checkbox)
+- useFormContext for prop-free form field access
+- Conditional field rendering via watched values (spouse DOB only for married)
+- Auto-fill state tax rate from state selection via useEffect
+- Checkbox component created with base-ui/react
+
 ### Form Sections Part 2 (03-04)
 - Native HTML radio inputs with Tailwind styling (simpler than custom component)
 - Native HTML checkboxes with register() for boolean fields
@@ -143,4 +150,5 @@ Phase 02 Plan 04 complete - Clients list page with TanStack Table, sorting, filt
 Phase 02 Plan 05 complete - Client form, new/edit/detail pages with react-hook-form validation.
 Phase 03 Plan 01 complete - CurrencyInput/PercentInput components, US state tax data, FormSection layout.
 Phase 03 Plan 02 complete - 28-field Zod validation schema with conditional validation, Client types expanded.
+Phase 03 Plan 03 complete - PersonalInfoSection, AccountBalancesSection, TaxConfigSection with 14 fields.
 Phase 03 Plan 04 complete - IncomeSourcesSection, ConversionSection, AdvancedSection with 15 total fields.
