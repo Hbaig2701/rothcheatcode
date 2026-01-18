@@ -10,9 +10,9 @@
 
 | Aspect | Value |
 |--------|-------|
-| Active Phase | 06 |
+| Active Phase | 07 |
 | Phase Status | In Progress |
-| Last Completed | Phase 06 Plan 02 (Strategy Comparison UI Components) |
+| Last Completed | Phase 07 Plan 02 (IRMAA Chart and NIIT Display) |
 | Blockers | None |
 
 ---
@@ -27,8 +27,8 @@
 | 03 | Client Data Entry Form | Complete ✓ | 7/7 verified |
 | 04 | Calculation Engine Core | Complete ✓ | 5/5 verified |
 | 05 | Results Summary Display | In Progress | 3/? complete |
-| 06 | Multi-Strategy Comparison | In Progress | 2/? complete |
-| 07 | Deep Dive Views | Not Started | - |
+| 06 | Multi-Strategy Comparison | In Progress | 3/? complete |
+| 07 | Deep Dive Views | In Progress | 2/? complete |
 | 08 | Advanced Features | Not Started | - |
 | 09 | PDF Export | Not Started | - |
 | 10 | Excel Export + Polish | Not Started | - |
@@ -180,6 +180,12 @@
 - WealthChart parent div requires explicit 400px height for ResponsiveContainer
 - Trend indicator with TrendingUp/Down/Minus icons and green/red/muted colors
 
+### IRMAA and NIIT Visualization (07-02)
+- IRMAAChart uses totalIncome as MAGI proxy
+- ReferenceLine with strokeDasharray="5 5" for threshold visualization
+- 5-tier threshold colors: green to dark red severity scale (#22c55e to #991b1b)
+- NIIT thresholds hardcoded: $200K single, $250K joint, $125K MFS, $200K HoH
+
 ### Results Page Wiring (05-03)
 - ResultsSummary container component orchestrates display components
 - Server/client split: page fetches client name server-side, projection client-side
@@ -193,8 +199,8 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed 05-03-PLAN.md (checkpoint deferred) |
-| Resume file | .planning/phases/05-results-summary-display/ |
+| Stopped at | Completed 07-02-PLAN.md |
+| Resume file | .planning/phases/07-deep-dive-views/ |
 
 ---
 
@@ -236,3 +242,4 @@ Phase 06 Plan 01 complete - Multi-strategy simulation wrapper with runMultiStrat
 Phase 06 Plan 02 complete - StrategyComparisonTable and BestBadge components for 4-strategy comparison with highlighting.
 Phase 05 Plan 02 complete - StatCard, ChartTooltip, WealthChart, SummarySection display components for results page.
 Phase 05 Plan 03 complete - ResultsSummary container, results page route, View Results navigation (checkpoint deferred).
+Phase 07 Plan 02 complete - IRMAAChart with 5-tier threshold reference lines, NIITDisplay with filing status thresholds.
