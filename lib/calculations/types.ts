@@ -180,3 +180,34 @@ export interface SimulationResult {
   totalTaxSavings: number; // Lifetime tax savings in cents
   heirBenefit: number; // Benefit to heirs in cents
 }
+
+// =============================================================================
+// Multi-Strategy Comparison Types (Phase 06)
+// =============================================================================
+
+/**
+ * The 4 supported Roth conversion strategies
+ */
+export type StrategyType = 'conservative' | 'moderate' | 'aggressive' | 'irmaa_safe';
+
+/**
+ * Comparison metrics for a single strategy
+ * All currency values in cents
+ */
+export interface StrategyComparisonMetrics {
+  endingWealth: number;        // Final year net worth (cents)
+  taxSavings: number;          // Lifetime tax savings vs baseline (cents)
+  breakEvenAge: number | null; // Age when Blueprint surpasses Baseline
+  totalIRMAA: number;          // Total IRMAA surcharges paid (cents)
+  heirBenefit: number;         // Tax benefit to heirs (cents)
+  totalConversions: number;    // Sum of all conversions (cents)
+}
+
+/**
+ * Result of running all 4 strategies
+ */
+export interface MultiStrategyResult {
+  strategies: Record<StrategyType, SimulationResult>;
+  bestStrategy: StrategyType;
+  comparisonMetrics: Record<StrategyType, StrategyComparisonMetrics>;
+}
