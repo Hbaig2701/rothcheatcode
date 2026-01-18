@@ -10,9 +10,9 @@
 
 | Aspect | Value |
 |--------|-------|
-| Active Phase | 01 |
+| Active Phase | 02 |
 | Phase Status | In Progress |
-| Last Completed | 01-01-PLAN.md (Auth Foundation) |
+| Last Completed | 02-01-PLAN.md (Foundation) |
 | Blockers | None |
 
 ---
@@ -23,7 +23,7 @@
 |-------|------|--------|-------|
 | 00 | Project Scaffolding | Complete | - |
 | 01 | Authentication | In Progress | 1/3 complete |
-| 02 | Client Management | Planned | 5 plans |
+| 02 | Client Management | In Progress | 1/5 complete |
 | 03 | Client Data Entry Form | Not Started | - |
 | 04 | Calculation Engine Core | Not Started | - |
 | 05 | Results Summary Display | Not Started | - |
@@ -56,6 +56,10 @@
 - Token hash flow for email confirmation (cross-browser reliable)
 - Server actions return error objects (allows form error handling)
 
+### Client Management Foundation (02-01)
+- Zod v4 API syntax (message instead of errorMap)
+- QueryProvider: 1 minute stale time, no refetch on window focus
+
 ### UX Decisions
 - Desktop-first (office use)
 - Comprehensive data entry (all fields visible)
@@ -68,9 +72,9 @@
 
 | Aspect | Value |
 |--------|-------|
-| Last session | 2026-01-18T06:56:06Z |
-| Stopped at | Completed 01-01-PLAN.md |
-| Resume file | .planning/phases/01-authentication/01-02-PLAN.md |
+| Last session | 2026-01-18T06:56:38Z |
+| Stopped at | Completed 02-01-PLAN.md |
+| Resume file | .planning/phases/02-client-management/02-02-PLAN.md |
 
 ---
 
@@ -89,3 +93,4 @@
 Sprint 0 (Scaffolding) completed during project initialization.
 Phases 01-02 have research and plans ready for execution.
 Phase 01 Plan 01 complete - auth server actions and callback routes ready.
+Phase 02 Plan 01 complete - TanStack Query, types, validation schemas, and Table component ready.
