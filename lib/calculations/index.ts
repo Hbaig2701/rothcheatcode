@@ -39,3 +39,18 @@ export type {
   StrategyComparisonMetrics,
   MultiStrategyResult
 } from './types';
+
+// Widow scenario (Phase 08)
+export { runWidowScenario } from './scenarios/widow';
+export type { WidowScenarioInput } from './scenarios/widow';
+
+// Analysis Module (Phase 08)
+export { analyzeBreakEven } from './analysis/breakeven';
+export type {
+  BreakEvenAnalysis,
+  CrossoverPoint,
+  SensitivityScenario,
+  SensitivityResult,
+  WidowTaxImpact,
+  WidowAnalysisResult
+} from './analysis/types';
