@@ -216,6 +216,17 @@
 - Death year defaults to spouse age 85 or 15 years out (min 5 years)
 - Recommended conversion increase triggered when avg bracket jump > 5 percentage points
 
+### Breakeven Analysis Types (08-01)
+- BreakEvenAnalysis separates simple vs sustained breakeven for nuanced reporting
+- CrossoverPoint tracks all wealth crossover events between scenarios
+- Analysis module in lib/calculations/analysis/ for post-simulation analytics
+
+### ACA Subsidy Enhancement (08-01)
+- ACA 2025 has no cliff (capped at 8.5%), 2026+ has hard cliff at 400% FPL
+- Applicable percentages use linear interpolation within brackets
+- Year-conditional data tables for policy changes (2025 vs 2026+)
+- Benchmark premium estimates by age for precise subsidy calculation
+
 ---
 
 ## Session Continuity
@@ -271,3 +282,4 @@ Phase 07 Plan 02 complete - IRMAAChart with 5-tier threshold reference lines, NI
 Phase 07 Plan 03 complete - RothSeasoningTracker with 5-year rule status, ScheduleSummary with conversion timeline.
 Phase 07 Plan 04 complete - DeepDiveTabs container with URL-synced 4-tab interface integrating all Phase 07 components.
 Phase 08 Plan 02 complete - Widow scenario runner and penalty analysis comparing MFJ vs single-filer brackets.
+Phase 08 Plan 01 complete - Analysis types (breakeven, sensitivity, widow) and ACA applicable percentage tables with precise subsidy calculation.
