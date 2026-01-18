@@ -109,6 +109,12 @@
 - Native HTML checkboxes with register() for boolean fields
 - Heir bracket dropdown excludes "auto" option (explicit bracket required)
 
+### Form Composition & Smart Defaults (03-05)
+- ClientFormData explicit type: Separate from z.infer to avoid .default() optional field issues
+- Resolver type assertion: Cast zodResolver to match explicit form type
+- Smart defaults conditionally set: Only when null/undefined (life expectancy) or initial default (start age)
+- FormProvider wrapper pattern: Enables useFormContext in sections instead of prop drilling
+
 ### Database Migration & API Routes (03-06)
 - BIGINT for currency fields to handle large account balances in cents
 - clientFullSchema for API validation (28 fields vs legacy 4 fields)
@@ -158,4 +164,5 @@ Phase 03 Plan 01 complete - CurrencyInput/PercentInput components, US state tax 
 Phase 03 Plan 02 complete - 28-field Zod validation schema with conditional validation, Client types expanded.
 Phase 03 Plan 03 complete - PersonalInfoSection, AccountBalancesSection, TaxConfigSection with 14 fields.
 Phase 03 Plan 04 complete - IncomeSourcesSection, ConversionSection, AdvancedSection with 15 total fields.
+Phase 03 Plan 05 complete - ClientForm composition with all 6 sections, useSmartDefaults hook for auto-calculations.
 Phase 03 Plan 06 complete - Database migration for 25 new columns, API routes updated for full 28-field schema.
