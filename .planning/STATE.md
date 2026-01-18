@@ -10,9 +10,9 @@
 
 | Aspect | Value |
 |--------|-------|
-| Active Phase | 05 |
+| Active Phase | 06 |
 | Phase Status | In Progress |
-| Last Completed | Phase 05 Plan 01 (Visualization Libraries & Data Transform) |
+| Last Completed | Phase 06 Plan 02 (Strategy Comparison UI Components) |
 | Blockers | None |
 
 ---
@@ -27,7 +27,7 @@
 | 03 | Client Data Entry Form | Complete ✓ | 7/7 verified |
 | 04 | Calculation Engine Core | Complete ✓ | 5/5 verified |
 | 05 | Results Summary Display | In Progress | 1/? complete |
-| 06 | Multi-Strategy Comparison | In Progress | 1/? complete |
+| 06 | Multi-Strategy Comparison | In Progress | 2/? complete |
 | 07 | Deep Dive Views | Not Started | - |
 | 08 | Advanced Features | Not Started | - |
 | 09 | PDF Export | Not Started | - |
@@ -168,6 +168,12 @@
 - 3-level tie-breaking for best strategy: wealth > IRMAA > risk
 - Client object spread to avoid mutation during multi-strategy run
 
+### Strategy Comparison UI (06-02)
+- bg-primary/10 for best strategy column highlight
+- Green text for positive savings, amber for IRMAA costs
+- formatCurrency: cents to dollars with Intl.NumberFormat
+- Horizontal scroll with min-w-[700px] for mobile
+
 ---
 
 ## Session Continuity
@@ -175,8 +181,8 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed 05-01-PLAN.md |
-| Resume file | .planning/phases/05-results-summary-display/ |
+| Stopped at | Completed 06-02-PLAN.md |
+| Resume file | .planning/phases/06-multi-strategy-comparison/ |
 
 ---
 
@@ -215,3 +221,4 @@ Phase 04 Plan 04 complete - Simulation engine with Baseline and Blueprint scenar
 Phase 04 Plan 05 complete - Projections API endpoint and database migration applied.
 Phase 05 Plan 01 complete - Recharts, react-countup libraries, transform utilities, and useProjection query hooks.
 Phase 06 Plan 01 complete - Multi-strategy simulation wrapper with runMultiStrategySimulation(), STRATEGY_DEFINITIONS, and comparison metrics.
+Phase 06 Plan 02 complete - StrategyComparisonTable and BestBadge components for 4-strategy comparison with highlighting.
