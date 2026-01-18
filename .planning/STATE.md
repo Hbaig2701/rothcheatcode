@@ -12,7 +12,7 @@
 |--------|-------|
 | Active Phase | 08 |
 | Phase Status | In Progress |
-| Last Completed | Phase 08 Plan 03 (Sensitivity Analysis) |
+| Last Completed | Phase 08 Plan 04 (Audit Logging) |
 | Blockers | None |
 
 ---
@@ -29,7 +29,7 @@
 | 05 | Results Summary Display | Complete ✓ | 3/3 verified |
 | 06 | Multi-Strategy Comparison | Complete ✓ | 3/3 verified |
 | 07 | Deep Dive Views | In Progress | 4/? complete |
-| 08 | Advanced Features | In Progress | 3/7 complete |
+| 08 | Advanced Features | In Progress | 4/7 complete |
 | 09 | PDF Export | Not Started | - |
 | 10 | Excel Export + Polish | Not Started | - |
 
@@ -233,6 +233,13 @@
 - SCENARIO_COLORS uses Tailwind palette for Recharts consistency
 - Range aggregation: breakEvenRange and wealthRange across all scenarios
 
+### Audit Logging (08-04)
+- Separate audit schema for compliance isolation
+- PostgreSQL BEFORE trigger raises exception to prevent UPDATE/DELETE (immutability)
+- Fire-and-forget async IIFE pattern for non-blocking logging
+- Web Crypto API for SHA-256 hashing (works in browser and Edge runtime)
+- Input hash excludes metadata fields for meaningful deduplication
+
 ---
 
 ## Session Continuity
@@ -240,7 +247,7 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed 08-03-PLAN.md |
+| Stopped at | Completed 08-04-PLAN.md |
 | Resume file | .planning/phases/08-advanced-features/ |
 
 ---
@@ -290,3 +297,4 @@ Phase 07 Plan 04 complete - DeepDiveTabs container with URL-synced 4-tab interfa
 Phase 08 Plan 02 complete - Widow scenario runner and penalty analysis comparing MFJ vs single-filer brackets.
 Phase 08 Plan 01 complete - Analysis types (breakeven, sensitivity, widow) and ACA applicable percentage tables with precise subsidy calculation.
 Phase 08 Plan 03 complete - Sensitivity analysis with 7 scenarios varying growth rate and tax multiplier, computing breakeven and wealth ranges.
+Phase 08 Plan 04 complete - Audit logging with append-only database table, immutability trigger, and fire-and-forget TypeScript integration.
