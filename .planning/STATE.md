@@ -12,7 +12,7 @@
 |--------|-------|
 | Active Phase | 09 |
 | Phase Status | In Progress |
-| Last Completed | Phase 09 Plan 01 (PDF Foundation) |
+| Last Completed | Phase 09 Plan 02 (PDF Components) |
 | Blockers | None |
 
 ---
@@ -30,7 +30,7 @@
 | 06 | Multi-Strategy Comparison | Complete ✓ | 3/3 verified |
 | 07 | Deep Dive Views | In Progress | 4/? complete |
 | 08 | Advanced Features | Complete ✓ | 7/7 verified |
-| 09 | PDF Export | In Progress | 1/? complete |
+| 09 | PDF Export | In Progress | 2/? complete |
 | 10 | Excel Export + Polish | Not Started | - |
 
 ---
@@ -259,6 +259,12 @@
 - ChartImages all optional - not all charts may be visible when export triggered
 - Table weightings as constants for reuse across PDF components
 
+### PDF Components (09-02)
+- PDFFooter uses fixed prop for multi-page footer appearance
+- PDFYearTable shows milestone years (every 5 years + first + last) to fit on landscape page
+- typeof tableStyles.cellPositive for type inference (Style type not exported from react-pdf)
+- Component-local formatCurrency for self-contained modules
+
 ---
 
 ## Session Continuity
@@ -266,8 +272,8 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed Phase 09 Plan 01 |
-| Resume file | .planning/phases/09-pdf-export/09-02-PLAN.md |
+| Stopped at | Completed Phase 09 Plan 02 |
+| Resume file | .planning/phases/09-pdf-export/09-03-PLAN.md |
 
 ---
 
@@ -322,3 +328,4 @@ Phase 08 Plan 05 complete - BreakevenChart with crossover markers and shaded ben
 Phase 08 Plan 07 complete - Analysis API endpoint, useAnalysis hook, AdvancedFeaturesSection container integrated into results page.
 Phase 08 complete - All advanced features verified: breakeven, sensitivity, widow's penalty, audit logging with 15 files totaling 1,865 lines.
 Phase 09 Plan 01 complete - PDF libraries installed (@react-pdf/renderer, @ag-media/react-pdf-table, html-to-image), types and styles foundation created.
+Phase 09 Plan 02 complete - 7 PDF components (Header, Footer, Summary, ChartImage, StrategyTable, YearTable, Document) with barrel export totaling 837 lines.
