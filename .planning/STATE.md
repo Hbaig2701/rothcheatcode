@@ -10,9 +10,9 @@
 
 | Aspect | Value |
 |--------|-------|
-| Active Phase | 07 |
+| Active Phase | 08 |
 | Phase Status | In Progress |
-| Last Completed | Phase 07 Plan 04 (Deep Dive Tabs Container) |
+| Last Completed | Phase 08 Plan 02 (Widow's Penalty Analysis) |
 | Blockers | None |
 
 ---
@@ -29,7 +29,7 @@
 | 05 | Results Summary Display | Complete ✓ | 3/3 verified |
 | 06 | Multi-Strategy Comparison | Complete ✓ | 3/3 verified |
 | 07 | Deep Dive Views | In Progress | 4/? complete |
-| 08 | Advanced Features | Not Started | - |
+| 08 | Advanced Features | In Progress | 2/? complete |
 | 09 | PDF Export | Not Started | - |
 | 10 | Excel Export + Polish | Not Started | - |
 
@@ -210,6 +210,12 @@
 - Client age calculated as currentYear - birthYear for simplicity
 - Grid layout for Schedule tab: 2-column responsive lg:grid-cols-2
 
+### Widow's Penalty Analysis (08-02)
+- Widow scenario uses single filing status for all calculations (SS taxation, deductions, brackets, NIIT, IRMAA)
+- Survivor Social Security simplified to client's own benefit (future: 100% survivor option)
+- Death year defaults to spouse age 85 or 15 years out (min 5 years)
+- Recommended conversion increase triggered when avg bracket jump > 5 percentage points
+
 ---
 
 ## Session Continuity
@@ -217,8 +223,8 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Completed 07-04-PLAN.md |
-| Resume file | .planning/phases/07-deep-dive-views/ |
+| Stopped at | Completed 08-02-PLAN.md |
+| Resume file | .planning/phases/08-advanced-features/ |
 
 ---
 
@@ -264,3 +270,4 @@ Phase 07 Plan 01 complete - shadcn/ui Tabs component, YearByYearTable with stick
 Phase 07 Plan 02 complete - IRMAAChart with 5-tier threshold reference lines, NIITDisplay with filing status thresholds.
 Phase 07 Plan 03 complete - RothSeasoningTracker with 5-year rule status, ScheduleSummary with conversion timeline.
 Phase 07 Plan 04 complete - DeepDiveTabs container with URL-synced 4-tab interface integrating all Phase 07 components.
+Phase 08 Plan 02 complete - Widow scenario runner and penalty analysis comparing MFJ vs single-filer brackets.
