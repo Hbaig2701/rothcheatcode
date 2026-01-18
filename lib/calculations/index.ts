@@ -27,7 +27,8 @@ export { calculateStateTax } from './modules/state-tax';
 export { calculateNIIT } from './modules/niit';
 export { calculateIRMAA } from './modules/irmaa';
 export { calculateSSTaxableAmount } from './modules/social-security';
-export { checkACACliff, calculateACAImpact } from './modules/aca';
+export { checkACACliff, calculateACAImpact, calculateACASubsidy, calculateConversionSubsidyImpact } from './modules/aca';
+export type { ACASubsidyResult } from './modules/aca';
 export { adjustForInflation, getInflationFactor, deflateForInflation } from './modules/inflation';
 
 // Multi-Strategy Comparison (Phase 06)
@@ -47,6 +48,14 @@ export type { WidowScenarioInput } from './scenarios/widow';
 // Analysis Module (Phase 08)
 export { analyzeBreakEven } from './analysis/breakeven';
 export { analyzeWidowPenalty, calculateWidowTaxImpact } from './analysis/widow-penalty';
+export {
+  runSensitivityAnalysis,
+  SENSITIVITY_SCENARIOS,
+  SCENARIO_COLORS,
+  getScenario,
+  getScenarioColor,
+  formatSensitivitySummary
+} from './analysis/sensitivity';
 export type {
   BreakEvenAnalysis,
   CrossoverPoint,
