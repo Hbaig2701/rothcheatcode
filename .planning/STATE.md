@@ -11,8 +11,8 @@
 | Aspect | Value |
 |--------|-------|
 | Active Phase | 03 |
-| Phase Status | Not Started |
-| Last Completed | Phase 02 (Client Management) |
+| Phase Status | In Progress (2/8 plans) |
+| Last Completed | Phase 03 Plan 02 (Validation Schema) |
 | Blockers | None |
 
 ---
@@ -24,7 +24,7 @@
 | 00 | Project Scaffolding | Complete | - |
 | 01 | Authentication | In Progress | 2/3 complete |
 | 02 | Client Management | Complete ✓ | 5/5 verified |
-| 03 | Client Data Entry Form | Not Started | - |
+| 03 | Client Data Entry Form | In Progress | 2/8 complete |
 | 04 | Calculation Engine Core | Not Started | - |
 | 05 | Results Summary Display | Not Started | - |
 | 06 | Multi-Strategy Comparison | Not Started | - |
@@ -84,6 +84,12 @@
 - ClientForm dual-mode: edit if client prop provided, create otherwise
 - react-hook-form with Zod resolver for form validation
 
+### Validation Schema (03-02)
+- Currency stored as cents (integers) for precision
+- Conditional validation via Zod superRefine for cross-field rules
+- Form/API type divergence: hooks accept union types for backwards compat
+- Enum schemas exported separately for UI select component reuse
+
 ### UX Decisions
 - Desktop-first (office use)
 - Comprehensive data entry (all fields visible)
@@ -97,8 +103,8 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Phase 02 Complete (verified) |
-| Resume file | .planning/phases/03-client-data-entry-form/03-01-PLAN.md |
+| Stopped at | Completed 03-02-PLAN.md |
+| Resume file | .planning/phases/03-client-data-entry-form/03-03-PLAN.md |
 
 ---
 
@@ -123,3 +129,4 @@ Phase 02 Plan 02 complete - REST API endpoints for client CRUD operations ready.
 Phase 02 Plan 03 complete - TanStack Query hooks for all client CRUD operations with cache invalidation.
 Phase 02 Plan 04 complete - Clients list page with TanStack Table, sorting, filtering, delete confirmation.
 Phase 02 Plan 05 complete - Client form, new/edit/detail pages with react-hook-form validation.
+Phase 03 Plan 02 complete - 28-field Zod validation schema with conditional validation, Client types expanded.
