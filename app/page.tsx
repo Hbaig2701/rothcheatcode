@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 
 export default function Page() {
   return (
@@ -15,9 +17,9 @@ export default function Page() {
           <span className="text-sm font-medium text-primary">Coming Soon</span>
         </div>
         <div className="pt-4">
-          <Button asChild>
-            <Link href="/login">Sign In</Link>
-          </Button>
+          <Link href="/login" className={buttonVariants()}>
+            Sign In
+          </Link>
         </div>
       </div>
     </main>
