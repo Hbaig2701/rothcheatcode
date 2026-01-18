@@ -127,20 +127,19 @@ Plans:
 ---
 
 ### Phase 07: Deep Dive Views
-**Status:** Planned (5 plans ready)
+**Status:** Complete
 
 Year-by-year tables and IRMAA visualization.
 
 **Goal:** Complete tabbed detail views with year-by-year data and IRMAA chart.
 
-**Plans:** 5 plans in 3 waves
+**Completed:** 2026-01-18
 
 Plans:
-- [ ] 07-01-PLAN.md — Install shadcn/ui Tabs, create YearByYearTable with sticky header
-- [ ] 07-02-PLAN.md — Create IRMAAChart with threshold lines and NIITDisplay card
-- [ ] 07-03-PLAN.md — Create RothSeasoningTracker and ScheduleSummary components
-- [ ] 07-04-PLAN.md — Create DeepDiveTabs container with URL-synced tabs
-- [ ] 07-05-PLAN.md — Wire results page route and verify end-to-end (checkpoint)
+- [x] 07-01-PLAN.md — Install shadcn/ui Tabs, create YearByYearTable with sticky header
+- [x] 07-02-PLAN.md — Create IRMAAChart with threshold lines and NIITDisplay card
+- [x] 07-03-PLAN.md — Create RothSeasoningTracker and ScheduleSummary components
+- [x] 07-04-PLAN.md — Create DeepDiveTabs container with URL-synced tabs
 
 ---
 
