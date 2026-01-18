@@ -145,18 +145,22 @@ Plans:
 ---
 
 ### Phase 08: Advanced Features
-**Status:** Not Started
+**Status:** Planned (7 plans ready)
 
-Breakeven analysis, widow's penalty, sensitivity analysis.
+Breakeven analysis, widow's penalty, sensitivity analysis, audit logging.
 
-**Goal:** All 12 competitive improvements functional.
+**Goal:** All 12 competitive improvements functional (breakeven, widow's penalty, ACA, sensitivity, audit trail).
 
-**Key Tasks:**
-- Breakeven age calculation and visualization
-- Widow's penalty analysis (single-filer impact)
-- ACA subsidy calculations (pre-65)
-- Sensitivity analysis module
-- Audit log implementation
+**Plans:** 7 plans in 4 waves
+
+Plans:
+- [ ] 08-01-PLAN.md — Analysis types, enhanced breakeven module, ACA applicable percentage tables
+- [ ] 08-02-PLAN.md — Widow scenario runner and penalty analysis module
+- [ ] 08-03-PLAN.md — Sensitivity analysis module with 7 predefined scenarios
+- [ ] 08-04-PLAN.md — Audit log database schema and TypeScript integration
+- [ ] 08-05-PLAN.md — BreakevenChart and SensitivityChart visualization components
+- [ ] 08-06-PLAN.md — WidowAnalysis and AuditPanel UI components
+- [ ] 08-07-PLAN.md — Integration: API endpoint, query hooks, results page wiring (checkpoint)
 
 ---
 
