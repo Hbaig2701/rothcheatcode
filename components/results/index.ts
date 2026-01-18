@@ -25,3 +25,6 @@ export { SensitivityChart } from './sensitivity-chart';
 export { WidowAnalysis } from './widow-analysis';
 export { AuditPanel } from './audit-panel';
 export { AdvancedFeaturesSection } from './advanced-features-section';
+
+// PDF Export (Phase 09)
+export { PDFExportButton } from './pdf-export-button';
