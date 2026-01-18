@@ -95,18 +95,18 @@ Plans:
 ---
 
 ### Phase 05: Results Summary Display
-**Status:** Planned (3 plans ready)
+**Status:** Complete
 
 Show calculation results with summary cards and wealth chart.
 
 **Goal:** Visual results page with summary cards and Recharts line chart showing the "wow moment" wealth divergence.
 
-**Plans:** 3 plans in 3 waves
+**Completed:** 2026-01-18
 
 Plans:
-- [ ] 05-01-PLAN.md — Install recharts/react-countup, create transform utilities and useProjection hook
-- [ ] 05-02-PLAN.md — Create StatCard, WealthChart, ChartTooltip, SummarySection components
-- [ ] 05-03-PLAN.md — Wire ResultsSummary container, results page route, and navigation
+- [x] 05-01-PLAN.md — Install recharts/react-countup, create transform utilities and useProjection hook
+- [x] 05-02-PLAN.md — Create StatCard, WealthChart, ChartTooltip, SummarySection components
+- [x] 05-03-PLAN.md — Wire ResultsSummary container, results page route, and navigation
 
 ---
 
