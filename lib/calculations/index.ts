@@ -29,3 +29,13 @@ export { calculateIRMAA } from './modules/irmaa';
 export { calculateSSTaxableAmount } from './modules/social-security';
 export { checkACACliff, calculateACAImpact } from './modules/aca';
 export { adjustForInflation, getInflationFactor, deflateForInflation } from './modules/inflation';
+
+// Multi-Strategy Comparison (Phase 06)
+export { runMultiStrategySimulation } from './multi-strategy';
+export { STRATEGY_DEFINITIONS, STRATEGIES, STRATEGY_PRIORITY } from './strategy-definitions';
+export type { StrategyDefinition } from './strategy-definitions';
+export type {
+  StrategyType,
+  StrategyComparisonMetrics,
+  MultiStrategyResult
+} from './types';
