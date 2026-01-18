@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+
 export default function Page() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-background to-muted">
@@ -10,6 +13,11 @@ export default function Page() {
         </p>
         <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-4 py-2">
           <span className="text-sm font-medium text-primary">Coming Soon</span>
+        </div>
+        <div className="pt-4">
+          <Button asChild>
+            <Link href="/login">Sign In</Link>
+          </Button>
         </div>
       </div>
     </main>
