@@ -180,6 +180,12 @@
 - WealthChart parent div requires explicit 400px height for ResponsiveContainer
 - Trend indicator with TrendingUp/Down/Minus icons and green/red/muted colors
 
+### Tabs and Year-by-Year Table (07-01)
+- Sticky header: sticky top-0 z-10 on thead with bg-muted/50 on th cells
+- TableColumn interface: key, label, format, className, highlight for column config
+- Conversion year rows highlighted with bg-blue-50/50 for blueprint scenario
+- font-mono for all numeric cells for proper alignment
+
 ### IRMAA and NIIT Visualization (07-02)
 - IRMAAChart uses totalIncome as MAGI proxy
 - ReferenceLine with strokeDasharray="5 5" for threshold visualization
@@ -248,5 +254,6 @@ Phase 06 Plan 01 complete - Multi-strategy simulation wrapper with runMultiStrat
 Phase 06 Plan 02 complete - StrategyComparisonTable and BestBadge components for 4-strategy comparison with highlighting.
 Phase 05 Plan 02 complete - StatCard, ChartTooltip, WealthChart, SummarySection display components for results page.
 Phase 05 Plan 03 complete - ResultsSummary container, results page route, View Results navigation (checkpoint deferred).
+Phase 07 Plan 01 complete - shadcn/ui Tabs component, YearByYearTable with sticky header and 12 columns.
 Phase 07 Plan 02 complete - IRMAAChart with 5-tier threshold reference lines, NIITDisplay with filing status thresholds.
 Phase 07 Plan 03 complete - RothSeasoningTracker with 5-year rule status, ScheduleSummary with conversion timeline.
