@@ -1,9 +1,9 @@
 'use client';
 
-import { use } from 'react';
+import { use, useRef } from 'react';
 import { useClient } from '@/lib/queries/clients';
 import { useProjection } from '@/lib/queries/projections';
-import { MultiStrategyResults, DeepDiveTabs, AdvancedFeaturesSection } from '@/components/results';
+import { MultiStrategyResults, DeepDiveTabs, AdvancedFeaturesSection, PDFExportButton } from '@/components/results';
 import { transformToChartData } from '@/lib/calculations/transforms';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,10 @@ interface ResultsPageProps {
 
 export default function ResultsPage({ params }: ResultsPageProps) {
   const { id: clientId } = use(params);
+
+  // Refs for chart capture (PDF export)
+  const wealthChartRef = useRef<HTMLDivElement>(null);
+  const breakevenChartRef = useRef<HTMLDivElement>(null);
 
   // Fetch client data
   const {
@@ -79,21 +83,35 @@ export default function ResultsPage({ params }: ResultsPageProps) {
 
   return (
     <div className="container py-6 space-y-8">
-      {/* Header with back navigation */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" render={<Link href={`/clients/${clientId}`} />}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">{client.name} - Results</h1>
-          <p className="text-muted-foreground">
-            {projection.strategy.charAt(0).toUpperCase() + projection.strategy.slice(1).replace('_', ' ')} Strategy | {projection.projection_years} Year Projection
-          </p>
+      {/* Header with back navigation and PDF export */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" render={<Link href={`/clients/${clientId}`} />}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">{client.name} - Results</h1>
+            <p className="text-muted-foreground">
+              {projection.strategy.charAt(0).toUpperCase() + projection.strategy.slice(1).replace('_', ' ')} Strategy | {projection.projection_years} Year Projection
+            </p>
+          </div>
         </div>
+        <PDFExportButton
+          clientId={clientId}
+          clientName={client.name}
+          chartRefs={{
+            wealth: wealthChartRef,
+            breakeven: breakevenChartRef,
+          }}
+        />
       </div>
 
       {/* Multi-Strategy Comparison */}
-      <MultiStrategyResults clientId={clientId} clientName={client.name} />
+      <MultiStrategyResults
+        clientId={clientId}
+        clientName={client.name}
+        wealthChartRef={wealthChartRef}
+      />
 
       {/* Deep Dive Views */}
       <section>
@@ -103,7 +121,11 @@ export default function ResultsPage({ params }: ResultsPageProps) {
 
       {/* Advanced Features Section */}
       <section>
-        <AdvancedFeaturesSection client={client} chartData={chartData} />
+        <AdvancedFeaturesSection
+          client={client}
+          chartData={chartData}
+          breakevenChartRef={breakevenChartRef}
+        />
       </section>
     </div>
   );

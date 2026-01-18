@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, RefObject } from 'react';
 import { useMultiStrategy } from '@/lib/hooks/use-multi-strategy';
 import { transformToChartData, extractSummaryMetrics } from '@/lib/calculations/transforms';
 import { StrategyComparisonTable } from './strategy-comparison';
@@ -16,9 +16,11 @@ import { STRATEGY_DEFINITIONS } from '@/lib/calculations/strategy-definitions';
 interface MultiStrategyResultsProps {
   clientId: string;
   clientName: string;
+  /** Optional ref to capture wealth chart for PDF export */
+  wealthChartRef?: RefObject<HTMLDivElement | null>;
 }
 
-export function MultiStrategyResults({ clientId, clientName }: MultiStrategyResultsProps) {
+export function MultiStrategyResults({ clientId, clientName, wealthChartRef }: MultiStrategyResultsProps) {
   const { data, isLoading, isError, error, refetch } = useMultiStrategy({ clientId });
 
   // Selected strategy for detail view - defaults to best when data loads
@@ -161,7 +163,10 @@ export function MultiStrategyResults({ clientId, clientName }: MultiStrategyResu
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <WealthChart data={chartData} breakEvenAge={metrics.breakEvenAge} />
+            {/* Ref wrapper for PDF chart capture */}
+            <div ref={wealthChartRef}>
+              <WealthChart data={chartData} breakEvenAge={metrics.breakEvenAge} />
+            </div>
           </CardContent>
         </Card>
 

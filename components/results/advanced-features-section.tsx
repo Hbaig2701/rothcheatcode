@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, RefObject } from 'react';
 import type { Client } from '@/lib/types/client';
 import type { ChartDataPoint } from '@/lib/calculations/transforms';
 import { useAnalysis } from '@/lib/queries/analysis';
@@ -12,6 +12,8 @@ import { AuditPanel } from './audit-panel';
 interface AdvancedFeaturesSectionProps {
   client: Client;
   chartData: ChartDataPoint[];
+  /** Optional ref to capture breakeven chart for PDF export */
+  breakevenChartRef?: RefObject<HTMLDivElement | null>;
 }
 
 type TabId = 'breakeven' | 'sensitivity' | 'widow' | 'audit';
@@ -29,6 +31,7 @@ interface Tab {
 export function AdvancedFeaturesSection({
   client,
   chartData,
+  breakevenChartRef,
 }: AdvancedFeaturesSectionProps) {
   const { data: analysis, isLoading, error } = useAnalysis(client.id);
 
@@ -96,7 +99,9 @@ export function AdvancedFeaturesSection({
       <div className="min-h-[400px]">
         {/* Breakeven Tab */}
         {activeTab === 'breakeven' && analysis?.breakeven && (
-          <BreakevenChart data={chartData} analysis={analysis.breakeven} />
+          <div ref={breakevenChartRef}>
+            <BreakevenChart data={chartData} analysis={analysis.breakeven} />
+          </div>
         )}
 
         {/* Sensitivity Tab */}

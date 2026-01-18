@@ -1,7 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-import { renderToBuffer } from '@react-pdf/renderer';
-import { PDFDocument } from '@/lib/pdf';
 import type { PDFDataProps, ChartImages, SummaryMetrics } from '@/lib/pdf/types';
 import { runMultiStrategySimulation } from '@/lib/calculations/multi-strategy';
 import type { Client } from '@/lib/types/client';
@@ -10,6 +8,30 @@ import type { MultiStrategyResult, YearlyResult } from '@/lib/calculations/types
 // Route segment config
 export const dynamic = 'force-dynamic';
 export const maxDuration = 10; // 10 second timeout for Vercel
+
+// Dynamic imports to avoid build-time bundling issues with react-pdf
+// The library uses React.createContext which causes issues during Next.js page data collection
+async function generatePDFBuffer(
+  clientName: string,
+  generatedAt: string,
+  data: PDFDataProps,
+  chartImages?: ChartImages
+): Promise<Uint8Array> {
+  // Dynamic import at runtime to avoid build issues
+  const { renderToBuffer } = await import('@react-pdf/renderer');
+  const { PDFDocument } = await import('@/lib/pdf');
+
+  const buffer = await renderToBuffer(
+    <PDFDocument
+      clientName={clientName}
+      generatedAt={generatedAt}
+      data={data}
+      chartImages={chartImages}
+    />
+  );
+
+  return new Uint8Array(buffer);
+}
 
 type RouteContext = { params: Promise<{ clientId: string }> };
 
@@ -125,25 +147,21 @@ export async function POST(request: Request, context: RouteContext) {
     // Transform to PDF data format
     const pdfData = transformToPDFData(result, result.bestStrategy);
 
-    // Generate PDF buffer
-    const buffer = await renderToBuffer(
-      <PDFDocument
-        clientName={client.name}
-        generatedAt={new Date().toISOString()}
-        data={pdfData}
-        chartImages={chartImages}
-      />
+    // Generate PDF buffer using dynamic imports
+    const uint8Array = await generatePDFBuffer(
+      client.name,
+      new Date().toISOString(),
+      pdfData,
+      chartImages
     );
 
     // Prepare filename
     const sanitizedName = sanitizeFilename(client.name);
     const filename = `roth-analysis-${sanitizedName}.pdf`;
 
-    // Convert Buffer to Uint8Array for Response compatibility
-    const uint8Array = new Uint8Array(buffer);
-
     // Return PDF response
-    return new Response(uint8Array, {
+    // Cast to unknown first to satisfy TypeScript's strict type checking
+    return new Response(uint8Array as unknown as BodyInit, {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${filename}"`,
