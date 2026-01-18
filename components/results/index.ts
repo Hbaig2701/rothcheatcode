@@ -6,3 +6,4 @@ export { SummarySection } from './summary-section';
 
 // Strategy Comparison (Phase 06)
 export { BestBadge, StrategyComparisonTable } from './strategy-comparison';
+export { MultiStrategyResults } from './multi-strategy-results';

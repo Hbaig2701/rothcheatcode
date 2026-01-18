@@ -1,4 +1,5 @@
 import { Projection } from '@/lib/types/projection';
+import { SimulationResult } from './types';
 
 /**
  * Data point for wealth chart
@@ -23,35 +24,71 @@ export interface SummaryMetrics {
 }
 
 /**
+ * Type guard to check if input is a Projection (from database)
+ */
+function isProjection(input: Projection | SimulationResult): input is Projection {
+  return 'baseline_years' in input && 'blueprint_years' in input;
+}
+
+/**
  * Transform projection data into chart-ready format
  * Extracts age, year, and net worth from both scenarios
+ * Accepts either database Projection or in-memory SimulationResult
  */
-export function transformToChartData(projection: Projection): ChartDataPoint[] {
-  // baseline_years and blueprint_years are arrays from the JSONB columns
-  const baselineYears = projection.baseline_years;
-  const blueprintYears = projection.blueprint_years;
+export function transformToChartData(data: Projection | SimulationResult): ChartDataPoint[] {
+  if (isProjection(data)) {
+    // Database Projection (snake_case)
+    const baselineYears = data.baseline_years;
+    const blueprintYears = data.blueprint_years;
 
-  return baselineYears.map((baseYear, index) => ({
-    age: baseYear.age,
-    year: baseYear.year,
-    baseline: baseYear.netWorth,
-    blueprint: blueprintYears[index]?.netWorth ?? 0,
-  }));
+    return baselineYears.map((baseYear, index) => ({
+      age: baseYear.age,
+      year: baseYear.year,
+      baseline: baseYear.netWorth,
+      blueprint: blueprintYears[index]?.netWorth ?? 0,
+    }));
+  } else {
+    // In-memory SimulationResult (camelCase)
+    const { baseline, blueprint } = data;
+
+    return baseline.map((baseYear, index) => ({
+      age: baseYear.age,
+      year: baseYear.year,
+      baseline: baseYear.netWorth,
+      blueprint: blueprint[index]?.netWorth ?? 0,
+    }));
+  }
 }
 
 /**
  * Extract summary metrics from projection for stat cards
- * Uses pre-calculated final values from database for efficiency
+ * Accepts either database Projection or in-memory SimulationResult
  */
-export function extractSummaryMetrics(projection: Projection): SummaryMetrics {
-  return {
-    baselineEndWealth: projection.baseline_final_net_worth,
-    blueprintEndWealth: projection.blueprint_final_net_worth,
-    difference: projection.blueprint_final_net_worth - projection.baseline_final_net_worth,
-    totalTaxSavings: projection.total_tax_savings,
-    breakEvenAge: projection.break_even_age,
-    heirBenefit: projection.heir_benefit,
-  };
+export function extractSummaryMetrics(data: Projection | SimulationResult): SummaryMetrics {
+  if (isProjection(data)) {
+    // Database Projection - uses pre-calculated final values
+    return {
+      baselineEndWealth: data.baseline_final_net_worth,
+      blueprintEndWealth: data.blueprint_final_net_worth,
+      difference: data.blueprint_final_net_worth - data.baseline_final_net_worth,
+      totalTaxSavings: data.total_tax_savings,
+      breakEvenAge: data.break_even_age,
+      heirBenefit: data.heir_benefit,
+    };
+  } else {
+    // In-memory SimulationResult - extract from arrays
+    const lastBaseline = data.baseline[data.baseline.length - 1];
+    const lastBlueprint = data.blueprint[data.blueprint.length - 1];
+
+    return {
+      baselineEndWealth: lastBaseline.netWorth,
+      blueprintEndWealth: lastBlueprint.netWorth,
+      difference: lastBlueprint.netWorth - lastBaseline.netWorth,
+      totalTaxSavings: data.totalTaxSavings,
+      breakEvenAge: data.breakEvenAge,
+      heirBenefit: data.heirBenefit,
+    };
+  }
 }
 
 /**
