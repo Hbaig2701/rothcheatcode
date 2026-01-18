@@ -46,6 +46,7 @@ export type { WidowScenarioInput } from './scenarios/widow';
 
 // Analysis Module (Phase 08)
 export { analyzeBreakEven } from './analysis/breakeven';
+export { analyzeWidowPenalty, calculateWidowTaxImpact } from './analysis/widow-penalty';
 export type {
   BreakEvenAnalysis,
   CrossoverPoint,
