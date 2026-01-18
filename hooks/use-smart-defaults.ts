@@ -54,33 +54,34 @@ function calculateCurrentAge(dob: string): number | null {
 
 export function useSmartDefaults(form: UseFormReturn<ClientFormData>) {
   const dob = form.watch("date_of_birth");
+  const { dirtyFields } = form.formState;
 
   // Calculate default life expectancy from DOB
+  // Updates whenever DOB changes, unless user has manually modified life_expectancy
   useEffect(() => {
     if (dob && dob.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const currentLifeExp = form.getValues("life_expectancy");
-      // Only set if not already set (don't override user input)
-      if (currentLifeExp === null || currentLifeExp === undefined) {
+      // Only skip if user has explicitly edited the life_expectancy field
+      if (!dirtyFields.life_expectancy) {
         const lifeExp = calculateLifeExpectancy(dob);
         if (lifeExp) {
-          form.setValue("life_expectancy", lifeExp);
+          form.setValue("life_expectancy", lifeExp, { shouldDirty: false });
         }
       }
     }
-  }, [dob, form]);
+  }, [dob, form, dirtyFields.life_expectancy]);
 
   // Calculate default start age from current age
+  // Updates whenever DOB changes, unless user has manually modified start_age
   useEffect(() => {
     if (dob && dob.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      const currentStartAge = form.getValues("start_age");
-      // Only set if it's the initial default or hasn't been touched
-      if (currentStartAge === undefined || currentStartAge === 65) {
+      // Only skip if user has explicitly edited the start_age field
+      if (!dirtyFields.start_age) {
         const age = calculateCurrentAge(dob);
         if (age !== null) {
           // Start conversion at current age or minimum 50
-          form.setValue("start_age", Math.max(age, 50));
+          form.setValue("start_age", Math.max(age, 50), { shouldDirty: false });
         }
       }
     }
-  }, [dob, form]);
+  }, [dob, form, dirtyFields.start_age]);
 }
