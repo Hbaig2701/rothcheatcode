@@ -73,6 +73,12 @@
 - Query key factory pattern for consistent cache management
 - Hierarchical key structure enables granular cache invalidation
 
+### Clients List Page (02-04)
+- Column factory function (createColumns) to inject onDelete callback
+- buttonVariants() with Link for base-ui compatible button links
+- window.location for dropdown menu navigation (MenuItem no asChild)
+- Memoized columns prevent TanStack Table infinite re-renders
+
 ### Client Form Pages (02-05)
 - Base UI render prop pattern for polymorphic buttons (instead of asChild)
 - ClientForm dual-mode: edit if client prop provided, create otherwise
@@ -115,4 +121,5 @@ Phase 01 Plan 02 complete - login/signup pages with SubmitButton loading states.
 Phase 02 Plan 01 complete - TanStack Query, types, validation schemas, and Table component ready.
 Phase 02 Plan 02 complete - REST API endpoints for client CRUD operations ready.
 Phase 02 Plan 03 complete - TanStack Query hooks for all client CRUD operations with cache invalidation.
+Phase 02 Plan 04 complete - Clients list page with TanStack Table, sorting, filtering, delete confirmation.
 Phase 02 Plan 05 complete - Client form, new/edit/detail pages with react-hook-form validation.
