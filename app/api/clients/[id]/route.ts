@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
-import { clientFullSchema } from "@/lib/validations/client";
+import { clientFullPartialSchema } from "@/lib/validations/client";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -50,7 +50,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 
   // Validate with partial schema (all fields optional for updates)
-  const parsed = clientFullSchema.partial().safeParse(body);
+  const parsed = clientFullPartialSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
       { error: "Validation failed", details: parsed.error.flatten() },

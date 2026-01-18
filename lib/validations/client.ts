@@ -44,8 +44,8 @@ export type ClientUpdateInput = z.infer<typeof clientUpdateSchema>;
 // Full 28-Field Client Schema
 // ============================================================================
 
-export const clientFullSchema = z
-  .object({
+// Base schema without refinements (for .partial() compatibility)
+export const clientFullBaseSchema = z.object({
     // Personal Information (6 fields)
     name: z.string().min(1, { error: "Name is required" }).max(100, { error: "Name must be 100 characters or less" }),
     date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Use YYYY-MM-DD format" }),
@@ -86,30 +86,35 @@ export const clientFullSchema = z
     projection_years: z.number().int().min(10).max(60).default(40),
     widow_analysis: z.boolean().default(false),
     sensitivity: z.boolean().default(false),
-  })
-  .superRefine((data, ctx) => {
-    // Spouse DOB required when filing status includes "married"
-    if (
-      (data.filing_status === "married_filing_jointly" ||
-        data.filing_status === "married_filing_separately") &&
-      !data.spouse_dob
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Spouse date of birth is required for married filing status",
-        path: ["spouse_dob"],
-      });
-    }
-
-    // End age must be greater than start age
-    if (data.end_age <= data.start_age) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "End age must be greater than start age",
-        path: ["end_age"],
-      });
-    }
   });
+
+// Partial schema for updates (no refinements, all fields optional)
+export const clientFullPartialSchema = clientFullBaseSchema.partial();
+
+// Full schema with refinements (for create/full validation)
+export const clientFullSchema = clientFullBaseSchema.superRefine((data, ctx) => {
+  // Spouse DOB required when filing status includes "married"
+  if (
+    (data.filing_status === "married_filing_jointly" ||
+      data.filing_status === "married_filing_separately") &&
+    !data.spouse_dob
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Spouse date of birth is required for married filing status",
+      path: ["spouse_dob"],
+    });
+  }
+
+  // End age must be greater than start age
+  if (data.end_age <= data.start_age) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "End age must be greater than start age",
+      path: ["end_age"],
+    });
+  }
+});
 
 // Infer full form data type from schema
 // z.infer gives the output type (after defaults applied)
