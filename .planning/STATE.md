@@ -10,9 +10,9 @@
 
 | Aspect | Value |
 |--------|-------|
-| Active Phase | 05 |
-| Phase Status | Not Started |
-| Last Completed | Phase 04 (Calculation Engine Core) |
+| Active Phase | 06 |
+| Phase Status | In Progress |
+| Last Completed | Phase 06 Plan 01 (Multi-Strategy Calculation Wrapper) |
 | Blockers | None |
 
 ---
@@ -27,7 +27,7 @@
 | 03 | Client Data Entry Form | Complete ✓ | 7/7 verified |
 | 04 | Calculation Engine Core | Complete ✓ | 5/5 verified |
 | 05 | Results Summary Display | Not Started | - |
-| 06 | Multi-Strategy Comparison | Not Started | - |
+| 06 | Multi-Strategy Comparison | In Progress | 1/? complete |
 | 07 | Deep Dive Views | Not Started | - |
 | 08 | Advanced Features | Not Started | - |
 | 09 | PDF Export | Not Started | - |
@@ -157,6 +157,12 @@
 - GET returns cached if hash matches, POST forces recalculation
 - Year-by-year data stored as JSONB for flexibility
 
+### Multi-Strategy Calculation Wrapper (06-01)
+- StrategyType matches client.strategy values for type consistency
+- All currency values in cents (project convention)
+- 3-level tie-breaking for best strategy: wealth > IRMAA > risk
+- Client object spread to avoid mutation during multi-strategy run
+
 ---
 
 ## Session Continuity
@@ -164,8 +170,8 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Phase 04 Complete (verified) |
-| Resume file | .planning/phases/05-results-summary-display/ |
+| Stopped at | Completed 06-01-PLAN.md |
+| Resume file | .planning/phases/06-multi-strategy-comparison/ |
 
 ---
 
@@ -202,3 +208,4 @@ Phase 04 Plan 02 complete - Core tax modules (RMD, federal tax, state tax, NIIT)
 Phase 04 Plan 03 complete - Income modules (SS taxation, IRMAA, ACA, inflation) implemented.
 Phase 04 Plan 04 complete - Simulation engine with Baseline and Blueprint scenarios ready.
 Phase 04 Plan 05 complete - Projections API endpoint and database migration applied.
+Phase 06 Plan 01 complete - Multi-strategy simulation wrapper with runMultiStrategySimulation(), STRATEGY_DEFINITIONS, and comparison metrics.
