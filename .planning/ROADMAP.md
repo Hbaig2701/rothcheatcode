@@ -77,20 +77,20 @@ Plans:
 ---
 
 ### Phase 04: Calculation Engine Core
-**Status:** Planned (5 plans ready)
+**Status:** Complete
 
 Basic Baseline vs Blueprint projection engine.
 
 **Goal:** API returns year-by-year projection results for both scenarios.
 
-**Plans:** 5 plans in 4 waves
+**Completed:** 2026-01-18
 
 Plans:
-- [ ] 04-01-PLAN.md — Reference data (RMD factors, IRMAA, federal brackets) and calculation types
-- [ ] 04-02-PLAN.md — Core modules (RMD, federal tax, state tax, NIIT)
-- [ ] 04-03-PLAN.md — Income modules (Social Security taxation, IRMAA, ACA, inflation)
-- [ ] 04-04-PLAN.md — Simulation engine with Baseline and Blueprint scenarios
-- [ ] 04-05-PLAN.md — Projections API endpoint and database storage
+- [x] 04-01-PLAN.md — Reference data (RMD factors, IRMAA, federal brackets) and calculation types
+- [x] 04-02-PLAN.md — Core modules (RMD, federal tax, state tax, NIIT)
+- [x] 04-03-PLAN.md — Income modules (Social Security taxation, IRMAA, ACA, inflation)
+- [x] 04-04-PLAN.md — Simulation engine with Baseline and Blueprint scenarios
+- [x] 04-05-PLAN.md — Projections API endpoint and database storage
 
 ---
 

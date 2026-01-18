@@ -10,9 +10,9 @@
 
 | Aspect | Value |
 |--------|-------|
-| Active Phase | 04 |
+| Active Phase | 05 |
 | Phase Status | Not Started |
-| Last Completed | Phase 03 (Client Data Entry Form) |
+| Last Completed | Phase 04 (Calculation Engine Core) |
 | Blockers | None |
 
 ---
@@ -25,7 +25,7 @@
 | 01 | Authentication | In Progress | 2/3 complete |
 | 02 | Client Management | Complete ✓ | 5/5 verified |
 | 03 | Client Data Entry Form | Complete ✓ | 7/7 verified |
-| 04 | Calculation Engine Core | Not Started | - |
+| 04 | Calculation Engine Core | Complete ✓ | 5/5 verified |
 | 05 | Results Summary Display | Not Started | - |
 | 06 | Multi-Strategy Comparison | Not Started | - |
 | 07 | Deep Dive Views | Not Started | - |
@@ -133,6 +133,30 @@
 - Smart defaults use dirtyFields tracking: only skip auto-update if user explicitly modified field
 - Life expectancy and start_age recalculate on DOB change unless user edited them
 
+### Reference Data (04-01)
+- All monetary values stored in cents as integers to avoid floating-point errors
+- RMD start age: 73 for birth year 1951-1959, 75 for 1960+
+- IRMAA uses cliffs (not gradual increases) - $1 over triggers full surcharge
+- Federal brackets auto-inflate 2.7%/year for future projections
+
+### Tax Calculation Modules (04-02, 04-03)
+- Pure function pattern: typed input -> typed output with no side effects
+- SS taxation uses provisional income formula (frozen thresholds since 1984/1993)
+- NIIT: 3.8% on lesser of NII or excess over $200K/$250K threshold
+- State tax supports both flat rate and progressive brackets
+
+### Simulation Engine (04-04)
+- Baseline: no conversions, RMDs only, taxes from taxable accounts
+- Blueprint: strategic conversions to target bracket with IRMAA awareness
+- Strategy configs: conservative=22%, moderate=24%, aggressive=32%, irmaa_safe=24%+strict
+- Gross-up conversion amount if paying tax from IRA
+
+### Projections API (04-05)
+- Input hash (SHA-256) enables smart cache invalidation
+- user_id references profiles(id) to match clients table FK pattern
+- GET returns cached if hash matches, POST forces recalculation
+- Year-by-year data stored as JSONB for flexibility
+
 ---
 
 ## Session Continuity
@@ -140,8 +164,8 @@
 | Aspect | Value |
 |--------|-------|
 | Last session | 2026-01-18 |
-| Stopped at | Phase 03 Complete (verified) |
-| Resume file | .planning/phases/04-calculation-engine-core/ |
+| Stopped at | Phase 04 Complete (verified) |
+| Resume file | .planning/phases/05-results-summary-display/ |
 
 ---
 
@@ -173,3 +197,8 @@ Phase 03 Plan 04 complete - IncomeSourcesSection, ConversionSection, AdvancedSec
 Phase 03 Plan 05 complete - ClientForm composition with all 6 sections, useSmartDefaults hook for auto-calculations.
 Phase 03 Plan 06 complete - Database migration for 25 new columns, API routes updated for full 28-field schema.
 Phase 03 Plan 07 complete - End-to-end verification passed. Fixed smart defaults to update on DOB change.
+Phase 04 Plan 01 complete - Types, reference data (RMD, IRMAA, federal brackets, deductions, FPL), utilities ready.
+Phase 04 Plan 02 complete - Core tax modules (RMD, federal tax, state tax, NIIT) implemented.
+Phase 04 Plan 03 complete - Income modules (SS taxation, IRMAA, ACA, inflation) implemented.
+Phase 04 Plan 04 complete - Simulation engine with Baseline and Blueprint scenarios ready.
+Phase 04 Plan 05 complete - Projections API endpoint and database migration applied.
