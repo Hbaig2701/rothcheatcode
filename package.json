@@ -21,6 +21,7 @@
     "lucide-react": "^0.562.0",
     "next": "16.1.3",
     "react": "19.2.3",
+    "react-currency-input-field": "^4.0.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.1",
     "shadcn": "^3.7.0",
