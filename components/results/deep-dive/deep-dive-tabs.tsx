@@ -63,8 +63,10 @@ export function DeepDiveTabs({ projection, client }: DeepDiveTabsProps) {
 
   // Calculate derived values
   const currentYear = new Date().getFullYear();
-  const clientBirthYear = new Date(client.date_of_birth).getFullYear();
-  const clientAge = currentYear - clientBirthYear;
+  // Support both new age field and legacy date_of_birth
+  const clientAge = client.age ?? (client.date_of_birth
+    ? currentYear - new Date(client.date_of_birth).getFullYear()
+    : 62);
   const filingStatus = client.filing_status;
 
   // Extract summary metrics for Summary tab

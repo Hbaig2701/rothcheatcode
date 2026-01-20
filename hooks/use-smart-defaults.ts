@@ -5,83 +5,40 @@ import { UseFormReturn } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 
 /**
- * Calculate life expectancy based on DOB using simplified actuarial estimate.
- * Returns age at expected death (current age + remaining years).
+ * Calculate life expectancy based on current age using simplified actuarial estimate.
  * Uses SSA period life table approximation.
  */
-function calculateLifeExpectancy(dob: string): number | null {
-  try {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    const currentAge = today.getFullYear() - birthDate.getFullYear();
+function calculateLifeExpectancy(currentAge: number): number | null {
+  if (currentAge < 0 || currentAge > 120) return null;
 
-    if (currentAge < 0 || currentAge > 120) return null;
-
-    // Simplified actuarial approximation based on SSA tables
-    // Average remaining years decreases with age
-    let remainingYears: number;
-    if (currentAge < 65) {
-      remainingYears = 85 - currentAge; // Rough estimate: expect to live to 85
-    } else if (currentAge < 75) {
-      remainingYears = 90 - currentAge; // Older folks: expect to live to 90
-    } else {
-      remainingYears = Math.max(5, 95 - currentAge); // Very old: at least 5 more years
-    }
-
-    return currentAge + remainingYears;
-  } catch {
-    return null;
+  // Simplified actuarial approximation based on SSA tables
+  let targetAge: number;
+  if (currentAge < 65) {
+    targetAge = 85;
+  } else if (currentAge < 75) {
+    targetAge = 90;
+  } else {
+    targetAge = Math.max(currentAge + 5, 95);
   }
-}
 
-/**
- * Calculate current age from DOB
- */
-function calculateCurrentAge(dob: string): number | null {
-  try {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    return age >= 0 && age <= 120 ? age : null;
-  } catch {
-    return null;
-  }
+  return targetAge;
 }
 
 export function useSmartDefaults(form: UseFormReturn<ClientFormData>) {
-  const dob = form.watch("date_of_birth");
-  const { dirtyFields } = form.formState;
+  const age = form.watch("age");
 
-  // Calculate default life expectancy from DOB
-  // Updates whenever DOB changes, unless user has manually modified life_expectancy
+  // Calculate end_age based on life expectancy when age changes
   useEffect(() => {
-    if (dob && dob.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      // Only skip if user has explicitly edited the life_expectancy field
-      if (!dirtyFields.life_expectancy) {
-        const lifeExp = calculateLifeExpectancy(dob);
-        if (lifeExp) {
-          form.setValue("life_expectancy", lifeExp, { shouldDirty: false });
+    if (age && age > 0 && age <= 100) {
+      const endAge = form.getValues("end_age");
+      // Only set if end_age is at default (100) or not yet set
+      if (!endAge || endAge === 100) {
+        const lifeExp = calculateLifeExpectancy(age);
+        if (lifeExp && lifeExp > age) {
+          // Keep end_age at 100 (default from Blueprint) or life expectancy, whichever is higher
+          form.setValue("end_age", Math.max(lifeExp, 100), { shouldDirty: false });
         }
       }
     }
-  }, [dob, form, dirtyFields.life_expectancy]);
-
-  // Calculate default start age from current age
-  // Updates whenever DOB changes, unless user has manually modified start_age
-  useEffect(() => {
-    if (dob && dob.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      // Only skip if user has explicitly edited the start_age field
-      if (!dirtyFields.start_age) {
-        const age = calculateCurrentAge(dob);
-        if (age !== null) {
-          // Start conversion at current age or minimum 50
-          form.setValue("start_age", Math.max(age, 50), { shouldDirty: false });
-        }
-      }
-    }
-  }, [dob, form, dirtyFields.start_age]);
+  }, [age, form]);
 }

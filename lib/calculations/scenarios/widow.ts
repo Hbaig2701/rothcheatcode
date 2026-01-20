@@ -1,6 +1,6 @@
 import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
-import { calculateAge } from '../utils/age';
+import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/age';
 import { calculateRMD } from '../modules/rmd';
 import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
@@ -29,22 +29,33 @@ export function runWidowScenario(
 ): YearlyResult[] {
   const { client, deathYear, projectionYears } = input;
   const results: YearlyResult[] = [];
+  const currentYear = new Date().getFullYear();
 
-  const birthYear = new Date(client.date_of_birth).getFullYear();
-  const growthRate = (client.growth_rate ?? 6) / 100;
+  // Determine if using new age-based approach or legacy DOB approach
+  const useAgeBased = client.age !== undefined && client.age > 0;
+  const clientAge = useAgeBased ? client.age : (client.date_of_birth ? calculateAge(client.date_of_birth, currentYear) : 62);
+  const birthYear = useAgeBased
+    ? getBirthYearFromAge(clientAge, currentYear)
+    : (client.date_of_birth ? new Date(client.date_of_birth).getFullYear() : currentYear - clientAge);
+
+  // Use new rate fields or legacy fields
+  const growthRate = (client.baseline_comparison_rate ?? client.growth_rate ?? 7) / 100;
   const inflationRate = (client.inflation_rate ?? 2.5) / 100;
 
-  // Start balances - assume inherited spouse's accounts (simplified)
-  let traditionalBalance = client.traditional_ira ?? 0;
+  // Start balances - support both new and legacy fields
+  let traditionalBalance = client.qualified_account_value ?? client.traditional_ira ?? 0;
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
 
   // Calculate years from death year to align inflation
-  const deathYearOffset = deathYear - new Date().getFullYear();
+  const deathYearOffset = deathYear - currentYear;
+
+  // Calculate age at death year
+  const ageAtDeath = clientAge + deathYearOffset;
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = deathYear + yearOffset;
-    const age = calculateAge(client.date_of_birth, year);
+    const age = ageAtDeath + yearOffset;
     const totalYearsFromNow = deathYearOffset + yearOffset;
 
     // Apply growth
@@ -59,15 +70,29 @@ export function runWidowScenario(
     traditionalBalance -= rmdAmount;
 
     // Social Security - ONLY client's benefit, no spouse
-    const ssStartAge = client.ss_start_age ?? 67;
-    // Survivor could take higher of own or 100% of spouse's - simplified to own only
+    // Support both new ssi_* fields and legacy ss_* fields
+    const ssStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
+    // For widow scenario, take half of total SSI (assuming single-survivor benefit)
+    const annualSSI = client.ssi_annual_amount
+      ? Math.round(client.ssi_annual_amount / 2)  // Take half for survivor
+      : (client.ss_self ?? 0);
     const ssIncome = age >= ssStartAge
-      ? adjustForInflation(client.ss_self ?? 0, totalYearsFromNow, inflationRate)
+      ? adjustForInflation(annualSSI, totalYearsFromNow, inflationRate)
       : 0;
 
-    // Other income (inflation adjusted from original calculation year)
-    const pensionIncome = adjustForInflation(client.pension ?? 0, totalYearsFromNow, inflationRate);
-    const otherIncome = adjustForInflation(client.other_income ?? 0, totalYearsFromNow, inflationRate);
+    // Other income from non_ssi_income or legacy fields
+    let pensionIncome = 0;
+    let otherIncome = 0;
+
+    if (client.non_ssi_income && client.non_ssi_income.length > 0) {
+      const incomeEntry = client.non_ssi_income.find(e => e.year === year || e.age === age);
+      if (incomeEntry) {
+        otherIncome = incomeEntry.gross_taxable;
+      }
+    } else {
+      pensionIncome = adjustForInflation(client.pension ?? 0, totalYearsFromNow, inflationRate);
+      otherIncome = adjustForInflation(client.other_income ?? 0, totalYearsFromNow, inflationRate);
+    }
 
     // SS taxation - NOW AS SINGLE FILER
     const ssResult = calculateSSTaxableAmount({

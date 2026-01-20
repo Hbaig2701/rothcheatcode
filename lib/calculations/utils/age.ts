@@ -5,13 +5,26 @@
 
 /**
  * Calculates age as of a specific year
- * @param dob - Date of birth in ISO format (YYYY-MM-DD)
+ * @param dob - Date of birth in ISO format (YYYY-MM-DD) or null if using direct age
  * @param asOfYear - Year to calculate age for
  * @returns Age in years (age they turn that year)
  */
-export function calculateAge(dob: string, asOfYear: number): number {
+export function calculateAge(dob: string | null, asOfYear: number): number {
+  if (!dob) {
+    throw new Error('DOB required when using calculateAge');
+  }
   const birthYear = parseInt(dob.substring(0, 4), 10);
   return asOfYear - birthYear;
+}
+
+/**
+ * Calculates age at a given year offset using the direct age field
+ * @param currentAge - Client's current age
+ * @param yearOffset - Number of years from current year (0 = this year)
+ * @returns Age at that year
+ */
+export function getAgeAtYearOffset(currentAge: number, yearOffset: number): number {
+  return currentAge + yearOffset;
 }
 
 /**
@@ -21,6 +34,16 @@ export function calculateAge(dob: string, asOfYear: number): number {
  */
 export function getBirthYear(dob: string): number {
   return parseInt(dob.substring(0, 4), 10);
+}
+
+/**
+ * Gets the birth year from current age
+ * @param currentAge - Client's current age
+ * @param currentYear - Current year
+ * @returns Estimated birth year
+ */
+export function getBirthYearFromAge(currentAge: number, currentYear: number): number {
+  return currentYear - currentAge;
 }
 
 /**

@@ -8,6 +8,29 @@ import crypto from 'crypto';
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
+    // New Blueprint fields
+    age: client.age,
+    qualified_account_value: client.qualified_account_value,
+    carrier_name: client.carrier_name,
+    product_name: client.product_name,
+    bonus_percent: client.bonus_percent,
+    rate_of_return: client.rate_of_return,
+    constraint_type: client.constraint_type,
+    tax_rate: client.tax_rate,
+    max_tax_rate: client.max_tax_rate,
+    ssi_payout_age: client.ssi_payout_age,
+    ssi_annual_amount: client.ssi_annual_amount,
+    non_ssi_income: client.non_ssi_income,
+    conversion_type: client.conversion_type,
+    protect_initial_premium: client.protect_initial_premium,
+    withdrawal_type: client.withdrawal_type,
+    surrender_years: client.surrender_years,
+    penalty_free_percent: client.penalty_free_percent,
+    baseline_comparison_rate: client.baseline_comparison_rate,
+    post_contract_rate: client.post_contract_rate,
+    years_to_defer_conversion: client.years_to_defer_conversion,
+    heir_tax_rate: client.heir_tax_rate,
+    // Legacy fields (kept for backwards compatibility)
     traditional_ira: client.traditional_ira,
     roth_ira: client.roth_ira,
     taxable_accounts: client.taxable_accounts,
@@ -25,8 +48,20 @@ function generateInputHash(client: Client): string {
     ss_spouse: client.ss_spouse,
     pension: client.pension,
     other_income: client.other_income,
+    widow_analysis: client.widow_analysis,
   };
   return crypto.createHash('sha256').update(JSON.stringify(relevantFields)).digest('hex');
+}
+
+// Map conversion_type to strategy name for display
+function getStrategyFromConversionType(conversionType?: string): string {
+  switch (conversionType) {
+    case 'optimized_amount': return 'moderate';
+    case 'fixed_amount': return 'conservative';
+    case 'full_conversion': return 'aggressive';
+    case 'no_conversion': return 'conservative';
+    default: return 'moderate';
+  }
 }
 
 function simulationToProjection(
@@ -38,6 +73,16 @@ function simulationToProjection(
 ): ProjectionInsert {
   const lastBaseline = result.baseline[result.baseline.length - 1];
   const lastBlueprint = result.blueprint[result.blueprint.length - 1];
+
+  // Determine strategy from conversion_type or legacy strategy field
+  const strategy = client.conversion_type
+    ? getStrategyFromConversionType(client.conversion_type)
+    : (client.strategy ?? 'moderate');
+
+  // Calculate projection years from end_age - age or use legacy field
+  const projectionYears = client.age && client.end_age
+    ? client.end_age - client.age
+    : (client.projection_years ?? 30);
 
   return {
     client_id: clientId,
@@ -56,8 +101,8 @@ function simulationToProjection(
     blueprint_final_net_worth: lastBlueprint.netWorth,
     baseline_years: result.baseline,
     blueprint_years: result.blueprint,
-    strategy: client.strategy ?? 'moderate',
-    projection_years: client.projection_years ?? 30
+    strategy,
+    projection_years: projectionYears
   };
 }
 

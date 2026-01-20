@@ -24,7 +24,8 @@ const formatFilingStatus = (status: string): string => {
 };
 
 // Helper to format date for display
-const formatDate = (dateString: string): string => {
+const formatDate = (dateString: string | null): string => {
+  if (!dateString) return "N/A";
   return new Date(dateString).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -32,8 +33,12 @@ const formatDate = (dateString: string): string => {
   });
 };
 
-// Calculate age from date of birth
-const calculateAge = (dateOfBirth: string): number => {
+// Calculate age from date of birth or use direct age field
+const calculateAge = (dateOfBirth: string | null, directAge?: number): number => {
+  if (directAge !== undefined && directAge > 0) {
+    return directAge;
+  }
+  if (!dateOfBirth) return 62; // Default
   const today = new Date();
   const birthDate = new Date(dateOfBirth);
   let age = today.getFullYear() - birthDate.getFullYear();
@@ -109,9 +114,10 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-muted-foreground">Date of Birth</p>
+              <p className="text-sm text-muted-foreground">Age</p>
               <p className="font-medium">
-                {formatDate(client.date_of_birth)} ({calculateAge(client.date_of_birth)} years old)
+                {calculateAge(client.date_of_birth, client.age)} years old
+                {client.date_of_birth && ` (Born: ${formatDate(client.date_of_birth)})`}
               </p>
             </div>
             <div>

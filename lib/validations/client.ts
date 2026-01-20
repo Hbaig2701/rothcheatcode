@@ -11,6 +11,29 @@ export const filingStatusEnum = z.enum([
   "head_of_household",
 ]);
 
+export const constraintTypeEnum = z.enum([
+  "bracket_ceiling",
+  "irmaa_threshold",
+  "fixed_amount",
+  "none",
+]);
+
+export const conversionTypeEnum = z.enum([
+  "optimized_amount",
+  "fixed_amount",
+  "full_conversion",
+  "no_conversion",
+]);
+
+export const withdrawalTypeEnum = z.enum([
+  "no_withdrawals",
+  "systematic",
+  "penalty_free",
+]);
+
+export const taxSourceEnum = z.enum(["from_ira", "from_taxable"]);
+
+// Legacy strategy enum (for backwards compatibility)
 export const strategyEnum = z.enum([
   "conservative",
   "moderate",
@@ -18,15 +41,112 @@ export const strategyEnum = z.enum([
   "irmaa_safe",
 ]);
 
-export const taxSourceEnum = z.enum(["from_ira", "from_taxable"]);
+// ============================================================================
+// Non-SSI Income Entry Schema
+// ============================================================================
+
+export const nonSSIIncomeEntrySchema = z.object({
+  year: z.number().int().min(2024).max(2100),
+  age: z.number().int().min(0).max(120),
+  gross_taxable: z.number().int().min(0), // In cents
+  tax_exempt: z.number().int().min(0),    // In cents
+});
 
 // ============================================================================
-// Legacy Schemas (for backwards compatibility)
+// Blueprint Form Schema (8 sections)
+// ============================================================================
+
+export const clientBlueprintBaseSchema = z.object({
+  // Section 1: Client Data
+  filing_status: filingStatusEnum,
+  name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
+  age: z.number().int().min(18, "Age must be at least 18").max(100, "Age must be 100 or less"),
+
+  // Section 2: Current Account Data
+  qualified_account_value: z.number().int().min(0, "Amount must be positive"),
+
+  // Section 3: New Account Data (Insurance Product)
+  carrier_name: z.string().min(1, "Carrier name is required").max(100).default("Generic Carrier"),
+  product_name: z.string().min(1, "Product name is required").max(100).default("Generic Product"),
+  bonus_percent: z.number().min(0, "Bonus must be non-negative").max(100, "Bonus cannot exceed 100%").default(10),
+  rate_of_return: z.number().min(0, "Rate must be non-negative").max(30, "Rate cannot exceed 30%").default(7),
+
+  // Section 4: Tax Data
+  state: z.string().length(2, "Use 2-letter state code"),
+  constraint_type: constraintTypeEnum.default("none"),
+  tax_rate: z.number().min(0).max(100).default(24),
+  max_tax_rate: z.number().min(0).max(100).default(24),
+  tax_payment_source: taxSourceEnum.default("from_taxable"),
+  state_tax_rate: z.number().min(0).max(100).optional().nullable(),
+
+  // Section 5: Taxable Income Calculation
+  ssi_payout_age: z.number().int().min(62, "SSI starts at 62 minimum").max(70, "SSI starts at 70 maximum").default(67),
+  ssi_annual_amount: z.number().int().min(0, "Amount must be positive").default(2400000), // $24,000 in cents
+  non_ssi_income: z.array(nonSSIIncomeEntrySchema).default([]),
+
+  // Section 6: Conversion
+  conversion_type: conversionTypeEnum.default("optimized_amount"),
+  protect_initial_premium: z.boolean().default(true),
+
+  // Section 7: Roth Withdrawals
+  withdrawal_type: withdrawalTypeEnum.default("no_withdrawals"),
+
+  // Section 8: Advanced Data
+  surrender_years: z.number().int().min(0).max(20).default(7),
+  penalty_free_percent: z.number().min(0).max(100).default(10),
+  baseline_comparison_rate: z.number().min(0).max(30).default(7),
+  post_contract_rate: z.number().min(0).max(30).default(7),
+  years_to_defer_conversion: z.number().int().min(0).max(30).default(0),
+  end_age: z.number().int().min(55).max(120).default(100),
+  heir_tax_rate: z.number().min(0).max(100).default(40),
+  widow_analysis: z.boolean().default(false),
+
+  // Additional fields needed for calculations
+  taxable_accounts: z.number().int().min(0).default(0),
+  roth_ira: z.number().int().min(0).default(0),
+});
+
+// Add refinements for the full schema
+export const clientBlueprintSchema = clientBlueprintBaseSchema.superRefine((data, ctx) => {
+  // End age must be greater than current age
+  if (data.end_age <= data.age) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "End age must be greater than current age",
+      path: ["end_age"],
+    });
+  }
+
+  // Max tax rate should be >= current tax rate
+  if (data.max_tax_rate < data.tax_rate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Max tax rate cannot be less than current tax rate",
+      path: ["max_tax_rate"],
+    });
+  }
+
+  // SSI payout age should be >= current age (unless already receiving)
+  if (data.ssi_payout_age < data.age && data.ssi_annual_amount > 0) {
+    // Allow if already past payout age - they're receiving SSI
+  }
+});
+
+// Partial schema for updates
+export const clientBlueprintPartialSchema = clientBlueprintBaseSchema.partial();
+
+// Type exports
+export type ClientBlueprintFormData = z.infer<typeof clientBlueprintSchema>;
+export type NonSSIIncomeEntry = z.infer<typeof nonSSIIncomeEntrySchema>;
+
+// ============================================================================
+// Legacy Schemas (for backwards compatibility during transition)
 // ============================================================================
 
 export const clientCreateSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
-  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format").optional(),
+  age: z.number().int().min(18).max(100).optional(),
   state: z.string().length(2, "Use 2-letter state code (e.g., CA, NY)"),
   filing_status: z.enum(
     ["single", "married_filing_jointly", "married_filing_separately", "head_of_household"],
@@ -36,68 +156,97 @@ export const clientCreateSchema = z.object({
 
 export const clientUpdateSchema = clientCreateSchema.partial();
 
-// Infer types from schemas for form usage
+// Legacy types
 export type ClientCreateInput = z.infer<typeof clientCreateSchema>;
 export type ClientUpdateInput = z.infer<typeof clientUpdateSchema>;
 
 // ============================================================================
-// Full 28-Field Client Schema
+// Full 28-Field Client Schema (Legacy - kept for backwards compatibility)
 // ============================================================================
 
-// Base schema without refinements (for .partial() compatibility)
 export const clientFullBaseSchema = z.object({
-    // Personal Information (6 fields)
-    name: z.string().min(1, { error: "Name is required" }).max(100, { error: "Name must be 100 characters or less" }),
-    date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Use YYYY-MM-DD format" }),
-    state: z.string().length(2, { error: "Use 2-letter state code" }),
-    filing_status: filingStatusEnum,
-    spouse_dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: "Use YYYY-MM-DD format" }).optional().nullable(),
-    life_expectancy: z.number().int().min(1).max(120).optional().nullable(),
+  // Personal Information
+  name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
+  date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format").optional().nullable(),
+  age: z.number().int().min(18).max(100).default(62),
+  state: z.string().length(2, "Use 2-letter state code"),
+  filing_status: filingStatusEnum,
+  spouse_dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format").optional().nullable(),
+  life_expectancy: z.number().int().min(1).max(120).optional().nullable(),
 
-    // Account Balances (4 fields) - stored as cents (integers)
-    traditional_ira: z.number().int().min(0, { error: "Amount must be positive" }),
-    roth_ira: z.number().int().min(0, { error: "Amount must be positive" }).default(0),
-    taxable_accounts: z.number().int().min(0, { error: "Amount must be positive" }).default(0),
-    other_retirement: z.number().int().min(0, { error: "Amount must be positive" }).default(0),
+  // Account Balances (legacy)
+  traditional_ira: z.number().int().min(0).default(0),
+  roth_ira: z.number().int().min(0).default(0),
+  taxable_accounts: z.number().int().min(0).default(0),
+  other_retirement: z.number().int().min(0).default(0),
 
-    // Tax Configuration (4 fields)
-    federal_bracket: z.string().default("auto"),
-    state_tax_rate: z.number().min(0).max(100).optional().nullable(),
-    include_niit: z.boolean().default(true),
-    include_aca: z.boolean().default(false),
+  // New account value
+  qualified_account_value: z.number().int().min(0).default(0),
 
-    // Income Sources (5 fields) - stored as cents
-    ss_self: z.number().int().min(0, { error: "Amount must be positive" }).default(0),
-    ss_spouse: z.number().int().min(0, { error: "Amount must be positive" }).default(0),
-    pension: z.number().int().min(0, { error: "Amount must be positive" }).default(0),
-    other_income: z.number().int().min(0, { error: "Amount must be positive" }).default(0),
-    ss_start_age: z.number().int().min(62).max(70).default(67),
+  // New Account (Insurance Product)
+  carrier_name: z.string().default("Generic Carrier"),
+  product_name: z.string().default("Generic Product"),
+  bonus_percent: z.number().min(0).max(100).default(10),
+  rate_of_return: z.number().min(0).max(30).default(7),
 
-    // Conversion Settings (4 fields)
-    strategy: strategyEnum.default("moderate"),
-    start_age: z.number().int().min(50).max(90),
-    end_age: z.number().int().min(55).max(95).default(75),
-    tax_payment_source: taxSourceEnum.default("from_taxable"),
+  // Tax Configuration
+  federal_bracket: z.string().default("auto"),
+  state_tax_rate: z.number().min(0).max(100).optional().nullable(),
+  include_niit: z.boolean().default(true),
+  include_aca: z.boolean().default(false),
+  constraint_type: constraintTypeEnum.default("none"),
+  tax_rate: z.number().min(0).max(100).default(24),
+  max_tax_rate: z.number().min(0).max(100).default(24),
 
-    // Advanced Options (6 fields)
-    growth_rate: z.number().min(0).max(20).default(6),
-    inflation_rate: z.number().min(0).max(10).default(2.5),
-    heir_bracket: z.string().default("32"),
-    projection_years: z.number().int().min(10).max(60).default(40),
-    widow_analysis: z.boolean().default(false),
-    sensitivity: z.boolean().default(false),
-  });
+  // Income Sources (legacy)
+  ss_self: z.number().int().min(0).default(0),
+  ss_spouse: z.number().int().min(0).default(0),
+  pension: z.number().int().min(0).default(0),
+  other_income: z.number().int().min(0).default(0),
+  ss_start_age: z.number().int().min(62).max(70).default(67),
 
-// Partial schema for updates (no refinements, all fields optional)
+  // New income fields
+  ssi_payout_age: z.number().int().min(62).max(70).default(67),
+  ssi_annual_amount: z.number().int().min(0).default(2400000),
+  non_ssi_income: z.array(nonSSIIncomeEntrySchema).default([]),
+
+  // Conversion Settings
+  strategy: strategyEnum.default("moderate"),
+  conversion_type: conversionTypeEnum.default("optimized_amount"),
+  protect_initial_premium: z.boolean().default(true),
+  start_age: z.number().int().min(50).max(90).default(62),
+  end_age: z.number().int().min(55).max(120).default(100),
+  tax_payment_source: taxSourceEnum.default("from_taxable"),
+
+  // Withdrawals
+  withdrawal_type: withdrawalTypeEnum.default("no_withdrawals"),
+
+  // Advanced Options
+  growth_rate: z.number().min(0).max(20).default(6),
+  inflation_rate: z.number().min(0).max(10).default(2.5),
+  heir_bracket: z.string().default("32"),
+  heir_tax_rate: z.number().min(0).max(100).default(40),
+  projection_years: z.number().int().min(10).max(60).default(40),
+  widow_analysis: z.boolean().default(false),
+  sensitivity: z.boolean().default(false),
+  surrender_years: z.number().int().min(0).max(20).default(7),
+  penalty_free_percent: z.number().min(0).max(100).default(10),
+  baseline_comparison_rate: z.number().min(0).max(30).default(7),
+  post_contract_rate: z.number().min(0).max(30).default(7),
+  years_to_defer_conversion: z.number().int().min(0).max(30).default(0),
+});
+
+// Partial schema for updates
 export const clientFullPartialSchema = clientFullBaseSchema.partial();
 
-// Full schema with refinements (for create/full validation)
+// Full schema with refinements
 export const clientFullSchema = clientFullBaseSchema.superRefine((data, ctx) => {
   // Spouse DOB required when filing status includes "married"
   if (
     (data.filing_status === "married_filing_jointly" ||
       data.filing_status === "married_filing_separately") &&
-    !data.spouse_dob
+    !data.spouse_dob &&
+    data.date_of_birth // Only enforce if using legacy date_of_birth
   ) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -106,61 +255,94 @@ export const clientFullSchema = clientFullBaseSchema.superRefine((data, ctx) => 
     });
   }
 
-  // End age must be greater than start age
-  if (data.end_age <= data.start_age) {
+  // End age must be greater than start age (or current age)
+  const currentAge = data.age || data.start_age || 62;
+  if (data.end_age <= currentAge) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: "End age must be greater than start age",
+      message: "End age must be greater than current/start age",
       path: ["end_age"],
     });
   }
 });
 
 // Infer full form data type from schema
-// z.infer gives the output type (after defaults applied)
 export type ClientFullFormData = z.infer<typeof clientFullSchema>;
 
 // Explicit form type with all fields required for form defaultValues
-// This avoids issues where .default() makes fields optional in input type
 export type ClientFormData = {
-  // Personal Information (6 fields)
-  name: string;
-  date_of_birth: string;
-  state: string;
+  // Section 1: Client Data
   filing_status: "single" | "married_filing_jointly" | "married_filing_separately" | "head_of_household";
-  spouse_dob: string | null;
-  life_expectancy: number | null;
+  name: string;
+  age: number;
 
-  // Account Balances (4 fields) - stored as cents
-  traditional_ira: number;
-  roth_ira: number;
-  taxable_accounts: number;
-  other_retirement: number;
+  // Section 2: Current Account
+  qualified_account_value: number;
 
-  // Tax Configuration (4 fields)
-  federal_bracket: string;
-  state_tax_rate: number | null;
-  include_niit: boolean;
-  include_aca: boolean;
+  // Section 3: New Account
+  carrier_name: string;
+  product_name: string;
+  bonus_percent: number;
+  rate_of_return: number;
 
-  // Income Sources (5 fields) - stored as cents
-  ss_self: number;
-  ss_spouse: number;
-  pension: number;
-  other_income: number;
-  ss_start_age: number;
-
-  // Conversion Settings (4 fields)
-  strategy: "conservative" | "moderate" | "aggressive" | "irmaa_safe";
-  start_age: number;
-  end_age: number;
+  // Section 4: Tax Data
+  state: string;
+  constraint_type: "bracket_ceiling" | "irmaa_threshold" | "fixed_amount" | "none";
+  tax_rate: number;
+  max_tax_rate: number;
   tax_payment_source: "from_ira" | "from_taxable";
+  state_tax_rate: number | null;
 
-  // Advanced Options (6 fields)
-  growth_rate: number;
-  inflation_rate: number;
-  heir_bracket: string;
-  projection_years: number;
+  // Section 5: Taxable Income
+  ssi_payout_age: number;
+  ssi_annual_amount: number;
+  non_ssi_income: Array<{
+    year: number;
+    age: number;
+    gross_taxable: number;
+    tax_exempt: number;
+  }>;
+
+  // Section 6: Conversion
+  conversion_type: "optimized_amount" | "fixed_amount" | "full_conversion" | "no_conversion";
+  protect_initial_premium: boolean;
+
+  // Section 7: Withdrawals
+  withdrawal_type: "no_withdrawals" | "systematic" | "penalty_free";
+
+  // Section 8: Advanced
+  surrender_years: number;
+  penalty_free_percent: number;
+  baseline_comparison_rate: number;
+  post_contract_rate: number;
+  years_to_defer_conversion: number;
+  end_age: number;
+  heir_tax_rate: number;
   widow_analysis: boolean;
-  sensitivity: boolean;
+
+  // Additional
+  taxable_accounts: number;
+  roth_ira: number;
+
+  // Legacy fields (optional for form, kept for backwards compatibility)
+  date_of_birth?: string | null;
+  spouse_dob?: string | null;
+  life_expectancy?: number | null;
+  traditional_ira?: number;
+  other_retirement?: number;
+  federal_bracket?: string;
+  include_niit?: boolean;
+  include_aca?: boolean;
+  ss_self?: number;
+  ss_spouse?: number;
+  pension?: number;
+  other_income?: number;
+  ss_start_age?: number;
+  strategy?: "conservative" | "moderate" | "aggressive" | "irmaa_safe";
+  start_age?: number;
+  growth_rate?: number;
+  inflation_rate?: number;
+  heir_bracket?: string;
+  projection_years?: number;
+  sensitivity?: boolean;
 };

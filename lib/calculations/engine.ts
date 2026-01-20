@@ -18,10 +18,24 @@ function calculateTaxSavings(baseline: YearlyResult[], blueprint: YearlyResult[]
   return baselineTotalTax - blueprintTotalTax;
 }
 
-function calculateHeirBenefit(baseline: YearlyResult[], blueprint: YearlyResult[], heirBracket: string): number {
+function calculateHeirBenefit(
+  baseline: YearlyResult[],
+  blueprint: YearlyResult[],
+  heirTaxRate?: number,
+  heirBracket?: string
+): number {
   const lastBaseline = baseline[baseline.length - 1];
   const lastBlueprint = blueprint[blueprint.length - 1];
-  const heirRate = parseInt(heirBracket, 10) / 100 || 0.32;
+
+  // Use heir_tax_rate if available, otherwise parse heir_bracket, default to 32%
+  let heirRate: number;
+  if (heirTaxRate !== undefined && heirTaxRate > 0) {
+    heirRate = heirTaxRate / 100;
+  } else if (heirBracket) {
+    heirRate = parseInt(heirBracket, 10) / 100 || 0.32;
+  } else {
+    heirRate = 0.32;
+  }
 
   const baselineHeirTax = Math.round(lastBaseline.traditionalBalance * heirRate);
   const blueprintHeirTax = Math.round(lastBlueprint.traditionalBalance * heirRate);
@@ -44,16 +58,24 @@ export function runSimulation(input: SimulationInput): SimulationResult {
     blueprint,
     breakEvenAge: calculateBreakEvenAge(baseline, blueprint),
     totalTaxSavings: calculateTaxSavings(baseline, blueprint),
-    heirBenefit: calculateHeirBenefit(baseline, blueprint, client.heir_bracket ?? '32')
+    heirBenefit: calculateHeirBenefit(baseline, blueprint, client.heir_tax_rate, client.heir_bracket)
   };
 }
 
 /**
  * Create simulation input from client data
+ * Supports both new Blueprint form (age + end_age) and legacy form (projection_years)
  */
 export function createSimulationInput(client: Client): SimulationInput {
   const currentYear = new Date().getFullYear();
-  const projectionYears = client.projection_years ?? 30;
+
+  // Calculate projection years: prefer (end_age - age) if both are available
+  let projectionYears: number;
+  if (client.age && client.end_age) {
+    projectionYears = client.end_age - client.age;
+  } else {
+    projectionYears = client.projection_years ?? 30;
+  }
 
   return {
     client,
