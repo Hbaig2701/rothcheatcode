@@ -4,6 +4,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 
 // Server actions return error objects but form action types expect void
 // This is safe - Next.js handles the return value for useActionState patterns
@@ -14,6 +16,13 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ message?: string; error?: string }>
 }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (user) {
+    redirect('/dashboard')
+  }
+
   const { message, error } = await searchParams
 
   return (

@@ -94,6 +94,18 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
 
   const onSubmit = async (data: ClientFormData) => {
     try {
+      // Calculate date_of_birth from age (assume Jan 1st of calculated birth year)
+      const currentYear = new Date().getFullYear();
+      const birthYear = currentYear - data.age;
+      const dateOfBirth = `${birthYear}-01-01`;
+
+      // Calculate spouse_dob if married (validation requires it)
+      let spouseDob = null;
+      if (data.filing_status === "married_filing_jointly" || data.filing_status === "married_filing_separately") {
+        // Assume spouse is same age for now since we don't collect it
+        spouseDob = dateOfBirth;
+      }
+
       // Transform form data to include legacy fields for backwards compatibility
       const submitData = {
         ...data,
@@ -115,8 +127,8 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
         pension: 0,
         other_income: 0,
         sensitivity: false,
-        date_of_birth: null,
-        spouse_dob: null,
+        date_of_birth: dateOfBirth, // Fixed: Generated from Age
+        spouse_dob: spouseDob,      // Fixed: Generated if married
         life_expectancy: data.end_age,
       };
 
