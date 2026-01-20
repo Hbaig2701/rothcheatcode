@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { clientBlueprintSchema, type ClientFormData } from "@/lib/validations/client";
 import { useUpdateClient } from "@/lib/queries/clients";
 import { useRecalculateProjection } from "@/lib/queries/projections";
-import { useSmartDefaults } from "@/hooks/use-smart-defaults";
 import type { Client } from "@/lib/types/client";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -32,7 +31,6 @@ export function InputSidebar({ client }: InputSidebarProps) {
     const form = useForm<ClientFormData>({
         resolver: zodResolver(clientBlueprintSchema) as Resolver<ClientFormData>,
         defaultValues: {
-            // Mapping existing client data to form defaults
             filing_status: client?.filing_status ?? "married_filing_jointly",
             name: client?.name ?? "",
             age: client?.age ?? 62,
@@ -65,8 +63,6 @@ export function InputSidebar({ client }: InputSidebarProps) {
             roth_ira: client?.roth_ira ?? 0,
         },
     });
-
-    // useSmartDefaults(form); // Optional: disable specific defaults if they conflict with "edit" mode
 
     const isPending = updateClient.isPending || recalculateProjection.isPending;
 
@@ -105,11 +101,8 @@ export function InputSidebar({ client }: InputSidebarProps) {
                 life_expectancy: data.end_age,
             } as const;
 
-            // 1. Update Client
-            // @ts-ignore - Strategy string literal issue
+            // @ts-ignore
             await updateClient.mutateAsync({ id: client.id, data: submitData });
-
-            // 2. Recalculate Projection
             await recalculateProjection.mutateAsync(client.id);
 
         } catch (error) {
@@ -118,25 +111,29 @@ export function InputSidebar({ client }: InputSidebarProps) {
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#1e293b] border-r border-[#334155] text-slate-100 dark">
-            {/* Sidebar Header Dropdown Area */}
-            <div className="p-3 border-b border-[#334155] space-y-2">
-                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-tighter">Homer's Blueprint</h2>
-                <select className="w-full bg-[#0f172a] border border-[#334155] text-xs h-7 rounded px-2 text-slate-300">
-                    <option>Mr.</option>
+        <div className="flex flex-col h-full bg-[#1e293b] border-r border-[#334155] text-slate-200">
+            {/* Sidebar Header */}
+            <div className="p-4 border-b border-[#334155] bg-[#0f172a]">
+                <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-xs font-bold text-emerald-500 uppercase tracking-widest">Blueprint Inputs</h2>
+                </div>
+                <select className="w-full bg-[#1e293b] border border-[#334155] text-sm h-9 rounded px-3 text-slate-200 focus:ring-1 focus:ring-emerald-500 outline-none">
+                    <option>Standard Blueprint</option>
                 </select>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-6 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+            {/* Scrollable Form Area */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
                 <FormProvider {...form}>
                     <form id="blueprint-form" onSubmit={form.handleSubmit(onSubmit)}
                         className={cn(
-                            "space-y-4",
-                            "[&_.space-y-4]:space-y-2", // Compress sections
-                            "[&_label]:text-[10px] [&_label]:text-slate-400 [&_label]:uppercase [&_label]:tracking-wide", // Smaller labels
-                            "[&_input]:bg-[#0f172a] [&_input]:border-[#334155] [&_input]:h-7 [&_input]:text-xs [&_input]:text-slate-200", // Dark compact inputs
-                            "[&_button[role=combobox]]:bg-[#0f172a] [&_button[role=combobox]]:border-[#334155] [&_button[role=combobox]]:h-7 [&_button[role=combobox]]:text-xs [&_button[role=combobox]]:text-slate-200", // Select triggers
-                            "[&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-slate-500 [&_h3]:border-b [&_h3]:border-[#334155] [&_h3]:pb-1" // Section headers
+                            "space-y-6", // Relaxed vertical spacing
+                            // Global Input Styles for this Sidebar
+                            "[&_label]:text-xs [&_label]:font-medium [&_label]:text-slate-400 [&_label]:uppercase [&_label]:tracking-wide [&_label]:mb-1.5",
+                            "[&_input]:bg-[#0f172a] [&_input]:border-[#334155] [&_input]:h-9 [&_input]:text-sm [&_input]:text-slate-100 [&_input]:rounded-md [&_input]:px-3",
+                            "[&_input:focus]:border-emerald-500 [&_input:focus]:ring-1 [&_input:focus]:ring-emerald-500",
+                            "[&_button[role=combobox]]:bg-[#0f172a] [&_button[role=combobox]]:border-[#334155] [&_button[role=combobox]]:h-9 [&_button[role=combobox]]:text-sm [&_button[role=combobox]]:text-slate-100 [&_button[role=combobox]]:rounded-md",
+                            "[&_h3]:text-sm [&_h3]:font-bold [&_h3]:text-emerald-500 [&_h3]:border-b [&_h3]:border-[#334155] [&_h3]:pb-2 [&_h3]:mb-4"
                         )}>
 
                         <ClientDataSection />
@@ -151,14 +148,15 @@ export function InputSidebar({ client }: InputSidebarProps) {
                 </FormProvider>
             </div>
 
-            <div className="p-3 border-t border-[#334155] bg-[#1e293b]">
+            {/* Footer / Submit Action */}
+            <div className="p-4 border-t border-[#334155] bg-[#0f172a]">
                 <Button
                     onClick={form.handleSubmit(onSubmit)}
-                    className="w-full bg-[#71a02d] hover:bg-[#5d8524] text-white font-bold h-9 uppercase text-xs tracking-wide shadow-md"
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-10 uppercase text-xs tracking-widest shadow-lg transition-all active:scale-[0.98]"
                     disabled={isPending}
                 >
                     {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {isPending ? "Calculating..." : "Submit"}
+                    {isPending ? "Calculating..." : "Update Blueprint"}
                 </Button>
             </div>
         </div>
