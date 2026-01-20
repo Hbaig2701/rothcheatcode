@@ -15,7 +15,7 @@ This ensures testing happens in the real environment with proper SSL, environmen
 
 - **Hosting:** Vercel (auto-deploys from main)
 - **Production URL:** https://rothc-lime.vercel.app
-- **Database:** Supabase (eoudmavoifpxtvjmjfqi.supabase.co)
+- **Database:** Supabase (usyhxfqooahvsmttyrel.supabase.co)
 - **Branch:** main = production
 
 ## Checkpoints
