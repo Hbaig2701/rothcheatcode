@@ -2,101 +2,29 @@ import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
 import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/age';
 import { calculateRMD } from '../modules/rmd';
-import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
-import { calculateStateTax } from '../modules/state-tax';
-import { calculateSSTaxableAmount } from '../modules/social-security';
-import { calculateNIIT } from '../modules/niit';
-import { calculateIRMAA, calculateIRMAAHeadroom } from '../modules/irmaa';
-import { adjustForInflation } from '../modules/inflation';
+import {
+  calculateFederalTax,
+  calculateTaxableIncome,
+  calculateOptimalConversion,
+  calculateConversionFederalTax,
+  determineTaxBracket
+} from '../modules/federal-tax';
+import { calculateStateTax, calculateConversionStateTax } from '../modules/state-tax';
+import { calculateIRMAAWithLookback, calculateIRMAAHeadroom } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
-import { getFederalBrackets } from '@/lib/data/federal-brackets-2026';
-
-type Strategy = 'conservative' | 'moderate' | 'aggressive' | 'irmaa_safe';
-type ConversionType = 'optimized_amount' | 'fixed_amount' | 'full_conversion' | 'no_conversion';
-
-const STRATEGY_CONFIG: Record<Strategy, { targetBracket: number; irmaaAvoidance: boolean; strictIRMAA?: boolean }> = {
-  conservative: { targetBracket: 22, irmaaAvoidance: true },
-  moderate: { targetBracket: 24, irmaaAvoidance: true },
-  aggressive: { targetBracket: 32, irmaaAvoidance: false },
-  irmaa_safe: { targetBracket: 24, irmaaAvoidance: true, strictIRMAA: true }
-};
-
-// Map conversion_type to strategy for config lookup
-function getStrategyFromConversionType(conversionType: ConversionType | undefined, strategy?: Strategy): Strategy {
-  if (strategy) return strategy;
-  switch (conversionType) {
-    case 'optimized_amount': return 'moderate';
-    case 'fixed_amount': return 'conservative';
-    case 'full_conversion': return 'aggressive';
-    case 'no_conversion': return 'conservative';
-    default: return 'moderate';
-  }
-}
-
-function calculateConversionAmount(
-  client: Client,
-  age: number,
-  year: number,
-  currentTaxableIncome: number,
-  traditionalBalance: number,
-  grossIncome: number
-): number {
-  // Handle no_conversion type
-  if (client.conversion_type === 'no_conversion') return 0;
-
-  const effectiveStrategy = getStrategyFromConversionType(client.conversion_type, client.strategy as Strategy);
-  const strategy = STRATEGY_CONFIG[effectiveStrategy];
-
-  // Calculate start and end ages using new or legacy fields
-  const startAge = client.age !== undefined
-    ? client.age + (client.years_to_defer_conversion ?? 0)
-    : client.start_age ?? 60;
-  const endAge = client.end_age ?? 72;
-
-  if (age < startAge || age > endAge) return 0;
-  if (traditionalBalance <= 0) return 0;
-
-  // Handle full conversion type
-  if (client.conversion_type === 'full_conversion') {
-    let maxConversion = traditionalBalance;
-    if (client.tax_payment_source === 'from_ira') {
-      const effectiveRate = strategy.targetBracket / 100;
-      maxConversion = Math.round(maxConversion * (1 - effectiveRate));
-    }
-    return Math.max(0, maxConversion);
-  }
-
-  // Use tax_rate/max_tax_rate if available, otherwise use strategy target bracket
-  const targetRate = client.max_tax_rate ?? strategy.targetBracket;
-  const brackets = getFederalBrackets(year, client.filing_status);
-  const targetBracket = brackets.find(b => b.rate === targetRate) ?? brackets.find(b => b.rate === strategy.targetBracket);
-  if (!targetBracket) return 0;
-
-  let headroom = targetBracket.upper - currentTaxableIncome;
-  if (headroom <= 0) return 0;
-
-  // IRMAA constraint
-  const useIRMAAAvoidance = client.constraint_type === 'irmaa_threshold' || strategy.irmaaAvoidance || strategy.strictIRMAA;
-  if (useIRMAAAvoidance) {
-    const irmaaHeadroom = calculateIRMAAHeadroom(grossIncome, client.filing_status);
-    if (client.constraint_type === 'irmaa_threshold' || strategy.strictIRMAA) {
-      headroom = Math.min(headroom, irmaaHeadroom);
-    }
-  }
-
-  let maxConversion = Math.min(headroom, traditionalBalance);
-
-  // Gross up if paying tax from IRA
-  if (client.tax_payment_source === 'from_ira') {
-    const effectiveRate = targetRate / 100;
-    maxConversion = Math.round(maxConversion * (1 - effectiveRate));
-  }
-
-  return Math.max(0, maxConversion);
-}
+import { getStateTaxRate } from '@/lib/data/states';
 
 /**
  * Run Blueprint scenario: strategic Roth conversions
+ *
+ * Per specification:
+ * - Initial value = qualified_account_value × (1 + bonus_rate)
+ * - Optimal conversion fills up to target bracket ceiling
+ * - Interest = (B.O.Y. Balance - Distribution) × Rate
+ * - Conversion tax = federal marginal tax + (conversion × state_rate)
+ * - SSI is treated as tax-exempt (simplified model)
+ * - IRMAA uses 2-year lookback
+ *
  * Supports both legacy DOB-based approach and new age-based approach
  */
 export function runBlueprintScenario(
@@ -113,128 +41,267 @@ export function runBlueprintScenario(
     ? getBirthYearFromAge(clientAge, startYear)
     : (client.date_of_birth ? new Date(client.date_of_birth).getFullYear() : startYear - clientAge);
 
-  // Use new rate_of_return or legacy growth_rate
+  // Use rate_of_return for blueprint scenario (spec default: 7%)
   const growthRate = (client.rate_of_return ?? client.growth_rate ?? 7) / 100;
-  const inflationRate = (client.inflation_rate ?? 2.5) / 100;
 
-  // Initial balances - support both new and legacy fields
-  let traditionalBalance = client.qualified_account_value ?? client.traditional_ira ?? 0;
+  // Initial qualified account value
+  const initialQualifiedValue = client.qualified_account_value ?? client.traditional_ira ?? 0;
+
+  // Apply insurance product bonus
+  // Per specification: blueprint_initial_value = qualified_account_value × (1 + bonus_rate)
+  const bonusRate = (client.bonus_percent ?? 10) / 100;
+  let iraBalance = Math.round(initialQualifiedValue * (1 + bonusRate));
+
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
 
-  // Apply bonus if using insurance product
-  if (client.bonus_percent && client.bonus_percent > 0) {
-    const bonus = Math.round(traditionalBalance * (client.bonus_percent / 100));
-    traditionalBalance += bonus;
-  }
+  // Income history for IRMAA lookback
+  const incomeHistory = new Map<number, number>();
+
+  // SSI parameters (simplified: SSI treated as tax-exempt per spec)
+  // Primary SSI
+  const primarySsStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
+  const primarySsAmount = client.ssi_annual_amount ?? client.ss_self ?? 0;
+
+  // Spouse SSI (MFJ only)
+  const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
+  const spouseSsAmount = client.spouse_ssi_annual_amount ?? client.ss_spouse ?? 0;
+
+  // Spouse age tracking
+  const useSpouseAgeBased = client.spouse_age !== undefined && client.spouse_age !== null && client.spouse_age > 0;
+  const initialSpouseAge = useSpouseAgeBased ? client.spouse_age! : null;
+
+  const ssiColaRate = 0.02; // 2% annual COLA per spec
+
+  // Non-SSI taxable income (annual)
+  const grossTaxableNonSSI = client.gross_taxable_non_ssi ??
+    (client.non_ssi_income?.[0]?.gross_taxable ?? client.other_income ?? 500000); // Default $5,000
+
+  // Tax-exempt income (for MAGI calculation)
+  const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
+
+  // Target bracket for conversions (default 24%)
+  const maxTaxRate = client.max_tax_rate ?? 24;
+
+  // State tax rate (as decimal for conversion tax calculation)
+  const stateTaxRateDecimal = client.state_tax_rate !== undefined && client.state_tax_rate !== null
+    ? client.state_tax_rate / 100
+    : getStateTaxRate(client.state);
+
+  // Conversion timing
+  const yearsToDefer = client.years_to_defer_conversion ?? 0;
+  const conversionStartAge = clientAge + yearsToDefer;
+  const conversionEndAge = client.end_age ?? 100; // Convert until end of projection
+
+  // Tax payment source
+  const payTaxFromIRA = client.tax_payment_source === 'from_ira';
+
+  // Track conversion completion
+  let conversionComplete = false;
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
     const age = useAgeBased ? getAgeAtYearOffset(clientAge, yearOffset) : calculateAge(client.date_of_birth!, year);
     const spouseAge = client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
 
-    // Apply growth
-    traditionalBalance += Math.round(traditionalBalance * growthRate);
-    rothBalance += Math.round(rothBalance * growthRate);
-    const taxableGrowth = Math.round(taxableBalance * growthRate);
-    taxableBalance += taxableGrowth;
+    // Beginning of Year balances
+    const boyIRA = iraBalance;
+    const boyRoth = rothBalance;
+    const boyTaxable = taxableBalance;
+    const boyCombined = boyIRA + boyRoth;
 
-    // Calculate RMD first
-    const rmdResult = calculateRMD({ age, traditionalBalance, birthYear });
-    const rmdAmount = rmdResult.rmdAmount;
-    traditionalBalance -= rmdAmount;
-
-    // SS income - support both new ssi_* fields and legacy ss_* fields
-    const ssStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
-    const annualSSI = client.ssi_annual_amount ?? ((client.ss_self ?? 0) + (client.ss_spouse ?? 0));
-    const ssIncome = age >= ssStartAge
-      ? adjustForInflation(annualSSI, yearOffset, inflationRate)
+    // Primary SSI income (with COLA)
+    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
+    const primarySsIncome = primaryYearsCollecting >= 0
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
       : 0;
 
-    // Other income from non_ssi_income or legacy fields
-    let pensionIncome = 0;
-    let otherIncome = 0;
-
-    if (client.non_ssi_income && client.non_ssi_income.length > 0) {
-      // Find matching entry for this year/age
-      const incomeEntry = client.non_ssi_income.find(e => e.year === year || e.age === age);
-      if (incomeEntry) {
-        otherIncome = incomeEntry.gross_taxable;
-        // tax_exempt is not included in taxable calculations
-      }
-    } else {
-      // Legacy approach
-      pensionIncome = adjustForInflation(client.pension ?? 0, yearOffset, inflationRate);
-      otherIncome = adjustForInflation(client.other_income ?? 0, yearOffset, inflationRate);
+    // Spouse SSI income (with COLA) - for MFJ
+    let spouseSsIncome = 0;
+    if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
+      const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : (spouseAge ?? 0);
+      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
+      spouseSsIncome = spouseYearsCollecting >= 0
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
+        : 0;
     }
 
-    // Pre-conversion income
-    const ssResult = calculateSSTaxableAmount({
-      ssBenefits: ssIncome,
-      otherIncome: rmdAmount + pensionIncome + otherIncome,
-      taxExemptInterest: 0,
+    const ssIncome = primarySsIncome + spouseSsIncome;
+
+    // Other taxable income (non-SSI)
+    const otherIncome = grossTaxableNonSSI;
+
+    // Standard deduction (age-adjusted)
+    const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
+
+    // Calculate existing taxable income (without conversion)
+    // Per specification: SSI is tax-exempt, so only non-SSI income
+    const existingGrossIncome = otherIncome;
+    const existingTaxableIncome = calculateTaxableIncome(existingGrossIncome, deductions);
+
+    // Determine conversion amount
+    let conversionAmount = 0;
+    let conversionTax = 0;
+    let federalConversionTax = 0;
+    let stateConversionTax = 0;
+
+    // Check if we should convert this year
+    const shouldConvert = !conversionComplete &&
+                          age >= conversionStartAge &&
+                          age <= conversionEndAge &&
+                          boyIRA > 0;
+
+    if (shouldConvert) {
+      // Calculate optimal conversion that fills up to target bracket
+      conversionAmount = calculateOptimalConversion(
+        boyIRA,
+        existingTaxableIncome,
+        maxTaxRate,
+        client.filing_status,
+        year
+      );
+
+      // Handle tax payment from IRA (gross-up)
+      if (payTaxFromIRA && conversionAmount > 0) {
+        // Reduce conversion to account for tax that will be paid from IRA
+        const effectiveRate = maxTaxRate / 100 + stateTaxRateDecimal;
+        conversionAmount = Math.round(conversionAmount * (1 - effectiveRate));
+        conversionAmount = Math.min(conversionAmount, boyIRA);
+      }
+
+      // Calculate conversion tax if we're converting
+      if (conversionAmount > 0) {
+        // Federal tax on conversion (marginal)
+        federalConversionTax = calculateConversionFederalTax(
+          conversionAmount,
+          existingTaxableIncome,
+          client.filing_status,
+          year
+        );
+
+        // State tax on conversion (flat rate per spec)
+        stateConversionTax = calculateConversionStateTax(
+          conversionAmount,
+          client.state,
+          stateTaxRateDecimal
+        );
+
+        conversionTax = federalConversionTax + stateConversionTax;
+      }
+
+      // Check if conversion is complete
+      if (boyIRA - conversionAmount <= 0) {
+        conversionComplete = true;
+      }
+    }
+
+    // Execute conversion
+    const iraAfterConversion = boyIRA - conversionAmount;
+    const rothAfterConversion = boyRoth + conversionAmount;
+
+    // Calculate interest AFTER conversion
+    // Per specification: Interest = (B.O.Y. Balance - Distribution) × Rate
+    // For blueprint, the "distribution" is the conversion
+    const iraInterest = Math.round(iraAfterConversion * growthRate);
+    const rothInterest = Math.round(rothAfterConversion * growthRate);
+    const taxableInterest = Math.round(boyTaxable * growthRate);
+
+    // Calculate MAGI for IRMAA
+    // Include conversion in income for IRMAA purposes
+    const grossIncomeWithConversion = existingGrossIncome + conversionAmount;
+    const magi = grossIncomeWithConversion + taxExemptNonSSI + ssIncome;
+
+    // Store for IRMAA lookback
+    incomeHistory.set(year, magi);
+
+    // IRMAA (Medicare surcharge, age 65+ only, uses 2-year lookback)
+    let irmaaSurcharge = 0;
+    if (age >= 65) {
+      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+      irmaaSurcharge = irmaaResult.annualSurcharge;
+    }
+
+    // Calculate tax on existing income (not conversion)
+    // The conversion tax is calculated separately as marginal
+    const taxableIncomeWithConversion = existingTaxableIncome + conversionAmount;
+    const federalResult = calculateFederalTax({
+      taxableIncome: taxableIncomeWithConversion,
+      filingStatus: client.filing_status,
+      taxYear: year
+    });
+    const stateResult = calculateStateTax({
+      taxableIncome: taxableIncomeWithConversion,
+      state: client.state,
       filingStatus: client.filing_status
     });
 
-    const preConversionGross = rmdAmount + ssResult.taxableAmount + pensionIncome + otherIncome;
-    const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined);
-    const preConversionTaxable = calculateTaxableIncome(preConversionGross, deductions);
+    // Total tax = federal + state + IRMAA
+    // Note: For display, we use the conversion tax calculated above
+    const totalTax = conversionTax + irmaaSurcharge;
 
-    // Calculate conversion amount
-    const conversionAmount = calculateConversionAmount(
-      client, age, year, preConversionTaxable, traditionalBalance, preConversionGross
-    );
+    // End of Year balances
+    iraBalance = iraAfterConversion + iraInterest;
+    rothBalance = rothAfterConversion + rothInterest;
 
-    // Execute conversion
-    traditionalBalance -= conversionAmount;
-    rothBalance += conversionAmount;
-
-    // Recalculate with conversion
-    const grossIncome = preConversionGross + conversionAmount;
-    const taxableIncome = preConversionTaxable + conversionAmount;
-
-    const federalResult = calculateFederalTax({ taxableIncome, filingStatus: client.filing_status, taxYear: year });
-    const stateResult = calculateStateTax({ taxableIncome, state: client.state, filingStatus: client.filing_status });
-
-    const niitResult = client.include_niit
-      ? calculateNIIT({ magi: grossIncome, netInvestmentIncome: taxableGrowth, filingStatus: client.filing_status })
-      : { applies: false, taxAmount: 0, thresholdExcess: 0 };
-
-    const irmaaResult = age >= 65
-      ? calculateIRMAA({ magi: grossIncome, filingStatus: client.filing_status, hasPartD: true })
-      : { tier: 0, monthlyPartB: 0, monthlyPartD: 0, annualSurcharge: 0 };
-
-    const totalTax = federalResult.totalTax + stateResult.totalTax + niitResult.taxAmount + irmaaResult.annualSurcharge;
-
-    // Pay taxes
-    if (client.tax_payment_source === 'from_ira') {
-      // Already accounted for in conversion
+    // Taxable account:
+    // - If tax paid from external (outside IRA), deduct tax from taxable account
+    // - If tax paid from IRA, already accounted for in conversion amount reduction
+    if (payTaxFromIRA) {
+      taxableBalance = boyTaxable + taxableInterest;
     } else {
-      taxableBalance -= totalTax;
+      taxableBalance = boyTaxable + taxableInterest - totalTax;
     }
+
+    // Determine tax bracket
+    const bracket = determineTaxBracket(taxableIncomeWithConversion, client.filing_status, year);
 
     results.push({
       year,
       age,
       spouseAge,
-      traditionalBalance,
+      traditionalBalance: iraBalance,
       rothBalance,
       taxableBalance,
-      rmdAmount,
+      rmdAmount: 0, // No RMDs during conversion phase (converting before RMD age typically)
       conversionAmount,
       ssIncome,
-      pensionIncome,
+      pensionIncome: 0,
       otherIncome,
-      totalIncome: grossIncome,
-      federalTax: federalResult.totalTax,
-      stateTax: stateResult.totalTax,
-      niitTax: niitResult.taxAmount,
-      irmaaSurcharge: irmaaResult.annualSurcharge,
+      totalIncome: grossIncomeWithConversion + ssIncome,
+      federalTax: federalConversionTax,
+      stateTax: stateConversionTax,
+      niitTax: 0,
+      irmaaSurcharge,
       totalTax,
-      taxableSS: ssResult.taxableAmount,
-      netWorth: traditionalBalance + rothBalance + taxableBalance
+      taxableSS: 0, // SSI is tax-exempt per simplified model
+      netWorth: iraBalance + rothBalance + taxableBalance
     });
   }
 
   return results;
+}
+
+/**
+ * Calculate combined account interest for blueprint scenario
+ * Per specification, interest accrues on both IRA and Roth after conversion
+ */
+export function calculateBlueprintInterest(
+  iraBeginning: number,
+  conversionAmount: number,
+  rothBeginning: number,
+  rateOfReturn: number
+): { iraInterest: number; rothInterest: number; totalInterest: number } {
+  // IRA earns interest on remaining balance after conversion
+  const iraAfterConversion = iraBeginning - conversionAmount;
+  const iraInterest = Math.round(iraAfterConversion * rateOfReturn);
+
+  // Roth earns interest on beginning balance + new conversion
+  const rothAfterConversion = rothBeginning + conversionAmount;
+  const rothInterest = Math.round(rothAfterConversion * rateOfReturn);
+
+  return {
+    iraInterest,
+    rothInterest,
+    totalInterest: iraInterest + rothInterest
+  };
 }

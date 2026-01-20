@@ -2,16 +2,20 @@ import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
 import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/age';
 import { calculateRMD } from '../modules/rmd';
-import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
+import { calculateFederalTax, calculateTaxableIncome, determineTaxBracket } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
-import { calculateSSTaxableAmount } from '../modules/social-security';
-import { calculateNIIT } from '../modules/niit';
-import { calculateIRMAA } from '../modules/irmaa';
-import { adjustForInflation } from '../modules/inflation';
+import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 
 /**
  * Run Baseline scenario: no Roth conversions, just RMDs
+ *
+ * Per specification:
+ * - Interest = (B.O.Y. Balance - Distribution) × Rate
+ * - E.O.Y. Balance = B.O.Y. Balance - Distribution + Interest
+ * - SSI is treated as tax-exempt (simplified model)
+ * - IRMAA uses 2-year lookback
+ *
  * Supports both legacy DOB-based approach and new age-based approach
  */
 export function runBaselineScenario(
@@ -28,71 +32,86 @@ export function runBaselineScenario(
     ? getBirthYearFromAge(clientAge, startYear)
     : (client.date_of_birth ? new Date(client.date_of_birth).getFullYear() : startYear - clientAge);
 
-  // Use new rate fields or legacy fields
-  // For baseline, use baseline_comparison_rate if available, otherwise growth_rate
+  // Use baseline_comparison_rate for baseline scenario (spec default: 7%)
   const growthRate = (client.baseline_comparison_rate ?? client.growth_rate ?? 7) / 100;
-  const inflationRate = (client.inflation_rate ?? 2.5) / 100;
 
-  // Initial balances - support both new and legacy fields
-  let traditionalBalance = client.qualified_account_value ?? client.traditional_ira ?? 0;
+  // Initial balance - Baseline does NOT apply insurance product bonus
+  let iraBalance = client.qualified_account_value ?? client.traditional_ira ?? 0;
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
 
-  // Note: Baseline does NOT apply insurance product bonus
+  // Income history for IRMAA lookback
+  const incomeHistory = new Map<number, number>();
+
+  // SSI parameters (simplified: SSI treated as tax-exempt per spec)
+  // Primary SSI
+  const primarySsStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
+  const primarySsAmount = client.ssi_annual_amount ?? client.ss_self ?? 0;
+
+  // Spouse SSI (MFJ only)
+  const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
+  const spouseSsAmount = client.spouse_ssi_annual_amount ?? client.ss_spouse ?? 0;
+
+  // Spouse age tracking
+  const useSpouseAgeBased = client.spouse_age !== undefined && client.spouse_age !== null && client.spouse_age > 0;
+  const initialSpouseAge = useSpouseAgeBased ? client.spouse_age! : null;
+
+  const ssiColaRate = 0.02; // 2% annual COLA per spec
+
+  // Non-SSI taxable income (annual)
+  const grossTaxableNonSSI = client.gross_taxable_non_ssi ??
+    (client.non_ssi_income?.[0]?.gross_taxable ?? client.other_income ?? 500000); // Default $5,000
+
+  // Tax-exempt income (for MAGI calculation)
+  const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
+
+  // State tax rate
+  const stateTaxRate = (client.state_tax_rate ?? 0) / 100;
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
     const age = useAgeBased ? getAgeAtYearOffset(clientAge, yearOffset) : calculateAge(client.date_of_birth!, year);
     const spouseAge = client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
 
-    // Apply growth
-    traditionalBalance += Math.round(traditionalBalance * growthRate);
-    rothBalance += Math.round(rothBalance * growthRate);
-    const taxableGrowth = Math.round(taxableBalance * growthRate);
-    taxableBalance += taxableGrowth;
+    // Beginning of Year balances
+    const boyIRA = iraBalance;
+    const boyRoth = rothBalance;
+    const boyTaxable = taxableBalance;
 
-    // Calculate RMD
-    const rmdResult = calculateRMD({ age, traditionalBalance, birthYear });
+    // Calculate RMD based on prior year-end balance (which is current BOY)
+    const rmdResult = calculateRMD({ age, traditionalBalance: boyIRA, birthYear });
     const rmdAmount = rmdResult.rmdAmount;
-    traditionalBalance -= rmdAmount;
 
-    // SS income - support both new ssi_* fields and legacy ss_* fields
-    const ssStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
-    const annualSSI = client.ssi_annual_amount ?? ((client.ss_self ?? 0) + (client.ss_spouse ?? 0));
-    const ssIncome = age >= ssStartAge
-      ? adjustForInflation(annualSSI, yearOffset, inflationRate)
+    // Primary SSI income (with COLA)
+    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
+    const primarySsIncome = primaryYearsCollecting >= 0
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
       : 0;
 
-    // Other income from non_ssi_income or legacy fields
-    let pensionIncome = 0;
-    let otherIncome = 0;
-
-    if (client.non_ssi_income && client.non_ssi_income.length > 0) {
-      // Find matching entry for this year/age
-      const incomeEntry = client.non_ssi_income.find(e => e.year === year || e.age === age);
-      if (incomeEntry) {
-        otherIncome = incomeEntry.gross_taxable;
-      }
-    } else {
-      // Legacy approach
-      pensionIncome = adjustForInflation(client.pension ?? 0, yearOffset, inflationRate);
-      otherIncome = adjustForInflation(client.other_income ?? 0, yearOffset, inflationRate);
+    // Spouse SSI income (with COLA) - for MFJ
+    let spouseSsIncome = 0;
+    if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
+      const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : (spouseAge ?? 0);
+      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
+      spouseSsIncome = spouseYearsCollecting >= 0
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
+        : 0;
     }
 
-    // SS taxation
-    const ssResult = calculateSSTaxableAmount({
-      ssBenefits: ssIncome,
-      otherIncome: rmdAmount + pensionIncome + otherIncome,
-      taxExemptInterest: 0,
-      filingStatus: client.filing_status
-    });
+    const ssIncome = primarySsIncome + spouseSsIncome;
 
-    // Gross income
-    const grossIncome = rmdAmount + ssResult.taxableAmount + pensionIncome + otherIncome;
+    // Other taxable income (non-SSI)
+    const otherIncome = grossTaxableNonSSI;
 
-    // Deductions
-    const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined);
-    const taxableIncome = calculateTaxableIncome(grossIncome, deductions);
+    // Per specification: SSI is tax-exempt (simplified model)
+    // Gross taxable income = RMD + non-SSI taxable income
+    const grossTaxableIncome = rmdAmount + otherIncome;
+
+    // Standard deduction (age-adjusted)
+    const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
+
+    // Taxable income (cannot be negative)
+    const taxableIncome = calculateTaxableIncome(grossTaxableIncome, deductions);
 
     // Federal tax
     const federalResult = calculateFederalTax({
@@ -101,48 +120,97 @@ export function runBaselineScenario(
       taxYear: year
     });
 
-    // State tax
+    // State tax (on taxable income)
     const stateResult = calculateStateTax({
       taxableIncome,
       state: client.state,
       filingStatus: client.filing_status
     });
 
-    // NIIT
-    const niitResult = client.include_niit
-      ? calculateNIIT({ magi: grossIncome, netInvestmentIncome: taxableGrowth, filingStatus: client.filing_status })
-      : { applies: false, taxAmount: 0, thresholdExcess: 0 };
+    // Calculate AGI and MAGI for IRMAA
+    // AGI = Gross income - deductions (but for IRMAA we use full gross)
+    // MAGI for IRMAA = AGI + Tax-Exempt Interest Income
+    const agi = grossTaxableIncome;
+    const magi = agi + taxExemptNonSSI + ssIncome; // Include SSI in MAGI for IRMAA
 
-    // IRMAA (65+)
-    const irmaaResult = age >= 65
-      ? calculateIRMAA({ magi: grossIncome, filingStatus: client.filing_status, hasPartD: true })
-      : { tier: 0, monthlyPartB: 0, monthlyPartD: 0, annualSurcharge: 0 };
+    // Store for IRMAA lookback
+    incomeHistory.set(year, magi);
 
-    const totalTax = federalResult.totalTax + stateResult.totalTax + niitResult.taxAmount + irmaaResult.annualSurcharge;
-    taxableBalance -= totalTax;
+    // IRMAA (Medicare surcharge, age 65+ only, uses 2-year lookback)
+    let irmaaSurcharge = 0;
+    if (age >= 65) {
+      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+      irmaaSurcharge = irmaaResult.annualSurcharge;
+    }
+
+    // Total tax
+    const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge;
+
+    // Calculate interest AFTER distribution
+    // Interest = (B.O.Y. Balance - Distribution) × Rate
+    const iraAfterDistribution = boyIRA - rmdAmount;
+    const iraInterest = Math.round(iraAfterDistribution * growthRate);
+    const rothInterest = Math.round(boyRoth * growthRate);
+    const taxableInterest = Math.round(boyTaxable * growthRate);
+
+    // End of Year balances
+    // E.O.Y. = B.O.Y. - Distribution + Interest
+    iraBalance = iraAfterDistribution + iraInterest;
+    rothBalance = boyRoth + rothInterest;
+
+    // Taxable account pays taxes and earns interest
+    taxableBalance = boyTaxable + taxableInterest - totalTax;
+
+    // Determine tax bracket
+    const bracket = determineTaxBracket(taxableIncome, client.filing_status, year);
 
     results.push({
       year,
       age,
       spouseAge,
-      traditionalBalance,
+      traditionalBalance: iraBalance,
       rothBalance,
       taxableBalance,
       rmdAmount,
-      conversionAmount: 0,
+      conversionAmount: 0, // No conversions in baseline
       ssIncome,
-      pensionIncome,
+      pensionIncome: 0, // Simplified - included in otherIncome
       otherIncome,
-      totalIncome: grossIncome,
+      totalIncome: grossTaxableIncome + ssIncome,
       federalTax: federalResult.totalTax,
       stateTax: stateResult.totalTax,
-      niitTax: niitResult.taxAmount,
-      irmaaSurcharge: irmaaResult.annualSurcharge,
+      niitTax: 0, // Simplified - not included in basic model
+      irmaaSurcharge,
       totalTax,
-      taxableSS: ssResult.taxableAmount,
-      netWorth: traditionalBalance + rothBalance + taxableBalance
+      taxableSS: 0, // SSI is tax-exempt per simplified model
+      netWorth: iraBalance + rothBalance + taxableBalance
     });
   }
 
   return results;
+}
+
+/**
+ * Calculate the annual interest on an account
+ * Per specification: Interest = (B.O.Y. Balance - Distribution) × Rate
+ */
+export function calculateAnnualInterest(
+  beginningBalance: number,
+  distribution: number,
+  rateOfReturn: number
+): number {
+  const balanceAfterDistribution = beginningBalance - distribution;
+  return Math.round(balanceAfterDistribution * rateOfReturn);
+}
+
+/**
+ * Calculate end of year balance
+ * Per specification: E.O.Y. = B.O.Y. - Distribution + Interest
+ */
+export function calculateEndOfYearBalance(
+  beginningBalance: number,
+  distribution: number,
+  interest: number
+): number {
+  return beginningBalance - distribution + interest;
 }

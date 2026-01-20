@@ -19,6 +19,8 @@ export interface Client {
   filing_status: "single" | "married_filing_jointly" | "married_filing_separately" | "head_of_household";
   name: string;
   age: number;
+  spouse_name: string | null;   // Spouse name (MFJ only)
+  spouse_age: number | null;    // Spouse age (MFJ only)
 
   // ===== Section 2: Current Account Data =====
   qualified_account_value: number; // In cents
@@ -38,8 +40,12 @@ export interface Client {
   state_tax_rate: number | null;
 
   // ===== Section 5: Taxable Income Calculation =====
-  ssi_payout_age: number;         // Age to start SSI
-  ssi_annual_amount: number;      // Annual SSI in cents
+  gross_taxable_non_ssi: number;  // Annual taxable income (non-SSI) in cents
+  tax_exempt_non_ssi: number;     // Annual tax-exempt income in cents
+  ssi_payout_age: number;         // Age to start SSI (primary)
+  ssi_annual_amount: number;      // Annual SSI (primary) in cents
+  spouse_ssi_payout_age: number | null;  // Spouse SSI start age (MFJ only)
+  spouse_ssi_annual_amount: number | null; // Spouse SSI amount (MFJ only)
   non_ssi_income: NonSSIIncomeEntry[];  // JSONB array of income entries
 
   // ===== Section 6: Conversion =====
@@ -96,6 +102,8 @@ export interface BlueprintFormData {
   filing_status: Client["filing_status"];
   name: string;
   age: number;
+  spouse_name: string | null;
+  spouse_age: number | null;
 
   // Section 2: Current Account
   qualified_account_value: number;
@@ -115,8 +123,12 @@ export interface BlueprintFormData {
   state_tax_rate: number | null;
 
   // Section 5: Taxable Income
+  gross_taxable_non_ssi: number;
+  tax_exempt_non_ssi: number;
   ssi_payout_age: number;
   ssi_annual_amount: number;
+  spouse_ssi_payout_age: number | null;
+  spouse_ssi_annual_amount: number | null;
   non_ssi_income: NonSSIIncomeEntry[];
 
   // Section 6: Conversion

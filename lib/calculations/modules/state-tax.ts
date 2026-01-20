@@ -1,5 +1,5 @@
 import type { StateTaxInput, StateTaxResult, TaxBracket } from '../types';
-import { getStateByCode } from '@/lib/data/states';
+import { getStateByCode, getStateTaxRate } from '@/lib/data/states';
 import { getStateBrackets } from '@/lib/data/state-brackets';
 
 /**
@@ -67,5 +67,67 @@ export function calculateStateTax(input: StateTaxInput): StateTaxResult {
   return {
     totalTax,
     effectiveRate: stateInfo.topRate
+  };
+}
+
+/**
+ * Calculate state tax on a Roth conversion amount
+ * Per specification: state_tax = conversion_amount × state_rate
+ *
+ * Uses the simplified flat rate from the specification for conversion calculations.
+ *
+ * @param conversionAmount The conversion amount in cents
+ * @param state State code (e.g., "CA") or state name (e.g., "California")
+ * @param overrideRate Optional rate override (decimal, e.g., 0.05 for 5%)
+ */
+export function calculateConversionStateTax(
+  conversionAmount: number,
+  state: string,
+  overrideRate?: number
+): number {
+  if (conversionAmount <= 0) return 0;
+
+  // Use override rate if provided, otherwise look up the rate
+  const rate = overrideRate ?? getStateTaxRate(state);
+
+  // State tax on conversion (flat rate per specification)
+  return Math.round(conversionAmount * rate);
+}
+
+/**
+ * Calculate combined federal and state tax on a Roth conversion
+ * Per specification:
+ * total_tax = federal_marginal_tax + (conversion × state_rate)
+ */
+export interface ConversionTaxResult {
+  federalTax: number;
+  stateTax: number;
+  totalTax: number;
+}
+
+export function calculateConversionTotalTax(
+  conversionAmount: number,
+  existingTaxableIncome: number,
+  filingStatus: string,
+  state: string,
+  taxYear: number,
+  stateRateOverride?: number
+): ConversionTaxResult {
+  // Import here to avoid circular dependency
+  const { calculateConversionFederalTax } = require('./federal-tax');
+
+  const federalTax = calculateConversionFederalTax(
+    conversionAmount,
+    existingTaxableIncome,
+    filingStatus,
+    taxYear
+  );
+
+  const stateTax = calculateConversionStateTax(conversionAmount, state, stateRateOverride);
+
+  return {
+    federalTax,
+    stateTax,
+    totalTax: federalTax + stateTax
   };
 }
