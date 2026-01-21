@@ -21,6 +21,7 @@ export function CurrentAccountSection() {
             <CurrencyInput
               {...field}
               aria-invalid={fieldState.invalid}
+              decimals={0}
             />
             <FieldDescription>Total value of Traditional IRA, 401(k), and other qualified accounts</FieldDescription>
             <FieldError errors={[fieldState.error]} />

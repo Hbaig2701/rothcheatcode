@@ -47,7 +47,7 @@ export const strategyEnum = z.enum([
 
 export const nonSSIIncomeEntrySchema = z.object({
   year: z.number().int().min(2024).max(2100),
-  age: z.number().int().min(0).max(120),
+  age: z.union([z.number(), z.string()]), // Allow "62/60" format
   gross_taxable: z.number().int().min(0), // In cents
   tax_exempt: z.number().int().min(0),    // In cents
 });
@@ -61,6 +61,8 @@ export const clientBlueprintBaseSchema = z.object({
   filing_status: filingStatusEnum,
   name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
   age: z.number().int().min(18, "Age must be at least 18").max(100, "Age must be 100 or less"),
+  spouse_name: z.string().max(100).optional(),
+  spouse_age: z.number().int().min(18).max(100).optional(),
 
   // Section 2: Current Account Data
   qualified_account_value: z.number().int().min(0, "Amount must be positive"),
@@ -82,6 +84,8 @@ export const clientBlueprintBaseSchema = z.object({
   // Section 5: Taxable Income Calculation
   ssi_payout_age: z.number().int().min(62, "SSI starts at 62 minimum").max(70, "SSI starts at 70 maximum").default(67),
   ssi_annual_amount: z.number().int().min(0, "Amount must be positive").default(2400000), // $24,000 in cents
+  spouse_ssi_payout_age: z.number().int().min(62).max(70).optional(),
+  spouse_ssi_annual_amount: z.number().int().min(0).optional(),
   non_ssi_income: z.array(nonSSIIncomeEntrySchema).default([]),
 
   // Section 6: Conversion
@@ -275,6 +279,8 @@ export type ClientFormData = {
   filing_status: "single" | "married_filing_jointly" | "married_filing_separately" | "head_of_household";
   name: string;
   age: number;
+  spouse_name?: string;
+  spouse_age?: number;
 
   // Section 2: Current Account
   qualified_account_value: number;
@@ -296,9 +302,11 @@ export type ClientFormData = {
   // Section 5: Taxable Income
   ssi_payout_age: number;
   ssi_annual_amount: number;
+  spouse_ssi_payout_age?: number;
+  spouse_ssi_annual_amount?: number;
   non_ssi_income: Array<{
     year: number;
-    age: number;
+    age: number | string;
     gross_taxable: number;
     tax_exempt: number;
   }>;

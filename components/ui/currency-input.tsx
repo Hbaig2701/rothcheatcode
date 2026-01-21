@@ -16,6 +16,7 @@ interface CurrencyInputProps {
   disabled?: boolean;
   className?: string;
   "aria-invalid"?: boolean;
+  decimals?: number;
 }
 
 export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
@@ -27,6 +28,7 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
       disabled,
       className,
       "aria-invalid": ariaInvalid,
+      decimals = 2,
     },
     ref
   ) => {
@@ -41,12 +43,13 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
           customInput={InputGroupInput}
           ref={ref}
           value={displayValue}
-          decimalsLimit={2}
-          decimalScale={2}
+          decimalsLimit={decimals}
+          decimalScale={decimals}
           groupSeparator=","
           decimalSeparator="."
           placeholder={placeholder}
           disabled={disabled}
+          allowNegativeValue={false}
           onValueChange={(_, __, values) => {
             // Convert dollars to cents
             if (values?.float !== undefined && values.float !== null) {

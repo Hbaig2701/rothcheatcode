@@ -34,6 +34,9 @@ export function InputSidebar({ client }: InputSidebarProps) {
             filing_status: client?.filing_status ?? "married_filing_jointly",
             name: client?.name ?? "",
             age: client?.age ?? 62,
+            spouse_name: client?.spouse_name ?? "",
+            spouse_age: client?.spouse_age ?? 60, // Default or fetch if available
+
             qualified_account_value: client?.qualified_account_value ?? 0,
             carrier_name: client?.carrier_name ?? "Generic Carrier",
             product_name: client?.product_name ?? "Generic Product",
@@ -45,8 +48,12 @@ export function InputSidebar({ client }: InputSidebarProps) {
             max_tax_rate: client?.max_tax_rate ?? 24,
             tax_payment_source: client?.tax_payment_source ?? "from_taxable",
             state_tax_rate: client?.state_tax_rate ?? null,
+
             ssi_payout_age: client?.ssi_payout_age ?? 67,
             ssi_annual_amount: client?.ssi_annual_amount ?? 2400000,
+            spouse_ssi_payout_age: client?.spouse_ssi_payout_age ?? 67,
+            spouse_ssi_annual_amount: client?.spouse_ssi_annual_amount ?? 0,
+
             non_ssi_income: client?.non_ssi_income ?? [],
             conversion_type: client?.conversion_type ?? "optimized_amount",
             protect_initial_premium: client?.protect_initial_premium ?? true,
@@ -74,7 +81,12 @@ export function InputSidebar({ client }: InputSidebarProps) {
 
             let spouseDob = null;
             if (data.filing_status === "married_filing_jointly" || data.filing_status === "married_filing_separately") {
-                spouseDob = dateOfBirth;
+                if (data.spouse_age) {
+                    const spYear = currentYear - data.spouse_age;
+                    spouseDob = `${spYear}-01-01`;
+                } else {
+                    spouseDob = dateOfBirth; // fallback
+                }
             }
 
             const submitData = {
@@ -82,8 +94,12 @@ export function InputSidebar({ client }: InputSidebarProps) {
                 traditional_ira: data.qualified_account_value,
                 other_retirement: 0,
                 ss_self: data.ssi_annual_amount,
-                ss_spouse: 0,
+                ss_spouse: data.spouse_ssi_annual_amount ?? 0,
                 ss_start_age: data.ssi_payout_age,
+                // We'll pass spouse fields in ...data, expecting backend to store them if schema matches
+                // If backend schema is strict (legacy), extra fields might be ignored unless we updated DB types.
+                // Assuming backend handles ...data or JSON blob.
+
                 growth_rate: data.rate_of_return,
                 strategy: mapConversionTypeToStrategy(data.conversion_type),
                 start_age: data.age + data.years_to_defer_conversion,
@@ -116,7 +132,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             <div className="p-4 border-b border-[#334155] bg-[#0f172a] shrink-0 space-y-2">
                 <h2 className="text-xs font-bold text-emerald-500 uppercase tracking-widest">Inputs</h2>
                 <select className="w-full bg-[#1e293b] border border-[#334155] text-xs h-8 rounded px-3 text-slate-200 focus:ring-1 focus:ring-emerald-500 outline-none">
-                    <option>Standard Blueprint</option>
+                    <option>Fixed Income Annuity</option>
                 </select>
             </div>
 

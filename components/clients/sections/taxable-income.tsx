@@ -10,43 +10,81 @@ import { IncomeTable } from "@/components/clients/income-table";
 
 export function TaxableIncomeSection() {
   const form = useFormContext<ClientFormData>();
+  const filingStatus = form.watch("filing_status");
+  const isMarried = filingStatus === "married_filing_jointly";
 
   return (
     <FormSection title="5. Taxable Income Calculation">
-      {/* SSI Payout Age */}
-      <Field data-invalid={!!form.formState.errors.ssi_payout_age}>
-        <FieldLabel htmlFor="ssi_payout_age">SSI Payout Age</FieldLabel>
-        <Input
-          id="ssi_payout_age"
-          type="number"
-          min={62}
-          max={70}
-          {...form.register("ssi_payout_age", { valueAsNumber: true })}
-          aria-invalid={!!form.formState.errors.ssi_payout_age}
-        />
-        <FieldDescription>Age to begin Social Security (62-70)</FieldDescription>
-        <FieldError errors={[form.formState.errors.ssi_payout_age]} />
-      </Field>
+      {/* Client SSI Block */}
+      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-700/50 pb-1">Client SSI</h3>
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <Field data-invalid={!!form.formState.errors.ssi_payout_age}>
+          <FieldLabel htmlFor="ssi_payout_age">Next Payout Age</FieldLabel>
+          <Input
+            id="ssi_payout_age"
+            type="number"
+            min={62}
+            max={70}
+            {...form.register("ssi_payout_age", { valueAsNumber: true })}
+            aria-invalid={!!form.formState.errors.ssi_payout_age}
+          />
+          <FieldError errors={[form.formState.errors.ssi_payout_age]} />
+        </Field>
 
-      {/* SSI Annual Amount */}
-      <Controller
-        name="ssi_annual_amount"
-        control={form.control}
-        render={({ field: { ref, ...field }, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="ssi_annual_amount">SSI Annual Amount</FieldLabel>
-            <CurrencyInput
-              {...field}
-              aria-invalid={fieldState.invalid}
+        <Controller
+          name="ssi_annual_amount"
+          control={form.control}
+          render={({ field: { ref, ...field }, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="ssi_annual_amount">Annual Amount</FieldLabel>
+              <CurrencyInput
+                {...field}
+                aria-invalid={fieldState.invalid}
+              />
+              <FieldError errors={[fieldState.error]} />
+            </Field>
+          )}
+        />
+      </div>
+
+      {/* Spouse SSI Block (Conditional) */}
+      {isMarried && (
+        <div className="animate-in fade-in slide-in-from-top-1 mb-4">
+          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-700/50 pb-1">Spouse SSI</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <Field data-invalid={!!form.formState.errors.spouse_ssi_payout_age}>
+              <FieldLabel htmlFor="spouse_ssi_payout_age">Next Payout Age</FieldLabel>
+              <Input
+                id="spouse_ssi_payout_age"
+                type="number"
+                min={62}
+                max={70}
+                {...form.register("spouse_ssi_payout_age", { valueAsNumber: true })}
+                aria-invalid={!!form.formState.errors.spouse_ssi_payout_age}
+              />
+              <FieldError errors={[form.formState.errors.spouse_ssi_payout_age]} />
+            </Field>
+
+            <Controller
+              name="spouse_ssi_annual_amount"
+              control={form.control}
+              render={({ field: { ref, ...field }, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="spouse_ssi_annual_amount">Annual Amount</FieldLabel>
+                  <CurrencyInput
+                    {...field}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
             />
-            <FieldDescription>Combined Social Security annual benefits</FieldDescription>
-            <FieldError errors={[fieldState.error]} />
-          </Field>
-        )}
-      />
+          </div>
+        </div>
+      )}
 
       {/* Non-SSI Income Table */}
-      <div className="col-span-full">
+      <div className="col-span-full pt-2">
         <IncomeTable />
       </div>
     </FormSection>

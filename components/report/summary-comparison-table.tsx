@@ -78,6 +78,8 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
         { label: "Total Distributions", type: "data", base: baseTotalDist, blue: blueTotalDist }, // Re-listing
         { label: "Total Costs", type: "data", base: baseTotalCosts, blue: blueTotalCosts },
         { label: "Lifetime Wealth", type: "data", base: baseLifetimeWealth, blue: blueLifetimeWealth, highlight: true },
+        // User requested explicit Difference row
+        { label: "Difference", type: "difference_row", value: blueLifetimeWealth - baseLifetimeWealth },
     ];
 
     return (
@@ -94,6 +96,26 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
                         return (
                             <div key={i} className="p-2 bg-slate-900/50 text-slate-500 font-bold uppercase tracking-wider text-[10px] mt-2">
                                 {row.label}
+                            </div>
+                        );
+                    }
+
+                    if (row.type === "difference_row") {
+                        // Percentage calc: (Blue - Base) / Base
+                        // row.value is absolute diff. We need to calculate percent from components.
+                        // But I passed hardcoded value in rows definition.
+                        // Let's rely on row.value being the Diff Amount, and calculate percent dynamically or pass percent.
+                        // Actually, simpler to calculate percent directly here:
+                        const pct = baseLifetimeWealth !== 0 ? ((blueLifetimeWealth - baseLifetimeWealth) / baseLifetimeWealth) : 0;
+
+                        return (
+                            <div key={i} className="grid grid-cols-4 p-2 items-center bg-emerald-950/30 border-t border-emerald-900/50">
+                                <div className="text-emerald-400 font-bold uppercase tracking-wider text-[11px]">{row.label}</div>
+                                <div className="text-right font-mono text-slate-600">-</div>
+                                <div className="text-right font-mono text-slate-600">-</div>
+                                <div className="text-right font-mono text-emerald-400 font-bold text-sm">
+                                    {new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2, signDisplay: 'always' }).format(pct)}
+                                </div>
                             </div>
                         );
                     }

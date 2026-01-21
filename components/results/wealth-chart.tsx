@@ -49,7 +49,7 @@ export function WealthChart({ data, breakEvenAge }: WealthChartProps) {
             type="monotone"
             dataKey="baseline"
             name="Baseline (No Conversion)"
-            stroke="#6b7280"  // gray-500
+            stroke="#ef4444"  // red-500
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 6 }}
