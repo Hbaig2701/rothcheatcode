@@ -1,15 +1,16 @@
 import { Projection } from '@/lib/types/projection';
-import { SimulationResult } from './types';
+import { SimulationResult, YearlyResult } from './types';
 import type { SensitivityResult } from './analysis/types';
 
 /**
  * Data point for wealth chart
+ * Now represents Lifetime Wealth Trajectory (not account balances)
  */
 export interface ChartDataPoint {
   age: number;
   year: number;
-  baseline: number;   // Net worth in cents
-  blueprint: number;  // Net worth in cents
+  baseline: number;   // Lifetime wealth in cents
+  blueprint: number;  // Lifetime wealth in cents
 }
 
 /**
@@ -32,8 +33,51 @@ function isProjection(input: Projection | SimulationResult): input is Projection
 }
 
 /**
+ * Calculate Lifetime Wealth Trajectory for a scenario
+ *
+ * Lifetime Wealth = Cumulative After-Tax Distributions + Net Legacy Value - Cumulative IRMAA
+ *
+ * @param years - Array of yearly results
+ * @param scenario - 'baseline' (heirs pay 40% tax) or 'blueprint' (heirs pay 0% tax)
+ * @param heirTaxRate - Tax rate heirs pay on inherited Traditional IRA (default 40%)
+ */
+function calculateLifetimeWealthTrajectory(
+  years: YearlyResult[],
+  scenario: 'baseline' | 'blueprint',
+  heirTaxRate: number = 0.40
+): number[] {
+  let cumulativeAfterTaxDist = 0;
+  let cumulativeIRMAA = 0;
+
+  return years.map(year => {
+    // After-tax distribution = (RMD + Conversion) - (Federal Tax + State Tax)
+    const distribution = year.rmdAmount + year.conversionAmount;
+    const taxes = year.federalTax + year.stateTax;
+    const afterTaxDist = distribution - taxes;
+    cumulativeAfterTaxDist += afterTaxDist;
+
+    // Cumulative IRMAA
+    cumulativeIRMAA += year.irmaaSurcharge || 0;
+
+    // Net Legacy Value based on scenario
+    // Baseline (Traditional IRA): heirs pay tax on inheritance
+    // Blueprint (Roth): heirs pay no tax
+    const netLegacy = scenario === 'baseline'
+      ? year.netWorth * (1 - heirTaxRate)
+      : year.netWorth;
+
+    // Lifetime Wealth = cumulative after-tax distributions + net legacy - cumulative IRMAA
+    return cumulativeAfterTaxDist + netLegacy - cumulativeIRMAA;
+  });
+}
+
+/**
  * Transform projection data into chart-ready format
- * Extracts age, year, and net worth from both scenarios
+ * Calculates Lifetime Wealth Trajectory for both scenarios
+ *
+ * Lifetime Wealth represents "if I died at this age, what would my total lifetime wealth be?"
+ * Formula: Cumulative After-Tax Distributions + Net Legacy Value - Cumulative IRMAA
+ *
  * Accepts either database Projection or in-memory SimulationResult
  */
 export function transformToChartData(data: Projection | SimulationResult): ChartDataPoint[] {
@@ -42,21 +86,27 @@ export function transformToChartData(data: Projection | SimulationResult): Chart
     const baselineYears = data.baseline_years;
     const blueprintYears = data.blueprint_years;
 
+    const baselineWealth = calculateLifetimeWealthTrajectory(baselineYears, 'baseline');
+    const blueprintWealth = calculateLifetimeWealthTrajectory(blueprintYears, 'blueprint');
+
     return baselineYears.map((baseYear, index) => ({
       age: baseYear.age,
       year: baseYear.year,
-      baseline: baseYear.netWorth,
-      blueprint: blueprintYears[index]?.netWorth ?? 0,
+      baseline: Math.round(baselineWealth[index]),
+      blueprint: Math.round(blueprintWealth[index]),
     }));
   } else {
     // In-memory SimulationResult (camelCase)
     const { baseline, blueprint } = data;
 
+    const baselineWealth = calculateLifetimeWealthTrajectory(baseline, 'baseline');
+    const blueprintWealth = calculateLifetimeWealthTrajectory(blueprint, 'blueprint');
+
     return baseline.map((baseYear, index) => ({
       age: baseYear.age,
       year: baseYear.year,
-      baseline: baseYear.netWorth,
-      blueprint: blueprint[index]?.netWorth ?? 0,
+      baseline: Math.round(baselineWealth[index]),
+      blueprint: Math.round(blueprintWealth[index]),
     }));
   }
 }

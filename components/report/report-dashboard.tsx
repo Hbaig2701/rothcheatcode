@@ -106,15 +106,22 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
                 {/* Chart Section */}
                 {/* Added min-h to prevent overlap */}
-                <div className="bg-[#0f172a] border border-slate-800 rounded-sm p-6 min-h-[450px] relative">
-                    <div className="text-center mb-6">
-                        <h4 className="text-sm font-semibold text-slate-200">Lifetime Wealth Comparison</h4>
-                        <div className="flex justify-center gap-6 mt-2 text-[10px] uppercase tracking-wider font-semibold">
-                            <div className="flex items-center gap-2 text-[#3b82f6]"><span className="w-2 h-2 rounded-full bg-[#3b82f6]"></span> Blueprint Trajectory</div>
-                            <div className="flex items-center gap-2 text-[#ef4444]"><span className="w-2 h-2 rounded-full bg-[#ef4444]"></span> Current Trajectory</div>
+                <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-6 min-h-[480px] relative">
+                    <div className="text-center mb-4">
+                        <h4 className="text-base font-semibold text-slate-100">Lifetime Wealth Trajectory</h4>
+                        <p className="text-xs text-slate-500 mt-1">Total wealth if client passes at each age (distributions + legacy - costs)</p>
+                        <div className="flex justify-center gap-8 mt-3 text-[11px] font-medium">
+                            <div className="flex items-center gap-2 text-emerald-400">
+                                <span className="w-3 h-0.5 bg-emerald-500 rounded"></span>
+                                Blueprint (Roth)
+                            </div>
+                            <div className="flex items-center gap-2 text-red-400">
+                                <span className="w-3 h-0.5 bg-red-500 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 4px, transparent 4px, transparent 6px)' }}></span>
+                                Baseline (Traditional)
+                            </div>
                         </div>
                     </div>
-                    <div className="h-[350px] w-full">
+                    <div className="h-[360px] w-full">
                         <WealthChart data={chartData} breakEvenAge={projection.break_even_age} />
                     </div>
                 </div>
