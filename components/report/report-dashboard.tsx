@@ -37,12 +37,23 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const toPercent = (amount: number) => new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 }).format(amount);
 
     // --- Calculate Lifetime Wealth (Same logic as table) ---
+    // --- Calculate Lifetime Wealth (Same logic as table) ---
     const calculateLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
-        // Dist + IRMAA for now? No, just Dist - Tax + NetLegacy
-        const dist = sum(years, 'rmdAmount') + sum(years, 'conversionAmount');
+        // 1. Calculate underlying metrics
+        const preTaxDist = sum(years, 'rmdAmount') + sum(years, 'conversionAmount');
         const tax = sum(years, 'federalTax') + sum(years, 'stateTax');
-        const afterTaxDist = dist - tax;
-        return afterTaxDist + finalNetWorth;
+        const irmaa = sum(years, 'irmaaSurcharge');
+
+        const afterTaxDist = preTaxDist - tax;
+
+        // 2. Total Distributions = Lifetime After-Tax Distributions + Net Legacy Distribution
+        const totalDist = afterTaxDist + finalNetWorth;
+
+        // 3. Total Costs = Tax + IRMAA
+        const totalCosts = tax + irmaa;
+
+        // 4. Lifetime Wealth = Total Distributions - Total Costs
+        return totalDist - totalCosts;
     }
 
     const baseLifetime = calculateLifetimeWealth(projection.baseline_years, projection.baseline_final_net_worth);

@@ -70,22 +70,7 @@ export function WealthChart({ data, breakEvenAge }: WealthChartProps) {
             animationDuration={1500}
             animationEasing="ease-out"
           />
-          {/* Breakeven marker - green dashed vertical line */}
-          {breakEvenAge && (
-            <ReferenceLine
-              x={breakEvenAge}
-              stroke="#22c55e"  // green-500
-              strokeDasharray="5 5"
-              strokeWidth={2}
-              label={{
-                value: `Breakeven: Age ${breakEvenAge}`,
-                position: 'top',
-                fill: '#22c55e',
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            />
-          )}
+
         </LineChart>
       </ResponsiveContainer>
     </div>

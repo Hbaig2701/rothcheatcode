@@ -20,12 +20,9 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     const baseTax = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
     const blueTax = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
 
-    // Placeholder for Roth Distributions (assuming 0 for now unless we track it)
-    const baseRothDist = 0;
-    const blueRothDist = 0;
-
-    const baseAfterTaxDist = baseDistConversions - baseTax + baseRothDist;
-    const blueAfterTaxDist = blueDistConversions - blueTax + blueRothDist;
+    // Practical implementation: Lifetime After-Tax Distributions = Distributions / Conversions − Tax on Distributions / Conversions
+    const baseAfterTaxDist = baseDistConversions - baseTax;
+    const blueAfterTaxDist = blueDistConversions - blueTax;
 
     // --- 2. IRMAA ---
     const baseIrmaa = sum(projection.baseline_years, 'irmaaSurcharge');
@@ -48,17 +45,16 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     const blueLegacyTax = blueLegacyPreTax - blueNetLegacy;
 
     // --- 4. Wealth Summary ---
-    const baseTotalDist = baseAfterTaxDist; // Simplified
-    const blueTotalDist = blueAfterTaxDist;
+    // User Request: Total Distributions = Lifetime After-Tax Distributions + Net Legacy Distribution
+    const baseTotalDist = baseAfterTaxDist + baseNetLegacy;
+    const blueTotalDist = blueAfterTaxDist + blueNetLegacy;
 
     const baseTotalCosts = baseTax + baseIrmaa; // Tax + IRMAA
     const blueTotalCosts = blueTax + blueIrmaa;
 
-    // "Lifetime Wealth" = Total Distributions + Net Legacy ?
-    // Or just final net worth? The screenshot implies a grand total.
-    // "Lifetime Wealth" usually usually means (Cumulative After-Tax Spend) + (Ending Net Worth).
-    const baseLifetimeWealth = baseTotalDist + baseNetLegacy;
-    const blueLifetimeWealth = blueTotalDist + blueNetLegacy;
+    // User Request: Lifetime Wealth = Total Distributions - Total Costs
+    const baseLifetimeWealth = baseTotalDist - baseTotalCosts;
+    const blueLifetimeWealth = blueTotalDist - blueTotalCosts;
 
     const toUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val / 100);
 
@@ -67,7 +63,7 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
         { label: "Distributions", type: "header" },
         { label: "Distributions / Conversions", type: "data", base: baseDistConversions, blue: blueDistConversions },
         { label: "Tax on Distributions / Conversions", type: "data", base: baseTax, blue: blueTax },
-        { label: "Roth Distributions", type: "data", base: baseRothDist, blue: blueRothDist },
+        { label: "Roth Distributions", type: "data", base: 0, blue: 0 },
         { label: "Lifetime After-Tax Distributions", type: "data", base: baseAfterTaxDist, blue: blueAfterTaxDist },
 
         { label: "IRMAA", type: "header" },
@@ -121,7 +117,7 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
                             <div className="text-right font-mono text-slate-400">{toUSD(base)}</div>
                             <div className="text-right font-mono text-blue-300">{toUSD(blue)}</div>
                             <div className={cn("text-right font-mono", colorClass)}>
-                                {diff > 0 ? "+" : ""}{toUSD(diff)}
+                                {toUSD(Math.abs(diff))}
                             </div>
                         </div>
                     );

@@ -29,7 +29,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
   return (
     <div className="flex w-full h-[calc(100vh-4rem)] overflow-hidden bg-slate-950">
       {/* Left Sidebar: Inputs */}
-      <div className="w-[320px] shrink-0 h-full border-r border-slate-800 bg-slate-900 overflow-hidden">
+      <div className="w-[350px] shrink-0 h-full border-r border-slate-800 bg-slate-900 overflow-hidden">
         <InputSidebar client={client} />
       </div>
 
