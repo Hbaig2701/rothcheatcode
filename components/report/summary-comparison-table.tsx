@@ -13,72 +13,62 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
         years.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
 
-    // --- 1. Distributions ---
-    const baseDistConversions = sum(projection.baseline_years, 'rmdAmount') + sum(projection.baseline_years, 'conversionAmount');
-    const blueDistConversions = sum(projection.blueprint_years, 'rmdAmount') + sum(projection.blueprint_years, 'conversionAmount');
+    const heirTaxRate = 0.40;
 
+    // --- Baseline Metrics ---
+    const baseRMDs = sum(projection.baseline_years, 'rmdAmount');
     const baseTax = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
-    const blueTax = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
-
-    // Practical implementation: Lifetime After-Tax Distributions = Distributions / Conversions − Tax on Distributions / Conversions
-    const baseAfterTaxDist = baseDistConversions - baseTax;
-    const blueAfterTaxDist = blueDistConversions - blueTax;
-
-    // --- 2. IRMAA ---
     const baseIrmaa = sum(projection.baseline_years, 'irmaaSurcharge');
+    const baseFinalBalance = projection.baseline_final_net_worth;
+
+    // Baseline: RMDs are actual distributions received
+    const baseAfterTaxDist = baseRMDs - baseTax;
+    // Baseline: Legacy at 60% (heirs pay 40% tax on Traditional IRA)
+    const baseNetLegacy = baseFinalBalance * (1 - heirTaxRate);
+    const baseLegacyTax = baseFinalBalance * heirTaxRate;
+
+    // --- Blueprint Metrics ---
+    const blueConversions = sum(projection.blueprint_years, 'conversionAmount');
+    const blueTax = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
     const blueIrmaa = sum(projection.blueprint_years, 'irmaaSurcharge');
+    const blueFinalBalance = projection.blueprint_final_net_worth;
 
-    // --- 3. Heirs (Legacy) ---
-    // Using final balances
-    const baseLegacyPreTax = projection.baseline_final_traditional + projection.baseline_final_roth + projection.baseline_final_taxable;
-    const blueLegacyPreTax = projection.blueprint_final_traditional + projection.blueprint_final_roth + projection.blueprint_final_taxable;
+    // Blueprint: Conversions are NOT distributions (money stays in account)
+    // Blueprint: Legacy at 100% (Roth has no heir tax)
+    const blueNetLegacy = blueFinalBalance;
+    const blueLegacyTax = 0; // Roth has no heir tax
 
-    // Estimate Tax on Legacy (assuming mostly Traditional IRA tax at 40% for legacy, 0% for Roth/Taxable basis)
-    // This is a simplification. The backend might have 'heir_benefit' which is the net. 
-    // We'll approximate: Legacy Tax = Traditional * 0.40 (or user heuristic).
-    // Actually, let's use: PreTax - NetWorth (if NetWorth is after tax).
-    // projection.baseline_final_net_worth is likely After Tax Legacy value.
-    const baseNetLegacy = projection.baseline_final_net_worth;
-    const blueNetLegacy = projection.blueprint_final_net_worth;
+    // --- Lifetime Wealth Calculation (must match report-dashboard.tsx) ---
+    // BASELINE: (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
+    const baseLifetimeWealth = baseNetLegacy + baseAfterTaxDist - baseIrmaa;
 
-    const baseLegacyTax = baseLegacyPreTax - baseNetLegacy;
-    const blueLegacyTax = blueLegacyPreTax - blueNetLegacy;
+    // BLUEPRINT: eoy_combined - cumulativeTaxes - cumulativeIRMAA
+    const blueLifetimeWealth = blueFinalBalance - blueTax - blueIrmaa;
 
-    // --- 4. Wealth Summary ---
-    // User Request: Total Distributions = Lifetime After-Tax Distributions + Net Legacy Distribution
-    const baseTotalDist = baseAfterTaxDist + baseNetLegacy;
-    const blueTotalDist = blueAfterTaxDist + blueNetLegacy;
-
-    const baseTotalCosts = baseTax + baseIrmaa; // Tax + IRMAA
-    const blueTotalCosts = blueTax + blueIrmaa;
-
-    // User Request: Lifetime Wealth = Total Distributions - Total Costs
-    const baseLifetimeWealth = baseTotalDist - baseTotalCosts;
-    const blueLifetimeWealth = blueTotalDist - blueTotalCosts;
+    // For display purposes - show what client paid/received
+    const baseTotalCosts = baseTax + baseIrmaa + baseLegacyTax;
+    const blueTotalCosts = blueTax + blueIrmaa + blueLegacyTax;
 
     const toUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val / 100);
 
     // Row Definition: { label, type: 'header' | 'data', base?, blue? }
     const rows = [
-        { label: "Distributions", type: "header" },
-        { label: "Distributions / Conversions", type: "data", base: baseDistConversions, blue: blueDistConversions },
-        { label: "Tax on Distributions / Conversions", type: "data", base: baseTax, blue: blueTax },
-        { label: "Roth Distributions", type: "data", base: 0, blue: 0 },
-        { label: "Lifetime After-Tax Distributions", type: "data", base: baseAfterTaxDist, blue: blueAfterTaxDist },
+        { label: "Client Distributions", type: "header" },
+        { label: "RMDs / Conversions", type: "data", base: baseRMDs, blue: blueConversions },
+        { label: "Taxes Paid", type: "data", base: baseTax, blue: blueTax },
+        { label: "After-Tax Distributions", type: "data", base: baseAfterTaxDist, blue: 0, note: "Blueprint: $0 (conversions stay in account)" },
 
         { label: "IRMAA", type: "header" },
-        { label: "IRA-Related IRMAA", type: "data", base: baseIrmaa, blue: blueIrmaa },
+        { label: "Total IRMAA Surcharges", type: "data", base: baseIrmaa, blue: blueIrmaa },
 
-        { label: "Heirs", type: "header" },
-        { label: "Legacy Distribution", type: "data", base: baseLegacyPreTax, blue: blueLegacyPreTax },
-        { label: "Tax on Legacy Distribution", type: "data", base: baseLegacyTax, blue: blueLegacyTax },
-        { label: "Net Legacy Distribution", type: "data", base: baseNetLegacy, blue: blueNetLegacy },
+        { label: "Legacy to Heirs", type: "header" },
+        { label: "Account Balance at Death", type: "data", base: baseFinalBalance, blue: blueFinalBalance },
+        { label: "Heir Tax (40% on Traditional)", type: "data", base: baseLegacyTax, blue: blueLegacyTax },
+        { label: "Net Legacy to Heirs", type: "data", base: baseNetLegacy, blue: blueNetLegacy },
 
-        { label: "Wealth", type: "header" },
-        { label: "Total Distributions", type: "data", base: baseTotalDist, blue: blueTotalDist }, // Re-listing
-        { label: "Total Costs", type: "data", base: baseTotalCosts, blue: blueTotalCosts },
+        { label: "Lifetime Wealth Summary", type: "header" },
+        { label: "Total Costs (Taxes + IRMAA + Heir Tax)", type: "data", base: baseTotalCosts, blue: blueTotalCosts },
         { label: "Lifetime Wealth", type: "data", base: baseLifetimeWealth, blue: blueLifetimeWealth, highlight: true },
-        // User requested explicit Difference row
         { label: "Difference", type: "difference_row", value: blueLifetimeWealth - baseLifetimeWealth },
     ];
 
