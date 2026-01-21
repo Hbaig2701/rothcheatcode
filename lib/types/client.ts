@@ -3,7 +3,7 @@
 // Non-SSI Income entry for the JSONB array
 export interface NonSSIIncomeEntry {
   year: number;
-  age: number;
+  age: number | string;
   gross_taxable: number; // In cents
   tax_exempt: number;    // In cents
 }
