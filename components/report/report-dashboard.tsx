@@ -36,28 +36,33 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const toUSD = (amount: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(amount / 100);
     const toPercent = (amount: number) => new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 }).format(amount);
 
-    // --- Calculate Lifetime Wealth (Same logic as table) ---
-    // --- Calculate Lifetime Wealth (Same logic as table) ---
-    const calculateLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
-        // 1. Calculate underlying metrics
-        const preTaxDist = sum(years, 'rmdAmount') + sum(years, 'conversionAmount');
-        const tax = sum(years, 'federalTax') + sum(years, 'stateTax');
-        const irmaa = sum(years, 'irmaaSurcharge');
+    // --- Calculate Lifetime Wealth ---
+    // BLUEPRINT: eoy_combined - cumulativeTaxes - cumulativeIRMAA
+    //   (Roth passes tax-free, conversions aren't distributions but taxes are costs)
+    const calculateBlueprintLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
+        const totalTaxes = sum(years, 'federalTax') + sum(years, 'stateTax');
+        const totalIRMAA = sum(years, 'irmaaSurcharge');
+        return finalNetWorth - totalTaxes - totalIRMAA;
+    };
 
-        const afterTaxDist = preTaxDist - tax;
+    // BASELINE: (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
+    //   (Traditional has 40% heir tax, RMDs are actual distributions received)
+    const calculateBaselineLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
+        const heirTaxRate = 0.40;
+        const totalRMDs = sum(years, 'rmdAmount');
+        const totalTaxes = sum(years, 'federalTax') + sum(years, 'stateTax');
+        const totalIRMAA = sum(years, 'irmaaSurcharge');
 
-        // 2. Total Distributions = Lifetime After-Tax Distributions + Net Legacy Distribution
-        const totalDist = afterTaxDist + finalNetWorth;
+        // After-tax distributions = RMDs - taxes paid
+        const afterTaxDistributions = totalRMDs - totalTaxes;
 
-        // 3. Total Costs = Tax + IRMAA
-        const totalCosts = tax + irmaa;
+        // Legacy at 60% (heir pays 40% tax) + cumulative distributions - IRMAA
+        const netLegacy = finalNetWorth * (1 - heirTaxRate);
+        return netLegacy + afterTaxDistributions - totalIRMAA;
+    };
 
-        // 4. Lifetime Wealth = Total Distributions - Total Costs
-        return totalDist - totalCosts;
-    }
-
-    const baseLifetime = calculateLifetimeWealth(projection.baseline_years, projection.baseline_final_net_worth);
-    const blueLifetime = calculateLifetimeWealth(projection.blueprint_years, projection.blueprint_final_net_worth);
+    const baseLifetime = calculateBaselineLifetimeWealth(projection.baseline_years, projection.baseline_final_net_worth);
+    const blueLifetime = calculateBlueprintLifetimeWealth(projection.blueprint_years, projection.blueprint_final_net_worth);
 
     const diff = blueLifetime - baseLifetime;
     const percentChange = baseLifetime > 0 ? diff / baseLifetime : 0;

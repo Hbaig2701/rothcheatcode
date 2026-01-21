@@ -33,41 +33,55 @@ function isProjection(input: Projection | SimulationResult): input is Projection
 }
 
 /**
- * Calculate Lifetime Wealth Trajectory for a scenario
+ * Calculate Lifetime Wealth Trajectory for BLUEPRINT scenario
  *
- * Lifetime Wealth = Cumulative After-Tax Distributions + Net Legacy Value - Cumulative IRMAA
+ * BLUEPRINT: lifetimeWealth = eoy_combined - cumulativeConversionTaxes - cumulativeIRMAA
  *
- * @param years - Array of yearly results
- * @param scenario - 'baseline' (heirs pay 40% tax) or 'blueprint' (heirs pay 0% tax)
- * @param heirTaxRate - Tax rate heirs pay on inherited Traditional IRA (default 40%)
+ * Conversions are NOT distributions (money stays in account, just moves from Traditional to Roth).
+ * But conversion taxes ARE costs. Roth passes to heirs tax-free.
  */
-function calculateLifetimeWealthTrajectory(
+function calculateBlueprintLifetimeWealth(years: YearlyResult[]): number[] {
+  let cumulativeTaxes = 0;
+  let cumulativeIRMAA = 0;
+
+  return years.map(year => {
+    // Accumulate taxes paid on conversions
+    cumulativeTaxes += (year.federalTax + year.stateTax) || 0;
+
+    // Accumulate IRMAA surcharges
+    cumulativeIRMAA += year.irmaaSurcharge || 0;
+
+    // Blueprint: Full account balance (Roth = no heir tax) minus costs paid
+    return year.netWorth - cumulativeTaxes - cumulativeIRMAA;
+  });
+}
+
+/**
+ * Calculate Lifetime Wealth Trajectory for BASELINE scenario
+ *
+ * BASELINE: lifetimeWealth = (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
+ *
+ * RMDs ARE actual distributions the client receives and can spend.
+ * Legacy is reduced by 40% heir tax on Traditional IRA.
+ */
+function calculateBaselineLifetimeWealth(
   years: YearlyResult[],
-  scenario: 'baseline' | 'blueprint',
   heirTaxRate: number = 0.40
 ): number[] {
   let cumulativeAfterTaxDist = 0;
   let cumulativeIRMAA = 0;
 
   return years.map(year => {
-    // After-tax distribution = (RMD + Conversion) - (Federal Tax + State Tax)
-    const distribution = year.rmdAmount + year.conversionAmount;
-    const taxes = year.federalTax + year.stateTax;
-    const afterTaxDist = distribution - taxes;
-    cumulativeAfterTaxDist += afterTaxDist;
+    // RMDs are actual distributions - calculate after-tax amount received
+    const rmdAfterTax = year.rmdAmount - (year.federalTax + year.stateTax);
+    cumulativeAfterTaxDist += rmdAfterTax;
 
-    // Cumulative IRMAA
+    // Accumulate IRMAA surcharges
     cumulativeIRMAA += year.irmaaSurcharge || 0;
 
-    // Net Legacy Value based on scenario
-    // Baseline (Traditional IRA): heirs pay tax on inheritance
-    // Blueprint (Roth): heirs pay no tax
-    const netLegacy = scenario === 'baseline'
-      ? year.netWorth * (1 - heirTaxRate)
-      : year.netWorth;
-
-    // Lifetime Wealth = cumulative after-tax distributions + net legacy - cumulative IRMAA
-    return cumulativeAfterTaxDist + netLegacy - cumulativeIRMAA;
+    // Baseline: Legacy at 60% (heir pays 40% tax) + cumulative distributions received - IRMAA
+    const netLegacy = year.netWorth * (1 - heirTaxRate);
+    return netLegacy + cumulativeAfterTaxDist - cumulativeIRMAA;
   });
 }
 
@@ -76,7 +90,12 @@ function calculateLifetimeWealthTrajectory(
  * Calculates Lifetime Wealth Trajectory for both scenarios
  *
  * Lifetime Wealth represents "if I died at this age, what would my total lifetime wealth be?"
- * Formula: Cumulative After-Tax Distributions + Net Legacy Value - Cumulative IRMAA
+ *
+ * BLUEPRINT: eoy_combined - cumulativeTaxes - cumulativeIRMAA
+ *   (Roth passes tax-free, conversions aren't distributions but taxes are costs)
+ *
+ * BASELINE: (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
+ *   (Traditional has 40% heir tax, RMDs are actual distributions received)
  *
  * Accepts either database Projection or in-memory SimulationResult
  */
@@ -86,8 +105,8 @@ export function transformToChartData(data: Projection | SimulationResult): Chart
     const baselineYears = data.baseline_years;
     const blueprintYears = data.blueprint_years;
 
-    const baselineWealth = calculateLifetimeWealthTrajectory(baselineYears, 'baseline');
-    const blueprintWealth = calculateLifetimeWealthTrajectory(blueprintYears, 'blueprint');
+    const baselineWealth = calculateBaselineLifetimeWealth(baselineYears);
+    const blueprintWealth = calculateBlueprintLifetimeWealth(blueprintYears);
 
     return baselineYears.map((baseYear, index) => ({
       age: baseYear.age,
@@ -99,8 +118,8 @@ export function transformToChartData(data: Projection | SimulationResult): Chart
     // In-memory SimulationResult (camelCase)
     const { baseline, blueprint } = data;
 
-    const baselineWealth = calculateLifetimeWealthTrajectory(baseline, 'baseline');
-    const blueprintWealth = calculateLifetimeWealthTrajectory(blueprint, 'blueprint');
+    const baselineWealth = calculateBaselineLifetimeWealth(baseline);
+    const blueprintWealth = calculateBlueprintLifetimeWealth(blueprint);
 
     return baseline.map((baseYear, index) => ({
       age: baseYear.age,
