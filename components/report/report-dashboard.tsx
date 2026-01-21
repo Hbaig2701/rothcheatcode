@@ -5,7 +5,7 @@ import { useClient } from "@/lib/queries/clients";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData } from '@/lib/calculations/transforms';
 import { Skeleton } from "@/components/ui/skeleton";
-import { YearByYearTable } from "@/components/results/deep-dive/year-by-year-table";
+import { YearOverYearTables } from "@/components/report/year-over-year-tables";
 import { SummaryComparisonTable } from "@/components/report/summary-comparison-table";
 import { cn } from "@/lib/utils";
 import { YearlyResult } from "@/lib/calculations";
@@ -124,12 +124,13 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                     <SummaryComparisonTable projection={projection} />
                 </div>
 
-                {/* Bottom Year By Year (if needed, keeping it as it was in previous step just in case) */}
+                {/* Year-over-Year Tables with Scenario Toggle */}
                 <div className="pt-8">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Projected Year by Year Values</h3>
-                    <div className="bg-black border border-slate-800 rounded-sm overflow-x-auto text-[10px]">
-                        <YearByYearTable years={projection.blueprint_years} scenario="blueprint" />
-                    </div>
+                    <YearOverYearTables
+                        baselineYears={projection.baseline_years}
+                        blueprintYears={projection.blueprint_years}
+                        client={client}
+                    />
                 </div>
 
             </div>
