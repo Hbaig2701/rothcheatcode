@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    /* PDF Styles */
+    @page {
+      size: letter;
+      margin: 0.5in;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      color: #333;
+      font-size: 10pt;
+    }
+
+    .page {
+      page-break-after: always;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .page:last-child {
+      page-break-after: avoid;
+    }
+
+    /* Cover Page */
+    .cover-page {
+      background: linear-gradient(135deg, #1a3a5c 0%, #2d5a87 100%);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 100vh;
+    }
+
+    .cover-page .logo {
+      font-size: 48pt;
+      font-weight: bold;
+      margin-bottom: 100px;
+    }
+
+    .cover-page .logo span {
+      color: #4ecdc4;
+    }
+
+    .cover-page .prepared-for {
+      font-size: 14pt;
+      margin-bottom: 10px;
+      opacity: 0.8;
+    }
+
+    .cover-page .client-name {
+      font-size: 28pt;
+      font-weight: 300;
+    }
+
+    .cover-page .date {
+      font-size: 12pt;
+      margin-top: 40px;
+      opacity: 0.7;
+    }
+
+    /* Headers */
+    .page-header {
+      font-size: 8pt;
+      color: #666;
+      text-align: right;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .section-title {
+      font-size: 18pt;
+      color: #1a3a5c;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #4ecdc4;
+    }
+
+    /* Performance Report */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+
+    .metric-section {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+    }
+
+    .metric-section h3 {
+      font-size: 12pt;
+      color: #1a3a5c;
+      margin: 0 0 15px 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .metric-row:last-child {
+      border-bottom: none;
+    }
+
+    .metric-label {
+      color: #666;
+    }
+
+    .metric-value {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .metric-value.positive {
+      color: #22c55e;
+    }
+
+    .metric-value.highlight {
+      color: #4ecdc4;
+      font-size: 14pt;
+    }
+
+    /* Summary Tables */
+    .summary-tables {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    .summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+    }
+
+    .summary-table th {
+      background: #1a3a5c;
+      color: white;
+      padding: 10px 12px;
+      text-align: left;
+      font-weight: 500;
+    }
+
+    .summary-table th:not(:first-child) {
+      text-align: right;
+    }
+
+    .summary-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .summary-table td:not(:first-child) {
+      text-align: right;
+    }
+
+    .summary-table tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+
+    /* Year-over-Year Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8pt;
+    }
+
+    .data-table th {
+      background: #2d3748;
+      color: white;
+      padding: 8px 6px;
+      text-align: right;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .data-table th:first-child,
+    .data-table th:nth-child(2) {
+      text-align: left;
+    }
+
+    .data-table td {
+      padding: 6px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: right;
+    }
+
+    .data-table td:first-child,
+    .data-table td:nth-child(2) {
+      text-align: left;
+    }
+
+    .data-table tr:nth-child(even) {
+      background: #f7fafc;
+    }
+
+    .data-table .tax-value {
+      color: #e53e3e;
+    }
+
+    .data-table .positive-value {
+      color: #22c55e;
+    }
+
+    /* Chart Container */
+    .chart-container {
+      width: 100%;
+      height: 300px;
+      margin: 20px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .chart-container img {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 8px;
+    }
+
+    /* Disclaimer */
+    .disclaimer {
+      font-size: 8pt;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .disclaimer p {
+      margin-bottom: 15px;
+    }
+
+    /* Comparison highlight row */
+    .highlight-row {
+      background: #e6fffa !important;
+      font-weight: 600;
+    }
+
+    .highlight-row td {
+      color: #1a3a5c;
+    }
+  </style>
+</head>
+<body>
+  <!-- Page 1: Cover -->
+  <div class="page cover-page">
+    <div class="logo">Roth<span>Blueprint</span></div>
+    <div class="prepared-for">Prepared especially for:</div>
+    <div class="client-name">{{clientName}}</div>
+    <div class="date">{{reportDate}}</div>
+  </div>
+
+  <!-- Page 2: Performance Report -->
+  <div class="page">
+    <div class="page-header">Performance Report</div>
+    <h1 class="section-title">Performance Report</h1>
+
+    <div class="metrics-grid">
+      <div class="metric-section">
+        <h3>Client Data</h3>
+        <div class="metric-row">
+          <span class="metric-label">Name</span>
+          <span class="metric-value">{{clientName}}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Age</span>
+          <span class="metric-value">{{clientAge}}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Filing Status</span>
+          <span class="metric-value">{{filingStatus}}</span>
+        </div>
+      </div>
+
+      <div class="metric-section">
+        <h3>Contract Details</h3>
+        <div class="metric-row">
+          <span class="metric-label">Initial Deposit</span>
+          <span class="metric-value">{{initialDeposit}}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Bonus</span>
+          <span class="metric-value">{{bonusRate}}%</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Rate of Return</span>
+          <span class="metric-value">{{rateOfReturn}}%</span>
+        </div>
+      </div>
+
+      <div class="metric-section">
+        <h3>Tax Data</h3>
+        <div class="metric-row">
+          <span class="metric-label">Max Tax Rate</span>
+          <span class="metric-value">{{maxTaxRate}}%</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">State</span>
+          <span class="metric-value">{{state}}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">State Tax</span>
+          <span class="metric-value">{{stateTaxRate}}%</span>
+        </div>
+      </div>
+
+      <div class="metric-section">
+        <h3>Results</h3>
+        <div class="metric-row">
+          <span class="metric-label">Lifetime Wealth Before</span>
+          <span class="metric-value">{{lifetimeWealthBefore}}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Lifetime Wealth After</span>
+          <span class="metric-value highlight">{{lifetimeWealthAfter}}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Increase</span>
+          <span class="metric-value positive">+{{wealthIncreasePercent}}%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page 3: Charts & Insights -->
+  <div class="page">
+    <div class="page-header">Charts &amp; Insights</div>
+    <h1 class="section-title">Lifetime Wealth Trajectory</h1>
+
+    <div class="chart-container">
+      {{#if lifetimeWealthChartImage}}
+      <img src="{{lifetimeWealthChartImage}}" alt="Lifetime Wealth Chart" />
+      {{else}}
+      <p style="color: #666;">Chart not available</p>
+      {{/if}}
+    </div>
+
+    <div class="summary-tables">
+      <table class="summary-table">
+        <tr>
+          <th>Distributions</th>
+          <th>Baseline Trajectory</th>
+          <th>Blueprint Trajectory</th>
+          <th>Difference</th>
+        </tr>
+        <tr>
+          <td>RMDs / Conversions</td>
+          <td>{{baseline.totalDistributions}}</td>
+          <td>{{blueprint.totalConversions}}</td>
+          <td>{{diff.distributions}}</td>
+        </tr>
+        <tr>
+          <td>Tax on Distributions / Conversions</td>
+          <td>{{baseline.taxOnDistributions}}</td>
+          <td>{{blueprint.taxOnConversions}}</td>
+          <td>{{diff.taxes}}</td>
+        </tr>
+        <tr>
+          <td>After-Tax Distributions</td>
+          <td>{{baseline.afterTaxDistributions}}</td>
+          <td>{{blueprint.afterTaxDistributions}}</td>
+          <td>{{diff.afterTax}}</td>
+        </tr>
+      </table>
+
+      <table class="summary-table">
+        <tr>
+          <th>Heirs</th>
+          <th>Baseline Trajectory</th>
+          <th>Blueprint Trajectory</th>
+          <th>Difference</th>
+        </tr>
+        <tr>
+          <td>Legacy Distribution</td>
+          <td>{{baseline.legacyGross}}</td>
+          <td>{{blueprint.legacyGross}}</td>
+          <td>{{diff.legacyGross}}</td>
+        </tr>
+        <tr>
+          <td>Tax on Legacy Distribution</td>
+          <td>{{baseline.legacyTax}}</td>
+          <td>{{blueprint.legacyTax}}</td>
+          <td>{{diff.legacyTax}}</td>
+        </tr>
+        <tr>
+          <td>Net Legacy Distribution</td>
+          <td>{{baseline.legacyNet}}</td>
+          <td>{{blueprint.legacyNet}}</td>
+          <td>{{diff.legacyNet}}</td>
+        </tr>
+      </table>
+
+      <table class="summary-table">
+        <tr>
+          <th>Wealth</th>
+          <th>Baseline Trajectory</th>
+          <th>Blueprint Trajectory</th>
+          <th>Difference</th>
+        </tr>
+        <tr>
+          <td>Total Distributions + Legacy</td>
+          <td>{{baseline.totalDist}}</td>
+          <td>{{blueprint.totalDist}}</td>
+          <td>{{diff.totalDist}}</td>
+        </tr>
+        <tr>
+          <td>Total Costs (Taxes + IRMAA)</td>
+          <td>{{baseline.totalCosts}}</td>
+          <td>{{blueprint.totalCosts}}</td>
+          <td>{{diff.totalCosts}}</td>
+        </tr>
+        <tr class="highlight-row">
+          <td><strong>Lifetime Wealth</strong></td>
+          <td><strong>{{baseline.lifetimeWealth}}</strong></td>
+          <td><strong>{{blueprint.lifetimeWealth}}</strong></td>
+          <td><strong style="color: #22c55e;">+{{wealthIncreasePercent}}%</strong></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Page 4: Conversion Details -->
+  <div class="page">
+    <div class="page-header">Charts &amp; Insights</div>
+    <h1 class="section-title">Account Values during Conversion</h1>
+
+    <div class="chart-container">
+      {{#if conversionChartImage}}
+      <img src="{{conversionChartImage}}" alt="Conversion Chart" />
+      {{else}}
+      <p style="color: #666;">Chart not available</p>
+      {{/if}}
+    </div>
+
+    <h2 style="font-size: 14pt; color: #1a3a5c; margin: 30px 0 15px;">Conversion Details</h2>
+    <table class="data-table">
+      <tr>
+        <th>Age</th>
+        <th>Income (Taxable)</th>
+        <th>Distribution (IRA)</th>
+        <th>Max Tax Bracket ({{maxTaxRate}}%)</th>
+        <th>Taxes (IRA)</th>
+        <th>Conversion Amount</th>
+        <th>Interest</th>
+        <th>E.O.Y. (IRA)</th>
+        <th>E.O.Y. (Roth)</th>
+      </tr>
+      {{#each conversionDetails}}
+      <tr>
+        <td>{{this.age}}</td>
+        <td>{{this.existingTaxable}}</td>
+        <td>{{this.distribution}}</td>
+        <td>{{this.bracketCeiling}}</td>
+        <td class="tax-value">{{this.taxes}}</td>
+        <td>{{this.conversionAmount}}</td>
+        <td>{{this.interest}}</td>
+        <td>{{this.eoyIra}}</td>
+        <td>{{this.eoyRoth}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <!-- Pages 5-8: Baseline Tables -->
+  <div class="page">
+    <div class="page-header">Baseline - Account Overview</div>
+    <h1 class="section-title">Baseline Year-over-Year Values</h1>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>B.O.Y. (Combined)</th>
+        <th>Dist. (IRA)</th>
+        <th>Taxes (IRA)</th>
+        <th>Bracket</th>
+        <th>Converted</th>
+        <th>Dist. (Roth)</th>
+        <th>Interest</th>
+        <th>E.O.Y. (Combined)</th>
+      </tr>
+      {{#each baseline.accountValues}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.boyCombined}}</td>
+        <td>{{this.distIra}}</td>
+        <td class="tax-value">{{this.taxesIra}}</td>
+        <td>{{this.bracket}}</td>
+        <td>{{this.converted}}</td>
+        <td>{{this.distRoth}}</td>
+        <td>{{this.interest}}</td>
+        <td>{{this.eoyCombined}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <div class="page">
+    <div class="page-header">Baseline - Taxable Income</div>
+    <h1 class="section-title">Baseline Taxable Income</h1>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>SSI</th>
+        <th>Taxable (Non-SSI)</th>
+        <th>Exempt (Non-SSI)</th>
+        <th>Dist. (IRA)</th>
+        <th>AGI</th>
+        <th>Deduc.</th>
+        <th>Income (Taxable)</th>
+      </tr>
+      {{#each baseline.taxableIncome}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.ssi}}</td>
+        <td>{{this.taxableNonSsi}}</td>
+        <td>{{this.exemptNonSsi}}</td>
+        <td>{{this.distIra}}</td>
+        <td>{{this.agi}}</td>
+        <td>{{this.deduction}}</td>
+        <td>{{this.taxableIncome}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <div class="page">
+    <div class="page-header">Baseline - IRMAA</div>
+    <h1 class="section-title">Baseline IRMAA</h1>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>AGI</th>
+        <th>Income (Tax-Exempt)</th>
+        <th>MAGI</th>
+        <th>Tier</th>
+        <th>IRMAA (Total)</th>
+      </tr>
+      {{#each baseline.irmaa}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.agi}}</td>
+        <td>{{this.taxExempt}}</td>
+        <td>{{this.magi}}</td>
+        <td>{{this.tier}}</td>
+        <td class="tax-value">{{this.irmaaTotal}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <div class="page">
+    <div class="page-header">Baseline - Net Income</div>
+    <h1 class="section-title">Baseline Net Income</h1>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>Taxable (Non-IRA)</th>
+        <th>Tax Exempt (Non-IRA)</th>
+        <th>Dist. (IRA)</th>
+        <th>Dist. (Roth)</th>
+        <th>Taxes (Total)</th>
+        <th>IRMAA (Total)</th>
+        <th>Converted</th>
+        <th>Income (Net)</th>
+      </tr>
+      {{#each baseline.netIncome}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.taxableNonIra}}</td>
+        <td>{{this.taxExemptNonIra}}</td>
+        <td>{{this.distIra}}</td>
+        <td>{{this.distRoth}}</td>
+        <td class="tax-value">{{this.taxesTotal}}</td>
+        <td class="tax-value">{{this.irmaaTotal}}</td>
+        <td>{{this.converted}}</td>
+        <td class="positive-value">{{this.netIncome}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <!-- Pages 9-12: Blueprint Tables (same structure as Baseline) -->
+  <div class="page">
+    <div class="page-header">Blueprint - Account Overview</div>
+    <h1 class="section-title">Blueprint Year-over-Year Values</h1>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>B.O.Y. (Combined)</th>
+        <th>Dist. (IRA)</th>
+        <th>Taxes (IRA)</th>
+        <th>Bracket</th>
+        <th>Converted</th>
+        <th>Dist. (Roth)</th>
+        <th>Interest</th>
+        <th>E.O.Y. (Combined)</th>
+      </tr>
+      {{#each blueprint.accountValues}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.boyCombined}}</td>
+        <td>{{this.distIra}}</td>
+        <td class="tax-value">{{this.taxesIra}}</td>
+        <td>{{this.bracket}}</td>
+        <td>{{this.converted}}</td>
+        <td>{{this.distRoth}}</td>
+        <td>{{this.interest}}</td>
+        <td>{{this.eoyCombined}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <div class="page">
+    <div class="page-header">Blueprint - Taxable Income</div>
+    <h1 class="section-title">Blueprint Taxable Income</h1>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>SSI</th>
+        <th>Taxable (Non-SSI)</th>
+        <th>Exempt (Non-SSI)</th>
+        <th>Dist. (IRA)</th>
+        <th>AGI</th>
+        <th>Deduc.</th>
+        <th>Income (Taxable)</th>
+      </tr>
+      {{#each blueprint.taxableIncome}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.ssi}}</td>
+        <td>{{this.taxableNonSsi}}</td>
+        <td>{{this.exemptNonSsi}}</td>
+        <td>{{this.distIra}}</td>
+        <td>{{this.agi}}</td>
+        <td>{{this.deduction}}</td>
+        <td>{{this.taxableIncome}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <div class="page">
+    <div class="page-header">Blueprint - IRMAA</div>
+    <h1 class="section-title">Blueprint IRMAA</h1>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>AGI</th>
+        <th>Income (Tax-Exempt)</th>
+        <th>MAGI</th>
+        <th>Tier</th>
+        <th>IRMAA (Total)</th>
+      </tr>
+      {{#each blueprint.irmaa}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.agi}}</td>
+        <td>{{this.taxExempt}}</td>
+        <td>{{this.magi}}</td>
+        <td>{{this.tier}}</td>
+        <td class="tax-value">{{this.irmaaTotal}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <div class="page">
+    <div class="page-header">Blueprint - Net Income</div>
+    <h1 class="section-title">Blueprint Net Income</h1>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>Taxable (Non-IRA)</th>
+        <th>Tax Exempt (Non-IRA)</th>
+        <th>Dist. (IRA)</th>
+        <th>Dist. (Roth)</th>
+        <th>Taxes (Total)</th>
+        <th>IRMAA (Total)</th>
+        <th>Converted</th>
+        <th>Income (Net)</th>
+      </tr>
+      {{#each blueprint.netIncome}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.taxableNonIra}}</td>
+        <td>{{this.taxExemptNonIra}}</td>
+        <td>{{this.distIra}}</td>
+        <td>{{this.distRoth}}</td>
+        <td class="tax-value">{{this.taxesTotal}}</td>
+        <td class="tax-value">{{this.irmaaTotal}}</td>
+        <td>{{this.converted}}</td>
+        <td class="positive-value">{{this.netIncome}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <!-- Page 13: Disclaimer -->
+  <div class="page">
+    <div class="page-header">Disclaimer</div>
+    <h1 class="section-title">Disclaimer</h1>
+    <div class="disclaimer">
+      <p>
+        <strong>Hypothetical calculations only.</strong> This is an educational concept ledger only and is not intended to indicate actual performance nor predict future results. The hypothetical, non-guaranteed values shown are calculated based on user-defined interest rates and over a user-defined specified period. Please engage and rely on the advice of a properly licensed professional prior to making any financial decisions.
+      </p>
+      <p>
+        The information, data, calculations, and opinions contained herein are not intended to indicate actual performance nor predict future results and (1) are educational only and designed to help you better understand how internal rate of return might be affected under various conditions, (2) aren't recommendations to buy or sell a particular annuity, (3) do not constitute investment advice, (4) are not warranted to be correct, complete or accurate, (5) assume non-guaranteed rates as of the assumed issue year and age, (6) these hypothetical, non-guaranteed values shown are calculated based on user-defined interest rates and over a user-defined time period and are subject to change, (7) it is likely that the interest rates and fee percentages will, in fact, change over time.
+      </p>
+      <p>
+        This means that actual non-guaranteed account values may be higher or lower than those shown from the calculations and summaries. Market Value Adjustments are subject to daily fluctuations and may change the surrender value used for the above calculations. Please consult your carrier for the most recent values.
+      </p>
+      <p style="margin-top: 40px; text-align: center; font-style: italic;">
+        Generated by RothBlueprint on {{reportDate}}
+      </p>
+    </div>
+  </div>
+</body>
+</html>

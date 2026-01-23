@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useProjection } from "@/lib/queries/projections";
 import { useClient } from "@/lib/queries/clients";
 import { WealthChart } from "@/components/results/wealth-chart";
@@ -7,6 +8,7 @@ import { transformToChartData } from '@/lib/calculations/transforms';
 import { Skeleton } from "@/components/ui/skeleton";
 import { YearOverYearTables } from "@/components/report/year-over-year-tables";
 import { SummaryComparisonTable } from "@/components/report/summary-comparison-table";
+import { ExportPdfButton, ReportChartRefs } from "@/components/report/export-pdf-button";
 import { cn } from "@/lib/utils";
 import { YearlyResult } from "@/lib/calculations";
 
@@ -17,6 +19,12 @@ interface ReportDashboardProps {
 export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const { data: client, isLoading: clientLoading } = useClient(clientId);
     const { data: projectionResponse, isLoading: projectionLoading } = useProjection(clientId);
+
+    // Refs for chart capture (PDF export)
+    const lifetimeWealthChartRef = useRef<HTMLDivElement>(null);
+    const chartRefs: ReportChartRefs = {
+        lifetimeWealth: lifetimeWealthChartRef,
+    };
 
     if (clientLoading || projectionLoading) {
         return <div className="p-8 space-y-4 bg-[#080c14] h-full"><Skeleton className="h-12 w-full bg-slate-800" /><Skeleton className="h-64 w-full bg-slate-800" /></div>;
@@ -82,7 +90,16 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
                 {/* Header Section */}
                 <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Conversion Insights</h3>
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Conversion Insights</h3>
+                        <ExportPdfButton
+                            client={client}
+                            projection={projection}
+                            chartRefs={chartRefs}
+                            variant="outline"
+                            size="sm"
+                        />
+                    </div>
 
                     <div className="grid grid-cols-1 gap-px bg-slate-800 border border-slate-800 text-xs">
                         {/* Custom Grid Rows for Header Stats */}
@@ -126,7 +143,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                             </div>
                         </div>
                     </div>
-                    <div className="h-[360px] w-full">
+                    <div ref={lifetimeWealthChartRef} className="h-[360px] w-full bg-[#0f172a]">
                         <WealthChart data={chartData} breakEvenAge={projection.break_even_age} />
                     </div>
                 </div>
