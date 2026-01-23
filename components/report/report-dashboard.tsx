@@ -77,15 +77,6 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
     return (
         <div className="flex flex-col h-full bg-[#080c14] text-slate-200 overflow-y-auto font-sans">
-
-            {/* Top Navigation Tabs */}
-            <div className="flex bg-[#0f172a] border-b border-slate-800 text-[11px] font-semibold uppercase tracking-wider shrink-0">
-                <div className="px-6 py-3 bg-[#0ea5e9] text-white">Blueprint</div>
-                <div className="px-6 py-3 text-slate-500 hover:text-slate-300 cursor-pointer">New Record</div>
-                <div className="px-6 py-3 text-slate-500 hover:text-slate-300 cursor-pointer">Chart</div>
-                <div className="px-6 py-3 text-slate-500 hover:text-slate-300 cursor-pointer">Grid</div>
-            </div>
-
             <div className="p-6 space-y-8">
 
                 {/* Header Section */}
