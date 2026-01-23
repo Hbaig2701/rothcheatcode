@@ -1,29 +1,111 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useProjection } from "@/lib/queries/projections";
-import { useClient } from "@/lib/queries/clients";
+import { useClient, useCreateClient } from "@/lib/queries/clients";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData } from '@/lib/calculations/transforms';
 import { Skeleton } from "@/components/ui/skeleton";
 import { YearOverYearTables } from "@/components/report/year-over-year-tables";
 import { SummaryComparisonTable } from "@/components/report/summary-comparison-table";
-import { ExportPdfButton, ReportChartRefs } from "@/components/report/export-pdf-button";
+import { ReportChartRefs } from "@/components/report/export-pdf-button";
+import { captureChartAsBase64 } from "@/lib/utils/captureChart";
 import { cn } from "@/lib/utils";
 import { YearlyResult } from "@/lib/calculations";
+import { Copy, Plus, FileText, Loader2 } from "lucide-react";
 
 interface ReportDashboardProps {
     clientId: string;
 }
 
 export function ReportDashboard({ clientId }: ReportDashboardProps) {
+    const router = useRouter();
     const { data: client, isLoading: clientLoading } = useClient(clientId);
     const { data: projectionResponse, isLoading: projectionLoading } = useProjection(clientId);
+    const createClient = useCreateClient();
+
+    // Loading states for buttons
+    const [isDuplicating, setIsDuplicating] = useState(false);
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
 
     // Refs for chart capture (PDF export)
     const lifetimeWealthChartRef = useRef<HTMLDivElement>(null);
     const chartRefs: ReportChartRefs = {
         lifetimeWealth: lifetimeWealthChartRef,
+    };
+
+    // Handle duplicate blueprint
+    const handleDuplicate = async () => {
+        if (!client) return;
+        setIsDuplicating(true);
+
+        try {
+            // Create a copy of the client data without system fields
+            const { id, user_id, created_at, updated_at, ...clientData } = client;
+            const duplicateData = {
+                ...clientData,
+                name: `Copy of ${client.name}`,
+            };
+
+            const newClient = await createClient.mutateAsync(duplicateData);
+            router.push(`/clients/${newClient.id}/results`);
+        } catch (error) {
+            console.error("Failed to duplicate blueprint:", error);
+            alert("Failed to duplicate blueprint. Please try again.");
+        } finally {
+            setIsDuplicating(false);
+        }
+    };
+
+    // Handle new blueprint
+    const handleNewBlueprint = () => {
+        router.push("/clients/new");
+    };
+
+    // Handle PDF export
+    const handleExportPdf = async () => {
+        if (!client || !projectionResponse?.projection) return;
+        setIsExportingPdf(true);
+
+        try {
+            // Capture chart as base64
+            const lifetimeWealthChart = await captureChartAsBase64(lifetimeWealthChartRef, {
+                quality: 0.95,
+                pixelRatio: 2,
+                backgroundColor: '#ffffff',
+                delay: 300,
+            });
+
+            // Call PDF generation API
+            const response = await fetch('/api/generate-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    reportData: { client, projection: projectionResponse.projection },
+                    charts: { lifetimeWealth: lifetimeWealthChart },
+                }),
+            });
+
+            if (!response.ok) throw new Error('PDF generation failed');
+
+            // Download the PDF
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            const timestamp = new Date().toISOString().split('T')[0];
+            link.download = `RothBlueprint_${client.name.replace(/\s+/g, '_')}_${timestamp}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("PDF export error:", error);
+            alert("Failed to export PDF. Please try again.");
+        } finally {
+            setIsExportingPdf(false);
+        }
     };
 
     if (clientLoading || projectionLoading) {
@@ -79,18 +161,51 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
         <div className="flex flex-col h-full bg-[#080c14] text-slate-200 overflow-y-auto font-sans">
             <div className="p-6 space-y-8">
 
+                {/* Action Button Bar */}
+                <div className="flex items-center justify-between bg-[#1a3a5c] rounded-lg p-3">
+                    <div className="flex items-center gap-3">
+                        {/* Duplicate Button - Outline Style */}
+                        <button
+                            onClick={handleDuplicate}
+                            disabled={isDuplicating}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-transparent border border-teal-500 rounded-md hover:bg-teal-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isDuplicating ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <Copy className="h-4 w-4" />
+                            )}
+                            Duplicate
+                        </button>
+
+                        {/* New Blueprint Button - Solid Style */}
+                        <button
+                            onClick={handleNewBlueprint}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-teal-500 rounded-md hover:bg-teal-600 transition-colors"
+                        >
+                            <Plus className="h-4 w-4" />
+                            New Blueprint
+                        </button>
+
+                        {/* Export PDF Button - Solid Style */}
+                        <button
+                            onClick={handleExportPdf}
+                            disabled={isExportingPdf}
+                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-teal-500 rounded-md hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isExportingPdf ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <FileText className="h-4 w-4" />
+                            )}
+                            Export as PDF
+                        </button>
+                    </div>
+                </div>
+
                 {/* Header Section */}
                 <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Conversion Insights</h3>
-                        <ExportPdfButton
-                            client={client}
-                            projection={projection}
-                            chartRefs={chartRefs}
-                            variant="outline"
-                            size="sm"
-                        />
-                    </div>
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Conversion Insights</h3>
 
                     <div className="grid grid-cols-1 gap-px bg-slate-800 border border-slate-800 text-xs">
                         {/* Custom Grid Rows for Header Stats */}
