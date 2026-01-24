@@ -7,21 +7,33 @@ import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { isFieldLocked, type BlueprintType } from "@/lib/config/products";
+import { Lock } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export function AdvancedDataSection() {
   const form = useFormContext<ClientFormData>();
+  const blueprintType = form.watch("blueprint_type") as BlueprintType;
+
+  const isSurrenderLocked = isFieldLocked("surrenderYears", blueprintType);
+  const isPenaltyFreeLocked = isFieldLocked("penaltyFreePercent", blueprintType);
 
   return (
     <FormSection title="8. Advanced Data" description="Additional projection parameters">
       {/* Surrender Years */}
       <Field data-invalid={!!form.formState.errors.surrender_years}>
-        <FieldLabel htmlFor="surrender_years">Surrender Years</FieldLabel>
+        <FieldLabel htmlFor="surrender_years" className="flex items-center gap-1.5">
+          Surrender Years
+          {isSurrenderLocked && <Lock className="size-3 text-muted-foreground" />}
+        </FieldLabel>
         <Input
           id="surrender_years"
           type="number"
           min={0}
           max={20}
           {...form.register("surrender_years", { valueAsNumber: true })}
+          disabled={isSurrenderLocked}
+          className={cn(isSurrenderLocked && "opacity-60 cursor-not-allowed bg-muted/30")}
         />
         <FieldDescription>Years with surrender charges (0-20)</FieldDescription>
         <FieldError errors={[form.formState.errors.surrender_years]} />
@@ -33,10 +45,15 @@ export function AdvancedDataSection() {
         control={form.control}
         render={({ field: { ref, ...field }, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="penalty_free_percent">Penalty Free %</FieldLabel>
+            <FieldLabel htmlFor="penalty_free_percent" className="flex items-center gap-1.5">
+              Penalty Free %
+              {isPenaltyFreeLocked && <Lock className="size-3 text-muted-foreground" />}
+            </FieldLabel>
             <PercentInput
               {...field}
               aria-invalid={fieldState.invalid}
+              disabled={isPenaltyFreeLocked}
+              className={cn(isPenaltyFreeLocked && "opacity-60 cursor-not-allowed bg-muted/30")}
             />
             <FieldDescription>Annual penalty-free withdrawal percentage</FieldDescription>
             <FieldError errors={[fieldState.error]} />
@@ -44,7 +61,7 @@ export function AdvancedDataSection() {
         )}
       />
 
-      {/* Baseline Comparison Rate */}
+      {/* Baseline Comparison Rate - Always editable */}
       <Controller
         name="baseline_comparison_rate"
         control={form.control}
@@ -61,7 +78,7 @@ export function AdvancedDataSection() {
         )}
       />
 
-      {/* Post Contract Rate */}
+      {/* Post Contract Rate - Always editable */}
       <Controller
         name="post_contract_rate"
         control={form.control}
@@ -78,7 +95,7 @@ export function AdvancedDataSection() {
         )}
       />
 
-      {/* Years to Defer Conversion */}
+      {/* Years to Defer Conversion - Always editable */}
       <Field data-invalid={!!form.formState.errors.years_to_defer_conversion}>
         <FieldLabel htmlFor="years_to_defer_conversion">Years to Defer Conversion</FieldLabel>
         <Input
@@ -92,7 +109,7 @@ export function AdvancedDataSection() {
         <FieldError errors={[form.formState.errors.years_to_defer_conversion]} />
       </Field>
 
-      {/* End Age */}
+      {/* End Age - Always editable */}
       <Field data-invalid={!!form.formState.errors.end_age}>
         <FieldLabel htmlFor="end_age">End Age</FieldLabel>
         <Input
@@ -106,7 +123,7 @@ export function AdvancedDataSection() {
         <FieldError errors={[form.formState.errors.end_age]} />
       </Field>
 
-      {/* Heir Tax Rate */}
+      {/* Heir Tax Rate - Always editable */}
       <Controller
         name="heir_tax_rate"
         control={form.control}
@@ -123,7 +140,7 @@ export function AdvancedDataSection() {
         )}
       />
 
-      {/* Show Widow's Penalty */}
+      {/* Show Widow's Penalty - Always editable */}
       <Controller
         name="widow_analysis"
         control={form.control}

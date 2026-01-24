@@ -33,6 +33,12 @@ export const withdrawalTypeEnum = z.enum([
 
 export const taxSourceEnum = z.enum(["from_ira", "from_taxable"]);
 
+export const blueprintTypeEnum = z.enum([
+  "fia",
+  "lincoln-optiblend-7",
+  "equitrust-marketedge-bonus",
+]);
+
 // Legacy strategy enum (for backwards compatibility)
 export const strategyEnum = z.enum([
   "conservative",
@@ -57,6 +63,9 @@ export const nonSSIIncomeEntrySchema = z.object({
 // ============================================================================
 
 export const clientBlueprintBaseSchema = z.object({
+  // Blueprint Type (product preset)
+  blueprint_type: blueprintTypeEnum.default("fia"),
+
   // Section 1: Client Data
   filing_status: filingStatusEnum,
   name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
@@ -275,6 +284,9 @@ export type ClientFullFormData = z.infer<typeof clientFullSchema>;
 
 // Explicit form type with all fields required for form defaultValues
 export type ClientFormData = {
+  // Blueprint Type (product preset)
+  blueprint_type: "fia" | "lincoln-optiblend-7" | "equitrust-marketedge-bonus";
+
   // Section 1: Client Data
   filing_status: "single" | "married_filing_jointly" | "married_filing_separately" | "head_of_household";
   name: string;

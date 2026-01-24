@@ -37,6 +37,9 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientBlueprintSchema) as Resolver<ClientFormData>,
     defaultValues: {
+      // Blueprint Type (product preset)
+      blueprint_type: client?.blueprint_type ?? "fia",
+
       // Section 1: Client Data
       filing_status: client?.filing_status ?? "married_filing_jointly",
       name: client?.name ?? "",

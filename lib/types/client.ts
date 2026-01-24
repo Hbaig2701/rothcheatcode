@@ -15,6 +15,9 @@ export interface Client {
   created_at: string;
   updated_at: string;
 
+  // ===== Blueprint Type (Product Preset) =====
+  blueprint_type: "fia" | "lincoln-optiblend-7" | "equitrust-marketedge-bonus";
+
   // ===== Section 1: Client Data =====
   filing_status: "single" | "married_filing_jointly" | "married_filing_separately" | "head_of_household";
   name: string;
@@ -98,6 +101,9 @@ export type ClientUpdate = Partial<ClientInsert>;
 
 // Blueprint-specific form data (subset of Client without legacy fields)
 export interface BlueprintFormData {
+  // Blueprint Type (Product Preset)
+  blueprint_type: Client["blueprint_type"];
+
   // Section 1: Client Data
   filing_status: Client["filing_status"];
   name: string;
