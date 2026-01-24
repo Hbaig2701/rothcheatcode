@@ -257,6 +257,21 @@
     .highlight-row td {
       color: #1a3a5c;
     }
+
+    /* Difference value colors */
+    .diff-positive {
+      color: #16a34a;
+      font-weight: 600;
+    }
+
+    .diff-negative {
+      color: #dc2626;
+      font-weight: 600;
+    }
+
+    .diff-neutral {
+      color: #6b7280;
+    }
   </style>
 </head>
 <body>
@@ -365,19 +380,19 @@
           <td>RMDs / Conversions</td>
           <td>{{baseline.totalDistributions}}</td>
           <td>{{blueprint.totalConversions}}</td>
-          <td>{{diff.distributions}}</td>
+          <td>{{{formatDiff diff.distributions false}}}</td>
         </tr>
         <tr>
           <td>Tax on Distributions / Conversions</td>
           <td>{{baseline.taxOnDistributions}}</td>
           <td>{{blueprint.taxOnConversions}}</td>
-          <td>{{diff.taxes}}</td>
+          <td>{{{formatDiff diff.taxes true}}}</td>
         </tr>
         <tr>
           <td>After-Tax Distributions</td>
           <td>{{baseline.afterTaxDistributions}}</td>
           <td>{{blueprint.afterTaxDistributions}}</td>
-          <td>{{diff.afterTax}}</td>
+          <td>{{{formatDiff diff.afterTax false}}}</td>
         </tr>
       </table>
 
@@ -392,19 +407,19 @@
           <td>Legacy Distribution</td>
           <td>{{baseline.legacyGross}}</td>
           <td>{{blueprint.legacyGross}}</td>
-          <td>{{diff.legacyGross}}</td>
+          <td>{{{formatDiff diff.legacyGross false}}}</td>
         </tr>
         <tr>
           <td>Tax on Legacy Distribution</td>
           <td>{{baseline.legacyTax}}</td>
           <td>{{blueprint.legacyTax}}</td>
-          <td>{{diff.legacyTax}}</td>
+          <td>{{{formatDiff diff.legacyTax true}}}</td>
         </tr>
         <tr>
           <td>Net Legacy Distribution</td>
           <td>{{baseline.legacyNet}}</td>
           <td>{{blueprint.legacyNet}}</td>
-          <td>{{diff.legacyNet}}</td>
+          <td>{{{formatDiff diff.legacyNet false}}}</td>
         </tr>
       </table>
 
@@ -419,19 +434,19 @@
           <td>Total Distributions + Legacy</td>
           <td>{{baseline.totalDist}}</td>
           <td>{{blueprint.totalDist}}</td>
-          <td>{{diff.totalDist}}</td>
+          <td>{{{formatDiff diff.totalDist false}}}</td>
         </tr>
         <tr>
           <td>Total Costs (Taxes + IRMAA)</td>
           <td>{{baseline.totalCosts}}</td>
           <td>{{blueprint.totalCosts}}</td>
-          <td>{{diff.totalCosts}}</td>
+          <td>{{{formatDiff diff.totalCosts true}}}</td>
         </tr>
         <tr class="highlight-row">
           <td><strong>Lifetime Wealth</strong></td>
           <td><strong>{{baseline.lifetimeWealth}}</strong></td>
           <td><strong>{{blueprint.lifetimeWealth}}</strong></td>
-          <td><strong style="color: #22c55e;">+{{wealthIncreasePercent}}%</strong></td>
+          <td><strong class="diff-positive">{{wealthIncreasePercent}}%</strong></td>
         </tr>
       </table>
     </div>

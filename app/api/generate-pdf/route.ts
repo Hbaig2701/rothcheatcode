@@ -15,6 +15,22 @@ Handlebars.registerHelper('formatCurrency', (value: number) => {
   return '$' + new Intl.NumberFormat('en-US').format(Math.round(value));
 });
 
+// Helper to format difference values with color class (no +/- signs)
+Handlebars.registerHelper('formatDiff', function(value: number, invertColor: boolean = false) {
+  if (value === 0) return new Handlebars.SafeString('<span class="diff-neutral">$0</span>');
+  const absValue = Math.abs(value);
+  const formatted = '$' + new Intl.NumberFormat('en-US').format(Math.round(absValue));
+  // For costs/taxes, negative is good (green), positive is bad (red)
+  // For wealth/legacy, positive is good (green), negative is bad (red)
+  let colorClass: string;
+  if (invertColor) {
+    colorClass = value <= 0 ? 'diff-positive' : 'diff-negative';
+  } else {
+    colorClass = value >= 0 ? 'diff-positive' : 'diff-negative';
+  }
+  return new Handlebars.SafeString(`<span class="${colorClass}">${formatted}</span>`);
+});
+
 interface YearRow {
   year: number;
   age: number;
@@ -435,14 +451,15 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
       ...blueprintData,
     },
     diff: {
-      distributions: formatCurrency(blueConversions - baseRMDs),
-      taxes: formatCurrency(blueTax - baseTax),
-      afterTax: formatCurrency(0 - baseAfterTaxDist),
-      legacyGross: formatCurrency(blueFinalBalance - baseFinalBalance),
-      legacyTax: formatCurrency(blueLegacyTax - baseLegacyTax),
-      legacyNet: formatCurrency(blueNetLegacy - baseNetLegacy),
-      totalDist: formatCurrency(blueFinalBalance - (baseRMDs + baseFinalBalance)),
-      totalCosts: formatCurrency(blueTotalCosts - baseTotalCosts),
+      // Raw values for use with formatDiff helper (cents)
+      distributions: (blueConversions - baseRMDs) / 100,
+      taxes: (blueTax - baseTax) / 100,
+      afterTax: (0 - baseAfterTaxDist) / 100,
+      legacyGross: (blueFinalBalance - baseFinalBalance) / 100,
+      legacyTax: (blueLegacyTax - baseLegacyTax) / 100,
+      legacyNet: (blueNetLegacy - baseNetLegacy) / 100,
+      totalDist: (blueFinalBalance - (baseRMDs + baseFinalBalance)) / 100,
+      totalCosts: (blueTotalCosts - baseTotalCosts) / 100,
     },
     conversionDetails,
   };
