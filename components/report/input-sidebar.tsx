@@ -173,8 +173,11 @@ export function InputSidebar({ client }: InputSidebarProps) {
                         className={cn(
                             "space-y-6", // Reasonable spacing between sections
 
-                            // Force Stacked Layout
-                            "[&_.grid]:grid-cols-1 [&_.grid]:gap-3", // Force all grids to 1 col with gap
+                            // Force Stacked Layout - use !important to override responsive breakpoints
+                            "[&_.grid]:!grid-cols-1 [&_.grid]:gap-3",
+
+                            // Remove col-span classes that break layout in narrow sidebar
+                            "[&_[class*='col-span']]:!col-span-1",
 
                             // Styles
                             "[&_label]:text-[11px] [&_label]:font-semibold [&_label]:text-slate-400 [&_label]:uppercase [&_label]:tracking-wide [&_label]:mb-1.5",
@@ -182,8 +185,14 @@ export function InputSidebar({ client }: InputSidebarProps) {
                             "[&_input:focus]:border-emerald-500 [&_input:focus]:ring-0",
                             "[&_button[role=combobox]]:bg-[#0f172a] [&_button[role=combobox]]:border-[#334155] [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs [&_button[role=combobox]]:text-slate-100 [&_button[role=combobox]]:rounded-sm [&_button[role=combobox]]:px-2.5",
 
+                            // Select trigger styling for sidebar
+                            "[&_[data-slot=select-trigger]]:bg-[#0f172a] [&_[data-slot=select-trigger]]:border-[#334155] [&_[data-slot=select-trigger]]:h-8 [&_[data-slot=select-trigger]]:text-xs [&_[data-slot=select-trigger]]:text-slate-100 [&_[data-slot=select-trigger]]:w-full",
+
                             // Headers
-                            "[&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-emerald-500 [&_h3]:border-b [&_h3]:border-[#334155] [&_h3]:pb-1 [&_h3]:mb-3"
+                            "[&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-emerald-500 [&_h3]:border-b [&_h3]:border-[#334155] [&_h3]:pb-1 [&_h3]:mb-3",
+
+                            // Description text
+                            "[&_p]:text-[10px] [&_p]:text-slate-500"
                         )}>
 
                         <ClientDataSection />

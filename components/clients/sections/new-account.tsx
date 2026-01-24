@@ -50,7 +50,7 @@ export function NewAccountSection() {
         name="blueprint_type"
         control={form.control}
         render={({ field }) => (
-          <Field className="sm:col-span-2 lg:col-span-3">
+          <Field>
             <FieldLabel htmlFor="blueprint_type">Blueprint Type</FieldLabel>
             <Select value={field.value} onValueChange={handleBlueprintTypeChange}>
               <SelectTrigger className="w-full">
