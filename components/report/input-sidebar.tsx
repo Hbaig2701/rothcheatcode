@@ -9,6 +9,7 @@ import type { Client } from "@/lib/types/client";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { GROWTH_PRODUCTS, type BlueprintType } from "@/lib/config/products";
 
 // Import Sections
 import { ClientDataSection } from "@/components/clients/sections/client-data";
@@ -31,6 +32,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
     const form = useForm<ClientFormData>({
         resolver: zodResolver(clientBlueprintSchema) as Resolver<ClientFormData>,
         defaultValues: {
+            blueprint_type: client?.blueprint_type ?? "fia",
             filing_status: client?.filing_status ?? "married_filing_jointly",
             name: client?.name ?? "",
             age: client?.age ?? 62,
@@ -126,13 +128,41 @@ export function InputSidebar({ client }: InputSidebarProps) {
         }
     };
 
+    // Watch blueprint type for header display
+    const blueprintType = form.watch("blueprint_type") as BlueprintType;
+    const currentProduct = GROWTH_PRODUCTS[blueprintType];
+
+    // Handle blueprint type change from header dropdown
+    const handleHeaderBlueprintChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = e.target.value as BlueprintType;
+        const product = GROWTH_PRODUCTS[value];
+        if (!product) return;
+
+        // Update form with new blueprint type and product defaults
+        form.setValue("blueprint_type", value);
+        form.setValue("carrier_name", product.defaults.carrierName);
+        form.setValue("product_name", product.defaults.productName);
+        form.setValue("bonus_percent", product.defaults.bonus);
+        form.setValue("surrender_years", product.defaults.surrenderYears);
+        form.setValue("penalty_free_percent", product.defaults.penaltyFreePercent);
+        form.setValue("rate_of_return", product.defaults.rateOfReturn);
+    };
+
     return (
         <div className="flex flex-col h-full bg-[#1e293b] border-r border-[#334155] text-slate-200">
             {/* Sidebar Header */}
             <div className="p-4 border-b border-[#334155] bg-[#0f172a] shrink-0 space-y-2">
                 <h2 className="text-xs font-bold text-emerald-500 uppercase tracking-widest">Inputs</h2>
-                <select className="w-full bg-[#1e293b] border border-[#334155] text-xs h-8 rounded px-3 text-slate-200 focus:ring-1 focus:ring-emerald-500 outline-none">
-                    <option>Fixed Income Annuity</option>
+                <select
+                    value={blueprintType}
+                    onChange={handleHeaderBlueprintChange}
+                    className="w-full bg-[#1e293b] border border-[#334155] text-xs h-8 rounded px-3 text-slate-200 focus:ring-1 focus:ring-emerald-500 outline-none"
+                >
+                    {Object.values(GROWTH_PRODUCTS).map((product) => (
+                        <option key={product.id} value={product.id}>
+                            {product.label}
+                        </option>
+                    ))}
                 </select>
             </div>
 
