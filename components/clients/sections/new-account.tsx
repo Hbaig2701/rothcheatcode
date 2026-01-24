@@ -24,7 +24,8 @@ export function NewAccountSection() {
   const blueprintType = form.watch("blueprint_type") as BlueprintType;
 
   // Handle blueprint type change - apply product defaults
-  const handleBlueprintTypeChange = (value: BlueprintType) => {
+  const handleBlueprintTypeChange = (value: BlueprintType | null) => {
+    if (!value) return;
     const product = GROWTH_PRODUCTS[value];
     if (!product) return;
 
