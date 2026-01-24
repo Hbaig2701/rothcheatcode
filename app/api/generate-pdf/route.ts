@@ -108,14 +108,14 @@ interface TemplateData {
   baseline: ScenarioData;
   blueprint: ScenarioData;
   diff: {
-    distributions: string;
-    taxes: string;
-    afterTax: string;
-    legacyGross: string;
-    legacyTax: string;
-    legacyNet: string;
-    totalDist: string;
-    totalCosts: string;
+    distributions: number;
+    taxes: number;
+    afterTax: number;
+    legacyGross: number;
+    legacyTax: number;
+    legacyNet: number;
+    totalDist: number;
+    totalCosts: number;
   };
   conversionDetails: ConversionDetail[];
 }
