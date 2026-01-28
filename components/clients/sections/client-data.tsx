@@ -33,28 +33,33 @@ export function ClientDataSection() {
         <Controller
           name="filing_status"
           control={form.control}
-          render={({ field, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="filing_status">Filing Status</FieldLabel>
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger
-                  id="filing_status"
-                  className="w-full"
-                  aria-invalid={fieldState.invalid}
-                >
-                  <SelectValue placeholder="Select filing status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {FILING_STATUS_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
+          render={({ field, fieldState }) => {
+            const selectedOption = FILING_STATUS_OPTIONS.find(opt => opt.value === field.value);
+            return (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="filing_status">Filing Status</FieldLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger
+                    id="filing_status"
+                    className="w-full"
+                    aria-invalid={fieldState.invalid}
+                  >
+                    <SelectValue placeholder="Select filing status">
+                      {selectedOption?.label ?? "Select filing status"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FILING_STATUS_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            );
+          }}
         />
 
         {/* Client Name & Age */}

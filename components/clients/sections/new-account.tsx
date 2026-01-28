@@ -49,40 +49,45 @@ export function NewAccountSection() {
       <Controller
         name="blueprint_type"
         control={form.control}
-        render={({ field }) => (
-          <Field>
-            <FieldLabel htmlFor="blueprint_type">Blueprint Type</FieldLabel>
-            <Select value={field.value} onValueChange={handleBlueprintTypeChange}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select blueprint type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectLabel>Growth</SelectLabel>
-                  {Object.values(GROWTH_PRODUCTS).map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-                {/* Future phases - shown as disabled */}
-                <SelectGroup>
-                  <SelectLabel className="text-muted-foreground/60">
-                    Guaranteed Income (Coming Soon)
-                  </SelectLabel>
-                </SelectGroup>
-                <SelectGroup>
-                  <SelectLabel className="text-muted-foreground/60">
-                    AUM (Coming Soon)
-                  </SelectLabel>
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            <FieldDescription>
-              {GROWTH_PRODUCTS[blueprintType]?.description || "Select a product template"}
-            </FieldDescription>
-          </Field>
-        )}
+        render={({ field }) => {
+          const selectedProduct = GROWTH_PRODUCTS[field.value as BlueprintType];
+          return (
+            <Field>
+              <FieldLabel htmlFor="blueprint_type">Blueprint Type</FieldLabel>
+              <Select value={field.value} onValueChange={handleBlueprintTypeChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select blueprint type">
+                    {selectedProduct?.label ?? "Select blueprint type"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectLabel>Growth</SelectLabel>
+                    {Object.values(GROWTH_PRODUCTS).map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                  {/* Future phases - shown as disabled */}
+                  <SelectGroup>
+                    <SelectLabel className="text-muted-foreground/60">
+                      Guaranteed Income (Coming Soon)
+                    </SelectLabel>
+                  </SelectGroup>
+                  <SelectGroup>
+                    <SelectLabel className="text-muted-foreground/60">
+                      AUM (Coming Soon)
+                    </SelectLabel>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+              <FieldDescription>
+                {GROWTH_PRODUCTS[blueprintType]?.description || "Select a product template"}
+              </FieldDescription>
+            </Field>
+          );
+        }}
       />
 
       {/* Carrier Name */}

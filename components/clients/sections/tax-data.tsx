@@ -50,29 +50,34 @@ export function TaxDataSection() {
       <Controller
         name="constraint_type"
         control={form.control}
-        render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="constraint_type">Constraint</FieldLabel>
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger
-                id="constraint_type"
-                className="w-full"
-                aria-invalid={fieldState.invalid}
-              >
-                <SelectValue placeholder="Select constraint" />
-              </SelectTrigger>
-              <SelectContent>
-                {CONSTRAINT_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldDescription>Optimization constraint for conversions</FieldDescription>
-            <FieldError errors={[fieldState.error]} />
-          </Field>
-        )}
+        render={({ field, fieldState }) => {
+          const selectedOption = CONSTRAINT_OPTIONS.find(opt => opt.value === field.value);
+          return (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="constraint_type">Constraint</FieldLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  id="constraint_type"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                >
+                  <SelectValue placeholder="Select constraint">
+                    {selectedOption?.label ?? "Select constraint"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {CONSTRAINT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>Optimization constraint for conversions</FieldDescription>
+              <FieldError errors={[fieldState.error]} />
+            </Field>
+          );
+        }}
       />
 
       {/* Tax Rate */}
@@ -139,28 +144,33 @@ export function TaxDataSection() {
       <Controller
         name="state"
         control={form.control}
-        render={({ field, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="state">State</FieldLabel>
-            <Select value={field.value} onValueChange={field.onChange}>
-              <SelectTrigger
-                id="state"
-                className="w-full"
-                aria-invalid={fieldState.invalid}
-              >
-                <SelectValue placeholder="Select state" />
-              </SelectTrigger>
-              <SelectContent>
-                {[...US_STATES].sort((a, b) => a.name.localeCompare(b.name)).map((stateItem) => (
-                  <SelectItem key={stateItem.code} value={stateItem.code}>
-                    {stateItem.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FieldError errors={[fieldState.error]} />
-          </Field>
-        )}
+        render={({ field, fieldState }) => {
+          const selectedState = US_STATES.find(s => s.code === field.value);
+          return (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="state">State</FieldLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  id="state"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                >
+                  <SelectValue placeholder="Select state">
+                    {selectedState?.name ?? "Select state"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {[...US_STATES].sort((a, b) => a.name.localeCompare(b.name)).map((stateItem) => (
+                    <SelectItem key={stateItem.code} value={stateItem.code}>
+                      {stateItem.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError errors={[fieldState.error]} />
+            </Field>
+          );
+        }}
       />
 
       {/* State Tax Rate */}
