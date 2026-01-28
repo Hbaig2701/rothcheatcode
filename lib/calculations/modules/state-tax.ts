@@ -27,8 +27,16 @@ function calculateProgressiveTax(income: number, brackets: TaxBracket[]): number
 /**
  * Calculate state income tax
  * Handles no-tax, flat, and progressive states
+ * Supports optional override rate from user input
  */
 export function calculateStateTax(input: StateTaxInput): StateTaxResult {
+  // If override rate is provided, use it directly (simplified flat rate)
+  if (input.overrideRate !== undefined && input.overrideRate !== null) {
+    const totalTax = Math.round(input.taxableIncome * input.overrideRate);
+    const effectiveRate = input.overrideRate * 100;
+    return { totalTax, effectiveRate };
+  }
+
   const stateInfo = getStateByCode(input.state);
 
   if (!stateInfo) {

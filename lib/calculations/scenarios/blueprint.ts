@@ -232,7 +232,8 @@ export function runBlueprintScenario(
     const stateResult = calculateStateTax({
       taxableIncome: taxableIncomeWithConversion,
       state: client.state,
-      filingStatus: client.filing_status
+      filingStatus: client.filing_status,
+      overrideRate: stateTaxRateDecimal
     });
 
     // Total tax = federal + state + IRMAA

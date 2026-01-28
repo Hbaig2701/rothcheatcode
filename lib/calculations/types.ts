@@ -121,6 +121,7 @@ export interface StateTaxInput {
   taxableIncome: number; // In cents
   state: string; // 2-letter state code
   filingStatus: FilingStatus;
+  overrideRate?: number; // Optional override rate as decimal (e.g., 0.05 for 5%)
 }
 
 export interface StateTaxResult {

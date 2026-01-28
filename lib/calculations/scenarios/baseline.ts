@@ -65,8 +65,10 @@ export function runBaselineScenario(
   // Tax-exempt income (for MAGI calculation)
   const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
 
-  // State tax rate
-  const stateTaxRate = (client.state_tax_rate ?? 0) / 100;
+  // State tax rate override (convert from percentage to decimal, null if not set)
+  const stateTaxRateOverride = client.state_tax_rate !== undefined && client.state_tax_rate !== null
+    ? client.state_tax_rate / 100
+    : undefined;
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
@@ -124,7 +126,8 @@ export function runBaselineScenario(
     const stateResult = calculateStateTax({
       taxableIncome,
       state: client.state,
-      filingStatus: client.filing_status
+      filingStatus: client.filing_status,
+      overrideRate: stateTaxRateOverride
     });
 
     // Calculate AGI and MAGI for IRMAA
