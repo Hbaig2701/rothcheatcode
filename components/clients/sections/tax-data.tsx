@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/select";
 import { PercentInput } from "@/components/ui/percent-input";
 import { US_STATES, getDefaultStateTaxRate } from "@/lib/data/states";
+import { Lock, Pencil } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const CONSTRAINT_OPTIONS = [
   { value: "none", label: "None" },
@@ -35,14 +37,40 @@ const TAX_SOURCE_OPTIONS = [
 export function TaxDataSection() {
   const form = useFormContext<ClientFormData>();
   const state = form.watch("state");
+  const currentStateTaxRate = form.watch("state_tax_rate");
 
-  // Auto-update state tax rate when state changes
+  // Track if user is manually editing state tax
+  const [isManualEdit, setIsManualEdit] = useState(false);
+
+  // Check on mount if the current value differs from preset (indicates manual edit)
   useEffect(() => {
+    if (state && state.length === 2 && currentStateTaxRate !== null && currentStateTaxRate !== undefined) {
+      const presetRate = getDefaultStateTaxRate(state);
+      if (Math.abs(currentStateTaxRate - presetRate) > 0.01) {
+        setIsManualEdit(true);
+      }
+    }
+  }, []); // Only run on mount
+
+  // Auto-update state tax rate when state changes (only if not in manual edit mode)
+  useEffect(() => {
+    if (!isManualEdit && state && state.length === 2) {
+      const defaultRate = getDefaultStateTaxRate(state);
+      form.setValue("state_tax_rate", defaultRate);
+    }
+  }, [state, form, isManualEdit]);
+
+  const handleManualEdit = () => {
+    setIsManualEdit(true);
+  };
+
+  const handleUsePreset = () => {
+    setIsManualEdit(false);
     if (state && state.length === 2) {
       const defaultRate = getDefaultStateTaxRate(state);
       form.setValue("state_tax_rate", defaultRate);
     }
-  }, [state, form]);
+  };
 
   return (
     <FormSection title="4. Tax Data">
@@ -179,13 +207,36 @@ export function TaxDataSection() {
         control={form.control}
         render={({ field: { ref, ...field }, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="state_tax_rate">State Tax</FieldLabel>
+            <FieldLabel htmlFor="state_tax_rate" className="flex items-center gap-1.5">
+              State Tax
+              {!isManualEdit && <Lock className="size-3 text-muted-foreground" />}
+            </FieldLabel>
             <PercentInput
               {...field}
               value={field.value ?? undefined}
               aria-invalid={fieldState.invalid}
+              disabled={!isManualEdit}
+              className={cn(!isManualEdit && "opacity-60 cursor-not-allowed bg-muted/30")}
             />
-            <FieldDescription>Auto-filled from state selection</FieldDescription>
+            {isManualEdit ? (
+              <button
+                type="button"
+                onClick={handleUsePreset}
+                className="text-xs text-primary hover:text-primary/80 hover:underline flex items-center gap-1 mt-1"
+              >
+                <Lock className="size-3" />
+                Use Preset Rate
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleManualEdit}
+                className="text-xs text-primary hover:text-primary/80 hover:underline flex items-center gap-1 mt-1"
+              >
+                <Pencil className="size-3" />
+                Manually Edit
+              </button>
+            )}
             <FieldError errors={[fieldState.error]} />
           </Field>
         )}
