@@ -151,7 +151,7 @@ export function TaxDataSection() {
                 <SelectValue placeholder="Select state" />
               </SelectTrigger>
               <SelectContent>
-                {US_STATES.map((stateItem) => (
+                {[...US_STATES].sort((a, b) => a.name.localeCompare(b.name)).map((stateItem) => (
                   <SelectItem key={stateItem.code} value={stateItem.code}>
                     {stateItem.name}
                   </SelectItem>
