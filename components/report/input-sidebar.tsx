@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useForm, FormProvider, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { clientBlueprintSchema, type ClientFormData } from "@/lib/validations/client";
@@ -74,6 +75,42 @@ export function InputSidebar({ client }: InputSidebarProps) {
     });
 
     const isPending = updateClient.isPending || recalculateProjection.isPending;
+
+    // Sync form fields with blueprint type defaults on load
+    // This ensures consistency when loading data that may have mismatched values
+    useEffect(() => {
+        const blueprintType = form.getValues("blueprint_type") as BlueprintType;
+        const product = GROWTH_PRODUCTS[blueprintType];
+        if (!product) return;
+
+        const currentCarrier = form.getValues("carrier_name");
+        const currentProduct = form.getValues("product_name");
+
+        // Check if current values match a DIFFERENT locked product
+        // If so, reset to the selected blueprint type's defaults
+        const otherProducts = Object.values(GROWTH_PRODUCTS).filter(p => p.id !== blueprintType);
+        const matchesOtherLockedProduct = otherProducts.some(p =>
+            p.lockedFields.includes("carrierName") &&
+            p.defaults.carrierName === currentCarrier
+        );
+
+        if (matchesOtherLockedProduct) {
+            // Current carrier matches a different locked product - reset to correct defaults
+            form.setValue("carrier_name", product.defaults.carrierName);
+            form.setValue("product_name", product.defaults.productName);
+            form.setValue("bonus_percent", product.defaults.bonus);
+            form.setValue("surrender_years", product.defaults.surrenderYears);
+            form.setValue("penalty_free_percent", product.defaults.penaltyFreePercent);
+        }
+
+        // For locked products, always ensure values match the preset
+        if (product.lockedFields.includes("carrierName") && currentCarrier !== product.defaults.carrierName) {
+            form.setValue("carrier_name", product.defaults.carrierName);
+        }
+        if (product.lockedFields.includes("productName") && currentProduct !== product.defaults.productName) {
+            form.setValue("product_name", product.defaults.productName);
+        }
+    }, [form, client?.id]); // Re-run when client changes
 
     const onSubmit = async (data: ClientFormData) => {
         try {
