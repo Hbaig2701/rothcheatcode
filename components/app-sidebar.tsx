@@ -12,13 +12,12 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { LogoutButton } from '@/components/logout-button'
-import { LayoutDashboard, Users, FileText } from 'lucide-react'
+import { LayoutDashboard, Users } from 'lucide-react'
 import Link from 'next/link'
 
 const navItems = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { title: 'Clients', href: '/clients', icon: Users },
-  { title: 'Reports', href: '/reports', icon: FileText },
 ]
 
 export function AppSidebar({ user }: { user: User }) {

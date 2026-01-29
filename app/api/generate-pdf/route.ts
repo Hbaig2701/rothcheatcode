@@ -4,6 +4,7 @@ import chromium from '@sparticuz/chromium';
 import Handlebars from 'handlebars';
 import fs from 'fs';
 import path from 'path';
+import { createClient } from '@/lib/supabase/server';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -467,6 +468,13 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
 
 export async function POST(request: NextRequest) {
   try {
+    // Auth check
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const { reportData, charts } = body;
 
