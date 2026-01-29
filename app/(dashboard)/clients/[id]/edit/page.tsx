@@ -5,7 +5,6 @@ import { useClient } from "@/lib/queries/clients";
 import { ClientForm } from "@/components/clients/client-form";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 
 interface EditClientPageProps {
   params: Promise<{ id: string }>;
@@ -35,7 +34,7 @@ export default function EditClientPage({ params }: EditClientPageProps) {
           <p className="text-muted-foreground mb-4">
             {error?.message || "Client not found"}
           </p>
-          <Button variant="outline" render={<Link href="/clients" />}>
+          <Button variant="outline" render={<a href="/clients" />}>
             Back to clients
           </Button>
         </div>

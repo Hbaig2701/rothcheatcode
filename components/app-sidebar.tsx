@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/sidebar'
 import { LogoutButton } from '@/components/logout-button'
 import { LayoutDashboard, Users } from 'lucide-react'
-import Link from 'next/link'
 
 const navItems = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -33,7 +32,7 @@ export function AppSidebar({ user }: { user: User }) {
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton render={<Link href={item.href} />}>
+                  <SidebarMenuButton render={<a href={item.href} />}>
                     <item.icon className="size-4" />
                     <span>{item.title}</span>
                   </SidebarMenuButton>

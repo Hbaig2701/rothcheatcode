@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Pencil, ArrowLeft, BarChart3 } from "lucide-react";
-import Link from "next/link";
 
 interface ClientDetailPageProps {
   params: Promise<{ id: string }>;
@@ -73,7 +72,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
           <p className="text-muted-foreground mb-4">
             {error?.message || "Client not found"}
           </p>
-          <Button variant="outline" render={<Link href="/clients" />}>
+          <Button variant="outline" render={<a href="/clients"  />}>
             Back to clients
           </Button>
         </div>
@@ -85,7 +84,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
     <div className="container py-8">
       {/* Header */}
       <div className="flex items-center gap-4 mb-8">
-        <Button variant="ghost" size="icon" render={<Link href="/clients" />}>
+        <Button variant="ghost" size="icon" render={<a href="/clients"  />}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
@@ -95,11 +94,11 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button render={<Link href={`/clients/${client.id}/results`} />}>
+          <Button render={<a href={`/clients/${client.id}/results`}  />}>
             <BarChart3 className="mr-2 h-4 w-4" />
             View Results
           </Button>
-          <Button variant="outline" render={<Link href={`/clients/${client.id}/edit`} />}>
+          <Button variant="outline" render={<a href={`/clients/${client.id}/edit`}  />}>
             <Pencil className="mr-2 h-4 w-4" />
             Edit
           </Button>
@@ -143,7 +142,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
               <p className="text-muted-foreground mb-4">
                 Compare 4 Roth conversion strategies and find the optimal approach for this client.
               </p>
-              <Button render={<Link href={`/clients/${client.id}/results`} />}>
+              <Button render={<a href={`/clients/${client.id}/results`}  />}>
                 <BarChart3 className="mr-2 h-4 w-4" />
                 View Results
               </Button>

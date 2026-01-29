@@ -3,7 +3,6 @@
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Users } from "lucide-react";
-import Link from "next/link";
 
 export function ClientsEmptyState() {
   return (
@@ -16,9 +15,9 @@ export function ClientsEmptyState() {
         <p className="text-muted-foreground text-center mb-4 max-w-sm">
           Get started by adding your first client to begin planning their Roth conversions.
         </p>
-        <Link href="/clients/new" className={buttonVariants()}>
+        <a href="/clients/new" className={buttonVariants()}>
           Add your first client
-        </Link>
+        </a>
       </CardContent>
     </Card>
   );

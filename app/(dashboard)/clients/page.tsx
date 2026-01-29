@@ -5,7 +5,6 @@ import { ClientsTable } from "@/components/clients/clients-table";
 import { ClientsEmptyState } from "@/components/clients/clients-empty-state";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Plus, Loader2 } from "lucide-react";
-import Link from "next/link";
 
 export default function ClientsPage() {
   const { data: clients, isLoading, isError, error } = useClients();
@@ -51,10 +50,10 @@ export default function ClientsPage() {
           </p>
         </div>
         {hasClients && (
-          <Link href="/clients/new" className={buttonVariants()}>
+          <a href="/clients/new" className={buttonVariants()}>
             <Plus className="mr-2 h-4 w-4" />
             Add client
-          </Link>
+          </a>
         )}
       </div>
 

@@ -10,7 +10,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Link from "next/link";
 import type { Client } from "@/lib/types/client";
 
 // Helper to format filing status for display
@@ -82,12 +81,12 @@ export const createColumns = (onDelete: (id: string) => void): ColumnDef<Client>
       </Button>
     ),
     cell: ({ row }) => (
-      <Link
+      <a
         href={`/clients/${row.original.id}`}
         className="font-medium hover:underline"
       >
         {row.getValue("name")}
-      </Link>
+      </a>
     ),
   },
   {
