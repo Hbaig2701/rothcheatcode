@@ -96,6 +96,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
 
   const isPending = createClient.isPending || updateClient.isPending;
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const onValidationError = (errors: FieldErrors<ClientFormData>) => {
     const messages: string[] = [];
@@ -118,6 +119,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
 
   const onSubmit = async (data: ClientFormData) => {
     setValidationErrors([]);
+    setSubmitError(null);
     try {
       // Calculate date_of_birth from age (assume Jan 1st of calculated birth year)
       const currentYear = new Date().getFullYear();
@@ -169,13 +171,16 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
 
       if (isEditing && client) {
         await updateClient.mutateAsync({ id: client.id, data: submitData });
-        router.push(`/clients/${client.id}`);
+        // Use window.location for reliable navigation after mutation
+        window.location.href = `/clients/${client.id}`;
       } else {
         await createClient.mutateAsync(submitData);
-        router.push("/clients");
+        window.location.href = "/clients";
       }
     } catch (error) {
-      console.error("Form submission error:", error);
+      const message = error instanceof Error ? error.message : "An unexpected error occurred";
+      setSubmitError(message);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
@@ -197,6 +202,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit, onValidationError)}>
           <CardContent className="space-y-8">
+            {/* Validation errors */}
             {validationErrors.length > 0 && (
               <div className="rounded-md border border-red-200 bg-red-50 p-4">
                 <div className="flex items-center gap-2 mb-2">
@@ -212,6 +218,18 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
                 </ul>
               </div>
             )}
+
+            {/* Submission / API errors */}
+            {(submitError || createClient.isError || updateClient.isError) && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-4">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <span className="text-sm font-medium text-red-800">
+                    {submitError || createClient.error?.message || updateClient.error?.message}
+                  </span>
+                </div>
+              </div>
+            )}
             <ClientDataSection />
             <CurrentAccountSection />
             <NewAccountSection />
@@ -221,12 +239,6 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
             <RothWithdrawalsSection />
             <AdvancedDataSection />
 
-            {/* API error display */}
-            {(createClient.isError || updateClient.isError) && (
-              <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
-                {createClient.error?.message || updateClient.error?.message}
-              </div>
-            )}
           </CardContent>
 
           <CardFooter className="flex justify-end gap-2">
