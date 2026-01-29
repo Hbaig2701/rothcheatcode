@@ -124,16 +124,26 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       const birthYear = currentYear - data.age;
       const dateOfBirth = `${birthYear}-01-01`;
 
-      // Calculate spouse_dob if married (validation requires it)
-      let spouseDob = null;
-      if (data.filing_status === "married_filing_jointly" || data.filing_status === "married_filing_separately") {
-        // Assume spouse is same age for now since we don't collect it
-        spouseDob = dateOfBirth;
+      // Determine if married
+      const isMarriedFiling =
+        data.filing_status === "married_filing_jointly" ||
+        data.filing_status === "married_filing_separately";
+
+      // Calculate spouse_dob if married
+      const spouseDob = isMarriedFiling ? dateOfBirth : null;
+
+      // Strip spouse fields for non-married filers
+      const cleanedData = { ...data };
+      if (!isMarriedFiling) {
+        delete (cleanedData as Record<string, unknown>).spouse_name;
+        delete (cleanedData as Record<string, unknown>).spouse_age;
+        delete (cleanedData as Record<string, unknown>).spouse_ssi_payout_age;
+        delete (cleanedData as Record<string, unknown>).spouse_ssi_annual_amount;
       }
 
       // Transform form data to include legacy fields for backwards compatibility
       const submitData = {
-        ...data,
+        ...cleanedData,
         // Map new fields to legacy equivalents for calculation engine
         traditional_ira: data.qualified_account_value,
         other_retirement: 0,

@@ -71,7 +71,11 @@ export const clientBlueprintBaseSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
   age: z.number().int().min(18, "Age must be at least 18").max(100, "Age must be 100 or less"),
   spouse_name: z.string().max(100).optional(),
-  spouse_age: z.number().int().min(18).max(100).optional(),
+  // NaN-safe: HTML number inputs with valueAsNumber produce NaN for empty values
+  spouse_age: z.preprocess(
+    (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
+    z.number().int().min(18).max(100).optional()
+  ),
 
   // Section 2: Current Account Data
   qualified_account_value: z.number().int().min(0, "Amount must be positive"),
@@ -93,8 +97,15 @@ export const clientBlueprintBaseSchema = z.object({
   // Section 5: Taxable Income Calculation
   ssi_payout_age: z.number().int().min(62, "SSI starts at 62 minimum").max(70, "SSI starts at 70 maximum").default(67),
   ssi_annual_amount: z.number().int().min(0, "Amount must be positive").default(2400000), // $24,000 in cents
-  spouse_ssi_payout_age: z.number().int().min(62).max(70).optional(),
-  spouse_ssi_annual_amount: z.number().int().min(0).optional(),
+  // NaN-safe: HTML number inputs with valueAsNumber produce NaN for empty values
+  spouse_ssi_payout_age: z.preprocess(
+    (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
+    z.number().int().min(62).max(70).optional()
+  ),
+  spouse_ssi_annual_amount: z.preprocess(
+    (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
+    z.number().int().min(0).optional()
+  ),
   non_ssi_income: z.array(nonSSIIncomeEntrySchema).default([]),
 
   // Section 6: Conversion

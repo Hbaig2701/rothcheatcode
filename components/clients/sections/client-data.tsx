@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
@@ -24,6 +25,14 @@ export function ClientDataSection() {
   const filingStatus = form.watch("filing_status");
 
   const isMarried = filingStatus === "married_filing_jointly";
+
+  // Clear spouse fields when switching to non-married
+  useEffect(() => {
+    if (!isMarried) {
+      form.setValue("spouse_name", undefined);
+      form.setValue("spouse_age", undefined);
+    }
+  }, [isMarried, form]);
 
   return (
     <FormSection title="1. Client Data">

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
@@ -12,6 +13,14 @@ export function TaxableIncomeSection() {
   const form = useFormContext<ClientFormData>();
   const filingStatus = form.watch("filing_status");
   const isMarried = filingStatus === "married_filing_jointly";
+
+  // Clear spouse SSI fields when switching to non-married
+  useEffect(() => {
+    if (!isMarried) {
+      form.setValue("spouse_ssi_payout_age", undefined);
+      form.setValue("spouse_ssi_annual_amount", undefined);
+    }
+  }, [isMarried, form]);
 
   return (
     <FormSection title="5. Taxable Income Calculation">
