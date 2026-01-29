@@ -1,6 +1,7 @@
 "use client";
 
-import { useForm, FormProvider, Resolver } from "react-hook-form";
+import { useState } from "react";
+import { useForm, FormProvider, Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { clientBlueprintSchema, type ClientFormData } from "@/lib/validations/client";
@@ -10,7 +11,7 @@ import type { Client } from "@/lib/types/client";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 
 // Import all 8 Blueprint sections
 import { ClientDataSection } from "./sections/client-data";
@@ -94,8 +95,29 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
   useSmartDefaults(form);
 
   const isPending = createClient.isPending || updateClient.isPending;
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  const onValidationError = (errors: FieldErrors<ClientFormData>) => {
+    const messages: string[] = [];
+    const flattenErrors = (obj: Record<string, unknown>, prefix = "") => {
+      for (const key in obj) {
+        const val = obj[key] as Record<string, unknown>;
+        if (val?.message) {
+          const label = prefix ? `${prefix} > ${key}` : key;
+          messages.push(`${label}: ${val.message}`);
+        } else if (val && typeof val === "object") {
+          flattenErrors(val as Record<string, unknown>, key);
+        }
+      }
+    };
+    flattenErrors(errors as Record<string, unknown>);
+    setValidationErrors(messages);
+    // Scroll to top so user sees the errors
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const onSubmit = async (data: ClientFormData) => {
+    setValidationErrors([]);
     try {
       // Calculate date_of_birth from age (assume Jan 1st of calculated birth year)
       const currentYear = new Date().getFullYear();
@@ -160,11 +182,26 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isEditing ? "Edit Client" : "Homer's Blueprint"}</CardTitle>
+        <CardTitle>{isEditing ? "Edit Client" : "New Client Blueprint"}</CardTitle>
       </CardHeader>
       <FormProvider {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={form.handleSubmit(onSubmit, onValidationError)}>
           <CardContent className="space-y-8">
+            {validationErrors.length > 0 && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <span className="text-sm font-medium text-red-800">
+                    Please fix the following errors:
+                  </span>
+                </div>
+                <ul className="list-disc pl-5 space-y-1">
+                  {validationErrors.map((msg, i) => (
+                    <li key={i} className="text-sm text-red-700">{msg}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <ClientDataSection />
             <CurrentAccountSection />
             <NewAccountSection />
