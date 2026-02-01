@@ -21,22 +21,22 @@ import {
   ALL_PRODUCTS,
   isFieldLocked,
   isGuaranteedIncomeProduct,
-  type BlueprintType,
+  type CheatCodeType,
 } from "@/lib/config/products";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function NewAccountSection() {
   const form = useFormContext<ClientFormData>();
-  const blueprintType = form.watch("blueprint_type") as BlueprintType;
+  const cheatCodeType = form.watch("blueprint_type") as CheatCodeType;
 
-  // Handle blueprint type change - apply product defaults
-  const handleBlueprintTypeChange = (value: BlueprintType | null) => {
+  // Handle cheatCode type change - apply product defaults
+  const handleCheatCodeTypeChange = (value: CheatCodeType | null) => {
     if (!value) return;
     const product = ALL_PRODUCTS[value];
     if (!product) return;
 
-    // Update form with new blueprint type and product defaults
+    // Update form with new cheatCode type and product defaults
     form.setValue("blueprint_type", value);
     form.setValue("carrier_name", product.defaults.carrierName);
     form.setValue("product_name", product.defaults.productName);
@@ -51,10 +51,10 @@ export function NewAccountSection() {
     }
   };
 
-  const isCarrierLocked = isFieldLocked("carrierName", blueprintType);
-  const isProductLocked = isFieldLocked("productName", blueprintType);
-  const isBonusLocked = isFieldLocked("bonus", blueprintType);
-  const isGI = isGuaranteedIncomeProduct(blueprintType);
+  const isCarrierLocked = isFieldLocked("carrierName", cheatCodeType);
+  const isProductLocked = isFieldLocked("productName", cheatCodeType);
+  const isBonusLocked = isFieldLocked("bonus", cheatCodeType);
+  const isGI = isGuaranteedIncomeProduct(cheatCodeType);
 
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
@@ -63,11 +63,11 @@ export function NewAccountSection() {
         name="blueprint_type"
         control={form.control}
         render={({ field }) => {
-          const selectedProduct = ALL_PRODUCTS[field.value as BlueprintType];
+          const selectedProduct = ALL_PRODUCTS[field.value as CheatCodeType];
           return (
             <Field>
               <FieldLabel htmlFor="blueprint_type">Blueprint Type</FieldLabel>
-              <Select value={field.value} onValueChange={handleBlueprintTypeChange}>
+              <Select value={field.value} onValueChange={handleCheatCodeTypeChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select blueprint type">
                     {selectedProduct?.label ?? "Select blueprint type"}
@@ -99,7 +99,7 @@ export function NewAccountSection() {
                 </SelectContent>
               </Select>
               <FieldDescription>
-                {ALL_PRODUCTS[blueprintType]?.description || "Select a product template"}
+                {ALL_PRODUCTS[cheatCodeType]?.description || "Select a product template"}
               </FieldDescription>
             </Field>
           );

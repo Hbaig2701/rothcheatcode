@@ -5,7 +5,7 @@ import type { Client } from '@/lib/types/client';
 import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projection';
 import type { SimulationResult } from '@/lib/calculations';
 import type { GIMetrics } from '@/lib/calculations/guaranteed-income/types';
-import { isGuaranteedIncomeProduct, type BlueprintType } from '@/lib/config/products';
+import { isGuaranteedIncomeProduct, type CheatCodeType } from '@/lib/config/products';
 import crypto from 'crypto';
 
 function generateInputHash(client: Client): string {
@@ -168,8 +168,8 @@ export async function GET(
 
     // Run simulation - dispatch to GI or Growth engine based on product type
     const simulationInput = createSimulationInput(client as Client);
-    const blueprintType = (client as Client).blueprint_type as BlueprintType;
-    const isGI = blueprintType && isGuaranteedIncomeProduct(blueprintType);
+    const cheatCodeType = (client as Client).blueprint_type as CheatCodeType;
+    const isGI = cheatCodeType && isGuaranteedIncomeProduct(cheatCodeType);
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {
@@ -223,8 +223,8 @@ export async function POST(
 
     const inputHash = generateInputHash(client as Client);
     const simulationInput = createSimulationInput(client as Client);
-    const blueprintType = (client as Client).blueprint_type as BlueprintType;
-    const isGI = blueprintType && isGuaranteedIncomeProduct(blueprintType);
+    const cheatCodeType = (client as Client).blueprint_type as CheatCodeType;
+    const isGI = cheatCodeType && isGuaranteedIncomeProduct(cheatCodeType);
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {

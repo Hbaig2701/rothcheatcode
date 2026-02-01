@@ -7,17 +7,17 @@ import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { isFieldLocked, type BlueprintType } from "@/lib/config/products";
+import { isFieldLocked, type CheatCodeType } from "@/lib/config/products";
 import { Lock, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AdvancedDataSection() {
   const [isExpanded, setIsExpanded] = useState(false);
   const form = useFormContext<ClientFormData>();
-  const blueprintType = form.watch("blueprint_type") as BlueprintType;
+  const cheatCodeType = form.watch("blueprint_type") as CheatCodeType;
 
-  const isSurrenderLocked = isFieldLocked("surrenderYears", blueprintType);
-  const isPenaltyFreeLocked = isFieldLocked("penaltyFreePercent", blueprintType);
+  const isSurrenderLocked = isFieldLocked("surrenderYears", cheatCodeType);
+  const isPenaltyFreeLocked = isFieldLocked("penaltyFreePercent", cheatCodeType);
 
   return (
     <div className="space-y-4">

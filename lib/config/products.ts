@@ -1,15 +1,15 @@
-// Product preset configuration for Blueprint Type dropdown
+// Product preset configuration for CheatCode Type dropdown
 // This file ONLY defines UI presets - it does NOT modify any calculation formulas
 
-export type GrowthBlueprintType = 'fia' | 'lincoln-optiblend-7' | 'equitrust-marketedge-bonus';
+export type GrowthCheatCodeType = 'fia' | 'lincoln-optiblend-7' | 'equitrust-marketedge-bonus';
 
-export type GuaranteedIncomeBlueprintType =
+export type GuaranteedIncomeCheatCodeType =
   | 'athene-ascent-pro-10'
   | 'american-equity-incomeshield-bonus-10'
   | 'equitrust-marketearly-income-index'
   | 'north-american-income-pay-pro';
 
-export type BlueprintType = GrowthBlueprintType | GuaranteedIncomeBlueprintType;
+export type CheatCodeType = GrowthCheatCodeType | GuaranteedIncomeCheatCodeType;
 
 export interface ProductDefaults {
   carrierName: string;
@@ -22,7 +22,7 @@ export interface ProductDefaults {
 }
 
 export interface ProductConfig {
-  id: BlueprintType;
+  id: CheatCodeType;
   label: string;
   category: 'Growth' | 'Guaranteed Income' | 'AUM';
   description: string;
@@ -40,7 +40,7 @@ export const LOCKABLE_FIELDS = [
   'penaltyFreePercent',
 ] as const;
 
-export const GROWTH_PRODUCTS: Record<GrowthBlueprintType, ProductConfig> = {
+export const GROWTH_PRODUCTS: Record<GrowthCheatCodeType, ProductConfig> = {
   'fia': {
     id: 'fia',
     label: 'FIA',
@@ -90,7 +90,7 @@ export const GROWTH_PRODUCTS: Record<GrowthBlueprintType, ProductConfig> = {
   },
 };
 
-export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeBlueprintType, ProductConfig> = {
+export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeCheatCodeType, ProductConfig> = {
   'athene-ascent-pro-10': {
     id: 'athene-ascent-pro-10',
     label: 'Athene Ascent Pro 10',
@@ -161,27 +161,27 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeBlueprintType, P
 };
 
 // Combined lookup for all products
-export const ALL_PRODUCTS: Record<BlueprintType, ProductConfig> = {
+export const ALL_PRODUCTS: Record<CheatCodeType, ProductConfig> = {
   ...GROWTH_PRODUCTS,
   ...GUARANTEED_INCOME_PRODUCTS,
 };
 
-// Check if a blueprint type is a guaranteed income product
-export function isGuaranteedIncomeProduct(blueprintType: BlueprintType): boolean {
-  return blueprintType in GUARANTEED_INCOME_PRODUCTS;
+// Check if a cheatCode type is a guaranteed income product
+export function isGuaranteedIncomeProduct(cheatCodeType: CheatCodeType): boolean {
+  return cheatCodeType in GUARANTEED_INCOME_PRODUCTS;
 }
 
 // Utility function to check if a field should be locked
 export function isFieldLocked(
   fieldName: typeof LOCKABLE_FIELDS[number],
-  blueprintType: BlueprintType
+  cheatCodeType: CheatCodeType
 ): boolean {
-  const product = ALL_PRODUCTS[blueprintType];
+  const product = ALL_PRODUCTS[cheatCodeType];
   if (!product) return false;
   return product.lockedFields.includes(fieldName);
 }
 
-// Get all available blueprint types for the dropdown
-export function getAvailableBlueprintTypes(): ProductConfig[] {
+// Get all available cheatCode types for the dropdown
+export function getAvailableCheatCodeTypes(): ProductConfig[] {
   return Object.values(ALL_PRODUCTS);
 }

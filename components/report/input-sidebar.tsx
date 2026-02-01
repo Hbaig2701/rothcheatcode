@@ -3,14 +3,14 @@
 import { useEffect } from "react";
 import { useForm, FormProvider, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { clientBlueprintSchema, type ClientFormData } from "@/lib/validations/client";
+import { clientCheatCodeSchema, type ClientFormData } from "@/lib/validations/client";
 import { useUpdateClient } from "@/lib/queries/clients";
 import { useRecalculateProjection } from "@/lib/queries/projections";
 import type { Client } from "@/lib/types/client";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GROWTH_PRODUCTS, GUARANTEED_INCOME_PRODUCTS, ALL_PRODUCTS, type BlueprintType } from "@/lib/config/products";
+import { GROWTH_PRODUCTS, GUARANTEED_INCOME_PRODUCTS, ALL_PRODUCTS, type CheatCodeType } from "@/lib/config/products";
 
 // Import Sections
 import { ClientDataSection } from "@/components/clients/sections/client-data";
@@ -31,7 +31,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
     const recalculateProjection = useRecalculateProjection();
 
     const form = useForm<ClientFormData>({
-        resolver: zodResolver(clientBlueprintSchema) as Resolver<ClientFormData>,
+        resolver: zodResolver(clientCheatCodeSchema) as Resolver<ClientFormData>,
         defaultValues: {
             blueprint_type: client?.blueprint_type ?? "fia",
             filing_status: client?.filing_status ?? "married_filing_jointly",
@@ -82,8 +82,8 @@ export function InputSidebar({ client }: InputSidebarProps) {
     // Sync form fields with blueprint type defaults on load
     // This ensures consistency when loading data that may have mismatched values
     useEffect(() => {
-        const blueprintType = form.getValues("blueprint_type") as BlueprintType;
-        const product = ALL_PRODUCTS[blueprintType];
+        const cheatCodeType = form.getValues("blueprint_type") as CheatCodeType;
+        const product = ALL_PRODUCTS[cheatCodeType];
         if (!product) return;
 
         const currentCarrier = form.getValues("carrier_name");
@@ -91,7 +91,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
 
         // Check if current values match a DIFFERENT locked product
         // If so, reset to the selected blueprint type's defaults
-        const otherProducts = Object.values(ALL_PRODUCTS).filter(p => p.id !== blueprintType);
+        const otherProducts = Object.values(ALL_PRODUCTS).filter(p => p.id !== cheatCodeType);
         const matchesOtherLockedProduct = otherProducts.some(p =>
             p.lockedFields.includes("carrierName") &&
             p.defaults.carrierName === currentCarrier
@@ -169,12 +169,12 @@ export function InputSidebar({ client }: InputSidebarProps) {
     };
 
     // Watch blueprint type for header display
-    const blueprintType = form.watch("blueprint_type") as BlueprintType;
-    const currentProduct = ALL_PRODUCTS[blueprintType];
+    const cheatCodeType = form.watch("blueprint_type") as CheatCodeType;
+    const currentProduct = ALL_PRODUCTS[cheatCodeType];
 
     // Handle blueprint type change from header dropdown
     const handleHeaderBlueprintChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const value = e.target.value as BlueprintType;
+        const value = e.target.value as CheatCodeType;
         const product = ALL_PRODUCTS[value];
         if (!product) return;
 
@@ -197,7 +197,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             <div className="p-4 border-b border-[#2A2A2A] bg-[#0A0A0A] shrink-0 space-y-2">
                 <h2 className="text-xs font-bold text-[#F5B800] uppercase tracking-widest">Inputs</h2>
                 <select
-                    value={blueprintType}
+                    value={cheatCodeType}
                     onChange={handleHeaderBlueprintChange}
                     className="w-full bg-[#141414] border border-[#2A2A2A] text-xs h-8 rounded px-3 text-white focus:ring-1 focus:ring-[#F5B800] outline-none"
                 >

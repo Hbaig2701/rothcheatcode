@@ -4,7 +4,7 @@ import { Controller, useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
-import { isGuaranteedIncomeProduct, type BlueprintType } from "@/lib/config/products";
+import { isGuaranteedIncomeProduct, type CheatCodeType } from "@/lib/config/products";
 
 const WITHDRAWAL_TYPE_OPTIONS = [
   { value: "no_withdrawals", label: "No Withdrawals" },
@@ -14,10 +14,10 @@ const WITHDRAWAL_TYPE_OPTIONS = [
 
 export function RothWithdrawalsSection() {
   const form = useFormContext<ClientFormData>();
-  const blueprintType = form.watch("blueprint_type") as BlueprintType;
+  const cheatCodeType = form.watch("blueprint_type") as CheatCodeType;
 
   // Hide withdrawal section for GI products (withdrawals managed by GI engine)
-  if (isGuaranteedIncomeProduct(blueprintType)) {
+  if (isGuaranteedIncomeProduct(cheatCodeType)) {
     return null;
   }
 

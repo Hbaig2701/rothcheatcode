@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { YearlyResult } from "@/lib/calculations";
 import { GISummaryPanel } from "@/components/results/gi-summary-panel";
 import { GIAccountChart } from "@/components/results/gi-account-chart";
-import { isGuaranteedIncomeProduct, type BlueprintType } from "@/lib/config/products";
+import { isGuaranteedIncomeProduct, type CheatCodeType } from "@/lib/config/products";
 import { Copy, Plus, FileText, Loader2 } from "lucide-react";
 
 interface ReportDashboardProps {
@@ -123,7 +123,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
     const { projection } = projectionResponse;
     const isGI = client.blueprint_type
-        ? isGuaranteedIncomeProduct(client.blueprint_type as BlueprintType)
+        ? isGuaranteedIncomeProduct(client.blueprint_type as CheatCodeType)
         : false;
 
     const chartData = isGI ? transformToGIChartData(projection) : transformToChartData(projection);
