@@ -1,7 +1,15 @@
 // Product preset configuration for Blueprint Type dropdown
 // This file ONLY defines UI presets - it does NOT modify any calculation formulas
 
-export type BlueprintType = 'fia' | 'lincoln-optiblend-7' | 'equitrust-marketedge-bonus';
+export type GrowthBlueprintType = 'fia' | 'lincoln-optiblend-7' | 'equitrust-marketedge-bonus';
+
+export type GuaranteedIncomeBlueprintType =
+  | 'athene-ascent-pro-10'
+  | 'american-equity-incomeshield-bonus-10'
+  | 'equitrust-marketearly-income-index'
+  | 'north-american-income-pay-pro';
+
+export type BlueprintType = GrowthBlueprintType | GuaranteedIncomeBlueprintType;
 
 export interface ProductDefaults {
   carrierName: string;
@@ -19,6 +27,7 @@ export interface ProductConfig {
   description: string;
   lockedFields: Array<'carrierName' | 'productName' | 'bonus' | 'surrenderYears' | 'penaltyFreePercent'>;
   defaults: ProductDefaults;
+  comingSoon?: boolean;
 }
 
 // Fields that CAN be locked (product-specific)
@@ -30,7 +39,7 @@ export const LOCKABLE_FIELDS = [
   'penaltyFreePercent',
 ] as const;
 
-export const GROWTH_PRODUCTS: Record<BlueprintType, ProductConfig> = {
+export const GROWTH_PRODUCTS: Record<GrowthBlueprintType, ProductConfig> = {
   'fia': {
     id: 'fia',
     label: 'FIA',
@@ -80,17 +89,98 @@ export const GROWTH_PRODUCTS: Record<BlueprintType, ProductConfig> = {
   },
 };
 
+export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeBlueprintType, ProductConfig> = {
+  'athene-ascent-pro-10': {
+    id: 'athene-ascent-pro-10',
+    label: 'Athene Ascent Pro 10',
+    category: 'Guaranteed Income',
+    description: 'Athene Ascent Pro 10 - Guaranteed Income (Coming Soon)',
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
+    defaults: {
+      carrierName: 'Athene',
+      productName: 'Ascent Pro 10',
+      bonus: 10,
+      surrenderYears: 10,
+      penaltyFreePercent: 10,
+      rateOfReturn: 7,
+    },
+    comingSoon: true,
+  },
+
+  'american-equity-incomeshield-bonus-10': {
+    id: 'american-equity-incomeshield-bonus-10',
+    label: 'American Equity IncomeShield Bonus 10',
+    category: 'Guaranteed Income',
+    description: 'American Equity IncomeShield Bonus 10 - Guaranteed Income (Coming Soon)',
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
+    defaults: {
+      carrierName: 'American Equity',
+      productName: 'IncomeShield Bonus 10',
+      bonus: 10,
+      surrenderYears: 10,
+      penaltyFreePercent: 10,
+      rateOfReturn: 7,
+    },
+    comingSoon: true,
+  },
+
+  'equitrust-marketearly-income-index': {
+    id: 'equitrust-marketearly-income-index',
+    label: 'EquiTrust MarketEarly Income Index',
+    category: 'Guaranteed Income',
+    description: 'EquiTrust MarketEarly Income Index - Guaranteed Income (Coming Soon)',
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
+    defaults: {
+      carrierName: 'EquiTrust',
+      productName: 'MarketEarly Income Index',
+      bonus: 10,
+      surrenderYears: 10,
+      penaltyFreePercent: 10,
+      rateOfReturn: 7,
+    },
+    comingSoon: true,
+  },
+
+  'north-american-income-pay-pro': {
+    id: 'north-american-income-pay-pro',
+    label: 'North American Income Pay Pro',
+    category: 'Guaranteed Income',
+    description: 'North American Income Pay Pro - Guaranteed Income (Coming Soon)',
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
+    defaults: {
+      carrierName: 'North American',
+      productName: 'Income Pay Pro',
+      bonus: 10,
+      surrenderYears: 10,
+      penaltyFreePercent: 10,
+      rateOfReturn: 7,
+    },
+    comingSoon: true,
+  },
+};
+
+// Combined lookup for all products
+export const ALL_PRODUCTS: Record<BlueprintType, ProductConfig> = {
+  ...GROWTH_PRODUCTS,
+  ...GUARANTEED_INCOME_PRODUCTS,
+};
+
+// Check if a blueprint type is a guaranteed income product (Coming Soon)
+export function isGuaranteedIncomeProduct(blueprintType: BlueprintType): boolean {
+  return blueprintType in GUARANTEED_INCOME_PRODUCTS;
+}
+
 // Utility function to check if a field should be locked
 export function isFieldLocked(
   fieldName: typeof LOCKABLE_FIELDS[number],
   blueprintType: BlueprintType
 ): boolean {
-  const product = GROWTH_PRODUCTS[blueprintType];
+  const product = ALL_PRODUCTS[blueprintType];
   if (!product) return false;
   return product.lockedFields.includes(fieldName);
 }
 
 // Get all available blueprint types for the dropdown
 export function getAvailableBlueprintTypes(): ProductConfig[] {
-  return Object.values(GROWTH_PRODUCTS);
+  return Object.values(ALL_PRODUCTS);
 }

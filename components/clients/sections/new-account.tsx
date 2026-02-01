@@ -15,8 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { GROWTH_PRODUCTS, isFieldLocked, type BlueprintType } from "@/lib/config/products";
-import { Lock } from "lucide-react";
+import {
+  GROWTH_PRODUCTS,
+  GUARANTEED_INCOME_PRODUCTS,
+  ALL_PRODUCTS,
+  isFieldLocked,
+  isGuaranteedIncomeProduct,
+  type BlueprintType,
+} from "@/lib/config/products";
+import { Lock, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function NewAccountSection() {
@@ -26,7 +33,7 @@ export function NewAccountSection() {
   // Handle blueprint type change - apply product defaults
   const handleBlueprintTypeChange = (value: BlueprintType | null) => {
     if (!value) return;
-    const product = GROWTH_PRODUCTS[value];
+    const product = ALL_PRODUCTS[value];
     if (!product) return;
 
     // Update form with new blueprint type and product defaults
@@ -42,6 +49,7 @@ export function NewAccountSection() {
   const isCarrierLocked = isFieldLocked("carrierName", blueprintType);
   const isProductLocked = isFieldLocked("productName", blueprintType);
   const isBonusLocked = isFieldLocked("bonus", blueprintType);
+  const isComingSoon = isGuaranteedIncomeProduct(blueprintType);
 
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
@@ -50,7 +58,7 @@ export function NewAccountSection() {
         name="blueprint_type"
         control={form.control}
         render={({ field }) => {
-          const selectedProduct = GROWTH_PRODUCTS[field.value as BlueprintType];
+          const selectedProduct = ALL_PRODUCTS[field.value as BlueprintType];
           return (
             <Field>
               <FieldLabel htmlFor="blueprint_type">Blueprint Type</FieldLabel>
@@ -69,12 +77,15 @@ export function NewAccountSection() {
                       </SelectItem>
                     ))}
                   </SelectGroup>
-                  {/* Future phases - shown as disabled */}
                   <SelectGroup>
-                    <SelectLabel className="text-muted-foreground/60">
-                      Guaranteed Income (Coming Soon)
-                    </SelectLabel>
+                    <SelectLabel>Guaranteed Income</SelectLabel>
+                    {Object.values(GUARANTEED_INCOME_PRODUCTS).map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.label}
+                      </SelectItem>
+                    ))}
                   </SelectGroup>
+                  {/* AUM - future phase, disabled */}
                   <SelectGroup>
                     <SelectLabel className="text-muted-foreground/60">
                       AUM (Coming Soon)
@@ -83,12 +94,26 @@ export function NewAccountSection() {
                 </SelectContent>
               </Select>
               <FieldDescription>
-                {GROWTH_PRODUCTS[blueprintType]?.description || "Select a product template"}
+                {ALL_PRODUCTS[blueprintType]?.description || "Select a product template"}
               </FieldDescription>
             </Field>
           );
         }}
       />
+
+      {/* Coming Soon banner for Guaranteed Income products */}
+      {isComingSoon && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
+          <Info className="mt-0.5 size-4 shrink-0 text-amber-500" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-500">Guaranteed Income Engine Coming Soon</p>
+            <p className="text-muted-foreground">
+              This product currently uses the Growth calculation engine as a placeholder.
+              A dedicated Guaranteed Income engine is in development.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Carrier Name */}
       <Field data-invalid={!!form.formState.errors.carrier_name}>

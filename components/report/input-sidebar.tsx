@@ -10,7 +10,7 @@ import type { Client } from "@/lib/types/client";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GROWTH_PRODUCTS, type BlueprintType } from "@/lib/config/products";
+import { GROWTH_PRODUCTS, GUARANTEED_INCOME_PRODUCTS, ALL_PRODUCTS, type BlueprintType } from "@/lib/config/products";
 
 // Import Sections
 import { ClientDataSection } from "@/components/clients/sections/client-data";
@@ -80,7 +80,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
     // This ensures consistency when loading data that may have mismatched values
     useEffect(() => {
         const blueprintType = form.getValues("blueprint_type") as BlueprintType;
-        const product = GROWTH_PRODUCTS[blueprintType];
+        const product = ALL_PRODUCTS[blueprintType];
         if (!product) return;
 
         const currentCarrier = form.getValues("carrier_name");
@@ -88,7 +88,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
 
         // Check if current values match a DIFFERENT locked product
         // If so, reset to the selected blueprint type's defaults
-        const otherProducts = Object.values(GROWTH_PRODUCTS).filter(p => p.id !== blueprintType);
+        const otherProducts = Object.values(ALL_PRODUCTS).filter(p => p.id !== blueprintType);
         const matchesOtherLockedProduct = otherProducts.some(p =>
             p.lockedFields.includes("carrierName") &&
             p.defaults.carrierName === currentCarrier
@@ -167,12 +167,12 @@ export function InputSidebar({ client }: InputSidebarProps) {
 
     // Watch blueprint type for header display
     const blueprintType = form.watch("blueprint_type") as BlueprintType;
-    const currentProduct = GROWTH_PRODUCTS[blueprintType];
+    const currentProduct = ALL_PRODUCTS[blueprintType];
 
     // Handle blueprint type change from header dropdown
     const handleHeaderBlueprintChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const value = e.target.value as BlueprintType;
-        const product = GROWTH_PRODUCTS[value];
+        const product = ALL_PRODUCTS[value];
         if (!product) return;
 
         // Update form with new blueprint type and product defaults
@@ -195,11 +195,20 @@ export function InputSidebar({ client }: InputSidebarProps) {
                     onChange={handleHeaderBlueprintChange}
                     className="w-full bg-[#1e293b] border border-[#334155] text-xs h-8 rounded px-3 text-slate-200 focus:ring-1 focus:ring-emerald-500 outline-none"
                 >
-                    {Object.values(GROWTH_PRODUCTS).map((product) => (
-                        <option key={product.id} value={product.id}>
-                            {product.label}
-                        </option>
-                    ))}
+                    <optgroup label="Growth">
+                        {Object.values(GROWTH_PRODUCTS).map((product) => (
+                            <option key={product.id} value={product.id}>
+                                {product.label}
+                            </option>
+                        ))}
+                    </optgroup>
+                    <optgroup label="Guaranteed Income">
+                        {Object.values(GUARANTEED_INCOME_PRODUCTS).map((product) => (
+                            <option key={product.id} value={product.id}>
+                                {product.label}
+                            </option>
+                        ))}
+                    </optgroup>
                 </select>
             </div>
 

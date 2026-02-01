@@ -37,6 +37,10 @@ export const blueprintTypeEnum = z.enum([
   "fia",
   "lincoln-optiblend-7",
   "equitrust-marketedge-bonus",
+  "athene-ascent-pro-10",
+  "american-equity-incomeshield-bonus-10",
+  "equitrust-marketearly-income-index",
+  "north-american-income-pay-pro",
 ]);
 
 // Legacy strategy enum (for backwards compatibility)
@@ -296,7 +300,9 @@ export type ClientFullFormData = z.infer<typeof clientFullSchema>;
 // Explicit form type with all fields required for form defaultValues
 export type ClientFormData = {
   // Blueprint Type (product preset)
-  blueprint_type: "fia" | "lincoln-optiblend-7" | "equitrust-marketedge-bonus";
+  blueprint_type: "fia" | "lincoln-optiblend-7" | "equitrust-marketedge-bonus"
+    | "athene-ascent-pro-10" | "american-equity-incomeshield-bonus-10"
+    | "equitrust-marketearly-income-index" | "north-american-income-pay-pro";
 
   // Section 1: Client Data
   filing_status: "single" | "married_filing_jointly" | "married_filing_separately" | "head_of_household";
