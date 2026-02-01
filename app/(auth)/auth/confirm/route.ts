@@ -3,10 +3,16 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
   const next = searchParams.get('next') ?? '/dashboard'
+
+  // Build the redirect URL, using x-forwarded-host on Vercel
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const origin = forwardedHost
+    ? `https://${forwardedHost}`
+    : new URL(request.url).origin
 
   if (token_hash && type) {
     const supabase = await createClient()
