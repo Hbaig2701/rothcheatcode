@@ -75,6 +75,11 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       // Section 7: Withdrawals
       withdrawal_type: client?.withdrawal_type ?? "no_withdrawals",
 
+      // GI-specific fields
+      payout_type: client?.payout_type ?? "individual",
+      income_start_age: client?.income_start_age ?? 65,
+      guaranteed_rate_of_return: client?.guaranteed_rate_of_return ?? 0,
+
       // Section 8: Advanced
       surrender_years: client?.surrender_years ?? 7,
       penalty_free_percent: client?.penalty_free_percent ?? 10,

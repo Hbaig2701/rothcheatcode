@@ -23,7 +23,7 @@ import {
   isGuaranteedIncomeProduct,
   type BlueprintType,
 } from "@/lib/config/products";
-import { Lock, Info } from "lucide-react";
+import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function NewAccountSection() {
@@ -44,12 +44,17 @@ export function NewAccountSection() {
     form.setValue("surrender_years", product.defaults.surrenderYears);
     form.setValue("penalty_free_percent", product.defaults.penaltyFreePercent);
     form.setValue("rate_of_return", product.defaults.rateOfReturn);
+
+    // Set GI-specific defaults when switching to a GI product
+    if (product.defaults.guaranteedRateOfReturn !== undefined) {
+      form.setValue("guaranteed_rate_of_return", product.defaults.guaranteedRateOfReturn);
+    }
   };
 
   const isCarrierLocked = isFieldLocked("carrierName", blueprintType);
   const isProductLocked = isFieldLocked("productName", blueprintType);
   const isBonusLocked = isFieldLocked("bonus", blueprintType);
-  const isComingSoon = isGuaranteedIncomeProduct(blueprintType);
+  const isGI = isGuaranteedIncomeProduct(blueprintType);
 
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
@@ -100,20 +105,6 @@ export function NewAccountSection() {
           );
         }}
       />
-
-      {/* Coming Soon banner for Guaranteed Income products */}
-      {isComingSoon && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
-          <Info className="mt-0.5 size-4 shrink-0 text-amber-500" />
-          <div className="text-sm">
-            <p className="font-medium text-amber-500">Guaranteed Income Engine Coming Soon</p>
-            <p className="text-muted-foreground">
-              This product currently uses the Growth calculation engine as a placeholder.
-              A dedicated Guaranteed Income engine is in development.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Carrier Name */}
       <Field data-invalid={!!form.formState.errors.carrier_name}>
@@ -185,6 +176,77 @@ export function NewAccountSection() {
           </Field>
         )}
       />
+      {/* GI-specific fields - only shown for Guaranteed Income products */}
+      {isGI && (
+        <>
+          {/* Guaranteed Rate of Return */}
+          <Controller
+            name="guaranteed_rate_of_return"
+            control={form.control}
+            render={({ field: { ref, ...field }, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="guaranteed_rate_of_return">Guaranteed Rate of Return %</FieldLabel>
+                <PercentInput
+                  {...field}
+                  aria-invalid={fieldState.invalid}
+                />
+                <FieldDescription>Annual guaranteed roll-up rate for the income base</FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+
+          {/* Payout Type */}
+          <Controller
+            name="payout_type"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel>Payout Type</FieldLabel>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="individual"
+                      checked={field.value === "individual"}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      className="h-4 w-4 text-primary"
+                    />
+                    <span className="text-sm">Individual</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="joint"
+                      checked={field.value === "joint"}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      className="h-4 w-4 text-primary"
+                    />
+                    <span className="text-sm">Joint (88% of individual payout)</span>
+                  </label>
+                </div>
+                <FieldDescription>Individual or joint life payout option</FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+
+          {/* Income Start Age */}
+          <Field data-invalid={!!form.formState.errors.income_start_age}>
+            <FieldLabel htmlFor="income_start_age">Income Start Age</FieldLabel>
+            <Input
+              id="income_start_age"
+              type="number"
+              min={55}
+              max={80}
+              {...form.register("income_start_age", { valueAsNumber: true })}
+              aria-invalid={!!form.formState.errors.income_start_age}
+            />
+            <FieldDescription>Age when guaranteed income payments begin (55-80)</FieldDescription>
+            <FieldError errors={[form.formState.errors.income_start_age]} />
+          </Field>
+        </>
+      )}
     </FormSection>
   );
 }

@@ -41,6 +41,10 @@ export type {
   MultiStrategyResult
 } from './types';
 
+// Guaranteed Income Engine
+export { runGuaranteedIncomeSimulation } from './guaranteed-income/engine';
+export type { GIMetrics, GIYearData } from './guaranteed-income/types';
+
 // Widow scenario (Phase 08)
 export { runWidowScenario } from './scenarios/widow';
 export type { WidowScenarioInput } from './scenarios/widow';

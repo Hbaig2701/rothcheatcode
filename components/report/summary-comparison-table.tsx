@@ -52,11 +52,20 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     const toUSD = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val / 100);
 
     // Row Definition: { label, type: 'header' | 'data', base?, blue? }
+    // Check for GI data
+    const hasGI = projection.gi_total_net_paid != null && projection.gi_total_net_paid > 0;
+
     const rows = [
         { label: "Client Distributions", type: "header" },
         { label: "RMDs / Conversions", type: "data", base: baseRMDs, blue: blueConversions },
         { label: "Taxes Paid", type: "data", base: baseTax, blue: blueTax },
         { label: "After-Tax Distributions", type: "data", base: baseAfterTaxDist, blue: 0, note: "Blueprint: $0 (conversions stay in account)" },
+
+        // GI row - only shown for Guaranteed Income products
+        ...(hasGI ? [
+            { label: "Guaranteed Income", type: "header" },
+            { label: "Lifetime After-Tax GI Payments", type: "data", base: 0, blue: projection.gi_total_net_paid! },
+        ] : []),
 
         { label: "IRMAA", type: "header" },
         { label: "Total IRMAA Surcharges", type: "data", base: baseIrmaa, blue: blueIrmaa },

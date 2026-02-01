@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { runSimulation, createSimulationInput } from '@/lib/calculations';
+import { runSimulation, createSimulationInput, runGuaranteedIncomeSimulation } from '@/lib/calculations';
 import type { Client } from '@/lib/types/client';
 import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projection';
 import type { SimulationResult } from '@/lib/calculations';
+import type { GIMetrics } from '@/lib/calculations/guaranteed-income/types';
+import { isGuaranteedIncomeProduct, type BlueprintType } from '@/lib/config/products';
 import crypto from 'crypto';
 
 function generateInputHash(client: Client): string {
@@ -49,6 +51,11 @@ function generateInputHash(client: Client): string {
     pension: client.pension,
     other_income: client.other_income,
     widow_analysis: client.widow_analysis,
+    // GI-specific fields
+    blueprint_type: client.blueprint_type,
+    payout_type: client.payout_type,
+    income_start_age: client.income_start_age,
+    guaranteed_rate_of_return: client.guaranteed_rate_of_return,
   };
   return crypto.createHash('sha256').update(JSON.stringify(relevantFields)).digest('hex');
 }
@@ -69,7 +76,8 @@ function simulationToProjection(
   userId: string,
   client: Client,
   result: SimulationResult,
-  inputHash: string
+  inputHash: string,
+  giMetrics?: GIMetrics
 ): ProjectionInsert {
   const lastBaseline = result.baseline[result.baseline.length - 1];
   const lastBlueprint = result.blueprint[result.blueprint.length - 1];
@@ -102,7 +110,17 @@ function simulationToProjection(
     baseline_years: result.baseline,
     blueprint_years: result.blueprint,
     strategy,
-    projection_years: projectionYears
+    projection_years: projectionYears,
+    // GI-specific metrics (null for Growth products)
+    gi_annual_income_gross: giMetrics?.annualIncomeGross ?? null,
+    gi_annual_income_net: giMetrics?.annualIncomeNet ?? null,
+    gi_income_start_age: giMetrics?.incomeStartAge ?? null,
+    gi_depletion_age: giMetrics?.depletionAge ?? null,
+    gi_income_base_at_start: giMetrics?.incomeBaseAtStart ?? null,
+    gi_income_base_at_income_age: giMetrics?.incomeBaseAtIncomeAge ?? null,
+    gi_total_gross_paid: giMetrics?.totalGrossPaid ?? null,
+    gi_total_net_paid: giMetrics?.totalNetPaid ?? null,
+    gi_yearly_data: giMetrics?.yearlyData ?? null,
   };
 }
 
@@ -148,11 +166,19 @@ export async function GET(
       return NextResponse.json({ projection: existingProjection, cached: true } as ProjectionResponse);
     }
 
-    // Run simulation
+    // Run simulation - dispatch to GI or Growth engine based on product type
     const simulationInput = createSimulationInput(client as Client);
-    const result = runSimulation(simulationInput);
+    const blueprintType = (client as Client).blueprint_type as BlueprintType;
+    const isGI = blueprintType && isGuaranteedIncomeProduct(blueprintType);
 
-    const projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
+    let projectionInsert: ProjectionInsert;
+    if (isGI) {
+      const giResult = runGuaranteedIncomeSimulation(simulationInput);
+      projectionInsert = simulationToProjection(clientId, user.id, client as Client, giResult, inputHash, giResult.giMetrics);
+    } else {
+      const result = runSimulation(simulationInput);
+      projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
+    }
 
     const { data: newProjection, error: insertError } = await supabase
       .from('projections')
@@ -197,9 +223,17 @@ export async function POST(
 
     const inputHash = generateInputHash(client as Client);
     const simulationInput = createSimulationInput(client as Client);
-    const result = runSimulation(simulationInput);
+    const blueprintType = (client as Client).blueprint_type as BlueprintType;
+    const isGI = blueprintType && isGuaranteedIncomeProduct(blueprintType);
 
-    const projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
+    let projectionInsert: ProjectionInsert;
+    if (isGI) {
+      const giResult = runGuaranteedIncomeSimulation(simulationInput);
+      projectionInsert = simulationToProjection(clientId, user.id, client as Client, giResult, inputHash, giResult.giMetrics);
+    } else {
+      const result = runSimulation(simulationInput);
+      projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
+    }
 
     const { data: newProjection, error: insertError } = await supabase
       .from('projections')

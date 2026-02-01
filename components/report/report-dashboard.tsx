@@ -13,6 +13,7 @@ import { ReportChartRefs } from "@/components/report/export-pdf-button";
 import { captureChartAsBase64 } from "@/lib/utils/captureChart";
 import { cn } from "@/lib/utils";
 import { YearlyResult } from "@/lib/calculations";
+import { GISummaryPanel } from "@/components/results/gi-summary-panel";
 import { Copy, Plus, FileText, Loader2 } from "lucide-react";
 
 interface ReportDashboardProps {
@@ -231,6 +232,11 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                         </div>
                     </div>
                 </div>
+
+                {/* GI Summary Panels - shown only for Guaranteed Income products */}
+                {projection.gi_annual_income_gross != null && projection.gi_annual_income_gross > 0 && (
+                    <GISummaryPanel projection={projection} />
+                )}
 
                 {/* Chart Section */}
                 {/* Added min-h to prevent overlap */}

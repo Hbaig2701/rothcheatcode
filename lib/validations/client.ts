@@ -119,6 +119,11 @@ export const clientBlueprintBaseSchema = z.object({
   // Section 7: Roth Withdrawals
   withdrawal_type: withdrawalTypeEnum.default("no_withdrawals"),
 
+  // GI-specific fields
+  payout_type: z.enum(['individual', 'joint']).default('individual'),
+  income_start_age: z.number().int().min(55, "Income start age minimum 55").max(80, "Income start age maximum 80").default(65),
+  guaranteed_rate_of_return: z.number().min(0).max(30).default(0),
+
   // Section 8: Advanced Data
   surrender_years: z.number().int().min(0).max(20).default(7),
   penalty_free_percent: z.number().min(0).max(100).default(10),
@@ -346,6 +351,11 @@ export type ClientFormData = {
 
   // Section 7: Withdrawals
   withdrawal_type: "no_withdrawals" | "systematic" | "penalty_free";
+
+  // GI-specific
+  payout_type: "individual" | "joint";
+  income_start_age: number;
+  guaranteed_rate_of_return: number;
 
   // Section 8: Advanced
   surrender_years: number;

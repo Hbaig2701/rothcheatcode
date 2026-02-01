@@ -60,6 +60,11 @@ export interface Client {
   // ===== Section 7: Roth Withdrawals =====
   withdrawal_type: "no_withdrawals" | "systematic" | "penalty_free";
 
+  // ===== GI-Specific Fields =====
+  payout_type: 'individual' | 'joint';
+  income_start_age: number;
+  guaranteed_rate_of_return: number;
+
   // ===== Section 8: Advanced Data =====
   surrender_years: number;
   penalty_free_percent: number;     // Percentage
@@ -145,6 +150,11 @@ export interface BlueprintFormData {
 
   // Section 7: Withdrawals
   withdrawal_type: Client["withdrawal_type"];
+
+  // GI-specific
+  payout_type: Client["payout_type"];
+  income_start_age: number;
+  guaranteed_rate_of_return: number;
 
   // Section 8: Advanced
   surrender_years: number;

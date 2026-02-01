@@ -18,6 +18,7 @@ export interface ProductDefaults {
   surrenderYears: number;
   penaltyFreePercent: number;
   rateOfReturn: number;
+  guaranteedRateOfReturn?: number; // Only for GI products
 }
 
 export interface ProductConfig {
@@ -94,7 +95,7 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeBlueprintType, P
     id: 'athene-ascent-pro-10',
     label: 'Athene Ascent Pro 10',
     category: 'Guaranteed Income',
-    description: 'Athene Ascent Pro 10 - Guaranteed Income (Coming Soon)',
+    description: 'Athene Ascent Pro 10 - Guaranteed Income product',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
     defaults: {
       carrierName: 'Athene',
@@ -102,16 +103,16 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeBlueprintType, P
       bonus: 10,
       surrenderYears: 10,
       penaltyFreePercent: 10,
-      rateOfReturn: 7,
+      rateOfReturn: 0,
+      guaranteedRateOfReturn: 0,
     },
-    comingSoon: true,
   },
 
   'american-equity-incomeshield-bonus-10': {
     id: 'american-equity-incomeshield-bonus-10',
     label: 'American Equity IncomeShield Bonus 10',
     category: 'Guaranteed Income',
-    description: 'American Equity IncomeShield Bonus 10 - Guaranteed Income (Coming Soon)',
+    description: 'American Equity IncomeShield Bonus 10 - Guaranteed Income product',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
     defaults: {
       carrierName: 'American Equity',
@@ -119,43 +120,43 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeBlueprintType, P
       bonus: 10,
       surrenderYears: 10,
       penaltyFreePercent: 10,
-      rateOfReturn: 7,
+      rateOfReturn: 0,
+      guaranteedRateOfReturn: 0,
     },
-    comingSoon: true,
   },
 
   'equitrust-marketearly-income-index': {
     id: 'equitrust-marketearly-income-index',
     label: 'EquiTrust MarketEarly Income Index',
     category: 'Guaranteed Income',
-    description: 'EquiTrust MarketEarly Income Index - Guaranteed Income (Coming Soon)',
+    description: 'EquiTrust MarketEarly Income Index - Guaranteed Income product',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
     defaults: {
       carrierName: 'EquiTrust',
       productName: 'MarketEarly Income Index',
-      bonus: 10,
+      bonus: 0,
       surrenderYears: 10,
       penaltyFreePercent: 10,
-      rateOfReturn: 7,
+      rateOfReturn: 0,
+      guaranteedRateOfReturn: 0,
     },
-    comingSoon: true,
   },
 
   'north-american-income-pay-pro': {
     id: 'north-american-income-pay-pro',
     label: 'North American Income Pay Pro',
     category: 'Guaranteed Income',
-    description: 'North American Income Pay Pro - Guaranteed Income (Coming Soon)',
+    description: 'North American Income Pay Pro - Guaranteed Income product',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
     defaults: {
       carrierName: 'North American',
       productName: 'Income Pay Pro',
-      bonus: 10,
+      bonus: 0,
       surrenderYears: 10,
       penaltyFreePercent: 10,
-      rateOfReturn: 7,
+      rateOfReturn: 0,
+      guaranteedRateOfReturn: 0,
     },
-    comingSoon: true,
   },
 };
 
@@ -165,7 +166,7 @@ export const ALL_PRODUCTS: Record<BlueprintType, ProductConfig> = {
   ...GUARANTEED_INCOME_PRODUCTS,
 };
 
-// Check if a blueprint type is a guaranteed income product (Coming Soon)
+// Check if a blueprint type is a guaranteed income product
 export function isGuaranteedIncomeProduct(blueprintType: BlueprintType): boolean {
   return blueprintType in GUARANTEED_INCOME_PRODUCTS;
 }

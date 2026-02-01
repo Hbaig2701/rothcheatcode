@@ -1,6 +1,20 @@
 import type { YearlyResult } from '@/lib/calculations';
 
 /**
+ * GI year-by-year tracking data (stored as JSONB)
+ */
+export interface GIYearlyData {
+  year: number;
+  age: number;
+  phase: 'deferral' | 'income';
+  accountValue: number;           // In cents
+  incomeBase: number;             // In cents
+  guaranteedIncomeGross: number;  // In cents (0 during deferral)
+  guaranteedIncomeNet: number;    // After-tax (0 during deferral)
+  conversionAmount: number;       // Roth conversions during deferral only
+}
+
+/**
  * Projection record from database
  */
 export interface Projection {
@@ -29,6 +43,17 @@ export interface Projection {
 
   strategy: string;
   projection_years: number;
+
+  // GI-specific metrics (null for Growth products)
+  gi_annual_income_gross: number | null;
+  gi_annual_income_net: number | null;
+  gi_income_start_age: number | null;
+  gi_depletion_age: number | null;
+  gi_income_base_at_start: number | null;
+  gi_income_base_at_income_age: number | null;
+  gi_total_gross_paid: number | null;
+  gi_total_net_paid: number | null;
+  gi_yearly_data: GIYearlyData[] | null;
 }
 
 export type ProjectionInsert = Omit<Projection, 'id' | 'created_at'>;

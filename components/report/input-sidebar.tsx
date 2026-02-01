@@ -61,6 +61,9 @@ export function InputSidebar({ client }: InputSidebarProps) {
             conversion_type: client?.conversion_type ?? "optimized_amount",
             protect_initial_premium: client?.protect_initial_premium ?? true,
             withdrawal_type: client?.withdrawal_type ?? "no_withdrawals",
+            payout_type: client?.payout_type ?? "individual",
+            income_start_age: client?.income_start_age ?? 65,
+            guaranteed_rate_of_return: client?.guaranteed_rate_of_return ?? 0,
             surrender_years: client?.surrender_years ?? 7,
             penalty_free_percent: client?.penalty_free_percent ?? 10,
             baseline_comparison_rate: client?.baseline_comparison_rate ?? 7,
@@ -183,6 +186,9 @@ export function InputSidebar({ client }: InputSidebarProps) {
         form.setValue("surrender_years", product.defaults.surrenderYears);
         form.setValue("penalty_free_percent", product.defaults.penaltyFreePercent);
         form.setValue("rate_of_return", product.defaults.rateOfReturn);
+        if (product.defaults.guaranteedRateOfReturn !== undefined) {
+            form.setValue("guaranteed_rate_of_return", product.defaults.guaranteedRateOfReturn);
+        }
     };
 
     return (
