@@ -114,11 +114,11 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     };
 
     if (clientLoading || projectionLoading) {
-        return <div className="p-8 space-y-4 bg-[#080c14] h-full"><Skeleton className="h-12 w-full bg-slate-800" /><Skeleton className="h-64 w-full bg-slate-800" /></div>;
+        return <div className="p-8 space-y-4 bg-black h-full"><Skeleton className="h-12 w-full bg-[#141414]" /><Skeleton className="h-64 w-full bg-[#141414]" /></div>;
     }
 
     if (!client || !projectionResponse?.projection) {
-        return <div className="p-8 bg-[#080c14] h-full text-slate-400">No data available. Please recalculate.</div>;
+        return <div className="p-8 bg-black h-full text-[#A0A0A0]">No data available. Please recalculate.</div>;
     }
 
     const { projection } = projectionResponse;
@@ -180,17 +180,17 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const percentChange = baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;
 
     return (
-        <div className="flex flex-col h-full bg-[#080c14] text-slate-200 overflow-y-auto font-sans">
+        <div className="flex flex-col h-full bg-black text-white overflow-y-auto font-sans">
             <div className="p-6 space-y-8">
 
                 {/* Action Button Bar */}
-                <div className="flex items-center justify-between bg-[#1a3a5c] rounded-lg p-3">
+                <div className="flex items-center justify-between bg-[#1A1A1A] rounded-lg p-3">
                     <div className="flex items-center gap-3">
                         {/* Duplicate Button - Outline Style */}
                         <button
                             onClick={handleDuplicate}
                             disabled={isDuplicating}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-transparent border border-teal-500 rounded-md hover:bg-teal-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-[#F5B800] bg-transparent border border-[#F5B800] rounded-md hover:bg-[#F5B800]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isDuplicating ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -203,7 +203,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                         {/* New Blueprint Button - Solid Style */}
                         <button
                             onClick={handleNewBlueprint}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-teal-500 rounded-md hover:bg-teal-600 transition-colors"
+                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-black bg-[#F5B800] rounded-md hover:bg-[#DEAD00] hover:shadow-[0_0_20px_rgba(245,184,0,0.3)] transition-all"
                         >
                             <Plus className="h-4 w-4" />
                             New Blueprint
@@ -213,7 +213,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                         <button
                             onClick={handleExportPdf}
                             disabled={isExportingPdf}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium text-white bg-teal-500 rounded-md hover:bg-teal-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-black bg-[#F5B800] rounded-md hover:bg-[#DEAD00] hover:shadow-[0_0_20px_rgba(245,184,0,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isExportingPdf ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -227,40 +227,40 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
                 {/* Header Section */}
                 <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Conversion Insights</h3>
+                    <h3 className="text-xs font-bold text-[#A0A0A0] uppercase tracking-widest">Conversion Insights</h3>
 
-                    <div className="grid grid-cols-1 gap-px bg-slate-800 border border-slate-800 text-xs">
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
-                            <span className="text-slate-400 font-medium">Client Name</span>
-                            <span className="font-mono text-slate-200">{client.name}</span>
+                    <div className="grid grid-cols-1 gap-px bg-[#2A2A2A] border border-[#2A2A2A] text-xs">
+                        <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                            <span className="text-[#A0A0A0] font-medium">Client Name</span>
+                            <span className="font-mono text-white">{client.name}</span>
                         </div>
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
-                            <span className="text-slate-400 font-medium">Initial Balance</span>
-                            <span className="font-mono text-slate-200">{toUSD(client.qualified_account_value)}</span>
+                        <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                            <span className="text-[#A0A0A0] font-medium">Initial Balance</span>
+                            <span className="font-mono text-white">{toUSD(client.qualified_account_value)}</span>
                         </div>
                         {isGI && projection.gi_income_start_age != null && (
-                            <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
-                                <span className="text-slate-400 font-medium">Income Start Age</span>
-                                <span className="font-mono text-slate-200">{projection.gi_income_start_age}</span>
+                            <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                                <span className="text-[#A0A0A0] font-medium">Income Start Age</span>
+                                <span className="font-mono text-white">{projection.gi_income_start_age}</span>
                             </div>
                         )}
                         {isGI && projection.gi_annual_income_gross != null && (
-                            <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
-                                <span className="text-slate-400 font-medium">Guaranteed Annual Income</span>
-                                <span className="font-mono text-emerald-400 font-bold">{toUSD(projection.gi_annual_income_gross)}</span>
+                            <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                                <span className="text-[#A0A0A0] font-medium">Guaranteed Annual Income</span>
+                                <span className="font-mono text-[#F5B800] font-bold">{toUSD(projection.gi_annual_income_gross)}</span>
                             </div>
                         )}
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
-                            <span className="text-slate-400 font-medium">Lifetime Wealth Before Blueprint</span>
-                            <span className="font-mono text-slate-200">{toUSD(baseLifetime)}</span>
+                        <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                            <span className="text-[#A0A0A0] font-medium">Lifetime Wealth Before Blueprint</span>
+                            <span className="font-mono text-white">{toUSD(baseLifetime)}</span>
                         </div>
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
-                            <span className="text-slate-400 font-medium">Lifetime Wealth After Blueprint</span>
-                            <span className="font-mono text-emerald-400 font-bold">{toUSD(blueLifetime)}</span>
+                        <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                            <span className="text-[#A0A0A0] font-medium">Lifetime Wealth After Blueprint</span>
+                            <span className="font-mono text-[#F5B800] font-bold">{toUSD(blueLifetime)}</span>
                         </div>
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
-                            <span className="text-slate-400 font-medium">Percent Change</span>
-                            <span className="font-mono text-emerald-400 font-bold">{toPercent(percentChange)}</span>
+                        <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                            <span className="text-[#A0A0A0] font-medium">Percent Change</span>
+                            <span className="font-mono text-[#22C55E] font-bold">{toPercent(percentChange)}</span>
                         </div>
                     </div>
                 </div>
@@ -271,17 +271,17 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                 )}
 
                 {/* Chart Section */}
-                <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-6 min-h-[480px] relative">
+                <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-6 min-h-[480px] relative">
                     <div className="text-center mb-4">
-                        <h4 className="text-base font-semibold text-slate-100">Lifetime Wealth Trajectory</h4>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <h4 className="text-base font-semibold text-white">Lifetime Wealth Trajectory</h4>
+                        <p className="text-xs text-[#6B6B6B] mt-1">
                             {isGI
                                 ? "Total wealth if client passes at each age (GI payments + legacy - costs)"
                                 : "Total wealth if client passes at each age (distributions + legacy - costs)"}
                         </p>
                         <div className="flex justify-center gap-8 mt-3 text-[11px] font-medium">
-                            <div className="flex items-center gap-2 text-emerald-400">
-                                <span className="w-3 h-0.5 bg-emerald-500 rounded"></span>
+                            <div className="flex items-center gap-2 text-[#F5B800]">
+                                <span className="w-3 h-0.5 bg-[#F5B800] rounded"></span>
                                 Blueprint {isGI ? "(GI + Roth)" : "(Roth)"}
                             </div>
                             <div className="flex items-center gap-2 text-red-400">
@@ -290,7 +290,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                             </div>
                         </div>
                     </div>
-                    <div ref={lifetimeWealthChartRef} className="h-[360px] w-full bg-[#0f172a]">
+                    <div ref={lifetimeWealthChartRef} className="h-[360px] w-full bg-[#0A0A0A]">
                         <WealthChart data={chartData} breakEvenAge={projection.break_even_age} />
                     </div>
                 </div>
@@ -306,26 +306,26 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
                 {/* Account Value vs Income Base Chart (GI Only) */}
                 {isGI && projection.gi_yearly_data && projection.gi_yearly_data.length > 0 && (
-                    <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-6 min-h-[480px] relative">
+                    <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-6 min-h-[480px] relative">
                         <div className="text-center mb-4">
-                            <h4 className="text-base font-semibold text-slate-100">Account Value vs Income Base</h4>
-                            <p className="text-xs text-slate-500 mt-1">Tracking account value, income base, and Roth balance over time</p>
+                            <h4 className="text-base font-semibold text-white">Account Value vs Income Base</h4>
+                            <p className="text-xs text-[#6B6B6B] mt-1">Tracking account value, income base, and Roth balance over time</p>
                             <div className="flex justify-center gap-8 mt-3 text-[11px] font-medium">
-                                <div className="flex items-center gap-2 text-blue-400">
-                                    <span className="w-3 h-0.5 bg-blue-500 rounded"></span>
+                                <div className="flex items-center gap-2 text-[#F5B800]">
+                                    <span className="w-3 h-0.5 bg-[#F5B800] rounded"></span>
                                     Roth Balance
                                 </div>
                                 <div className="flex items-center gap-2 text-red-400">
                                     <span className="w-3 h-0.5 bg-red-500 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 4px, transparent 4px, transparent 6px)' }}></span>
                                     Account Value
                                 </div>
-                                <div className="flex items-center gap-2 text-emerald-400">
-                                    <span className="w-3 h-0.5 bg-emerald-500 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #22c55e 0px, #22c55e 2px, transparent 2px, transparent 6px)' }}></span>
+                                <div className="flex items-center gap-2 text-[#22C55E]">
+                                    <span className="w-3 h-0.5 bg-[#22C55E] rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #22c55e 0px, #22c55e 2px, transparent 2px, transparent 6px)' }}></span>
                                     Income Base
                                 </div>
                             </div>
                         </div>
-                        <div className="h-[360px] w-full bg-[#0f172a]">
+                        <div className="h-[360px] w-full bg-[#0A0A0A]">
                             <GIAccountChart projection={projection} />
                         </div>
                     </div>

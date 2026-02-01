@@ -28,7 +28,7 @@ export function WealthChart({ data, breakEvenAge }: WealthChartProps) {
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="#334155"
+            stroke="#1F1F1F"
             strokeOpacity={0.5}
             vertical={false}
           />
@@ -38,31 +38,31 @@ export function WealthChart({ data, breakEvenAge }: WealthChartProps) {
               value: 'Age',
               position: 'bottom',
               offset: 0,
-              fill: '#94a3b8',
+              fill: '#6B6B6B',
               fontSize: 12,
             }}
-            tick={{ fontSize: 11, fill: '#94a3b8' }}
-            tickLine={{ stroke: '#475569' }}
-            axisLine={{ stroke: '#475569' }}
+            tick={{ fontSize: 11, fill: '#6B6B6B' }}
+            tickLine={{ stroke: '#2A2A2A' }}
+            axisLine={{ stroke: '#2A2A2A' }}
           />
           <YAxis
             tickFormatter={formatAxisValue}
             width={65}
-            tick={{ fontSize: 11, fill: '#94a3b8' }}
-            tickLine={{ stroke: '#475569' }}
-            axisLine={{ stroke: '#475569' }}
+            tick={{ fontSize: 11, fill: '#6B6B6B' }}
+            tickLine={{ stroke: '#2A2A2A' }}
+            axisLine={{ stroke: '#2A2A2A' }}
             domain={[0, 'auto']}
           />
           <Tooltip content={<ChartTooltip />} />
-          {/* Blueprint line - green (Roth = no heir tax = higher wealth) */}
+          {/* Blueprint line - gold (Roth = no heir tax = higher wealth) */}
           <Line
             type="monotone"
             dataKey="blueprint"
             name="Blueprint Wealth Trajectory"
-            stroke="#22c55e"
-            strokeWidth={2.5}
+            stroke="#F5B800"
+            strokeWidth={3}
             dot={false}
-            activeDot={{ r: 5, fill: '#22c55e', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: '#F5B800', stroke: '#fff', strokeWidth: 2 }}
             isAnimationActive={true}
             animationDuration={1200}
             animationEasing="ease-out"

@@ -50,8 +50,8 @@ function CustomTooltip({ active, payload, label }: any) {
     }).format(cents / 100);
 
   return (
-    <div className="bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-xl">
-      <p className="text-slate-400 text-xs font-medium mb-2">Age {label}</p>
+    <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-3 shadow-xl">
+      <p className="text-[#A0A0A0] text-xs font-medium mb-2">Age {label}</p>
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-xs font-mono" style={{ color: entry.color }}>
           {entry.name}: {formatVal(entry.value)}
@@ -76,7 +76,7 @@ export function GIAccountChart({ projection }: GIAccountChartProps) {
         >
           <CartesianGrid
             strokeDasharray="3 3"
-            stroke="#334155"
+            stroke="#1F1F1F"
             strokeOpacity={0.5}
             vertical={false}
           />
@@ -86,31 +86,31 @@ export function GIAccountChart({ projection }: GIAccountChartProps) {
               value: 'Age',
               position: 'bottom',
               offset: 0,
-              fill: '#94a3b8',
+              fill: '#6B6B6B',
               fontSize: 12,
             }}
-            tick={{ fontSize: 11, fill: '#94a3b8' }}
-            tickLine={{ stroke: '#475569' }}
-            axisLine={{ stroke: '#475569' }}
+            tick={{ fontSize: 11, fill: '#6B6B6B' }}
+            tickLine={{ stroke: '#2A2A2A' }}
+            axisLine={{ stroke: '#2A2A2A' }}
           />
           <YAxis
             tickFormatter={formatAxisValue}
             width={65}
-            tick={{ fontSize: 11, fill: '#94a3b8' }}
-            tickLine={{ stroke: '#475569' }}
-            axisLine={{ stroke: '#475569' }}
+            tick={{ fontSize: 11, fill: '#6B6B6B' }}
+            tickLine={{ stroke: '#2A2A2A' }}
+            axisLine={{ stroke: '#2A2A2A' }}
             domain={[0, 'auto']}
           />
           <Tooltip content={<CustomTooltip />} />
-          {/* Roth Balance - blue solid */}
+          {/* Roth Balance - gold solid */}
           <Line
             type="monotone"
             dataKey="rothBalance"
             name="Roth Balance"
-            stroke="#3b82f6"
+            stroke="#F5B800"
             strokeWidth={2.5}
             dot={false}
-            activeDot={{ r: 5, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: '#F5B800', stroke: '#fff', strokeWidth: 2 }}
             isAnimationActive={true}
             animationDuration={1200}
             animationEasing="ease-out"

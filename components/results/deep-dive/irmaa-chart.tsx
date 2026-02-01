@@ -76,7 +76,7 @@ export function IRMAAChart({ years, filingStatus }: IRMAAChartProps) {
         <div className="bg-card border border-border p-3 rounded-lg shadow-lg">
           <p className="font-medium">Age {label}</p>
           {data && <p className="text-muted-foreground text-sm">Year {data.year}</p>}
-          <p className="text-blue-600 font-medium mt-1">
+          <p className="text-[#F5B800] font-medium mt-1">
             MAGI: {formatCurrency(payload[0].value)}
           </p>
         </div>
@@ -111,7 +111,7 @@ export function IRMAAChart({ years, filingStatus }: IRMAAChartProps) {
               <Tooltip content={<CustomTooltip />} />
               <Bar
                 dataKey="magi"
-                fill="#3b82f6"
+                fill="#F5B800"
                 name="MAGI"
                 radius={[2, 2, 0, 0]}
               />

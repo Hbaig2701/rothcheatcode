@@ -82,18 +82,18 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     ];
 
     return (
-        <div className="w-full bg-[#0f172a] rounded-sm border border-slate-800 text-xs">
-            <div className="grid grid-cols-4 bg-[#020617] border-b border-slate-800 p-2 font-bold text-slate-400 uppercase tracking-wider">
+        <div className="w-full bg-[#0A0A0A] rounded-sm border border-[#2A2A2A] text-xs">
+            <div className="grid grid-cols-4 bg-[#0A0A0A] border-b border-[#2A2A2A] p-2 font-bold text-[#A0A0A0] uppercase tracking-wider">
                 <div>Metric</div>
                 <div className="text-right">Baseline Trajectory</div>
-                <div className="text-right">Blueprint Trajectory</div>
-                <div className="text-right">Difference</div>
+                <div className="text-right text-[#F5B800]">Blueprint Trajectory</div>
+                <div className="text-right text-[#F5B800]">Difference</div>
             </div>
-            <div className="divide-y divide-slate-800/30">
+            <div className="divide-y divide-[#2A2A2A]/30">
                 {rows.map((row, i) => {
                     if (row.type === "header") {
                         return (
-                            <div key={i} className="p-2 bg-slate-900/50 text-slate-500 font-bold uppercase tracking-wider text-[10px] mt-2">
+                            <div key={i} className="p-2 bg-[#0A0A0A]/50 text-[#6B6B6B] font-bold uppercase tracking-wider text-[10px] mt-2">
                                 {row.label}
                             </div>
                         );
@@ -108,11 +108,11 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
                         const pct = baseLifetimeWealth !== 0 ? ((blueLifetimeWealth - baseLifetimeWealth) / baseLifetimeWealth) : 0;
 
                         return (
-                            <div key={i} className="grid grid-cols-4 p-2 items-center bg-emerald-950/30 border-t border-emerald-900/50">
-                                <div className="text-emerald-400 font-bold uppercase tracking-wider text-[11px]">{row.label}</div>
-                                <div className="text-right font-mono text-slate-600">-</div>
-                                <div className="text-right font-mono text-slate-600">-</div>
-                                <div className="text-right font-mono text-emerald-400 font-bold text-sm">
+                            <div key={i} className="grid grid-cols-4 p-2 items-center bg-[#F5B800]/10 border-t border-[#F5B800]/20">
+                                <div className="text-[#F5B800] font-bold uppercase tracking-wider text-[11px]">{row.label}</div>
+                                <div className="text-right font-mono text-[#6B6B6B]">-</div>
+                                <div className="text-right font-mono text-[#6B6B6B]">-</div>
+                                <div className="text-right font-mono text-[#F5B800] font-bold text-sm">
                                     {new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2, signDisplay: 'always' }).format(pct)}
                                 </div>
                             </div>
@@ -123,20 +123,20 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
                     const blue = row.blue ?? 0;
                     const diff = blue - base;
 
-                    let colorClass = "text-slate-200";
+                    let colorClass = "text-white";
                     if (row.label.includes("Wealth") || row.label.includes("Net Legacy")) {
-                        colorClass = diff >= 0 ? "text-emerald-400" : "text-red-400";
+                        colorClass = diff >= 0 ? "text-[#22C55E]" : "text-red-400";
                     } else if (row.label.includes("Tax") || row.label.includes("Costs") || row.label.includes("IRMAA")) {
-                        colorClass = diff <= 0 ? "text-emerald-400" : "text-red-400"; // Lower costs = Green
+                        colorClass = diff <= 0 ? "text-[#22C55E]" : "text-red-400";
                     } else {
-                        colorClass = diff >= 0 ? "text-emerald-400" : "text-slate-200";
+                        colorClass = diff >= 0 ? "text-[#22C55E]" : "text-white";
                     }
 
                     return (
-                        <div key={i} className={cn("grid grid-cols-4 p-2 items-center hover:bg-slate-800/20", row.highlight && "bg-slate-800/40 font-semibold")}>
-                            <div className="text-slate-300">{row.label}</div>
-                            <div className="text-right font-mono text-slate-400">{toUSD(base)}</div>
-                            <div className="text-right font-mono text-blue-300">{toUSD(blue)}</div>
+                        <div key={i} className={cn("grid grid-cols-4 p-2 items-center hover:bg-[#141414]/20", row.highlight && "bg-[#141414]/40 font-semibold")}>
+                            <div className="text-[#A0A0A0]">{row.label}</div>
+                            <div className="text-right font-mono text-[#A0A0A0]">{toUSD(base)}</div>
+                            <div className="text-right font-mono text-[#F5B800]">{toUSD(blue)}</div>
                             <div className={cn("text-right font-mono", colorClass)}>
                                 {toUSD(Math.abs(diff))}
                             </div>

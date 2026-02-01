@@ -26,7 +26,7 @@ interface BreakevenChartProps {
  * Get color for crossover marker based on direction
  */
 function getCrossoverColor(direction: CrossoverPoint['direction']): string {
-  return direction === 'blueprint_ahead' ? '#22c55e' : '#ef4444'; // green or red
+  return direction === 'blueprint_ahead' ? '#F5B800' : '#ef4444'; // gold or red
 }
 
 /**
@@ -98,24 +98,25 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
             <Tooltip content={<ChartTooltip />} />
             <Legend verticalAlign="top" height={36} />
 
-            {/* Baseline line - gray */}
+            {/* Baseline line - red dashed */}
             <Line
               type="monotone"
               dataKey="baseline"
               name="Baseline (No Conversion)"
-              stroke="#6b7280"
+              stroke="#ef4444"
               strokeWidth={2}
+              strokeDasharray="6 4"
               dot={false}
               activeDot={{ r: 6 }}
             />
 
-            {/* Blueprint line - blue */}
+            {/* Blueprint line - gold */}
             <Line
               type="monotone"
               dataKey="blueprint"
               name="Blueprint (Roth Conversion)"
-              stroke="#3b82f6"
-              strokeWidth={2}
+              stroke="#F5B800"
+              strokeWidth={3}
               dot={false}
               activeDot={{ r: 6 }}
             />
@@ -124,13 +125,13 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
             {sustainedBreakEven && (
               <ReferenceLine
                 x={sustainedBreakEven}
-                stroke="#22c55e"
+                stroke="#F5B800"
                 strokeDasharray="5 5"
                 strokeWidth={2}
                 label={{
                   value: `Sustained: Age ${sustainedBreakEven}`,
                   position: 'top',
-                  fill: '#22c55e',
+                  fill: '#F5B800',
                   fontSize: 11,
                   fontWeight: 500,
                 }}
@@ -157,7 +158,7 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
               <ReferenceArea
                 x1={sustainedBreakEven}
                 x2={data[data.length - 1].age}
-                fill="#22c55e"
+                fill="#F5B800"
                 fillOpacity={0.1}
               />
             )}

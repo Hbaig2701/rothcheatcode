@@ -42,7 +42,7 @@ export function StatCard({
   return (
     <Card className={cn(
       '',
-      highlight && 'border-blue-500 border-2',
+      highlight && 'border-[#F5B800] border-2',
       className
     )}>
       <CardHeader className="pb-2">

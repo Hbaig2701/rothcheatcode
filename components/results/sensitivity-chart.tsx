@@ -120,7 +120,7 @@ export function SensitivityChart({ result }: SensitivityChartProps) {
                 type="monotone"
                 dataKey={name}
                 name={name}
-                stroke={SCENARIO_COLORS[name] ?? '#6b7280'}
+                stroke={SCENARIO_COLORS[name] ?? '#A0A0A0'}
                 strokeWidth={name === 'Base Case' ? 3 : 1.5}
                 strokeDasharray={
                   name === 'Pessimistic' || name === 'Optimistic'

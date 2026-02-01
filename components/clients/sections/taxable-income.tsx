@@ -25,7 +25,7 @@ export function TaxableIncomeSection() {
   return (
     <FormSection title="5. Taxable Income Calculation">
       {/* Client SSI Block */}
-      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-700/50 pb-1">Client SSI</h3>
+      <h3 className="text-[10px] font-bold text-[#A0A0A0] uppercase tracking-widest mb-2 border-b border-[#1F1F1F] pb-1">Client SSI</h3>
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Field data-invalid={!!form.formState.errors.ssi_payout_age}>
           <FieldLabel htmlFor="ssi_payout_age">Next Payout Age</FieldLabel>
@@ -59,7 +59,7 @@ export function TaxableIncomeSection() {
       {/* Spouse SSI Block (Conditional) */}
       {isMarried && (
         <div className="animate-in fade-in slide-in-from-top-1 mb-4">
-          <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 border-b border-slate-700/50 pb-1">Spouse SSI</h3>
+          <h3 className="text-[10px] font-bold text-[#A0A0A0] uppercase tracking-widest mb-2 border-b border-[#1F1F1F] pb-1">Spouse SSI</h3>
           <div className="grid grid-cols-2 gap-3">
             <Field data-invalid={!!form.formState.errors.spouse_ssi_payout_age}>
               <FieldLabel htmlFor="spouse_ssi_payout_age">Next Payout Age</FieldLabel>

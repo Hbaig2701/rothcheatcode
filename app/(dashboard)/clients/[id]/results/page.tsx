@@ -16,8 +16,8 @@ export default function ResultsPage({ params }: ResultsPageProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-slate-950">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      <div className="flex items-center justify-center h-screen bg-black">
+        <Loader2 className="h-8 w-8 animate-spin text-[#A0A0A0]" />
       </div>
     );
   }
@@ -27,9 +27,9 @@ export default function ResultsPage({ params }: ResultsPageProps) {
   }
 
   return (
-    <div className="flex w-full h-[calc(100vh-4rem)] overflow-hidden bg-slate-950">
+    <div className="flex w-full h-[calc(100vh-4rem)] overflow-hidden bg-black">
       {/* Left Sidebar: Inputs */}
-      <div className="w-[350px] shrink-0 h-full border-r border-slate-800 bg-slate-900 overflow-hidden">
+      <div className="w-[350px] shrink-0 h-full border-r border-[#2A2A2A] bg-[#0A0A0A] overflow-hidden">
         <InputSidebar client={client} />
       </div>
 

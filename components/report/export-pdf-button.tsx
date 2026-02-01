@@ -206,7 +206,7 @@ export function ExportPdfButtonCompact({
     <button
       onClick={handleExport}
       disabled={isGenerating}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded border border-slate-700 transition-colors disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#A0A0A0] bg-[#141414] hover:bg-[#1F1F1F] rounded border border-[#2A2A2A] transition-colors disabled:opacity-50"
       title="Export full 13-page PDF report"
     >
       {isGenerating ? (

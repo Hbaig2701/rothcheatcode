@@ -108,7 +108,7 @@ export function WidowAnalysis({ analysis }: WidowAnalysisProps) {
         </div>
         <div className="bg-muted/50 rounded-lg p-4">
           <div className="text-sm text-muted-foreground">Suggested Conversion Increase</div>
-          <div className="text-2xl font-bold text-blue-600">
+          <div className="text-2xl font-bold text-[#F5B800]">
             {recommendedConversionIncrease > 0
               ? formatCurrency(recommendedConversionIncrease) + '/yr'
               : 'None'}
@@ -181,11 +181,11 @@ export function WidowAnalysis({ analysis }: WidowAnalysisProps) {
 
       {/* Recommendation */}
       {recommendedConversionIncrease > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <h4 className="font-medium text-blue-800 dark:text-blue-200 mb-2">
+        <div className="bg-amber-50 dark:bg-[#F5B800]/10 border border-amber-200 dark:border-[#F5B800]/30 rounded-lg p-4">
+          <h4 className="font-medium text-amber-800 dark:text-[#F5B800] mb-2">
             Recommendation
           </h4>
-          <p className="text-sm text-blue-700 dark:text-blue-300">
+          <p className="text-sm text-amber-700 dark:text-[#F5B800]/80">
             Consider increasing Roth conversions by approximately{' '}
             <strong>{formatCurrency(recommendedConversionIncrease)}</strong> per year
             to fill higher brackets now while filing jointly. This can reduce the

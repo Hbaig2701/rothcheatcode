@@ -23,7 +23,7 @@ export function AppSidebar({ user }: { user: User }) {
   return (
     <Sidebar>
       <SidebarHeader className="border-b p-4">
-        <span className="font-semibold text-lg">Rothc</span>
+        <span className="font-semibold text-lg"><span className="text-white">Roth</span><span className="text-[#F5B800]">CheatCode</span></span>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>

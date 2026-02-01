@@ -192,14 +192,14 @@ export function InputSidebar({ client }: InputSidebarProps) {
     };
 
     return (
-        <div className="flex flex-col h-full bg-[#1e293b] border-r border-[#334155] text-slate-200">
+        <div className="flex flex-col h-full bg-[#141414] border-r border-[#2A2A2A] text-white">
             {/* Sidebar Header */}
-            <div className="p-4 border-b border-[#334155] bg-[#0f172a] shrink-0 space-y-2">
-                <h2 className="text-xs font-bold text-emerald-500 uppercase tracking-widest">Inputs</h2>
+            <div className="p-4 border-b border-[#2A2A2A] bg-[#0A0A0A] shrink-0 space-y-2">
+                <h2 className="text-xs font-bold text-[#F5B800] uppercase tracking-widest">Inputs</h2>
                 <select
                     value={blueprintType}
                     onChange={handleHeaderBlueprintChange}
-                    className="w-full bg-[#1e293b] border border-[#334155] text-xs h-8 rounded px-3 text-slate-200 focus:ring-1 focus:ring-emerald-500 outline-none"
+                    className="w-full bg-[#141414] border border-[#2A2A2A] text-xs h-8 rounded px-3 text-white focus:ring-1 focus:ring-[#F5B800] outline-none"
                 >
                     <optgroup label="Growth">
                         {Object.values(GROWTH_PRODUCTS).map((product) => (
@@ -219,32 +219,32 @@ export function InputSidebar({ client }: InputSidebarProps) {
             </div>
 
             {/* Main Form Area - Stacked, Readable, Scrollable */}
-            <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+            <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-[#3A3A3A] scrollbar-track-transparent">
                 <FormProvider {...form}>
                     <form id="blueprint-form" onSubmit={form.handleSubmit(onSubmit)}
                         className={cn(
-                            "space-y-6", // Reasonable spacing between sections
+                            "space-y-6",
 
-                            // Force Stacked Layout - use !important to override responsive breakpoints
+                            // Force Stacked Layout
                             "[&_.grid]:!grid-cols-1 [&_.grid]:gap-3",
 
                             // Remove col-span classes that break layout in narrow sidebar
                             "[&_[class*='col-span']]:!col-span-1",
 
                             // Styles
-                            "[&_label]:text-[11px] [&_label]:font-semibold [&_label]:text-slate-400 [&_label]:uppercase [&_label]:tracking-wide [&_label]:mb-1.5",
-                            "[&_input]:bg-[#0f172a] [&_input]:border-[#334155] [&_input]:h-8 [&_input]:text-xs [&_input]:text-slate-100 [&_input]:rounded-sm [&_input]:px-2.5",
-                            "[&_input:focus]:border-emerald-500 [&_input:focus]:ring-0",
-                            "[&_button[role=combobox]]:bg-[#0f172a] [&_button[role=combobox]]:border-[#334155] [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs [&_button[role=combobox]]:text-slate-100 [&_button[role=combobox]]:rounded-sm [&_button[role=combobox]]:px-2.5",
+                            "[&_label]:text-[11px] [&_label]:font-semibold [&_label]:text-[#A0A0A0] [&_label]:uppercase [&_label]:tracking-wide [&_label]:mb-1.5",
+                            "[&_input]:bg-[#0A0A0A] [&_input]:border-[#2A2A2A] [&_input]:h-8 [&_input]:text-xs [&_input]:text-white [&_input]:rounded-sm [&_input]:px-2.5",
+                            "[&_input:focus]:border-[#F5B800] [&_input:focus]:ring-0",
+                            "[&_button[role=combobox]]:bg-[#0A0A0A] [&_button[role=combobox]]:border-[#2A2A2A] [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs [&_button[role=combobox]]:text-white [&_button[role=combobox]]:rounded-sm [&_button[role=combobox]]:px-2.5",
 
                             // Select trigger styling for sidebar
-                            "[&_[data-slot=select-trigger]]:bg-[#0f172a] [&_[data-slot=select-trigger]]:border-[#334155] [&_[data-slot=select-trigger]]:h-8 [&_[data-slot=select-trigger]]:text-xs [&_[data-slot=select-trigger]]:text-slate-100 [&_[data-slot=select-trigger]]:w-full",
+                            "[&_[data-slot=select-trigger]]:bg-[#0A0A0A] [&_[data-slot=select-trigger]]:border-[#2A2A2A] [&_[data-slot=select-trigger]]:h-8 [&_[data-slot=select-trigger]]:text-xs [&_[data-slot=select-trigger]]:text-white [&_[data-slot=select-trigger]]:w-full",
 
                             // Headers
-                            "[&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-emerald-500 [&_h3]:border-b [&_h3]:border-[#334155] [&_h3]:pb-1 [&_h3]:mb-3",
+                            "[&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-[#F5B800] [&_h3]:border-b [&_h3]:border-[#2A2A2A] [&_h3]:pb-1 [&_h3]:mb-3",
 
                             // Description text
-                            "[&_p]:text-[10px] [&_p]:text-slate-500"
+                            "[&_p]:text-[10px] [&_p]:text-[#6B6B6B]"
                         )}>
 
                         <ClientDataSection />
@@ -260,10 +260,10 @@ export function InputSidebar({ client }: InputSidebarProps) {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-[#334155] bg-[#0f172a] shrink-0">
+            <div className="p-4 border-t border-[#2A2A2A] bg-[#0A0A0A] shrink-0">
                 <Button
                     onClick={form.handleSubmit(onSubmit)}
-                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-9 uppercase text-xs tracking-widest shadow-lg"
+                    className="w-full bg-[#F5B800] hover:bg-[#DEAD00] text-black font-bold h-9 uppercase text-xs tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(245,184,0,0.3)] transition-all"
                     disabled={isPending}
                 >
                     {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

@@ -30,13 +30,13 @@ export const SENSITIVITY_SCENARIOS: SensitivityScenario[] = [
  * Matches existing Recharts color scheme
  */
 export const SCENARIO_COLORS: Record<string, string> = {
-  'Base Case': '#3b82f6',    // blue-500
+  'Base Case': '#F5B800',    // primary gold
   'Low Growth': '#f97316',   // orange-500
   'High Growth': '#22c55e',  // green-500
   'Higher Taxes': '#ef4444', // red-500
   'Lower Taxes': '#8b5cf6',  // violet-500
-  'Pessimistic': '#6b7280',  // gray-500
-  'Optimistic': '#06b6d4',   // cyan-500
+  'Pessimistic': '#A0A0A0',  // neutral gray
+  'Optimistic': '#FFD966',   // light yellow
 };
 
 /**

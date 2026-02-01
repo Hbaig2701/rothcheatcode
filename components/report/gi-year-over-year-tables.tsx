@@ -178,7 +178,7 @@ export function GIYearOverYearTables({
   const renderHeaderCell = (label: string, align: "left" | "right" = "right") => (
     <th
       className={cn(
-        "px-4 py-3 text-xs font-medium text-slate-400 border-b border-slate-700 sticky top-0 bg-[#2d3548] z-10",
+        "px-4 py-3 text-xs font-medium text-[#A0A0A0] border-b border-[#2A2A2A] sticky top-0 bg-[#1F1F1F] z-10",
         align === "left" ? "text-left" : "text-right"
       )}
     >
@@ -194,13 +194,13 @@ export function GIYearOverYearTables({
     const colorClasses = {
       red: "text-red-400",
       yellow: "text-yellow-400",
-      green: "text-emerald-400",
-      default: "text-slate-200",
+      green: "text-[#22C55E]",
+      default: "text-white",
     };
     return (
       <td
         className={cn(
-          "px-4 py-2.5 text-sm font-mono border-b border-slate-700/50",
+          "px-4 py-2.5 text-sm font-mono border-b border-[#1F1F1F]",
           align === "left" ? "text-left" : "text-right",
           colorClasses[color],
           extraClass
@@ -233,8 +233,8 @@ export function GIYearOverYearTables({
               <tr
                 key={row.year}
                 className={cn(
-                  "hover:bg-slate-700/30 transition-colors",
-                  idx % 2 === 0 ? "bg-[#1a1f2e]" : "bg-[#242938]"
+                  "hover:bg-[#1F1F1F]/30 transition-colors",
+                  idx % 2 === 0 ? "bg-[#0A0A0A]" : "bg-[#141414]"
                 )}
               >
                 {renderCell(row.year, { align: "left" })}
@@ -272,8 +272,8 @@ export function GIYearOverYearTables({
             <tr
               key={row.year}
               className={cn(
-                "hover:bg-slate-700/30 transition-colors",
-                idx % 2 === 0 ? "bg-[#1a1f2e]" : "bg-[#242938]",
+                "hover:bg-[#1F1F1F]/30 transition-colors",
+                idx % 2 === 0 ? "bg-[#0A0A0A]" : "bg-[#141414]",
                 row.accountDepleted && "bg-red-950/20"
               )}
             >
@@ -289,8 +289,8 @@ export function GIYearOverYearTables({
               {renderCell(formatCurrency(row.traditionalBalance))}
               {renderCell(formatCurrency(row.rothBalance))}
               <td className={cn(
-                "px-4 py-2.5 text-sm font-mono border-b border-slate-700/50 text-center",
-                row.accountDepleted ? "text-red-400" : "text-slate-600"
+                "px-4 py-2.5 text-sm font-mono border-b border-[#1F1F1F] text-center",
+                row.accountDepleted ? "text-red-400" : "text-[#6B6B6B]"
               )}>
                 {row.accountDepleted ? "\u2713" : ""}
               </td>
@@ -322,8 +322,8 @@ export function GIYearOverYearTables({
           <tr
             key={row.year}
             className={cn(
-              "hover:bg-slate-700/30 transition-colors",
-              idx % 2 === 0 ? "bg-[#1a1f2e]" : "bg-[#242938]",
+              "hover:bg-[#1F1F1F]/30 transition-colors",
+              idx % 2 === 0 ? "bg-[#0A0A0A]" : "bg-[#141414]",
               scenario === "blueprint" && row.accountDepleted && "bg-red-950/20"
             )}
           >
@@ -365,8 +365,8 @@ export function GIYearOverYearTables({
           <tr
             key={row.year}
             className={cn(
-              "hover:bg-slate-700/30 transition-colors",
-              idx % 2 === 0 ? "bg-[#1a1f2e]" : "bg-[#242938]"
+              "hover:bg-[#1F1F1F]/30 transition-colors",
+              idx % 2 === 0 ? "bg-[#0A0A0A]" : "bg-[#141414]"
             )}
           >
             {renderCell(row.year, { align: "left" })}
@@ -405,8 +405,8 @@ export function GIYearOverYearTables({
               <tr
                 key={row.year}
                 className={cn(
-                  "hover:bg-slate-700/30 transition-colors",
-                  idx % 2 === 0 ? "bg-[#1a1f2e]" : "bg-[#242938]"
+                  "hover:bg-[#1F1F1F]/30 transition-colors",
+                  idx % 2 === 0 ? "bg-[#0A0A0A]" : "bg-[#141414]"
                 )}
               >
                 {renderCell(row.year, { align: "left" })}
@@ -445,8 +445,8 @@ export function GIYearOverYearTables({
             <tr
               key={row.year}
               className={cn(
-                "hover:bg-slate-700/30 transition-colors",
-                idx % 2 === 0 ? "bg-[#1a1f2e]" : "bg-[#242938]",
+                "hover:bg-[#1F1F1F]/30 transition-colors",
+                idx % 2 === 0 ? "bg-[#0A0A0A]" : "bg-[#141414]",
                 row.accountDepleted && "bg-red-950/20"
               )}
             >
@@ -489,8 +489,8 @@ export function GIYearOverYearTables({
       </thead>
       <tbody>
         {conversionYears.length === 0 ? (
-          <tr className="bg-[#1a1f2e]">
-            <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
+          <tr className="bg-[#0A0A0A]">
+            <td colSpan={8} className="px-4 py-8 text-center text-[#A0A0A0]">
               No conversions in this projection (income starts immediately).
             </td>
           </tr>
@@ -499,8 +499,8 @@ export function GIYearOverYearTables({
             <tr
               key={row.year}
               className={cn(
-                "hover:bg-slate-700/30 transition-colors",
-                idx % 2 === 0 ? "bg-[#1a1f2e]" : "bg-[#242938]"
+                "hover:bg-[#1F1F1F]/30 transition-colors",
+                idx % 2 === 0 ? "bg-[#0A0A0A]" : "bg-[#141414]"
               )}
             >
               {renderCell(row.age, { align: "left" })}
@@ -538,10 +538,10 @@ export function GIYearOverYearTables({
   const visibleTabs = TABS.filter((tab) => tab.showAlways || scenario === "blueprint");
 
   return (
-    <div className="bg-[#1a1f2e] rounded-lg border border-slate-700 overflow-hidden">
+    <div className="bg-[#0A0A0A] rounded-lg border border-[#2A2A2A] overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-700">
-        <h3 className="text-lg font-semibold text-slate-100 mb-3">Year-over-Year Values</h3>
+      <div className="px-6 py-4 border-b border-[#2A2A2A]">
+        <h3 className="text-lg font-semibold text-white mb-3">Year-over-Year Values</h3>
 
         {/* Scenario Toggle */}
         <div className="flex items-center gap-6 mb-3">
@@ -552,12 +552,12 @@ export function GIYearOverYearTables({
               value="baseline"
               checked={scenario === "baseline"}
               onChange={() => setScenario("baseline")}
-              className="w-4 h-4 text-blue-500 bg-slate-700 border-slate-600 focus:ring-blue-500"
+              className="w-4 h-4 text-[#F5B800] bg-[#1F1F1F] border-[#2A2A2A] focus:ring-[#F5B800]"
             />
             <span
               className={cn(
                 "text-sm font-medium",
-                scenario === "baseline" ? "text-slate-100" : "text-slate-400"
+                scenario === "baseline" ? "text-white" : "text-[#A0A0A0]"
               )}
             >
               Baseline
@@ -570,12 +570,12 @@ export function GIYearOverYearTables({
               value="blueprint"
               checked={scenario === "blueprint"}
               onChange={() => setScenario("blueprint")}
-              className="w-4 h-4 text-teal-500 bg-slate-700 border-slate-600 focus:ring-teal-500"
+              className="w-4 h-4 text-[#F5B800] bg-[#1F1F1F] border-[#2A2A2A] focus:ring-[#F5B800]"
             />
             <span
               className={cn(
                 "text-sm font-medium",
-                scenario === "blueprint" ? "text-teal-400" : "text-slate-400"
+                scenario === "blueprint" ? "text-[#F5B800]" : "text-[#A0A0A0]"
               )}
             >
               Blueprint
@@ -583,11 +583,11 @@ export function GIYearOverYearTables({
           </label>
         </div>
 
-        <p className="text-sm text-slate-400">{getSubtitleText()}</p>
+        <p className="text-sm text-[#A0A0A0]">{getSubtitleText()}</p>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-slate-700 bg-[#0f172a]">
+      <div className="flex border-b border-[#2A2A2A] bg-[#0A0A0A]">
         {visibleTabs.map((tab) => (
           <button
             key={tab.id}
@@ -595,8 +595,8 @@ export function GIYearOverYearTables({
             className={cn(
               "px-5 py-3 text-sm font-medium transition-colors",
               activeTab === tab.id
-                ? "bg-blue-600 text-white"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                ? "bg-[#F5B800] text-black font-semibold"
+                : "text-[#A0A0A0] hover:text-white hover:bg-[#141414]"
             )}
           >
             {tab.label}
@@ -608,13 +608,13 @@ export function GIYearOverYearTables({
       <div className="overflow-x-auto max-h-[600px] overflow-y-auto">{renderTable()}</div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-slate-700 bg-[#0f172a]">
+      <div className="px-6 py-4 border-t border-[#2A2A2A] bg-[#0A0A0A]">
         {scenario === "blueprint" && hasDepletedRows && (
-          <p className="text-xs text-amber-400 mb-2">
+          <p className="text-xs text-[#F5B800] mb-2">
             Shaded rows indicate account value has been depleted. Guaranteed income payments continue per the contract terms.
           </p>
         )}
-        <p className="text-xs text-slate-500 italic">
+        <p className="text-xs text-[#6B6B6B] italic">
           This optimized plan is for educational purposes only. Before making a Roth conversion,
           discuss your final plan with a tax professional.
         </p>
