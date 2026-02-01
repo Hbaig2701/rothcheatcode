@@ -18,18 +18,18 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
 
   if (data.length === 0) {
     return (
-      <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-[#8b95a5] mb-6">
+      <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-6">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-[#A0A0A0] mb-6">
           Product Mix
         </h3>
-        <p className="text-sm text-[#5f6b7a] text-center py-8">No data yet</p>
+        <p className="text-sm text-[#6B6B6B] text-center py-8">No data yet</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-[#F5B800] transition-all">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#8b95a5] mb-6">
+    <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-6 hover:bg-[#1F1F1F] hover:border-[#F5B800] transition-all">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#A0A0A0] mb-6">
         Product Mix
       </h3>
 
@@ -52,8 +52,8 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
               </Pie>
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#1a2332",
-                  border: "1px solid #2d3a4f",
+                  backgroundColor: "#141414",
+                  border: "1px solid #2A2A2A",
                   borderRadius: "8px",
                   color: "#fff",
                   fontSize: "13px",
@@ -75,11 +75,11 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
                   className="w-3 h-3 rounded-full inline-block"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-[#8b95a5]">{item.name}</span>
+                <span className="text-[#A0A0A0]">{item.name}</span>
               </div>
               <span className="text-white font-medium">
                 {item.value}{" "}
-                <span className="text-[#5f6b7a]">
+                <span className="text-[#6B6B6B]">
                   ({total > 0 ? Math.round((item.value / total) * 100) : 0}%)
                 </span>
               </span>

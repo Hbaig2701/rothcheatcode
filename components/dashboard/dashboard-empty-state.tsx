@@ -6,7 +6,7 @@ import { Plus } from "lucide-react";
 export function DashboardEmptyState() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-12 text-center max-w-md">
+      <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-12 text-center max-w-md">
         <div className="w-16 h-16 rounded-full bg-[#F5B800]/15 flex items-center justify-center mx-auto mb-6">
           <svg
             className="w-8 h-8 text-[#F5B800]"
@@ -24,7 +24,7 @@ export function DashboardEmptyState() {
         </div>
 
         <h2 className="text-xl font-bold text-white mb-2">No CheatCodes Yet</h2>
-        <p className="text-sm text-[#8b95a5] mb-8">
+        <p className="text-sm text-[#A0A0A0] mb-8">
           Create your first client CheatCode to see your dashboard analytics and track your
           impact.
         </p>

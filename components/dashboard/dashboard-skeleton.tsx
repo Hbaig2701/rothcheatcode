@@ -1,12 +1,12 @@
 "use client";
 
 function Pulse({ className }: { className?: string }) {
-  return <div className={`animate-pulse bg-[#2d3a4f] rounded ${className ?? ""}`} />;
+  return <div className={`animate-pulse bg-[#2A2A2A] rounded ${className ?? ""}`} />;
 }
 
 function CardSkeleton() {
   return (
-    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-5">
+    <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-5">
       <Pulse className="w-10 h-10 rounded-[10px] mb-3" />
       <Pulse className="h-3 w-24 mb-3" />
       <Pulse className="h-8 w-20 mb-2" />
@@ -17,7 +17,7 @@ function CardSkeleton() {
 
 function PanelSkeleton({ height }: { height: string }) {
   return (
-    <div className={`bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 ${height}`}>
+    <div className={`bg-[#141414] border border-[#2A2A2A] rounded-xl p-6 ${height}`}>
       <Pulse className="h-3 w-32 mb-6" />
       <Pulse className="h-5 w-48 mb-4" />
       <Pulse className="h-5 w-40 mb-4" />
@@ -57,7 +57,7 @@ export function DashboardSkeleton() {
       </div>
 
       {/* Pipeline skeleton */}
-      <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6">
+      <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-6">
         <Pulse className="h-3 w-40 mb-4" />
         <Pulse className="h-4 w-72 mb-6" />
         <Pulse className="h-8 w-full mb-3" />

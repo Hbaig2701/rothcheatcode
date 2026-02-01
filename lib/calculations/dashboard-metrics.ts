@@ -8,13 +8,12 @@ import { ALL_PRODUCTS } from "@/lib/config/products";
 import type { CheatCodeType } from "@/lib/config/products";
 
 const PRODUCT_COLORS = [
-  "#F5B800", // gold (primary brand)
-  "#3b82f6", // blue
-  "#8b5cf6", // purple
-  "#22c55e", // green
-  "#ef4444", // red
-  "#f59e0b", // amber
-  "#6366f1", // indigo
+  "#F5B800", // Primary Yellow
+  "#C99700", // Dark Gold
+  "#FFD966", // Light Yellow
+  "#8B6914", // Bronze
+  "#A0A0A0", // Gray
+  "#6B6B6B", // Dark Gray
 ];
 
 function isThisMonth(dateStr: string): boolean {

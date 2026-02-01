@@ -34,7 +34,7 @@ export function DashboardContent({ userName }: DashboardContentProps) {
 
   if (isLoading) {
     return (
-      <div className="bg-[#0f1419] -m-6 p-6 min-h-screen">
+      <div className="bg-[#0D0D0D] -m-6 p-6 min-h-screen">
         <DashboardSkeleton />
       </div>
     );
@@ -42,10 +42,10 @@ export function DashboardContent({ userName }: DashboardContentProps) {
 
   if (error) {
     return (
-      <div className="bg-[#0f1419] -m-6 p-6 min-h-screen">
+      <div className="bg-[#0D0D0D] -m-6 p-6 min-h-screen">
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">
           <p className="text-red-400">Failed to load dashboard data.</p>
-          <p className="text-sm text-[#5f6b7a] mt-1">{error.message}</p>
+          <p className="text-sm text-[#6B6B6B] mt-1">{error.message}</p>
         </div>
       </div>
     );
@@ -53,7 +53,7 @@ export function DashboardContent({ userName }: DashboardContentProps) {
 
   if (!data || data.clients.length === 0) {
     return (
-      <div className="bg-[#0f1419] -m-6 p-6 min-h-screen">
+      <div className="bg-[#0D0D0D] -m-6 p-6 min-h-screen">
         <DashboardEmptyState />
       </div>
     );
@@ -62,13 +62,13 @@ export function DashboardContent({ userName }: DashboardContentProps) {
   if (!metrics) return null;
 
   return (
-    <div className="bg-[#0f1419] -m-6 p-6 min-h-screen">
+    <div className="bg-[#0D0D0D] -m-6 p-6 min-h-screen">
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-white">
           Welcome back, {userName}
         </h1>
-        <span className="text-sm text-[#5f6b7a]">{today}</span>
+        <span className="text-sm text-[#6B6B6B]">{today}</span>
       </div>
 
       {/* Top Metric Cards */}
@@ -78,28 +78,24 @@ export function DashboardContent({ userName }: DashboardContentProps) {
           value={metrics.totalClients}
           subtitle={`+${metrics.newClientsThisMonth} this month`}
           icon="users"
-          color="gold"
         />
         <MetricCard
           title="Assets Under Management"
           value={formatCompactCurrency(metrics.totalAUM)}
           subtitle={`+${formatCompactCurrency(metrics.aumChangeThisMonth)} this month`}
           icon="dollar"
-          color="green"
         />
         <MetricCard
           title="Avg Wealth Increase"
           value={`+${metrics.avgWealthIncrease}%`}
           subtitle="Across all clients"
           icon="trending-up"
-          color="green"
         />
         <MetricCard
           title="CheatCodes This Month"
           value={metrics.cheatCodesThisMonth}
           subtitle={`${metrics.cheatCodesChangePercent >= 0 ? "↑" : "↓"} ${Math.abs(metrics.cheatCodesChangePercent)}% vs last month`}
           icon="file-text"
-          color="blue"
         />
       </div>
 

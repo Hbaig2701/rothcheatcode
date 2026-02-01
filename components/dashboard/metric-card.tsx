@@ -9,36 +9,26 @@ const ICONS: Record<string, LucideIcon> = {
   "file-text": FileText,
 };
 
-const COLOR_STYLES: Record<string, { bg: string; text: string }> = {
-  gold: { bg: "bg-[#F5B800]/15", text: "text-[#F5B800]" },
-  green: { bg: "bg-green-500/15", text: "text-green-400" },
-  blue: { bg: "bg-blue-500/15", text: "text-blue-400" },
-};
-
 interface MetricCardProps {
   title: string;
   value: string | number;
   subtitle: string;
   icon: string;
-  color: "gold" | "green" | "blue";
 }
 
-export function MetricCard({ title, value, subtitle, icon, color }: MetricCardProps) {
+export function MetricCard({ title, value, subtitle, icon }: MetricCardProps) {
   const Icon = ICONS[icon] ?? FileText;
-  const colorStyle = COLOR_STYLES[color] ?? COLOR_STYLES.gold;
 
   return (
-    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-5 hover:bg-[#242f42] hover:border-[#F5B800] transition-all">
-      <div
-        className={`w-10 h-10 rounded-[10px] flex items-center justify-center mb-3 ${colorStyle.bg}`}
-      >
-        <Icon className={`w-5 h-5 ${colorStyle.text}`} />
+    <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-5 hover:bg-[#1F1F1F] hover:border-[#F5B800] transition-all">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-[#F5B800]/15 border border-[#F5B800]/30">
+        <Icon className="w-5 h-5 text-[#F5B800]" />
       </div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#8b95a5] mb-2">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#A0A0A0] mb-2">
         {title}
       </p>
       <p className="text-3xl font-bold text-white mb-1">{value}</p>
-      <p className="text-[13px] text-[#5f6b7a]">{subtitle}</p>
+      <p className="text-[13px] text-[#6B6B6B]">{subtitle}</p>
     </div>
   );
 }

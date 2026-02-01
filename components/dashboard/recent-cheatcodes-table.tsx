@@ -21,28 +21,28 @@ function formatDate(dateStr: string): string {
 
 export function RecentCheatCodesTable({ data }: RecentCheatCodesTableProps) {
   return (
-    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-[#F5B800] transition-all">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#8b95a5] mb-4">
+    <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-6 hover:bg-[#1F1F1F] hover:border-[#F5B800] transition-all">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#A0A0A0] mb-4">
         Recent CheatCodes
       </h3>
 
       {data.length === 0 ? (
-        <p className="text-sm text-[#5f6b7a] text-center py-8">No CheatCodes yet</p>
+        <p className="text-sm text-[#6B6B6B] text-center py-8">No CheatCodes yet</p>
       ) : (
         <>
           <table className="w-full">
             <thead>
               <tr>
-                <th className="text-left pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#8b95a5] border-b border-[#2d3a4f]">
+                <th className="text-left pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
                   Client
                 </th>
-                <th className="text-left pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#8b95a5] border-b border-[#2d3a4f]">
+                <th className="text-left pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
                   Product
                 </th>
-                <th className="text-right pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#8b95a5] border-b border-[#2d3a4f]">
+                <th className="text-right pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
                   Change
                 </th>
-                <th className="text-right pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#8b95a5] border-b border-[#2d3a4f]">
+                <th className="text-right pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
                   Date
                 </th>
               </tr>
@@ -51,9 +51,9 @@ export function RecentCheatCodesTable({ data }: RecentCheatCodesTableProps) {
               {data.map((item) => (
                 <tr
                   key={item.id}
-                  className="hover:bg-[#2d3a4f]/50 cursor-pointer transition-colors"
+                  className="hover:bg-[#1A1A1A] cursor-pointer transition-colors"
                 >
-                  <td className="py-3 border-b border-[#2d3a4f]">
+                  <td className="py-3 border-b border-[#2A2A2A]">
                     <Link
                       href={`/clients/${item.id}`}
                       className="text-sm text-white hover:text-[#F5B800] transition-colors"
@@ -61,10 +61,10 @@ export function RecentCheatCodesTable({ data }: RecentCheatCodesTableProps) {
                       {item.clientName}
                     </Link>
                   </td>
-                  <td className="py-3 border-b border-[#2d3a4f]">
-                    <span className="text-sm text-[#8b95a5]">{item.productLabel}</span>
+                  <td className="py-3 border-b border-[#2A2A2A]">
+                    <span className="text-sm text-[#A0A0A0]">{item.productLabel}</span>
                   </td>
-                  <td className="py-3 border-b border-[#2d3a4f] text-right">
+                  <td className="py-3 border-b border-[#2A2A2A] text-right">
                     <span
                       className={`text-sm font-semibold ${
                         item.percentChange >= 0 ? "text-green-400" : "text-red-400"
@@ -74,8 +74,8 @@ export function RecentCheatCodesTable({ data }: RecentCheatCodesTableProps) {
                       {item.percentChange}%
                     </span>
                   </td>
-                  <td className="py-3 border-b border-[#2d3a4f] text-right">
-                    <span className="text-sm text-[#5f6b7a]">
+                  <td className="py-3 border-b border-[#2A2A2A] text-right">
+                    <span className="text-sm text-[#6B6B6B]">
                       {formatDate(item.createdAt)}
                     </span>
                   </td>
