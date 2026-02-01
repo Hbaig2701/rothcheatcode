@@ -5,15 +5,19 @@ import { useRouter } from "next/navigation";
 import { useProjection } from "@/lib/queries/projections";
 import { useClient, useCreateClient } from "@/lib/queries/clients";
 import { WealthChart } from "@/components/results/wealth-chart";
-import { transformToChartData } from '@/lib/calculations/transforms';
+import { transformToChartData, transformToGIChartData } from '@/lib/calculations/transforms';
 import { Skeleton } from "@/components/ui/skeleton";
 import { YearOverYearTables } from "@/components/report/year-over-year-tables";
+import { GIYearOverYearTables } from "@/components/report/gi-year-over-year-tables";
 import { SummaryComparisonTable } from "@/components/report/summary-comparison-table";
+import { GISummaryBreakdownTable } from "@/components/report/gi-summary-breakdown-table";
 import { ReportChartRefs } from "@/components/report/export-pdf-button";
 import { captureChartAsBase64 } from "@/lib/utils/captureChart";
 import { cn } from "@/lib/utils";
 import { YearlyResult } from "@/lib/calculations";
 import { GISummaryPanel } from "@/components/results/gi-summary-panel";
+import { GIAccountChart } from "@/components/results/gi-account-chart";
+import { isGuaranteedIncomeProduct, type BlueprintType } from "@/lib/config/products";
 import { Copy, Plus, FileText, Loader2 } from "lucide-react";
 
 interface ReportDashboardProps {
@@ -118,7 +122,11 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     }
 
     const { projection } = projectionResponse;
-    const chartData = transformToChartData(projection);
+    const isGI = client.blueprint_type
+        ? isGuaranteedIncomeProduct(client.blueprint_type as BlueprintType)
+        : false;
+
+    const chartData = isGI ? transformToGIChartData(projection) : transformToChartData(projection);
 
     // Helper methods
     const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
@@ -128,35 +136,48 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const toPercent = (amount: number) => new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 }).format(amount);
 
     // --- Calculate Lifetime Wealth ---
-    // BLUEPRINT: eoy_combined - cumulativeTaxes - cumulativeIRMAA
-    //   (Roth passes tax-free, conversions aren't distributions but taxes are costs)
+    // BLUEPRINT (Growth): eoy_combined - cumulativeTaxes - cumulativeIRMAA
     const calculateBlueprintLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
         const totalTaxes = sum(years, 'federalTax') + sum(years, 'stateTax');
         const totalIRMAA = sum(years, 'irmaaSurcharge');
         return finalNetWorth - totalTaxes - totalIRMAA;
     };
 
+    // BLUEPRINT (GI): cumulativeNetGI + netLegacy(acctVal*(1-heirTax) + roth) - convTaxes - IRMAA
+    const calculateGIBlueprintLifetimeWealthTotal = () => {
+        const heirTaxRate = 0.40;
+        const giYearlyData = projection.gi_yearly_data || [];
+        let conversionTaxes = 0;
+        projection.blueprint_years.forEach((year, i) => {
+            const giYear = giYearlyData[i];
+            if (giYear && giYear.phase === 'deferral') {
+                conversionTaxes += (year.federalTax + year.stateTax) || 0;
+            }
+        });
+        const totalIRMAA = sum(projection.blueprint_years, 'irmaaSurcharge');
+        const netLegacy = Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) + projection.blueprint_final_roth;
+        const giTotalNet = projection.gi_total_net_paid ?? 0;
+        return giTotalNet + netLegacy - conversionTaxes - totalIRMAA;
+    };
+
     // BASELINE: (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
-    //   (Traditional has 40% heir tax, RMDs are actual distributions received)
     const calculateBaselineLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
         const heirTaxRate = 0.40;
         const totalRMDs = sum(years, 'rmdAmount');
         const totalTaxes = sum(years, 'federalTax') + sum(years, 'stateTax');
         const totalIRMAA = sum(years, 'irmaaSurcharge');
-
-        // After-tax distributions = RMDs - taxes paid
         const afterTaxDistributions = totalRMDs - totalTaxes;
-
-        // Legacy at 60% (heir pays 40% tax) + cumulative distributions - IRMAA
         const netLegacy = finalNetWorth * (1 - heirTaxRate);
         return netLegacy + afterTaxDistributions - totalIRMAA;
     };
 
     const baseLifetime = calculateBaselineLifetimeWealth(projection.baseline_years, projection.baseline_final_net_worth);
-    const blueLifetime = calculateBlueprintLifetimeWealth(projection.blueprint_years, projection.blueprint_final_net_worth);
+    const blueLifetime = isGI
+        ? calculateGIBlueprintLifetimeWealthTotal()
+        : calculateBlueprintLifetimeWealth(projection.blueprint_years, projection.blueprint_final_net_worth);
 
     const diff = blueLifetime - baseLifetime;
-    const percentChange = baseLifetime > 0 ? diff / baseLifetime : 0;
+    const percentChange = baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;
 
     return (
         <div className="flex flex-col h-full bg-[#080c14] text-slate-200 overflow-y-auto font-sans">
@@ -209,7 +230,6 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Conversion Insights</h3>
 
                     <div className="grid grid-cols-1 gap-px bg-slate-800 border border-slate-800 text-xs">
-                        {/* Custom Grid Rows for Header Stats */}
                         <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
                             <span className="text-slate-400 font-medium">Client Name</span>
                             <span className="font-mono text-slate-200">{client.name}</span>
@@ -218,6 +238,18 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                             <span className="text-slate-400 font-medium">Initial Balance</span>
                             <span className="font-mono text-slate-200">{toUSD(client.qualified_account_value)}</span>
                         </div>
+                        {isGI && projection.gi_income_start_age != null && (
+                            <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
+                                <span className="text-slate-400 font-medium">Income Start Age</span>
+                                <span className="font-mono text-slate-200">{projection.gi_income_start_age}</span>
+                            </div>
+                        )}
+                        {isGI && projection.gi_annual_income_gross != null && (
+                            <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
+                                <span className="text-slate-400 font-medium">Guaranteed Annual Income</span>
+                                <span className="font-mono text-emerald-400 font-bold">{toUSD(projection.gi_annual_income_gross)}</span>
+                            </div>
+                        )}
                         <div className="flex justify-between items-center px-4 py-2 bg-[#0f172a]">
                             <span className="text-slate-400 font-medium">Lifetime Wealth Before Blueprint</span>
                             <span className="font-mono text-slate-200">{toUSD(baseLifetime)}</span>
@@ -239,15 +271,18 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                 )}
 
                 {/* Chart Section */}
-                {/* Added min-h to prevent overlap */}
                 <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-6 min-h-[480px] relative">
                     <div className="text-center mb-4">
                         <h4 className="text-base font-semibold text-slate-100">Lifetime Wealth Trajectory</h4>
-                        <p className="text-xs text-slate-500 mt-1">Total wealth if client passes at each age (distributions + legacy - costs)</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                            {isGI
+                                ? "Total wealth if client passes at each age (GI payments + legacy - costs)"
+                                : "Total wealth if client passes at each age (distributions + legacy - costs)"}
+                        </p>
                         <div className="flex justify-center gap-8 mt-3 text-[11px] font-medium">
                             <div className="flex items-center gap-2 text-emerald-400">
                                 <span className="w-3 h-0.5 bg-emerald-500 rounded"></span>
-                                Blueprint (Roth)
+                                Blueprint {isGI ? "(GI + Roth)" : "(Roth)"}
                             </div>
                             <div className="flex items-center gap-2 text-red-400">
                                 <span className="w-3 h-0.5 bg-red-500 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 4px, transparent 4px, transparent 6px)' }}></span>
@@ -262,16 +297,56 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
                 {/* Detailed Comparison Table */}
                 <div className="pt-2">
-                    <SummaryComparisonTable projection={projection} />
+                    {isGI ? (
+                        <GISummaryBreakdownTable projection={projection} />
+                    ) : (
+                        <SummaryComparisonTable projection={projection} />
+                    )}
                 </div>
+
+                {/* Account Value vs Income Base Chart (GI Only) */}
+                {isGI && projection.gi_yearly_data && projection.gi_yearly_data.length > 0 && (
+                    <div className="bg-[#0f172a] border border-slate-800 rounded-lg p-6 min-h-[480px] relative">
+                        <div className="text-center mb-4">
+                            <h4 className="text-base font-semibold text-slate-100">Account Value vs Income Base</h4>
+                            <p className="text-xs text-slate-500 mt-1">Tracking account value, income base, and Roth balance over time</p>
+                            <div className="flex justify-center gap-8 mt-3 text-[11px] font-medium">
+                                <div className="flex items-center gap-2 text-blue-400">
+                                    <span className="w-3 h-0.5 bg-blue-500 rounded"></span>
+                                    Roth Balance
+                                </div>
+                                <div className="flex items-center gap-2 text-red-400">
+                                    <span className="w-3 h-0.5 bg-red-500 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 4px, transparent 4px, transparent 6px)' }}></span>
+                                    Account Value
+                                </div>
+                                <div className="flex items-center gap-2 text-emerald-400">
+                                    <span className="w-3 h-0.5 bg-emerald-500 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #22c55e 0px, #22c55e 2px, transparent 2px, transparent 6px)' }}></span>
+                                    Income Base
+                                </div>
+                            </div>
+                        </div>
+                        <div className="h-[360px] w-full bg-[#0f172a]">
+                            <GIAccountChart projection={projection} />
+                        </div>
+                    </div>
+                )}
 
                 {/* Year-over-Year Tables with Scenario Toggle */}
                 <div className="pt-8">
-                    <YearOverYearTables
-                        baselineYears={projection.baseline_years}
-                        blueprintYears={projection.blueprint_years}
-                        client={client}
-                    />
+                    {isGI ? (
+                        <GIYearOverYearTables
+                            baselineYears={projection.baseline_years}
+                            blueprintYears={projection.blueprint_years}
+                            giYearlyData={projection.gi_yearly_data || []}
+                            client={client}
+                        />
+                    ) : (
+                        <YearOverYearTables
+                            baselineYears={projection.baseline_years}
+                            blueprintYears={projection.blueprint_years}
+                            client={client}
+                        />
+                    )}
                 </div>
 
             </div>

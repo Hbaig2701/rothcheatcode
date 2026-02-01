@@ -1,4 +1,4 @@
-import { Projection } from '@/lib/types/projection';
+import { Projection, GIYearlyData } from '@/lib/types/projection';
 import { SimulationResult, YearlyResult } from './types';
 import type { SensitivityResult } from './analysis/types';
 
@@ -83,6 +83,66 @@ function calculateBaselineLifetimeWealth(
     const netLegacy = year.netWorth * (1 - heirTaxRate);
     return netLegacy + cumulativeAfterTaxDist - cumulativeIRMAA;
   });
+}
+
+/**
+ * Calculate Lifetime Wealth Trajectory for GI BLUEPRINT scenario
+ *
+ * GI Blueprint:
+ *   lifetimeWealth = cumulativeNetGIPayments
+ *                  + netLegacy (accountValue * (1 - heirTaxRate) + rothBalance)
+ *                  - cumulativeConversionTaxes (deferral phase only)
+ *                  - cumulativeIRMAA
+ *
+ * During deferral: taxes are conversion taxes (cost). No income received.
+ * During income: after-tax GI payments are income. Taxes on GI already excluded from net.
+ */
+function calculateGIBlueprintLifetimeWealth(
+  blueprintYears: YearlyResult[],
+  giYearlyData: GIYearlyData[],
+  heirTaxRate: number = 0.40
+): number[] {
+  let cumulativeNetGI = 0;
+  let cumulativeConversionTaxes = 0;
+  let cumulativeIRMAA = 0;
+
+  return blueprintYears.map((year, index) => {
+    const giYear = giYearlyData[index];
+
+    cumulativeIRMAA += year.irmaaSurcharge || 0;
+
+    if (giYear && giYear.phase === 'deferral') {
+      // Deferral: federalTax + stateTax are conversion taxes
+      cumulativeConversionTaxes += (year.federalTax + year.stateTax) || 0;
+    } else if (giYear && giYear.phase === 'income') {
+      // Income: accumulate after-tax GI payments
+      cumulativeNetGI += giYear.guaranteedIncomeNet;
+    }
+
+    // Legacy: account value (annuity) taxed at heir rate, Roth is tax-free
+    const netLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + year.rothBalance;
+
+    return cumulativeNetGI + netLegacy - cumulativeConversionTaxes - cumulativeIRMAA;
+  });
+}
+
+/**
+ * Transform GI projection data into chart-ready format
+ * Uses GI-specific blueprint wealth calculation and standard baseline calculation
+ */
+export function transformToGIChartData(projection: Projection): ChartDataPoint[] {
+  const baselineWealth = calculateBaselineLifetimeWealth(projection.baseline_years);
+  const blueprintWealth = calculateGIBlueprintLifetimeWealth(
+    projection.blueprint_years,
+    projection.gi_yearly_data || [],
+  );
+
+  return projection.baseline_years.map((baseYear, index) => ({
+    age: baseYear.age,
+    year: baseYear.year,
+    baseline: Math.round(baselineWealth[index]),
+    blueprint: Math.round(blueprintWealth[index]),
+  }));
 }
 
 /**
