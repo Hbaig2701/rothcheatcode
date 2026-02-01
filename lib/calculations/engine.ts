@@ -1,7 +1,7 @@
 import type { Client } from '@/lib/types/client';
 import type { SimulationInput, SimulationResult, YearlyResult } from './types';
 import { runBaselineScenario } from './scenarios/baseline';
-import { runBlueprintScenario } from './scenarios/blueprint';
+import { runCheatCodeScenario } from './scenarios/cheatcode';
 
 /**
  * Default heir tax rate per specification (40%)
@@ -10,24 +10,24 @@ import { runBlueprintScenario } from './scenarios/blueprint';
 const DEFAULT_HEIR_TAX_RATE = 40;
 
 /**
- * Find the break-even age where blueprint net worth exceeds baseline
+ * Find the break-even age where cheatCode net worth exceeds baseline
  */
-function calculateBreakEvenAge(baseline: YearlyResult[], blueprint: YearlyResult[]): number | null {
+function calculateBreakEvenAge(baseline: YearlyResult[], cheatCode: YearlyResult[]): number | null {
   for (let i = 0; i < baseline.length; i++) {
-    if (blueprint[i].netWorth > baseline[i].netWorth) {
-      return blueprint[i].age;
+    if (cheatCode[i].netWorth > baseline[i].netWorth) {
+      return cheatCode[i].age;
     }
   }
   return null;
 }
 
 /**
- * Calculate lifetime tax savings (baseline taxes - blueprint taxes)
+ * Calculate lifetime tax savings (baseline taxes - cheatCode taxes)
  */
-function calculateTaxSavings(baseline: YearlyResult[], blueprint: YearlyResult[]): number {
+function calculateTaxSavings(baseline: YearlyResult[], cheatCode: YearlyResult[]): number {
   const baselineTotalTax = baseline.reduce((sum, y) => sum + y.totalTax, 0);
-  const blueprintTotalTax = blueprint.reduce((sum, y) => sum + y.totalTax, 0);
-  return baselineTotalTax - blueprintTotalTax;
+  const cheatCodeTotalTax = cheatCode.reduce((sum, y) => sum + y.totalTax, 0);
+  return baselineTotalTax - cheatCodeTotalTax;
 }
 
 /**
@@ -63,16 +63,16 @@ function calculateLegacy(
  *
  * Per specification:
  * - Baseline: Traditional IRA taxed at heir_tax_rate
- * - Blueprint: Roth IRA tax-free, Traditional IRA remainder taxed
+ * - CheatCode: Roth IRA tax-free, Traditional IRA remainder taxed
  */
 function calculateHeirBenefit(
   baseline: YearlyResult[],
-  blueprint: YearlyResult[],
+  cheatCode: YearlyResult[],
   heirTaxRate?: number,
   heirBracket?: string
 ): number {
   const lastBaseline = baseline[baseline.length - 1];
-  const lastBlueprint = blueprint[blueprint.length - 1];
+  const lastCheatCode = cheatCode[cheatCode.length - 1];
 
   // Use heir_tax_rate if available, otherwise parse heir_bracket, default to 40%
   let heirRate: number;
@@ -88,16 +88,16 @@ function calculateHeirBenefit(
   // All traditional IRA balance is taxed to heirs
   const baselineLegacy = calculateLegacy(lastBaseline.traditionalBalance, 'traditional', heirRate);
 
-  // Blueprint legacy calculation
+  // CheatCode legacy calculation
   // Traditional IRA remainder taxed, Roth is tax-free
-  const blueprintTraditionalLegacy = calculateLegacy(lastBlueprint.traditionalBalance, 'traditional', heirRate);
-  const blueprintRothLegacy = calculateLegacy(lastBlueprint.rothBalance, 'roth', heirRate);
+  const cheatCodeTraditionalLegacy = calculateLegacy(lastCheatCode.traditionalBalance, 'traditional', heirRate);
+  const cheatCodeRothLegacy = calculateLegacy(lastCheatCode.rothBalance, 'roth', heirRate);
 
-  // Heir benefit = baseline heir tax - blueprint heir tax
+  // Heir benefit = baseline heir tax - cheatCode heir tax
   const baselineHeirTax = baselineLegacy.taxOnLegacy;
-  const blueprintHeirTax = blueprintTraditionalLegacy.taxOnLegacy + blueprintRothLegacy.taxOnLegacy;
+  const cheatCodeHeirTax = cheatCodeTraditionalLegacy.taxOnLegacy + cheatCodeRothLegacy.taxOnLegacy;
 
-  return baselineHeirTax - blueprintHeirTax;
+  return baselineHeirTax - cheatCodeHeirTax;
 }
 
 /**
@@ -106,31 +106,31 @@ function calculateHeirBenefit(
 export interface SummaryMetrics {
   distributions: {
     baseline: number;
-    blueprint: number;
+    cheatCode: number;
     baselineTax: number;
-    blueprintTax: number;
+    cheatCodeTax: number;
     baselineAfterTax: number;
-    blueprintAfterTax: number;
+    cheatCodeAfterTax: number;
   };
   irmaa: {
     baseline: number;
-    blueprint: number;
+    cheatCode: number;
   };
   heirs: {
     baselineGross: number;
-    blueprintGross: number;
+    cheatCodeGross: number;
     baselineTax: number;
-    blueprintTax: number;
+    cheatCodeTax: number;
     baselineNet: number;
-    blueprintNet: number;
+    cheatCodeNet: number;
   };
   wealth: {
     baselineTotalDist: number;
-    blueprintTotalDist: number;
+    cheatCodeTotalDist: number;
     baselineTotalCosts: number;
-    blueprintTotalCosts: number;
+    cheatCodeTotalCosts: number;
     baselineLifetimeWealth: number;
-    blueprintLifetimeWealth: number;
+    cheatCodeLifetimeWealth: number;
     increaseAmount: number;
     increasePercentage: number;
   };
@@ -138,59 +138,59 @@ export interface SummaryMetrics {
 
 function calculateSummaryMetrics(
   baseline: YearlyResult[],
-  blueprint: YearlyResult[],
+  cheatCode: YearlyResult[],
   heirTaxRate: number
 ): SummaryMetrics {
   const heirRate = heirTaxRate / 100;
 
   // Sum distributions
   const baselineDistributions = baseline.reduce((sum, y) => sum + y.rmdAmount, 0);
-  const blueprintDistributions = blueprint.reduce((sum, y) => sum + y.conversionAmount, 0);
+  const cheatCodeDistributions = cheatCode.reduce((sum, y) => sum + y.conversionAmount, 0);
 
   // Sum taxes on distributions
   const baselineDistTax = baseline.reduce((sum, y) => sum + y.federalTax + y.stateTax, 0);
-  const blueprintDistTax = blueprint.reduce((sum, y) => sum + y.federalTax + y.stateTax, 0);
+  const cheatCodeDistTax = cheatCode.reduce((sum, y) => sum + y.federalTax + y.stateTax, 0);
 
   // After-tax distributions (received by client)
   // For baseline: RMDs after tax are what client receives
-  // For blueprint: conversions are not "received" - they're moved to Roth
+  // For cheatCode: conversions are not "received" - they're moved to Roth
   const baselineAfterTaxDist = baselineDistributions - baselineDistTax;
-  const blueprintAfterTaxDist = 0; // Blueprint: all converted, nothing received during conversion
+  const cheatCodeAfterTaxDist = 0; // CheatCode: all converted, nothing received during conversion
 
   // IRMAA totals
   const baselineIRMAA = baseline.reduce((sum, y) => sum + y.irmaaSurcharge, 0);
-  const blueprintIRMAA = blueprint.reduce((sum, y) => sum + y.irmaaSurcharge, 0);
+  const cheatCodeIRMAA = cheatCode.reduce((sum, y) => sum + y.irmaaSurcharge, 0);
 
   // Final balances
   const lastBaseline = baseline[baseline.length - 1];
-  const lastBlueprint = blueprint[blueprint.length - 1];
+  const lastCheatCode = cheatCode[cheatCode.length - 1];
 
   // Legacy calculations
   const baselineFinal = lastBaseline.traditionalBalance + lastBaseline.rothBalance;
-  const blueprintFinal = lastBlueprint.traditionalBalance + lastBlueprint.rothBalance;
+  const cheatCodeFinal = lastCheatCode.traditionalBalance + lastCheatCode.rothBalance;
 
   // For baseline, all is traditional (taxed to heirs)
   const baselineLegacyTax = Math.round(lastBaseline.traditionalBalance * heirRate);
   const baselineLegacyNet = baselineFinal - baselineLegacyTax;
 
-  // For blueprint, traditional is taxed, Roth is tax-free
-  const blueprintLegacyTax = Math.round(lastBlueprint.traditionalBalance * heirRate);
-  const blueprintLegacyNet = blueprintFinal - blueprintLegacyTax;
+  // For cheatCode, traditional is taxed, Roth is tax-free
+  const cheatCodeLegacyTax = Math.round(lastCheatCode.traditionalBalance * heirRate);
+  const cheatCodeLegacyNet = cheatCodeFinal - cheatCodeLegacyTax;
 
   // Total distributions (client + heirs)
   const baselineTotalDist = baselineDistributions + baselineFinal;
-  const blueprintTotalDist = blueprintDistributions + blueprintFinal;
+  const cheatCodeTotalDist = cheatCodeDistributions + cheatCodeFinal;
 
   // Total costs
   const baselineTotalCosts = baselineDistTax + baselineLegacyTax + baselineIRMAA;
-  const blueprintTotalCosts = blueprintDistTax + blueprintLegacyTax + blueprintIRMAA;
+  const cheatCodeTotalCosts = cheatCodeDistTax + cheatCodeLegacyTax + cheatCodeIRMAA;
 
   // Lifetime wealth = Total distributions - Total costs
   const baselineWealth = baselineTotalDist - baselineTotalCosts;
-  const blueprintWealth = blueprintTotalDist - blueprintTotalCosts;
+  const cheatCodeWealth = cheatCodeTotalDist - cheatCodeTotalCosts;
 
   // Difference
-  const wealthIncrease = blueprintWealth - baselineWealth;
+  const wealthIncrease = cheatCodeWealth - baselineWealth;
   const wealthIncreasePct = baselineWealth > 0
     ? Math.round((wealthIncrease / baselineWealth) * 100)
     : 0;
@@ -198,31 +198,31 @@ function calculateSummaryMetrics(
   return {
     distributions: {
       baseline: baselineDistributions,
-      blueprint: blueprintDistributions,
+      cheatCode: cheatCodeDistributions,
       baselineTax: baselineDistTax,
-      blueprintTax: blueprintDistTax,
+      cheatCodeTax: cheatCodeDistTax,
       baselineAfterTax: baselineAfterTaxDist,
-      blueprintAfterTax: blueprintAfterTaxDist
+      cheatCodeAfterTax: cheatCodeAfterTaxDist
     },
     irmaa: {
       baseline: baselineIRMAA,
-      blueprint: blueprintIRMAA
+      cheatCode: cheatCodeIRMAA
     },
     heirs: {
       baselineGross: baselineFinal,
-      blueprintGross: blueprintFinal,
+      cheatCodeGross: cheatCodeFinal,
       baselineTax: baselineLegacyTax,
-      blueprintTax: blueprintLegacyTax,
+      cheatCodeTax: cheatCodeLegacyTax,
       baselineNet: baselineLegacyNet,
-      blueprintNet: blueprintLegacyNet
+      cheatCodeNet: cheatCodeLegacyNet
     },
     wealth: {
       baselineTotalDist,
-      blueprintTotalDist,
+      cheatCodeTotalDist,
       baselineTotalCosts,
-      blueprintTotalCosts,
+      cheatCodeTotalCosts,
       baselineLifetimeWealth: baselineWealth,
-      blueprintLifetimeWealth: blueprintWealth,
+      cheatCodeLifetimeWealth: cheatCodeWealth,
       increaseAmount: wealthIncrease,
       increasePercentage: wealthIncreasePct
     }
@@ -230,21 +230,21 @@ function calculateSummaryMetrics(
 }
 
 /**
- * Run full simulation comparing Baseline vs Blueprint scenarios
+ * Run full simulation comparing Baseline vs CheatCode scenarios
  */
 export function runSimulation(input: SimulationInput): SimulationResult {
   const { client, startYear, endYear } = input;
   const projectionYears = endYear - startYear + 1;
 
   const baseline = runBaselineScenario(client, startYear, projectionYears);
-  const blueprint = runBlueprintScenario(client, startYear, projectionYears);
+  const cheatCode = runCheatCodeScenario(client, startYear, projectionYears);
 
   return {
     baseline,
-    blueprint,
-    breakEvenAge: calculateBreakEvenAge(baseline, blueprint),
-    totalTaxSavings: calculateTaxSavings(baseline, blueprint),
-    heirBenefit: calculateHeirBenefit(baseline, blueprint, client.heir_tax_rate, client.heir_bracket)
+    cheatCode,
+    breakEvenAge: calculateBreakEvenAge(baseline, cheatCode),
+    totalTaxSavings: calculateTaxSavings(baseline, cheatCode),
+    heirBenefit: calculateHeirBenefit(baseline, cheatCode, client.heir_tax_rate, client.heir_bracket)
   };
 }
 
@@ -261,14 +261,14 @@ export function runSimulationWithMetrics(input: SimulationInput): {
   const heirTaxRate = input.client.heir_tax_rate ??
     (input.client.heir_bracket ? parseInt(input.client.heir_bracket, 10) : DEFAULT_HEIR_TAX_RATE);
 
-  const metrics = calculateSummaryMetrics(result.baseline, result.blueprint, heirTaxRate);
+  const metrics = calculateSummaryMetrics(result.baseline, result.cheatCode, heirTaxRate);
 
   return { result, metrics };
 }
 
 /**
  * Create simulation input from client data
- * Supports both new Blueprint form (age + end_age) and legacy form (projection_years)
+ * Supports both new CheatCode form (age + end_age) and legacy form (projection_years)
  */
 export function createSimulationInput(client: Client): SimulationInput {
   const currentYear = new Date().getFullYear();

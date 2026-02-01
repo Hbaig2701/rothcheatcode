@@ -10,12 +10,12 @@ import type { YearlyResult } from '../types';
 // ============================================================
 
 /**
- * Represents a point where baseline and blueprint wealth cross
+ * Represents a point where baseline and cheatCode wealth cross
  */
 export interface CrossoverPoint {
   age: number;
   year: number;
-  direction: 'blueprint_ahead' | 'baseline_ahead';
+  direction: 'cheatCode_ahead' | 'baseline_ahead';
   wealthDifference: number; // cents
 }
 
@@ -24,7 +24,7 @@ export interface CrossoverPoint {
  */
 export interface BreakEvenAnalysis {
   simpleBreakEven: number | null;     // First crossover age
-  sustainedBreakEven: number | null;  // Age when blueprint STAYS ahead
+  sustainedBreakEven: number | null;  // Age when cheatCode STAYS ahead
   netBenefit: number;                 // Total wealth advantage at end (cents)
   crossoverPoints: CrossoverPoint[];  // All crossover events
 }
@@ -48,9 +48,9 @@ export interface SensitivityScenario {
 export interface SensitivityResult {
   scenarios: Record<string, {
     baseline: YearlyResult[];
-    blueprint: YearlyResult[];
+    cheatCode: YearlyResult[];
     breakEvenAge: number | null;
-    endingWealth: number;         // blueprint final net worth (cents)
+    endingWealth: number;         // cheatCode final net worth (cents)
   }>;
   breakEvenRange: {
     min: number | null;

@@ -79,7 +79,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
 
     const isPending = updateClient.isPending || recalculateProjection.isPending;
 
-    // Sync form fields with blueprint type defaults on load
+    // Sync form fields with cheatCode type defaults on load
     // This ensures consistency when loading data that may have mismatched values
     useEffect(() => {
         const cheatCodeType = form.getValues("blueprint_type") as CheatCodeType;
@@ -90,7 +90,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
         const currentProduct = form.getValues("product_name");
 
         // Check if current values match a DIFFERENT locked product
-        // If so, reset to the selected blueprint type's defaults
+        // If so, reset to the selected cheatCode type's defaults
         const otherProducts = Object.values(ALL_PRODUCTS).filter(p => p.id !== cheatCodeType);
         const matchesOtherLockedProduct = otherProducts.some(p =>
             p.lockedFields.includes("carrierName") &&
@@ -168,17 +168,17 @@ export function InputSidebar({ client }: InputSidebarProps) {
         }
     };
 
-    // Watch blueprint type for header display
+    // Watch cheatCode type for header display
     const cheatCodeType = form.watch("blueprint_type") as CheatCodeType;
     const currentProduct = ALL_PRODUCTS[cheatCodeType];
 
-    // Handle blueprint type change from header dropdown
-    const handleHeaderBlueprintChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    // Handle cheatCode type change from header dropdown
+    const handleCheatCodeTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const value = e.target.value as CheatCodeType;
         const product = ALL_PRODUCTS[value];
         if (!product) return;
 
-        // Update form with new blueprint type and product defaults
+        // Update form with new cheatCode type and product defaults
         form.setValue("blueprint_type", value);
         form.setValue("carrier_name", product.defaults.carrierName);
         form.setValue("product_name", product.defaults.productName);
@@ -198,7 +198,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
                 <h2 className="text-xs font-bold text-[#F5B800] uppercase tracking-widest">Inputs</h2>
                 <select
                     value={cheatCodeType}
-                    onChange={handleHeaderBlueprintChange}
+                    onChange={handleCheatCodeTypeChange}
                     className="w-full bg-[#141414] border border-[#2A2A2A] text-xs h-8 rounded px-3 text-white focus:ring-1 focus:ring-[#F5B800] outline-none"
                 >
                     <optgroup label="Growth">
@@ -221,7 +221,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             {/* Main Form Area - Stacked, Readable, Scrollable */}
             <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-[#3A3A3A] scrollbar-track-transparent">
                 <FormProvider {...form}>
-                    <form id="blueprint-form" onSubmit={form.handleSubmit(onSubmit)}
+                    <form id="cheatcode-form" onSubmit={form.handleSubmit(onSubmit)}
                         className={cn(
                             "space-y-6",
 

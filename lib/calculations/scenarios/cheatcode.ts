@@ -15,7 +15,7 @@ import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 
 /**
- * Run Blueprint scenario: strategic Roth conversions
+ * Run CheatCode scenario: strategic Roth conversions
  *
  * Per specification:
  * - Initial value = qualified_account_value × (1 + bonus_rate)
@@ -27,7 +27,7 @@ import { getStateTaxRate } from '@/lib/data/states';
  *
  * Supports both legacy DOB-based approach and new age-based approach
  */
-export function runBlueprintScenario(
+export function runCheatCodeScenario(
   client: Client,
   startYear: number,
   projectionYears: number
@@ -283,10 +283,10 @@ export function runBlueprintScenario(
 }
 
 /**
- * Calculate combined account interest for blueprint scenario
+ * Calculate combined account interest for cheatCode scenario
  * Per specification, interest accrues on both IRA and Roth after conversion
  */
-export function calculateBlueprintInterest(
+export function calculateCheatCodeInterest(
   iraBeginning: number,
   conversionAmount: number,
   rothBeginning: number,

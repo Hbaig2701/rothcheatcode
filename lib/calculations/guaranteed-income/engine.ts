@@ -52,32 +52,32 @@ function getPayoutFactor(payoutType: 'individual' | 'joint', age: number): numbe
 // Break-even / Tax savings / Heir benefit (same formulas as Growth engine)
 // ---------------------------------------------------------------------------
 
-function calculateBreakEvenAge(baseline: YearlyResult[], blueprint: YearlyResult[]): number | null {
+function calculateBreakEvenAge(baseline: YearlyResult[], cheatCode: YearlyResult[]): number | null {
   for (let i = 0; i < baseline.length; i++) {
-    if (blueprint[i].netWorth > baseline[i].netWorth) {
-      return blueprint[i].age;
+    if (cheatCode[i].netWorth > baseline[i].netWorth) {
+      return cheatCode[i].age;
     }
   }
   return null;
 }
 
-function calculateTaxSavings(baseline: YearlyResult[], blueprint: YearlyResult[]): number {
+function calculateTaxSavings(baseline: YearlyResult[], cheatCode: YearlyResult[]): number {
   const baselineTotalTax = baseline.reduce((s, y) => s + y.totalTax, 0);
-  const blueprintTotalTax = blueprint.reduce((s, y) => s + y.totalTax, 0);
-  return baselineTotalTax - blueprintTotalTax;
+  const cheatCodeTotalTax = cheatCode.reduce((s, y) => s + y.totalTax, 0);
+  return baselineTotalTax - cheatCodeTotalTax;
 }
 
 function calculateHeirBenefit(
   baseline: YearlyResult[],
-  blueprint: YearlyResult[],
+  cheatCode: YearlyResult[],
   heirTaxRate: number
 ): number {
   const heirRate = (heirTaxRate ?? 40) / 100;
   const lastBase = baseline[baseline.length - 1];
-  const lastBlue = blueprint[blueprint.length - 1];
+  const lastCheatCode = cheatCode[cheatCode.length - 1];
 
   const baseHeirTax = Math.round(lastBase.traditionalBalance * heirRate);
-  const blueHeirTax = Math.round(lastBlue.traditionalBalance * heirRate);
+  const blueHeirTax = Math.round(lastCheatCode.traditionalBalance * heirRate);
 
   return baseHeirTax - blueHeirTax;
 }
@@ -93,28 +93,28 @@ export function runGuaranteedIncomeSimulation(
   const projectionYears = endYear - startYear + 1;
 
   // Run both scenarios
-  const { blueprint, giMetrics } = runGIBlueprintScenario(client, startYear, projectionYears);
+  const { cheatCode, giMetrics } = runGICheatCodeScenario(client, startYear, projectionYears);
   const baseline = runGIBaselineScenario(client, startYear, projectionYears, giMetrics.annualIncomeGross, giMetrics.incomeStartAge);
 
   return {
     baseline,
-    blueprint,
-    breakEvenAge: calculateBreakEvenAge(baseline, blueprint),
-    totalTaxSavings: calculateTaxSavings(baseline, blueprint),
-    heirBenefit: calculateHeirBenefit(baseline, blueprint, client.heir_tax_rate ?? 40),
+    cheatCode,
+    breakEvenAge: calculateBreakEvenAge(baseline, cheatCode),
+    totalTaxSavings: calculateTaxSavings(baseline, cheatCode),
+    heirBenefit: calculateHeirBenefit(baseline, cheatCode, client.heir_tax_rate ?? 40),
     giMetrics,
   };
 }
 
 // ---------------------------------------------------------------------------
-// GI Blueprint Scenario
+// GI CheatCode Scenario
 // ---------------------------------------------------------------------------
 
-function runGIBlueprintScenario(
+function runGICheatCodeScenario(
   client: Client,
   startYear: number,
   projectionYears: number
-): { blueprint: YearlyResult[]; giMetrics: GIMetrics } {
+): { cheatCode: YearlyResult[]; giMetrics: GIMetrics } {
   const results: YearlyResult[] = [];
   const giYearlyData: GIYearData[] = [];
 
@@ -451,7 +451,7 @@ function runGIBlueprintScenario(
     yearlyData: giYearlyData,
   };
 
-  return { blueprint: results, giMetrics };
+  return { cheatCode: results, giMetrics };
 }
 
 // ---------------------------------------------------------------------------

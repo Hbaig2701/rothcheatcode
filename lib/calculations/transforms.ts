@@ -10,7 +10,7 @@ export interface ChartDataPoint {
   age: number;
   year: number;
   baseline: number;   // Lifetime wealth in cents
-  blueprint: number;  // Lifetime wealth in cents
+  cheatCode: number;  // Lifetime wealth in cents
 }
 
 /**
@@ -18,10 +18,10 @@ export interface ChartDataPoint {
  */
 export interface SummaryMetrics {
   baselineEndWealth: number;    // Final year netWorth, cents
-  blueprintEndWealth: number;   // Final year netWorth, cents
-  difference: number;           // blueprint - baseline, cents
+  cheatCodeEndWealth: number;   // Final year netWorth, cents
+  difference: number;           // cheatCode - baseline, cents
   totalTaxSavings: number;      // From projection, cents
-  breakEvenAge: number | null;  // Age where blueprint exceeds baseline
+  breakEvenAge: number | null;  // Age where cheatCode exceeds baseline
   heirBenefit: number;          // Benefit to heirs, cents
 }
 
@@ -33,14 +33,14 @@ function isProjection(input: Projection | SimulationResult): input is Projection
 }
 
 /**
- * Calculate Lifetime Wealth Trajectory for BLUEPRINT scenario
+ * Calculate Lifetime Wealth Trajectory for CHEATCODE scenario
  *
- * BLUEPRINT: lifetimeWealth = eoy_combined - cumulativeConversionTaxes - cumulativeIRMAA
+ * CHEATCODE: lifetimeWealth = eoy_combined - cumulativeConversionTaxes - cumulativeIRMAA
  *
  * Conversions are NOT distributions (money stays in account, just moves from Traditional to Roth).
  * But conversion taxes ARE costs. Roth passes to heirs tax-free.
  */
-function calculateBlueprintLifetimeWealth(years: YearlyResult[]): number[] {
+function calculateCheatCodeLifetimeWealth(years: YearlyResult[]): number[] {
   let cumulativeTaxes = 0;
   let cumulativeIRMAA = 0;
 
@@ -51,7 +51,7 @@ function calculateBlueprintLifetimeWealth(years: YearlyResult[]): number[] {
     // Accumulate IRMAA surcharges
     cumulativeIRMAA += year.irmaaSurcharge || 0;
 
-    // Blueprint: Full account balance (Roth = no heir tax) minus costs paid
+    // CheatCode: Full account balance (Roth = no heir tax) minus costs paid
     return year.netWorth - cumulativeTaxes - cumulativeIRMAA;
   });
 }
@@ -86,9 +86,9 @@ function calculateBaselineLifetimeWealth(
 }
 
 /**
- * Calculate Lifetime Wealth Trajectory for GI BLUEPRINT scenario
+ * Calculate Lifetime Wealth Trajectory for GI CHEATCODE scenario
  *
- * GI Blueprint:
+ * GI CheatCode:
  *   lifetimeWealth = cumulativeNetGIPayments
  *                  + netLegacy (accountValue * (1 - heirTaxRate) + rothBalance)
  *                  - cumulativeConversionTaxes (deferral phase only)
@@ -97,8 +97,8 @@ function calculateBaselineLifetimeWealth(
  * During deferral: taxes are conversion taxes (cost). No income received.
  * During income: after-tax GI payments are income. Taxes on GI already excluded from net.
  */
-function calculateGIBlueprintLifetimeWealth(
-  blueprintYears: YearlyResult[],
+function calculateGICheatCodeLifetimeWealth(
+  cheatCodeYears: YearlyResult[],
   giYearlyData: GIYearlyData[],
   heirTaxRate: number = 0.40
 ): number[] {
@@ -106,7 +106,7 @@ function calculateGIBlueprintLifetimeWealth(
   let cumulativeConversionTaxes = 0;
   let cumulativeIRMAA = 0;
 
-  return blueprintYears.map((year, index) => {
+  return cheatCodeYears.map((year, index) => {
     const giYear = giYearlyData[index];
 
     cumulativeIRMAA += year.irmaaSurcharge || 0;
@@ -128,11 +128,11 @@ function calculateGIBlueprintLifetimeWealth(
 
 /**
  * Transform GI projection data into chart-ready format
- * Uses GI-specific blueprint wealth calculation and standard baseline calculation
+ * Uses GI-specific CheatCode wealth calculation and standard baseline calculation
  */
 export function transformToGIChartData(projection: Projection): ChartDataPoint[] {
   const baselineWealth = calculateBaselineLifetimeWealth(projection.baseline_years);
-  const blueprintWealth = calculateGIBlueprintLifetimeWealth(
+  const cheatCodeWealth = calculateGICheatCodeLifetimeWealth(
     projection.blueprint_years,
     projection.gi_yearly_data || [],
   );
@@ -141,7 +141,7 @@ export function transformToGIChartData(projection: Projection): ChartDataPoint[]
     age: baseYear.age,
     year: baseYear.year,
     baseline: Math.round(baselineWealth[index]),
-    blueprint: Math.round(blueprintWealth[index]),
+    cheatCode: Math.round(cheatCodeWealth[index]),
   }));
 }
 
@@ -151,7 +151,7 @@ export function transformToGIChartData(projection: Projection): ChartDataPoint[]
  *
  * Lifetime Wealth represents "if I died at this age, what would my total lifetime wealth be?"
  *
- * BLUEPRINT: eoy_combined - cumulativeTaxes - cumulativeIRMAA
+ * CHEATCODE: eoy_combined - cumulativeTaxes - cumulativeIRMAA
  *   (Roth passes tax-free, conversions aren't distributions but taxes are costs)
  *
  * BASELINE: (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
@@ -163,29 +163,29 @@ export function transformToChartData(data: Projection | SimulationResult): Chart
   if (isProjection(data)) {
     // Database Projection (snake_case)
     const baselineYears = data.baseline_years;
-    const blueprintYears = data.blueprint_years;
+    const cheatCodeYears = data.blueprint_years;
 
     const baselineWealth = calculateBaselineLifetimeWealth(baselineYears);
-    const blueprintWealth = calculateBlueprintLifetimeWealth(blueprintYears);
+    const cheatCodeWealth = calculateCheatCodeLifetimeWealth(cheatCodeYears);
 
     return baselineYears.map((baseYear, index) => ({
       age: baseYear.age,
       year: baseYear.year,
       baseline: Math.round(baselineWealth[index]),
-      blueprint: Math.round(blueprintWealth[index]),
+      cheatCode: Math.round(cheatCodeWealth[index]),
     }));
   } else {
     // In-memory SimulationResult (camelCase)
-    const { baseline, blueprint } = data;
+    const { baseline, cheatCode } = data;
 
     const baselineWealth = calculateBaselineLifetimeWealth(baseline);
-    const blueprintWealth = calculateBlueprintLifetimeWealth(blueprint);
+    const cheatCodeWealth = calculateCheatCodeLifetimeWealth(cheatCode);
 
     return baseline.map((baseYear, index) => ({
       age: baseYear.age,
       year: baseYear.year,
       baseline: Math.round(baselineWealth[index]),
-      blueprint: Math.round(blueprintWealth[index]),
+      cheatCode: Math.round(cheatCodeWealth[index]),
     }));
   }
 }
@@ -199,7 +199,7 @@ export function extractSummaryMetrics(data: Projection | SimulationResult): Summ
     // Database Projection - uses pre-calculated final values
     return {
       baselineEndWealth: data.baseline_final_net_worth,
-      blueprintEndWealth: data.blueprint_final_net_worth,
+      cheatCodeEndWealth: data.blueprint_final_net_worth,
       difference: data.blueprint_final_net_worth - data.baseline_final_net_worth,
       totalTaxSavings: data.total_tax_savings,
       breakEvenAge: data.break_even_age,
@@ -208,12 +208,12 @@ export function extractSummaryMetrics(data: Projection | SimulationResult): Summ
   } else {
     // In-memory SimulationResult - extract from arrays
     const lastBaseline = data.baseline[data.baseline.length - 1];
-    const lastBlueprint = data.blueprint[data.blueprint.length - 1];
+    const lastCheatCode = data.cheatCode[data.cheatCode.length - 1];
 
     return {
       baselineEndWealth: lastBaseline.netWorth,
-      blueprintEndWealth: lastBlueprint.netWorth,
-      difference: lastBlueprint.netWorth - lastBaseline.netWorth,
+      cheatCodeEndWealth: lastCheatCode.netWorth,
+      difference: lastCheatCode.netWorth - lastBaseline.netWorth,
       totalTaxSavings: data.totalTaxSavings,
       breakEvenAge: data.breakEvenAge,
       heirBenefit: data.heirBenefit,
@@ -269,7 +269,7 @@ export function transformToSensitivityChartData(
 
   // Build map of age -> scenario values
   for (const [name, scenario] of Object.entries(result.scenarios)) {
-    for (const yearData of scenario.blueprint) {
+    for (const yearData of scenario.cheatCode) {
       const existing = ageMap.get(yearData.age);
       if (existing) {
         existing[name] = yearData.netWorth;

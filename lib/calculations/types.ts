@@ -176,8 +176,8 @@ export interface SimulationInput {
 
 export interface SimulationResult {
   baseline: YearlyResult[]; // No conversion scenario
-  blueprint: YearlyResult[]; // Roth conversion scenario
-  breakEvenAge: number | null; // Age when blueprint becomes beneficial
+  cheatCode: YearlyResult[]; // Roth conversion scenario
+  breakEvenAge: number | null; // Age when cheatCode becomes beneficial
   totalTaxSavings: number; // Lifetime tax savings in cents
   heirBenefit: number; // Benefit to heirs in cents
 }
@@ -198,7 +198,7 @@ export type StrategyType = 'conservative' | 'moderate' | 'aggressive' | 'irmaa_s
 export interface StrategyComparisonMetrics {
   endingWealth: number;        // Final year net worth (cents)
   taxSavings: number;          // Lifetime tax savings vs baseline (cents)
-  breakEvenAge: number | null; // Age when Blueprint surpasses Baseline
+  breakEvenAge: number | null; // Age when CheatCode surpasses Baseline
   totalIRMAA: number;          // Total IRMAA surcharges paid (cents)
   heirBenefit: number;         // Tax benefit to heirs (cents)
   totalConversions: number;    // Sum of all conversions (cents)

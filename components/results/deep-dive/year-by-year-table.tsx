@@ -40,7 +40,7 @@ const COLUMNS: TableColumn[] = [
 
 interface YearByYearTableProps {
   years: YearlyResult[];
-  scenario: "baseline" | "blueprint";
+  scenario: "baseline" | "cheatCode";
 }
 
 /**
@@ -61,10 +61,10 @@ export function YearByYearTable({ years, scenario }: YearByYearTableProps) {
   };
 
   /**
-   * Check if this row has a conversion (for blueprint highlighting)
+   * Check if this row has a conversion (for cheatCode highlighting)
    */
   const hasConversion = (row: YearlyResult): boolean => {
-    return scenario === "blueprint" && row.conversionAmount > 0;
+    return scenario === "cheatCode" && row.conversionAmount > 0;
   };
 
   return (

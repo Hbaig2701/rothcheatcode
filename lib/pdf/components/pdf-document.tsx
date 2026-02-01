@@ -63,7 +63,7 @@ export function PDFDocument({
   data,
   chartImages,
 }: PDFDocumentProps) {
-  const { metrics, multiStrategy, blueprintYears, keyYears } = data;
+  const { metrics, multiStrategy, cheatCodeYears, keyYears } = data;
 
   return (
     <Document
@@ -131,10 +131,10 @@ export function PDFDocument({
 
         <View style={documentStyles.section}>
           <Text style={documentStyles.sectionTitle}>Year-by-Year Projection</Text>
-          {/* Use keyYears if available, otherwise fall back to blueprintYears */}
+          {/* Use keyYears if available, otherwise fall back to cheatCodeYears */}
           <PDFYearTable
-            years={keyYears.length > 0 ? keyYears : blueprintYears}
-            title="Blueprint Scenario (Recommended)"
+            years={keyYears.length > 0 ? keyYears : cheatCodeYears}
+            title="CheatCode Scenario (Recommended)"
           />
         </View>
 

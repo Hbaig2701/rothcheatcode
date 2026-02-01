@@ -55,24 +55,24 @@ function transformToPDFData(
   };
 
   // Get key years (every 5 years + first + last)
-  const blueprintYears = bestResult.blueprint;
+  const cheatCodeYears = bestResult.cheatCode;
   const keyYears: YearlyResult[] = [];
 
-  if (blueprintYears.length > 0) {
+  if (cheatCodeYears.length > 0) {
     // Always include first year
-    keyYears.push(blueprintYears[0]);
+    keyYears.push(cheatCodeYears[0]);
 
     // Add every 5th year (by age)
-    const startAge = blueprintYears[0].age;
-    for (let i = 1; i < blueprintYears.length - 1; i++) {
-      const yearData = blueprintYears[i];
+    const startAge = cheatCodeYears[0].age;
+    for (let i = 1; i < cheatCodeYears.length - 1; i++) {
+      const yearData = cheatCodeYears[i];
       if ((yearData.age - startAge) % 5 === 0) {
         keyYears.push(yearData);
       }
     }
 
     // Always include last year
-    const lastYear = blueprintYears[blueprintYears.length - 1];
+    const lastYear = cheatCodeYears[cheatCodeYears.length - 1];
     if (keyYears[keyYears.length - 1]?.year !== lastYear.year) {
       keyYears.push(lastYear);
     }
@@ -83,7 +83,7 @@ function transformToPDFData(
     multiStrategy: result,
     bestStrategy,
     baselineYears: bestResult.baseline,
-    blueprintYears: bestResult.blueprint,
+    cheatCodeYears: bestResult.cheatCode,
     keyYears,
   };
 }

@@ -62,7 +62,7 @@ export async function GET(
   };
 
   // Always compute breakeven analysis
-  response.breakeven = analyzeBreakEven(baseResult.baseline, baseResult.blueprint);
+  response.breakeven = analyzeBreakEven(baseResult.baseline, baseResult.cheatCode);
 
   // Run sensitivity analysis if enabled
   if (typedClient.sensitivity) {

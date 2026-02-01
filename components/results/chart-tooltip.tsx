@@ -26,9 +26,9 @@ export function ChartTooltip({
   }
 
   const baseline = payload.find(p => p.dataKey === 'baseline');
-  const blueprint = payload.find(p => p.dataKey === 'blueprint');
-  const difference = blueprint && baseline
-    ? blueprint.value - baseline.value
+  const cheatCode = payload.find(p => p.dataKey === 'cheatCode');
+  const difference = cheatCode && baseline
+    ? cheatCode.value - baseline.value
     : 0;
 
   return (
@@ -38,9 +38,9 @@ export function ChartTooltip({
         <div className="flex justify-between gap-6">
           <span className="text-[#F5B800] flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#F5B800]"></span>
-            Blueprint:
+            CheatCode:
           </span>
-          <span className="font-mono text-white">{formatCurrency(blueprint?.value ?? 0)}</span>
+          <span className="font-mono text-white">{formatCurrency(cheatCode?.value ?? 0)}</span>
         </div>
         <div className="flex justify-between gap-6">
           <span className="text-red-400 flex items-center gap-2">

@@ -10,7 +10,7 @@ import crypto from 'crypto';
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
-    // New Blueprint fields
+    // New CheatCode fields
     age: client.age,
     qualified_account_value: client.qualified_account_value,
     carrier_name: client.carrier_name,
@@ -80,7 +80,7 @@ function simulationToProjection(
   giMetrics?: GIMetrics
 ): ProjectionInsert {
   const lastBaseline = result.baseline[result.baseline.length - 1];
-  const lastBlueprint = result.blueprint[result.blueprint.length - 1];
+  const lastCheatCode = result.cheatCode[result.cheatCode.length - 1];
 
   // Determine strategy from conversion_type or legacy strategy field
   const strategy = client.conversion_type
@@ -103,12 +103,12 @@ function simulationToProjection(
     baseline_final_roth: lastBaseline.rothBalance,
     baseline_final_taxable: lastBaseline.taxableBalance,
     baseline_final_net_worth: lastBaseline.netWorth,
-    blueprint_final_traditional: lastBlueprint.traditionalBalance,
-    blueprint_final_roth: lastBlueprint.rothBalance,
-    blueprint_final_taxable: lastBlueprint.taxableBalance,
-    blueprint_final_net_worth: lastBlueprint.netWorth,
+    blueprint_final_traditional: lastCheatCode.traditionalBalance,
+    blueprint_final_roth: lastCheatCode.rothBalance,
+    blueprint_final_taxable: lastCheatCode.taxableBalance,
+    blueprint_final_net_worth: lastCheatCode.netWorth,
     baseline_years: result.baseline,
-    blueprint_years: result.blueprint,
+    blueprint_years: result.cheatCode,
     strategy,
     projection_years: projectionYears,
     // GI-specific metrics (null for Growth products)

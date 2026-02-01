@@ -26,7 +26,7 @@ interface BreakevenChartProps {
  * Get color for crossover marker based on direction
  */
 function getCrossoverColor(direction: CrossoverPoint['direction']): string {
-  return direction === 'blueprint_ahead' ? '#F5B800' : '#ef4444'; // gold or red
+  return direction === 'cheatCode_ahead' ? '#F5B800' : '#ef4444'; // gold or red
 }
 
 /**
@@ -110,11 +110,11 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
               activeDot={{ r: 6 }}
             />
 
-            {/* Blueprint line - gold */}
+            {/* CheatCode line - gold */}
             <Line
               type="monotone"
-              dataKey="blueprint"
-              name="Blueprint (Roth Conversion)"
+              dataKey="cheatCode"
+              name="CheatCode (Roth Conversion)"
               stroke="#F5B800"
               strokeWidth={3}
               dot={false}
@@ -153,7 +153,7 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
                 />
               ))}
 
-            {/* Shade area where blueprint is ahead (if sustained breakeven exists) */}
+            {/* Shade area where cheatCode is ahead (if sustained breakeven exists) */}
             {sustainedBreakEven && data.length > 0 && (
               <ReferenceArea
                 x1={sustainedBreakEven}

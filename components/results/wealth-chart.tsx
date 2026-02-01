@@ -54,11 +54,11 @@ export function WealthChart({ data, breakEvenAge }: WealthChartProps) {
             domain={[0, 'auto']}
           />
           <Tooltip content={<ChartTooltip />} />
-          {/* Blueprint line - gold (Roth = no heir tax = higher wealth) */}
+          {/* CheatCode line - gold (Roth = no heir tax = higher wealth) */}
           <Line
             type="monotone"
-            dataKey="blueprint"
-            name="Blueprint Wealth Trajectory"
+            dataKey="cheatCode"
+            name="CheatCode Wealth Trajectory"
             stroke="#F5B800"
             strokeWidth={3}
             dot={false}

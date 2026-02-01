@@ -107,7 +107,7 @@ interface TemplateData {
   lifetimeWealthChartImage?: string;
   conversionChartImage?: string;
   baseline: ScenarioData;
-  blueprint: ScenarioData;
+  cheatCode: ScenarioData;
   diff: {
     distributions: number;
     taxes: number;
@@ -172,7 +172,7 @@ function determineBracket(taxableIncome: number, filingStatus: string): number {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'blueprint'): {
+function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'cheatCode'): {
   accountValues: YearRow[];
   taxableIncome: YearRow[];
   irmaa: YearRow[];
@@ -188,7 +188,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'bl
     const prevYear = index > 0 ? years[index - 1] : null;
     const boyTraditional = prevYear
       ? prevYear.traditionalBalance
-      : scenario === 'blueprint'
+      : scenario === 'cheatCode'
         ? Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 10) / 100))
         : (client.qualified_account_value ?? 0);
     const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
@@ -210,7 +210,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'bl
       distIra -
       year.totalTax -
       year.irmaaSurcharge -
-      (scenario === 'blueprint' ? year.conversionAmount : 0);
+      (scenario === 'cheatCode' ? year.conversionAmount : 0);
 
     const baseRow = {
       year: year.year,
@@ -349,7 +349,7 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
   const baseLifetimeWealth = baseNetLegacy + baseAfterTaxDist - baseIrmaa;
   const baseTotalCosts = baseTax + baseIrmaa + baseLegacyTax;
 
-  // Blueprint metrics
+  // CheatCode metrics
   const blueConversions = sum(projection.blueprint_years, 'conversionAmount');
   const blueTax = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
   const blueIrmaa = sum(projection.blueprint_years, 'irmaaSurcharge');
@@ -365,7 +365,7 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
 
   // Process yearly data
   const baselineData = processYearlyData(projection.baseline_years, client, 'baseline');
-  const blueprintData = processYearlyData(projection.blueprint_years, client, 'blueprint');
+  const cheatCodeData = processYearlyData(projection.blueprint_years, client, 'cheatCode');
 
   // Get conversion details (years with conversions)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -437,7 +437,7 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
       lifetimeWealth: formatCurrency(baseLifetimeWealth),
       ...baselineData,
     },
-    blueprint: {
+    cheatCode: {
       totalDistributions: formatCurrency(0),
       totalConversions: formatCurrency(blueConversions),
       taxOnDistributions: formatCurrency(0),
@@ -449,7 +449,7 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
       totalDist: formatCurrency(blueFinalBalance),
       totalCosts: formatCurrency(blueTotalCosts),
       lifetimeWealth: formatCurrency(blueLifetimeWealth),
-      ...blueprintData,
+      ...cheatCodeData,
     },
     diff: {
       // Raw values for use with formatDiff helper (cents)
@@ -538,7 +538,7 @@ export async function POST(request: NextRequest) {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="RothBlueprint_${sanitizedName}.pdf"`,
+        'Content-Disposition': `attachment; filename="RothCheatCode_${sanitizedName}.pdf"`,
       },
     });
   } catch (error) {
