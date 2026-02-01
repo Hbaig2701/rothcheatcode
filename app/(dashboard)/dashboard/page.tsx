@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { DashboardContent } from './dashboard-content'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -9,12 +10,10 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  return (
-    <div>
-      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
-      <p className="text-muted-foreground">
-        Welcome, {user.email}
-      </p>
-    </div>
-  )
+  // Extract first name from email or metadata
+  const userName = user.user_metadata?.full_name
+    ?? user.email?.split('@')[0]
+    ?? 'Agent'
+
+  return <DashboardContent userName={userName} />
 }
