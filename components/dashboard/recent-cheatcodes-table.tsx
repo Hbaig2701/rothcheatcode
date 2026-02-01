@@ -21,7 +21,7 @@ function formatDate(dateStr: string): string {
 
 export function RecentCheatCodesTable({ data }: RecentCheatCodesTableProps) {
   return (
-    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-teal-500 transition-all">
+    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-[#F5B800] transition-all">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-[#8b95a5] mb-4">
         Recent CheatCodes
       </h3>
@@ -56,7 +56,7 @@ export function RecentCheatCodesTable({ data }: RecentCheatCodesTableProps) {
                   <td className="py-3 border-b border-[#2d3a4f]">
                     <Link
                       href={`/clients/${item.id}`}
-                      className="text-sm text-white hover:text-teal-400 transition-colors"
+                      className="text-sm text-white hover:text-[#F5B800] transition-colors"
                     >
                       {item.clientName}
                     </Link>
@@ -87,7 +87,7 @@ export function RecentCheatCodesTable({ data }: RecentCheatCodesTableProps) {
           <div className="mt-4 text-center">
             <Link
               href="/clients"
-              className="text-sm text-teal-400 hover:text-teal-300 transition-colors"
+              className="text-sm text-[#F5B800] hover:text-[#F5B800]/80 transition-colors"
             >
               View All CheatCodes &rarr;
             </Link>

@@ -8,12 +8,12 @@ import { ALL_PRODUCTS } from "@/lib/config/products";
 import type { CheatCodeType } from "@/lib/config/products";
 
 const PRODUCT_COLORS = [
-  "#14b8a6", // teal
+  "#F5B800", // gold (primary brand)
   "#3b82f6", // blue
   "#8b5cf6", // purple
-  "#f59e0b", // yellow
-  "#ef4444", // red
   "#22c55e", // green
+  "#ef4444", // red
+  "#f59e0b", // amber
   "#6366f1", // indigo
 ];
 
@@ -88,7 +88,7 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
     (sum, p) => sum + p.blueprint_final_net_worth,
     0
   );
-  const totalTaxSavings = projections.reduce((sum, p) => sum + p.total_tax_savings, 0);
+  const totalTaxSavings = Math.abs(projections.reduce((sum, p) => sum + p.total_tax_savings, 0));
   const totalLegacyProtected = projections.reduce(
     (sum, p) => sum + Math.round(p.blueprint_final_roth * 0.4),
     0

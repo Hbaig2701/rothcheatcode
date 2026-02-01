@@ -20,7 +20,7 @@ export function ConversionPipeline({
   }
 
   return (
-    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-teal-500 transition-all">
+    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-[#F5B800] transition-all">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-[#8b95a5] mb-1">
         Conversion Pipeline
       </h3>
@@ -88,7 +88,7 @@ export function ConversionPipeline({
                       className={`h-full rounded-full transition-all ${
                         item.isComplete
                           ? "bg-green-500"
-                          : "bg-gradient-to-r from-teal-500 to-green-500"
+                          : "bg-gradient-to-r from-[#F5B800] to-[#D4A000]"
                       }`}
                       style={{ width: `${item.percentComplete}%` }}
                     />

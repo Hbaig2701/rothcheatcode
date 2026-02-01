@@ -28,7 +28,7 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
   }
 
   return (
-    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-teal-500 transition-all">
+    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-[#F5B800] transition-all">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-[#8b95a5] mb-6">
         Product Mix
       </h3>

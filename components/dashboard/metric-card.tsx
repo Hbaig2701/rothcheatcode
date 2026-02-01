@@ -10,7 +10,7 @@ const ICONS: Record<string, LucideIcon> = {
 };
 
 const COLOR_STYLES: Record<string, { bg: string; text: string }> = {
-  teal: { bg: "bg-teal-500/15", text: "text-teal-400" },
+  gold: { bg: "bg-[#F5B800]/15", text: "text-[#F5B800]" },
   green: { bg: "bg-green-500/15", text: "text-green-400" },
   blue: { bg: "bg-blue-500/15", text: "text-blue-400" },
 };
@@ -20,15 +20,15 @@ interface MetricCardProps {
   value: string | number;
   subtitle: string;
   icon: string;
-  color: "teal" | "green" | "blue";
+  color: "gold" | "green" | "blue";
 }
 
 export function MetricCard({ title, value, subtitle, icon, color }: MetricCardProps) {
   const Icon = ICONS[icon] ?? FileText;
-  const colorStyle = COLOR_STYLES[color] ?? COLOR_STYLES.teal;
+  const colorStyle = COLOR_STYLES[color] ?? COLOR_STYLES.gold;
 
   return (
-    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-5 hover:bg-[#242f42] hover:border-teal-500 transition-all">
+    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-5 hover:bg-[#242f42] hover:border-[#F5B800] transition-all">
       <div
         className={`w-10 h-10 rounded-[10px] flex items-center justify-center mb-3 ${colorStyle.bg}`}
       >

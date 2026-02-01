@@ -23,7 +23,7 @@ export function ClientInsightsPanel({
   const hohPct = totalClients > 0 ? Math.round((filingStatusBreakdown.hoh / totalClients) * 100) : 0;
 
   return (
-    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-teal-500 transition-all">
+    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-[#F5B800] transition-all">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-[#8b95a5] mb-6">
         Client Insights
       </h3>
@@ -66,7 +66,7 @@ export function ClientInsightsPanel({
         {/* Approaching RMD */}
         <div>
           <p className="text-sm text-[#8b95a5] mb-1">Approaching RMD Age (75)</p>
-          <p className="text-xl font-bold text-yellow-400">
+          <p className="text-xl font-bold text-[#F5B800]">
             {approachingRMDCount}{" "}
             <span className="text-sm font-normal text-[#5f6b7a]">
               clients within 3 years
@@ -87,7 +87,7 @@ function StatusBar({ label, percent }: { label: string; percent: number }) {
       </div>
       <div className="w-full h-2 bg-[#0f1419] rounded-full overflow-hidden">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-teal-500 to-green-500 transition-all"
+          className="h-full rounded-full bg-gradient-to-r from-[#F5B800] to-[#D4A000] transition-all"
           style={{ width: `${percent}%` }}
         />
       </div>

@@ -18,11 +18,11 @@ export function ValueDeliveredPanel({
       label: "Total Lifetime Wealth Created",
       value: totalLifetimeWealth,
       description: "Sum of all CheatCode Lifetime Wealth values",
-      color: "text-teal-400",
+      color: "text-[#F5B800]",
     },
     {
       label: "Total Tax Savings",
-      value: totalTaxSavings,
+      value: Math.abs(totalTaxSavings),
       description: "Taxes saved through optimized conversions",
       color: "text-green-400",
     },
@@ -35,7 +35,7 @@ export function ValueDeliveredPanel({
   ];
 
   return (
-    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-teal-500 transition-all">
+    <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-6 hover:bg-[#242f42] hover:border-[#F5B800] transition-all">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-[#8b95a5] mb-1">
         Value Delivered
       </h3>

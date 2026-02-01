@@ -78,7 +78,7 @@ export function DashboardContent({ userName }: DashboardContentProps) {
           value={metrics.totalClients}
           subtitle={`+${metrics.newClientsThisMonth} this month`}
           icon="users"
-          color="teal"
+          color="gold"
         />
         <MetricCard
           title="Assets Under Management"

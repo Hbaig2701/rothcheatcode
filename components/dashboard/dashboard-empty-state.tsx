@@ -7,9 +7,9 @@ export function DashboardEmptyState() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="bg-[#1a2332] border border-[#2d3a4f] rounded-xl p-12 text-center max-w-md">
-        <div className="w-16 h-16 rounded-full bg-teal-500/15 flex items-center justify-center mx-auto mb-6">
+        <div className="w-16 h-16 rounded-full bg-[#F5B800]/15 flex items-center justify-center mx-auto mb-6">
           <svg
-            className="w-8 h-8 text-teal-400"
+            className="w-8 h-8 text-[#F5B800]"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -31,7 +31,7 @@ export function DashboardEmptyState() {
 
         <Link
           href="/clients/new"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-teal-500 hover:bg-teal-600 text-white font-medium rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-[#F5B800] hover:bg-[#D4A000] text-black font-medium rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" />
           Create First CheatCode
