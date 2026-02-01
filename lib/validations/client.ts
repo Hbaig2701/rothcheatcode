@@ -205,7 +205,25 @@ export const clientFullBaseSchema = z.object({
   state: z.string().length(2, "Use 2-letter state code"),
   filing_status: filingStatusEnum,
   spouse_dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format").optional().nullable(),
+  spouse_name: z.string().max(100).optional().nullable(),
+  spouse_age: z.number().int().min(18).max(100).optional().nullable(),
   life_expectancy: z.number().int().min(1).max(120).optional().nullable(),
+
+  // Blueprint Type (product preset)
+  blueprint_type: blueprintTypeEnum.default("fia"),
+
+  // GI-specific fields
+  payout_type: z.enum(['individual', 'joint']).default('individual'),
+  income_start_age: z.number().int().min(55).max(80).default(65),
+  guaranteed_rate_of_return: z.number().min(0).max(30).default(0),
+
+  // Spouse SSI fields
+  spouse_ssi_payout_age: z.number().int().min(62).max(70).optional().nullable(),
+  spouse_ssi_annual_amount: z.number().int().min(0).optional().nullable(),
+
+  // Taxable income fields
+  gross_taxable_non_ssi: z.number().int().min(0).optional().nullable(),
+  tax_exempt_non_ssi: z.number().int().min(0).optional().nullable(),
 
   // Account Balances (legacy)
   traditional_ira: z.number().int().min(0).default(0),
