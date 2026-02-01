@@ -277,7 +277,7 @@
 <body>
   <!-- Page 1: Cover -->
   <div class="page cover-page">
-    <div class="logo">Roth<span>Blueprint</span></div>
+    <div class="logo">Roth<span>CheatCode</span></div>
     <div class="prepared-for">Prepared especially for:</div>
     <div class="client-name">{{clientName}}</div>
     <div class="date">{{reportDate}}</div>
@@ -373,25 +373,25 @@
         <tr>
           <th>Distributions</th>
           <th>Baseline Trajectory</th>
-          <th>Blueprint Trajectory</th>
+          <th>CheatCode Trajectory</th>
           <th>Difference</th>
         </tr>
         <tr>
           <td>RMDs / Conversions</td>
           <td>{{baseline.totalDistributions}}</td>
-          <td>{{blueprint.totalConversions}}</td>
+          <td>{{cheatCode.totalConversions}}</td>
           <td>{{{formatDiff diff.distributions false}}}</td>
         </tr>
         <tr>
           <td>Tax on Distributions / Conversions</td>
           <td>{{baseline.taxOnDistributions}}</td>
-          <td>{{blueprint.taxOnConversions}}</td>
+          <td>{{cheatCode.taxOnConversions}}</td>
           <td>{{{formatDiff diff.taxes true}}}</td>
         </tr>
         <tr>
           <td>After-Tax Distributions</td>
           <td>{{baseline.afterTaxDistributions}}</td>
-          <td>{{blueprint.afterTaxDistributions}}</td>
+          <td>{{cheatCode.afterTaxDistributions}}</td>
           <td>{{{formatDiff diff.afterTax false}}}</td>
         </tr>
       </table>
@@ -400,25 +400,25 @@
         <tr>
           <th>Heirs</th>
           <th>Baseline Trajectory</th>
-          <th>Blueprint Trajectory</th>
+          <th>CheatCode Trajectory</th>
           <th>Difference</th>
         </tr>
         <tr>
           <td>Legacy Distribution</td>
           <td>{{baseline.legacyGross}}</td>
-          <td>{{blueprint.legacyGross}}</td>
+          <td>{{cheatCode.legacyGross}}</td>
           <td>{{{formatDiff diff.legacyGross false}}}</td>
         </tr>
         <tr>
           <td>Tax on Legacy Distribution</td>
           <td>{{baseline.legacyTax}}</td>
-          <td>{{blueprint.legacyTax}}</td>
+          <td>{{cheatCode.legacyTax}}</td>
           <td>{{{formatDiff diff.legacyTax true}}}</td>
         </tr>
         <tr>
           <td>Net Legacy Distribution</td>
           <td>{{baseline.legacyNet}}</td>
-          <td>{{blueprint.legacyNet}}</td>
+          <td>{{cheatCode.legacyNet}}</td>
           <td>{{{formatDiff diff.legacyNet false}}}</td>
         </tr>
       </table>
@@ -427,25 +427,25 @@
         <tr>
           <th>Wealth</th>
           <th>Baseline Trajectory</th>
-          <th>Blueprint Trajectory</th>
+          <th>CheatCode Trajectory</th>
           <th>Difference</th>
         </tr>
         <tr>
           <td>Total Distributions + Legacy</td>
           <td>{{baseline.totalDist}}</td>
-          <td>{{blueprint.totalDist}}</td>
+          <td>{{cheatCode.totalDist}}</td>
           <td>{{{formatDiff diff.totalDist false}}}</td>
         </tr>
         <tr>
           <td>Total Costs (Taxes + IRMAA)</td>
           <td>{{baseline.totalCosts}}</td>
-          <td>{{blueprint.totalCosts}}</td>
+          <td>{{cheatCode.totalCosts}}</td>
           <td>{{{formatDiff diff.totalCosts true}}}</td>
         </tr>
         <tr class="highlight-row">
           <td><strong>Lifetime Wealth</strong></td>
           <td><strong>{{baseline.lifetimeWealth}}</strong></td>
-          <td><strong>{{blueprint.lifetimeWealth}}</strong></td>
+          <td><strong>{{cheatCode.lifetimeWealth}}</strong></td>
           <td><strong class="diff-positive">{{wealthIncreasePercent}}%</strong></td>
         </tr>
       </table>
@@ -619,10 +619,10 @@
     </table>
   </div>
 
-  <!-- Pages 9-12: Blueprint Tables (same structure as Baseline) -->
+  <!-- Pages 9-12: CheatCode Tables (same structure as Baseline) -->
   <div class="page">
-    <div class="page-header">Blueprint - Account Overview</div>
-    <h1 class="section-title">Blueprint Year-over-Year Values</h1>
+    <div class="page-header">CheatCode - Account Overview</div>
+    <h1 class="section-title">CheatCode Year-over-Year Values</h1>
     <table class="data-table">
       <tr>
         <th>Year</th>
@@ -636,7 +636,7 @@
         <th>Interest</th>
         <th>E.O.Y. (Combined)</th>
       </tr>
-      {{#each blueprint.accountValues}}
+      {{#each cheatCode.accountValues}}
       <tr>
         <td>{{this.year}}</td>
         <td>{{this.age}}</td>
@@ -654,8 +654,8 @@
   </div>
 
   <div class="page">
-    <div class="page-header">Blueprint - Taxable Income</div>
-    <h1 class="section-title">Blueprint Taxable Income</h1>
+    <div class="page-header">CheatCode - Taxable Income</div>
+    <h1 class="section-title">CheatCode Taxable Income</h1>
     <table class="data-table">
       <tr>
         <th>Year</th>
@@ -668,7 +668,7 @@
         <th>Deduc.</th>
         <th>Income (Taxable)</th>
       </tr>
-      {{#each blueprint.taxableIncome}}
+      {{#each cheatCode.taxableIncome}}
       <tr>
         <td>{{this.year}}</td>
         <td>{{this.age}}</td>
@@ -685,8 +685,8 @@
   </div>
 
   <div class="page">
-    <div class="page-header">Blueprint - IRMAA</div>
-    <h1 class="section-title">Blueprint IRMAA</h1>
+    <div class="page-header">CheatCode - IRMAA</div>
+    <h1 class="section-title">CheatCode IRMAA</h1>
     <table class="data-table">
       <tr>
         <th>Year</th>
@@ -697,7 +697,7 @@
         <th>Tier</th>
         <th>IRMAA (Total)</th>
       </tr>
-      {{#each blueprint.irmaa}}
+      {{#each cheatCode.irmaa}}
       <tr>
         <td>{{this.year}}</td>
         <td>{{this.age}}</td>
@@ -712,8 +712,8 @@
   </div>
 
   <div class="page">
-    <div class="page-header">Blueprint - Net Income</div>
-    <h1 class="section-title">Blueprint Net Income</h1>
+    <div class="page-header">CheatCode - Net Income</div>
+    <h1 class="section-title">CheatCode Net Income</h1>
     <table class="data-table">
       <tr>
         <th>Year</th>
@@ -727,7 +727,7 @@
         <th>Converted</th>
         <th>Income (Net)</th>
       </tr>
-      {{#each blueprint.netIncome}}
+      {{#each cheatCode.netIncome}}
       <tr>
         <td>{{this.year}}</td>
         <td>{{this.age}}</td>
@@ -759,7 +759,7 @@
         This means that actual non-guaranteed account values may be higher or lower than those shown from the calculations and summaries. Market Value Adjustments are subject to daily fluctuations and may change the surrender value used for the above calculations. Please consult your carrier for the most recent values.
       </p>
       <p style="margin-top: 40px; text-align: center; font-style: italic;">
-        Generated by RothBlueprint on {{reportDate}}
+        Generated by RothCheatCode on {{reportDate}}
       </p>
     </div>
   </div>

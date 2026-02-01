@@ -1,6 +1,6 @@
 /**
  * US State Tax Data
- * Source: Roth Blueprint Specification v1.0
+ * Source: Roth CheatCode Specification v1.0
  *
  * Note: These are effective/simplified rates used for Roth conversion calculations.
  * For states with progressive systems, these represent reasonable effective rates.

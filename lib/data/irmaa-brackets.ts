@@ -2,7 +2,7 @@
  * Medicare IRMAA surcharge tiers for 2026 (Estimated)
  * All monetary values in cents
  *
- * Source: Roth Blueprint Specification v1.0
+ * Source: Roth CheatCode Specification v1.0
  *
  * IRMAA (Income-Related Monthly Adjustment Amount) is a Medicare Part B/D
  * surcharge based on income from 2 years prior (lookback).

@@ -41,14 +41,14 @@ export function runCheatCodeScenario(
     ? getBirthYearFromAge(clientAge, startYear)
     : (client.date_of_birth ? new Date(client.date_of_birth).getFullYear() : startYear - clientAge);
 
-  // Use rate_of_return for blueprint scenario (spec default: 7%)
+  // Use rate_of_return for cheatCode scenario (spec default: 7%)
   const growthRate = (client.rate_of_return ?? client.growth_rate ?? 7) / 100;
 
   // Initial qualified account value
   const initialQualifiedValue = client.qualified_account_value ?? client.traditional_ira ?? 0;
 
   // Apply insurance product bonus
-  // Per specification: blueprint_initial_value = qualified_account_value × (1 + bonus_rate)
+  // Per specification: cheatCode_initial_value = qualified_account_value × (1 + bonus_rate)
   const bonusRate = (client.bonus_percent ?? 10) / 100;
   let iraBalance = Math.round(initialQualifiedValue * (1 + bonusRate));
 
@@ -201,7 +201,7 @@ export function runCheatCodeScenario(
 
     // Calculate interest AFTER conversion
     // Per specification: Interest = (B.O.Y. Balance - Distribution) × Rate
-    // For blueprint, the "distribution" is the conversion
+    // For cheatCode, the "distribution" is the conversion
     const iraInterest = Math.round(iraAfterConversion * growthRate);
     const rothInterest = Math.round(rothAfterConversion * growthRate);
     const taxableInterest = Math.round(boyTaxable * growthRate);

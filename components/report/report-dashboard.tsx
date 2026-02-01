@@ -136,14 +136,14 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const toPercent = (amount: number) => new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 }).format(amount);
 
     // --- Calculate Lifetime Wealth ---
-    // BLUEPRINT (Growth): eoy_combined - cumulativeTaxes - cumulativeIRMAA
+    // CHEATCODE (Growth): eoy_combined - cumulativeTaxes - cumulativeIRMAA
     const calculateCheatCodeLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
         const totalTaxes = sum(years, 'federalTax') + sum(years, 'stateTax');
         const totalIRMAA = sum(years, 'irmaaSurcharge');
         return finalNetWorth - totalTaxes - totalIRMAA;
     };
 
-    // BLUEPRINT (GI): cumulativeNetGI + netLegacy(acctVal*(1-heirTax) + roth) - convTaxes - IRMAA
+    // CHEATCODE (GI): cumulativeNetGI + netLegacy(acctVal*(1-heirTax) + roth) - convTaxes - IRMAA
     const calculateGICheatCodeLifetimeWealthTotal = () => {
         const heirTaxRate = 0.40;
         const giYearlyData = projection.gi_yearly_data || [];

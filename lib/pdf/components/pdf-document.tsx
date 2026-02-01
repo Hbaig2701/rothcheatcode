@@ -87,7 +87,7 @@ export function PDFDocument({
         {chartImages?.wealth && (
           <PDFChartImage
             src={chartImages.wealth}
-            title="Wealth Projection: Baseline vs Blueprint"
+            title="Wealth Projection: Baseline vs CheatCode"
           />
         )}
 

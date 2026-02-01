@@ -58,7 +58,7 @@ export function NewAccountSection() {
 
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
-      {/* Blueprint Type Dropdown */}
+      {/* CheatCode Type Dropdown */}
       <Controller
         name="blueprint_type"
         control={form.control}
@@ -66,11 +66,11 @@ export function NewAccountSection() {
           const selectedProduct = ALL_PRODUCTS[field.value as CheatCodeType];
           return (
             <Field>
-              <FieldLabel htmlFor="blueprint_type">Blueprint Type</FieldLabel>
+              <FieldLabel htmlFor="blueprint_type">CheatCode Type</FieldLabel>
               <Select value={field.value} onValueChange={handleCheatCodeTypeChange}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select blueprint type">
-                    {selectedProduct?.label ?? "Select blueprint type"}
+                  <SelectValue placeholder="Select CheatCode type">
+                    {selectedProduct?.label ?? "Select CheatCode type"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>

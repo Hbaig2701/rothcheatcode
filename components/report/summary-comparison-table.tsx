@@ -27,14 +27,14 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     const baseNetLegacy = baseFinalBalance * (1 - heirTaxRate);
     const baseLegacyTax = baseFinalBalance * heirTaxRate;
 
-    // --- Blueprint Metrics ---
+    // --- CheatCode Metrics ---
     const blueConversions = sum(projection.blueprint_years, 'conversionAmount');
     const blueTax = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
     const blueIrmaa = sum(projection.blueprint_years, 'irmaaSurcharge');
     const blueFinalBalance = projection.blueprint_final_net_worth;
 
-    // Blueprint: Conversions are NOT distributions (money stays in account)
-    // Blueprint: Legacy at 100% (Roth has no heir tax)
+    // CheatCode: Conversions are NOT distributions (money stays in account)
+    // CheatCode: Legacy at 100% (Roth has no heir tax)
     const blueNetLegacy = blueFinalBalance;
     const blueLegacyTax = 0; // Roth has no heir tax
 
@@ -42,7 +42,7 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     // BASELINE: (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
     const baseLifetimeWealth = baseNetLegacy + baseAfterTaxDist - baseIrmaa;
 
-    // BLUEPRINT: eoy_combined - cumulativeTaxes - cumulativeIRMAA
+    // CHEATCODE: eoy_combined - cumulativeTaxes - cumulativeIRMAA
     const blueLifetimeWealth = blueFinalBalance - blueTax - blueIrmaa;
 
     // For display purposes - show what client paid/received
@@ -59,7 +59,7 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
         { label: "Client Distributions", type: "header" },
         { label: "RMDs / Conversions", type: "data", base: baseRMDs, blue: blueConversions },
         { label: "Taxes Paid", type: "data", base: baseTax, blue: blueTax },
-        { label: "After-Tax Distributions", type: "data", base: baseAfterTaxDist, blue: 0, note: "Blueprint: $0 (conversions stay in account)" },
+        { label: "After-Tax Distributions", type: "data", base: baseAfterTaxDist, blue: 0, note: "CheatCode: $0 (conversions stay in account)" },
 
         // GI row - only shown for Guaranteed Income products
         ...(hasGI ? [
@@ -86,7 +86,7 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
             <div className="grid grid-cols-4 bg-[#0A0A0A] border-b border-[#2A2A2A] p-2 font-bold text-[#A0A0A0] uppercase tracking-wider">
                 <div>Metric</div>
                 <div className="text-right">Baseline Trajectory</div>
-                <div className="text-right text-[#F5B800]">Blueprint Trajectory</div>
+                <div className="text-right text-[#F5B800]">CheatCode Trajectory</div>
                 <div className="text-right text-[#F5B800]">Difference</div>
             </div>
             <div className="divide-y divide-[#2A2A2A]/30">

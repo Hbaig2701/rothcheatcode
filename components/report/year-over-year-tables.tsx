@@ -399,7 +399,7 @@ export function YearOverYearTables({
     </table>
   );
 
-  // Render Conversion Details table (Blueprint only)
+  // Render Conversion Details table (CheatCode only)
   const renderConversionDetailsTable = () => (
     <table className="w-full border-collapse min-w-[1100px]">
       <thead>

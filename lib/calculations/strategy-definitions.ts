@@ -15,7 +15,7 @@ export interface StrategyDefinition {
 /**
  * Centralized strategy configurations
  * Used by:
- * - Blueprint scenario to determine conversion amounts
+ * - CheatCode scenario to determine conversion amounts
  * - Comparison table to display strategy names/descriptions
  * - Best strategy determination for tie-breaking by risk
  */

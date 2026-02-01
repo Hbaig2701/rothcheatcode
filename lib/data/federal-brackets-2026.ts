@@ -5,7 +5,7 @@ import { TaxBracket } from '@/lib/calculations/types';
  * All threshold values in cents
  * Rates as percentages (e.g., 22 = 22%)
  *
- * Source: Roth Blueprint Specification v1.0
+ * Source: Roth CheatCode Specification v1.0
  */
 export const FEDERAL_BRACKETS_2026: Record<string, TaxBracket[]> = {
   single: [

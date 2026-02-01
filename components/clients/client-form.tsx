@@ -202,7 +202,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isEditing ? "Edit Client" : "New Client Blueprint"}</CardTitle>
+        <CardTitle>{isEditing ? "Edit Client" : "New Client CheatCode"}</CardTitle>
       </CardHeader>
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit, onValidationError)}>

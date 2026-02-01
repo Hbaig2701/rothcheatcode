@@ -35,7 +35,7 @@ export function useSmartDefaults(form: UseFormReturn<ClientFormData>) {
       if (!endAge || endAge === 100) {
         const lifeExp = calculateLifeExpectancy(age);
         if (lifeExp && lifeExp > age) {
-          // Keep end_age at 100 (default from Blueprint) or life expectancy, whichever is higher
+          // Keep end_age at 100 (default) or life expectancy, whichever is higher
           form.setValue("end_age", Math.max(lifeExp, 100), { shouldDirty: false });
         }
       }

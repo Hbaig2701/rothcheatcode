@@ -31,7 +31,7 @@ function getCrossoverColor(direction: CrossoverPoint['direction']): string {
 
 /**
  * Enhanced breakeven chart showing:
- * - Baseline vs Blueprint wealth lines
+ * - Baseline vs CheatCode wealth lines
  * - All crossover points marked
  * - Sustained breakeven highlighted
  * - Net benefit annotation
