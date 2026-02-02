@@ -55,24 +55,24 @@ function transformToPDFData(
   };
 
   // Get key years (every 5 years + first + last)
-  const cheatCodeYears = bestResult.cheatCode;
+  const formulaYears = bestResult.formula;
   const keyYears: YearlyResult[] = [];
 
-  if (cheatCodeYears.length > 0) {
+  if (formulaYears.length > 0) {
     // Always include first year
-    keyYears.push(cheatCodeYears[0]);
+    keyYears.push(formulaYears[0]);
 
     // Add every 5th year (by age)
-    const startAge = cheatCodeYears[0].age;
-    for (let i = 1; i < cheatCodeYears.length - 1; i++) {
-      const yearData = cheatCodeYears[i];
+    const startAge = formulaYears[0].age;
+    for (let i = 1; i < formulaYears.length - 1; i++) {
+      const yearData = formulaYears[i];
       if ((yearData.age - startAge) % 5 === 0) {
         keyYears.push(yearData);
       }
     }
 
     // Always include last year
-    const lastYear = cheatCodeYears[cheatCodeYears.length - 1];
+    const lastYear = formulaYears[formulaYears.length - 1];
     if (keyYears[keyYears.length - 1]?.year !== lastYear.year) {
       keyYears.push(lastYear);
     }
@@ -83,7 +83,7 @@ function transformToPDFData(
     multiStrategy: result,
     bestStrategy,
     baselineYears: bestResult.baseline,
-    cheatCodeYears: bestResult.cheatCode,
+    formulaYears: bestResult.formula,
     keyYears,
   };
 }

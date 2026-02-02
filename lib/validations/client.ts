@@ -33,7 +33,7 @@ export const withdrawalTypeEnum = z.enum([
 
 export const taxSourceEnum = z.enum(["from_ira", "from_taxable"]);
 
-export const cheatCodeTypeEnum = z.enum([
+export const formulaTypeEnum = z.enum([
   "fia",
   "lincoln-optiblend-7",
   "equitrust-marketedge-bonus",
@@ -63,12 +63,12 @@ export const nonSSIIncomeEntrySchema = z.object({
 });
 
 // ============================================================================
-// CheatCode Form Schema (8 sections)
+// Formula Form Schema (8 sections)
 // ============================================================================
 
-export const clientCheatCodeBaseSchema = z.object({
-  // CheatCode Type (product preset)
-  blueprint_type: cheatCodeTypeEnum.default("fia"),
+export const clientFormulaBaseSchema = z.object({
+  // Formula Type (product preset)
+  blueprint_type: formulaTypeEnum.default("fia"),
 
   // Section 1: Client Data
   filing_status: filingStatusEnum,
@@ -140,7 +140,7 @@ export const clientCheatCodeBaseSchema = z.object({
 });
 
 // Add refinements for the full schema
-export const clientCheatCodeSchema = clientCheatCodeBaseSchema.superRefine((data, ctx) => {
+export const clientFormulaSchema = clientFormulaBaseSchema.superRefine((data, ctx) => {
   // End age must be greater than current age
   if (data.end_age <= data.age) {
     ctx.addIssue({
@@ -166,10 +166,10 @@ export const clientCheatCodeSchema = clientCheatCodeBaseSchema.superRefine((data
 });
 
 // Partial schema for updates
-export const clientCheatCodePartialSchema = clientCheatCodeBaseSchema.partial();
+export const clientFormulaPartialSchema = clientFormulaBaseSchema.partial();
 
 // Type exports
-export type ClientCheatCodeFormData = z.infer<typeof clientCheatCodeSchema>;
+export type ClientFormulaFormData = z.infer<typeof clientFormulaSchema>;
 export type NonSSIIncomeEntry = z.infer<typeof nonSSIIncomeEntrySchema>;
 
 // ============================================================================
@@ -209,8 +209,8 @@ export const clientFullBaseSchema = z.object({
   spouse_age: z.number().int().min(18).max(100).optional().nullable(),
   life_expectancy: z.number().int().min(1).max(120).optional().nullable(),
 
-  // CheatCode Type (product preset)
-  blueprint_type: cheatCodeTypeEnum.default("fia"),
+  // Formula Type (product preset)
+  blueprint_type: formulaTypeEnum.default("fia"),
 
   // GI-specific fields
   payout_type: z.enum(['individual', 'joint']).default('individual'),
@@ -322,7 +322,7 @@ export type ClientFullFormData = z.infer<typeof clientFullSchema>;
 
 // Explicit form type with all fields required for form defaultValues
 export type ClientFormData = {
-  // CheatCode Type (product preset)
+  // Formula Type (product preset)
   blueprint_type: "fia" | "lincoln-optiblend-7" | "equitrust-marketedge-bonus"
     | "athene-ascent-pro-10" | "american-equity-incomeshield-bonus-10"
     | "equitrust-marketearly-income-index" | "north-american-income-pay-pro";

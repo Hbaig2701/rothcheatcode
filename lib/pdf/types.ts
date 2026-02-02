@@ -35,7 +35,7 @@ export interface ChartImages {
 export interface SummaryMetrics {
   endingWealth: number;       // Final year net worth (cents)
   taxSavings: number;         // Lifetime tax savings vs baseline (cents)
-  breakEvenAge: number | null; // Age when cheatCode surpasses baseline
+  breakEvenAge: number | null; // Age when formula surpasses baseline
   totalIRMAA: number;         // Total IRMAA surcharges paid (cents)
   heirBenefit: number;        // Tax benefit to heirs (cents)
 }
@@ -60,8 +60,8 @@ export interface PDFDataProps {
   /** Year-by-year results for baseline scenario */
   baselineYears: YearlyResult[];
 
-  /** Year-by-year results for cheatCode (conversion) scenario */
-  cheatCodeYears: YearlyResult[];
+  /** Year-by-year results for formula (conversion) scenario */
+  formulaYears: YearlyResult[];
 
   /** Key milestone years for summarized table (every 5 years) */
   keyYears: YearlyResult[];

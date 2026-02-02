@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-interface RecentCheatCode {
+interface RecentFormula {
   id: string;
   clientName: string;
   productLabel: string;
@@ -10,8 +10,8 @@ interface RecentCheatCode {
   createdAt: string;
 }
 
-interface RecentCheatCodesTableProps {
-  data: RecentCheatCode[];
+interface RecentFormulasTableProps {
+  data: RecentFormula[];
 }
 
 function formatDate(dateStr: string): string {
@@ -19,15 +19,15 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function RecentCheatCodesTable({ data }: RecentCheatCodesTableProps) {
+export function RecentFormulasTable({ data }: RecentFormulasTableProps) {
   return (
     <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-6 hover:bg-[#1F1F1F] hover:border-[#F5B800] transition-all">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-[#A0A0A0] mb-4">
-        Recent CheatCodes
+        Recent Formulas
       </h3>
 
       {data.length === 0 ? (
-        <p className="text-sm text-[#6B6B6B] text-center py-8">No CheatCodes yet</p>
+        <p className="text-sm text-[#6B6B6B] text-center py-8">No Formulas yet</p>
       ) : (
         <>
           <table className="w-full">
@@ -89,7 +89,7 @@ export function RecentCheatCodesTable({ data }: RecentCheatCodesTableProps) {
               href="/clients"
               className="text-sm text-[#F5B800] hover:text-[#F5B800]/80 transition-colors"
             >
-              View All CheatCodes &rarr;
+              View All Formulas &rarr;
             </Link>
           </div>
         </>

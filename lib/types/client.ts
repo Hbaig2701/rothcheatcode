@@ -1,4 +1,4 @@
-// Client type matching Supabase schema - CheatCode form design
+// Client type matching Supabase schema - Formula form design
 
 // Non-SSI Income entry for the JSONB array
 export interface NonSSIIncomeEntry {
@@ -15,7 +15,7 @@ export interface Client {
   created_at: string;
   updated_at: string;
 
-  // ===== CheatCode Type (Product Preset) =====
+  // ===== Formula Type (Product Preset) =====
   blueprint_type: "fia" | "lincoln-optiblend-7" | "equitrust-marketedge-bonus"
     | "athene-ascent-pro-10" | "american-equity-incomeshield-bonus-10"
     | "equitrust-marketearly-income-index" | "north-american-income-pay-pro";
@@ -106,9 +106,9 @@ export type ClientInsert = Omit<Client, "id" | "user_id" | "created_at" | "updat
 // For updating a client - all fields optional
 export type ClientUpdate = Partial<ClientInsert>;
 
-// CheatCode-specific form data (subset of Client without legacy fields)
-export interface CheatCodeFormData {
-  // CheatCode Type (Product Preset)
+// Formula-specific form data (subset of Client without legacy fields)
+export interface FormulaFormData {
+  // Formula Type (Product Preset)
   blueprint_type: Client["blueprint_type"];
 
   // Section 1: Client Data

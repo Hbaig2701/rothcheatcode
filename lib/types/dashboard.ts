@@ -45,8 +45,8 @@ export interface DashboardMetrics {
   totalAUM: number;            // cents
   aumChangeThisMonth: number;  // cents
   avgWealthIncrease: number;   // percentage
-  cheatCodesThisMonth: number;
-  cheatCodesChangePercent: number; // percentage
+  formulasThisMonth: number;
+  formulasChangePercent: number; // percentage
 
   // Value delivered
   totalLifetimeWealth: number;    // cents
@@ -56,8 +56,8 @@ export interface DashboardMetrics {
   // Product mix
   productMix: { name: string; value: number; color: string }[];
 
-  // Recent cheatcodes (first 5 clients sorted by created_at DESC)
-  recentCheatCodes: {
+  // Recent formulas (first 5 clients sorted by created_at DESC)
+  recentFormulas: {
     id: string;
     clientName: string;
     productLabel: string;

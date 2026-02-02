@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm, FormProvider, Resolver, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
-import { clientCheatCodeSchema, type ClientFormData } from "@/lib/validations/client";
+import { clientFormulaSchema, type ClientFormData } from "@/lib/validations/client";
 import { useCreateClient, useUpdateClient } from "@/lib/queries/clients";
 import { useSmartDefaults } from "@/hooks/use-smart-defaults";
 import type { Client } from "@/lib/types/client";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, AlertCircle } from "lucide-react";
 
-// Import all 8 CheatCode sections
+// Import all 8 Formula sections
 import { ClientDataSection } from "./sections/client-data";
 import { CurrentAccountSection } from "./sections/current-account";
 import { NewAccountSection } from "./sections/new-account";
@@ -36,9 +36,9 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
   const updateClient = useUpdateClient();
 
   const form = useForm<ClientFormData>({
-    resolver: zodResolver(clientCheatCodeSchema) as Resolver<ClientFormData>,
+    resolver: zodResolver(clientFormulaSchema) as Resolver<ClientFormData>,
     defaultValues: {
-      // CheatCode Type (product preset)
+      // Formula Type (product preset)
       blueprint_type: client?.blueprint_type ?? "fia",
 
       // Section 1: Client Data
@@ -210,7 +210,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{isEditing ? "Edit Client" : "New Client CheatCode"}</CardTitle>
+        <CardTitle>{isEditing ? "Edit Client" : "New Client Formula"}</CardTitle>
       </CardHeader>
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit, onValidationError)}>

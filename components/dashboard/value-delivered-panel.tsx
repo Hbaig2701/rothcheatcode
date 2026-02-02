@@ -17,7 +17,7 @@ export function ValueDeliveredPanel({
     {
       label: "Total Lifetime Wealth Created",
       value: totalLifetimeWealth,
-      description: "Sum of all CheatCode Lifetime Wealth values",
+      description: "Sum of all Formula Lifetime Wealth values",
       color: "text-[#F5B800]",
     },
     {
@@ -40,7 +40,7 @@ export function ValueDeliveredPanel({
         Value Delivered
       </h3>
       <p className="text-[13px] text-[#6B6B6B] mb-6">
-        Your impact across all client CheatCodes
+        Your impact across all client Formulas
       </p>
 
       <div className="space-y-6">

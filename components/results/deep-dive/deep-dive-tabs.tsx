@@ -20,12 +20,12 @@ import { SummarySection } from '../summary-section';
 /**
  * Tab configuration for deep-dive views
  */
-type TabValue = 'summary' | 'baseline' | 'cheatCode' | 'schedule';
+type TabValue = 'summary' | 'baseline' | 'formula' | 'schedule';
 
 const TABS: { value: TabValue; label: string }[] = [
   { value: 'summary', label: 'Summary' },
   { value: 'baseline', label: 'Baseline' },
-  { value: 'cheatCode', label: 'CheatCode' },
+  { value: 'formula', label: 'Formula' },
   { value: 'schedule', label: 'Schedule' },
 ];
 
@@ -40,7 +40,7 @@ interface DeepDiveTabsProps {
  * Provides URL-synced tab navigation between:
  * - Summary: Stat cards with key metrics
  * - Baseline: Year-by-year table for no-conversion scenario
- * - CheatCode: Year-by-year table with conversion highlighting
+ * - Formula: Year-by-year table with conversion highlighting
  * - Schedule: IRMAA chart, NIIT display, seasoning tracker, and schedule summary
  */
 export function DeepDiveTabs({ projection, client }: DeepDiveTabsProps) {
@@ -92,9 +92,9 @@ export function DeepDiveTabs({ projection, client }: DeepDiveTabsProps) {
         <YearByYearTable years={projection.baseline_years} scenario="baseline" />
       </TabsContent>
 
-      {/* CheatCode Tab */}
-      <TabsContent value="cheatCode" className="mt-6">
-        <YearByYearTable years={projection.blueprint_years} scenario="cheatCode" />
+      {/* Formula Tab */}
+      <TabsContent value="formula" className="mt-6">
+        <YearByYearTable years={projection.blueprint_years} scenario="formula" />
       </TabsContent>
 
       {/* Schedule Tab */}
@@ -109,11 +109,11 @@ export function DeepDiveTabs({ projection, client }: DeepDiveTabsProps) {
           <div className="space-y-6">
             <NIITDisplay years={projection.blueprint_years} filingStatus={filingStatus} />
             <RothSeasoningTracker
-              cheatCodeYears={projection.blueprint_years}
+              formulaYears={projection.blueprint_years}
               currentYear={currentYear}
               clientAge={clientAge}
             />
-            <ScheduleSummary cheatCodeYears={projection.blueprint_years} />
+            <ScheduleSummary formulaYears={projection.blueprint_years} />
           </div>
         </div>
       </TabsContent>

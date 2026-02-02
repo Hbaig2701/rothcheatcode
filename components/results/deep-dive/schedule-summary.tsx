@@ -5,7 +5,7 @@ import type { YearlyResult } from '@/lib/calculations/types';
 import { formatCurrency } from '@/lib/calculations/transforms';
 
 interface ScheduleSummaryProps {
-  cheatCodeYears: YearlyResult[];
+  formulaYears: YearlyResult[];
 }
 
 /**
@@ -14,9 +14,9 @@ interface ScheduleSummaryProps {
  * Shows total conversions, conversion period, number of years,
  * average per year, and a detailed breakdown by year.
  */
-export function ScheduleSummary({ cheatCodeYears }: ScheduleSummaryProps) {
+export function ScheduleSummary({ formulaYears }: ScheduleSummaryProps) {
   // Extract years with conversions
-  const conversionYears = cheatCodeYears.filter((year) => year.conversionAmount > 0);
+  const conversionYears = formulaYears.filter((year) => year.conversionAmount > 0);
 
   // Calculate summary metrics
   const totalConversions = conversionYears.reduce(

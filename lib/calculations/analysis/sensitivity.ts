@@ -88,22 +88,22 @@ export function runSensitivityAnalysis(client: Client): SensitivityResult {
     });
 
     // Analyze breakeven for this scenario
-    const breakEvenAnalysis = analyzeBreakEven(result.baseline, result.cheatCode);
+    const breakEvenAnalysis = analyzeBreakEven(result.baseline, result.formula);
 
     // Store results
-    const lastCheatCode = result.cheatCode[result.cheatCode.length - 1];
+    const lastFormula = result.formula[result.formula.length - 1];
     scenarios[scenario.name] = {
       baseline: result.baseline,
-      cheatCode: result.cheatCode,
+      formula: result.formula,
       breakEvenAge: breakEvenAnalysis.simpleBreakEven,
-      endingWealth: lastCheatCode.netWorth,
+      endingWealth: lastFormula.netWorth,
     };
 
     // Collect for range calculation
     if (breakEvenAnalysis.simpleBreakEven !== null) {
       breakEvens.push(breakEvenAnalysis.simpleBreakEven);
     }
-    endingWealths.push(lastCheatCode.netWorth);
+    endingWealths.push(lastFormula.netWorth);
   }
 
   // Calculate ranges

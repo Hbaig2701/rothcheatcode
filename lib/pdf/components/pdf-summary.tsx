@@ -75,7 +75,7 @@ export function PDFSummary({ metrics }: PDFSummaryProps) {
       <View style={summaryStyles.grid}>
         {/* Row 1 */}
         <View style={summaryStyles.card}>
-          <Text style={summaryStyles.label}>Ending Wealth (CheatCode)</Text>
+          <Text style={summaryStyles.label}>Ending Wealth (Formula)</Text>
           <Text style={[summaryStyles.value, summaryStyles.neutral]}>
             {formatCurrency(endingWealth)}
           </Text>

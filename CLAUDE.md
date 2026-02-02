@@ -1,6 +1,6 @@
 # Claude Code Instructions
 
-Project-specific rules for Claude Code when working on Rothc.
+Project-specific rules for Claude Code when working on Roth Formula.
 
 ## Testing & Verification
 

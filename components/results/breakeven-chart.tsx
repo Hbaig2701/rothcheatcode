@@ -26,12 +26,12 @@ interface BreakevenChartProps {
  * Get color for crossover marker based on direction
  */
 function getCrossoverColor(direction: CrossoverPoint['direction']): string {
-  return direction === 'cheatCode_ahead' ? '#F5B800' : '#ef4444'; // gold or red
+  return direction === 'formula_ahead' ? '#F5B800' : '#ef4444'; // gold or red
 }
 
 /**
  * Enhanced breakeven chart showing:
- * - Baseline vs CheatCode wealth lines
+ * - Baseline vs Formula wealth lines
  * - All crossover points marked
  * - Sustained breakeven highlighted
  * - Net benefit annotation
@@ -110,11 +110,11 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
               activeDot={{ r: 6 }}
             />
 
-            {/* CheatCode line - gold */}
+            {/* Formula line - gold */}
             <Line
               type="monotone"
-              dataKey="cheatCode"
-              name="CheatCode (Roth Conversion)"
+              dataKey="formula"
+              name="Formula (Roth Conversion)"
               stroke="#F5B800"
               strokeWidth={3}
               dot={false}
@@ -153,7 +153,7 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
                 />
               ))}
 
-            {/* Shade area where cheatCode is ahead (if sustained breakeven exists) */}
+            {/* Shade area where formula is ahead (if sustained breakeven exists) */}
             {sustainedBreakEven && data.length > 0 && (
               <ReferenceArea
                 x1={sustainedBreakEven}

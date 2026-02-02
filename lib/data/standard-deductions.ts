@@ -2,7 +2,7 @@
  * 2026 Standard Deductions (Estimated)
  * All values in cents
  *
- * Source: Roth CheatCode Specification v1.0
+ * Source: Roth Formula Specification v1.0
  * Note: Standard deduction increases ~3% annually for inflation
  */
 export const STANDARD_DEDUCTIONS_2026: Record<string, number> = {

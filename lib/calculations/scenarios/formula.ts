@@ -15,7 +15,7 @@ import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 
 /**
- * Run CheatCode scenario: strategic Roth conversions
+ * Run Formula scenario: strategic Roth conversions
  *
  * Per specification:
  * - Initial value = qualified_account_value × (1 + bonus_rate)
@@ -27,7 +27,7 @@ import { getStateTaxRate } from '@/lib/data/states';
  *
  * Supports both legacy DOB-based approach and new age-based approach
  */
-export function runCheatCodeScenario(
+export function runFormulaScenario(
   client: Client,
   startYear: number,
   projectionYears: number
@@ -41,14 +41,14 @@ export function runCheatCodeScenario(
     ? getBirthYearFromAge(clientAge, startYear)
     : (client.date_of_birth ? new Date(client.date_of_birth).getFullYear() : startYear - clientAge);
 
-  // Use rate_of_return for cheatCode scenario (spec default: 7%)
+  // Use rate_of_return for formula scenario (spec default: 7%)
   const growthRate = (client.rate_of_return ?? client.growth_rate ?? 7) / 100;
 
   // Initial qualified account value
   const initialQualifiedValue = client.qualified_account_value ?? client.traditional_ira ?? 0;
 
   // Apply insurance product bonus
-  // Per specification: cheatCode_initial_value = qualified_account_value × (1 + bonus_rate)
+  // Per specification: formula_initial_value = qualified_account_value × (1 + bonus_rate)
   const bonusRate = (client.bonus_percent ?? 10) / 100;
   let iraBalance = Math.round(initialQualifiedValue * (1 + bonusRate));
 
@@ -201,7 +201,7 @@ export function runCheatCodeScenario(
 
     // Calculate interest AFTER conversion
     // Per specification: Interest = (B.O.Y. Balance - Distribution) × Rate
-    // For cheatCode, the "distribution" is the conversion
+    // For formula, the "distribution" is the conversion
     const iraInterest = Math.round(iraAfterConversion * growthRate);
     const rothInterest = Math.round(rothAfterConversion * growthRate);
     const taxableInterest = Math.round(boyTaxable * growthRate);
@@ -283,10 +283,10 @@ export function runCheatCodeScenario(
 }
 
 /**
- * Calculate combined account interest for cheatCode scenario
+ * Calculate combined account interest for formula scenario
  * Per specification, interest accrues on both IRA and Roth after conversion
  */
-export function calculateCheatCodeInterest(
+export function calculateFormulaInterest(
   iraBeginning: number,
   conversionAmount: number,
   rothBeginning: number,

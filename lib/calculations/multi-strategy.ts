@@ -12,18 +12,18 @@ import { STRATEGIES, STRATEGY_PRIORITY } from './strategy-definitions';
  * Extract comparison metrics from a simulation result
  */
 function extractComparisonMetrics(result: SimulationResult): StrategyComparisonMetrics {
-  const lastYear = result.cheatCode[result.cheatCode.length - 1];
+  const lastYear = result.formula[result.formula.length - 1];
 
   return {
     endingWealth: lastYear.netWorth,
     taxSavings: result.totalTaxSavings,
     breakEvenAge: result.breakEvenAge,
-    totalIRMAA: result.cheatCode.reduce(
+    totalIRMAA: result.formula.reduce(
       (sum, year) => sum + year.irmaaSurcharge,
       0
     ),
     heirBenefit: result.heirBenefit,
-    totalConversions: result.cheatCode.reduce(
+    totalConversions: result.formula.reduce(
       (sum, year) => sum + year.conversionAmount,
       0
     )
@@ -43,11 +43,11 @@ function determineBestStrategy(
   // Build ranked list
   const ranked = Object.entries(results)
     .map(([strategy, result]) => {
-      const lastYear = result.cheatCode[result.cheatCode.length - 1];
+      const lastYear = result.formula[result.formula.length - 1];
       return {
         strategy: strategy as StrategyType,
         wealth: lastYear.netWorth,
-        irmaa: result.cheatCode.reduce((s, y) => s + y.irmaaSurcharge, 0)
+        irmaa: result.formula.reduce((s, y) => s + y.irmaaSurcharge, 0)
       };
     })
     .sort((a, b) => {

@@ -23,9 +23,9 @@ export function DashboardEmptyState() {
           </svg>
         </div>
 
-        <h2 className="text-xl font-bold text-white mb-2">No CheatCodes Yet</h2>
+        <h2 className="text-xl font-bold text-white mb-2">No Formulas Yet</h2>
         <p className="text-sm text-[#A0A0A0] mb-8">
-          Create your first client CheatCode to see your dashboard analytics and track your
+          Create your first client Formula to see your dashboard analytics and track your
           impact.
         </p>
 
@@ -34,7 +34,7 @@ export function DashboardEmptyState() {
           className="inline-flex items-center gap-2 px-6 py-3 bg-[#F5B800] hover:bg-[#D4A000] text-black font-medium rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Create First CheatCode
+          Create First Formula
         </Link>
       </div>
     </div>

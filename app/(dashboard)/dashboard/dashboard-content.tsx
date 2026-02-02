@@ -8,7 +8,7 @@ import { formatWholeDollars } from "@/lib/calculations/utils/money";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { ValueDeliveredPanel } from "@/components/dashboard/value-delivered-panel";
 import { ProductMixChart } from "@/components/dashboard/product-mix-chart";
-import { RecentCheatCodesTable } from "@/components/dashboard/recent-cheatcodes-table";
+import { RecentFormulasTable } from "@/components/dashboard/recent-formulas-table";
 import { ClientInsightsPanel } from "@/components/dashboard/client-insights-panel";
 import { ConversionPipeline } from "@/components/dashboard/conversion-pipeline";
 import { DashboardEmptyState } from "@/components/dashboard/dashboard-empty-state";
@@ -92,9 +92,9 @@ export function DashboardContent({ userName }: DashboardContentProps) {
           icon="trending-up"
         />
         <MetricCard
-          title="CheatCodes This Month"
-          value={metrics.cheatCodesThisMonth}
-          subtitle={`${metrics.cheatCodesChangePercent >= 0 ? "↑" : "↓"} ${Math.abs(metrics.cheatCodesChangePercent)}% vs last month`}
+          title="Formulas This Month"
+          value={metrics.formulasThisMonth}
+          subtitle={`${metrics.formulasChangePercent >= 0 ? "↑" : "↓"} ${Math.abs(metrics.formulasChangePercent)}% vs last month`}
           icon="file-text"
         />
       </div>
@@ -109,9 +109,9 @@ export function DashboardContent({ userName }: DashboardContentProps) {
         <ProductMixChart data={metrics.productMix} />
       </div>
 
-      {/* Bottom Row: Recent CheatCodes + Client Insights */}
+      {/* Bottom Row: Recent Formulas + Client Insights */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-        <RecentCheatCodesTable data={metrics.recentCheatCodes} />
+        <RecentFormulasTable data={metrics.recentFormulas} />
         <ClientInsightsPanel
           avgClientAge={metrics.avgClientAge}
           avgDeposit={metrics.avgDeposit}

@@ -21,10 +21,10 @@ export function SummarySection({ metrics }: SummarySectionProps) {
         className="border-gray-300"
       />
 
-      {/* CheatCode card - highlighted with blue border */}
+      {/* Formula card - highlighted with blue border */}
       <StatCard
-        title="CheatCode Ending Wealth"
-        value={metrics.cheatCodeEndWealth}
+        title="Formula Ending Wealth"
+        value={metrics.formulaEndWealth}
         prefix="$"
         trend={metrics.difference >= 0 ? 'up' : 'down'}
         trendLabel={`${differenceSign}${differenceFormatted} vs Baseline`}

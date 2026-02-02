@@ -63,7 +63,7 @@ export function PDFDocument({
   data,
   chartImages,
 }: PDFDocumentProps) {
-  const { metrics, multiStrategy, cheatCodeYears, keyYears } = data;
+  const { metrics, multiStrategy, formulaYears, keyYears } = data;
 
   return (
     <Document
@@ -87,7 +87,7 @@ export function PDFDocument({
         {chartImages?.wealth && (
           <PDFChartImage
             src={chartImages.wealth}
-            title="Wealth Projection: Baseline vs CheatCode"
+            title="Wealth Projection: Baseline vs Formula"
           />
         )}
 
@@ -131,10 +131,10 @@ export function PDFDocument({
 
         <View style={documentStyles.section}>
           <Text style={documentStyles.sectionTitle}>Year-by-Year Projection</Text>
-          {/* Use keyYears if available, otherwise fall back to cheatCodeYears */}
+          {/* Use keyYears if available, otherwise fall back to formulaYears */}
           <PDFYearTable
-            years={keyYears.length > 0 ? keyYears : cheatCodeYears}
-            title="CheatCode Scenario (Recommended)"
+            years={keyYears.length > 0 ? keyYears : formulaYears}
+            title="Formula Scenario (Recommended)"
           />
         </View>
 

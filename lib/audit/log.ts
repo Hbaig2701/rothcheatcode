@@ -27,7 +27,7 @@ export function logCalculation(
       const inputHash = await hashClientInput(client);
 
       const lastBaseline = result.baseline[result.baseline.length - 1];
-      const lastCheatCode = result.cheatCode[result.cheatCode.length - 1];
+      const lastFormula = result.formula[result.formula.length - 1];
 
       const entry: AuditLogInsert = {
         user_id: client.user_id,
@@ -39,7 +39,7 @@ export function logCalculation(
         total_tax_savings: result.totalTaxSavings,
         heir_benefit: result.heirBenefit,
         baseline_final_wealth: lastBaseline.netWorth,
-        blueprint_final_wealth: lastCheatCode.netWorth,
+        blueprint_final_wealth: lastFormula.netWorth,
         calculation_ms: Math.round(durationMs),
         engine_version: ENGINE_VERSION,
       };

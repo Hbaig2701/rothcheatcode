@@ -24,7 +24,7 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
     const baseNetLegacy = Math.round(baseFinalTraditional * (1 - heirTaxRate)) + baseFinalRoth;
     const baseLegacyTax = Math.round(baseFinalTraditional * heirTaxRate);
 
-    // --- CheatCode Metrics (GI + conversions) ---
+    // --- Formula Metrics (GI + conversions) ---
     // Split taxes: deferral phase = conversion taxes, income phase = GI taxes
     const giYearlyData = projection.gi_yearly_data || [];
     let blueConversionTax = 0;
@@ -45,7 +45,7 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
     const giTotalNet = projection.gi_total_net_paid ?? 0;
     const giTaxOnPayments = giTotalGross - giTotalNet;
 
-    // CheatCode legacy: account value taxed at heir rate, Roth tax-free
+    // Formula legacy: account value taxed at heir rate, Roth tax-free
     const blueNetLegacy = Math.round(blueFinalTraditional * (1 - heirTaxRate)) + blueFinalRoth;
     const blueLegacyTax = Math.round(blueFinalTraditional * heirTaxRate);
 
@@ -55,7 +55,7 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
     const baseTotalCosts = baseTax + baseIrmaa + baseLegacyTax;
     const baseLifetimeWealth = baseAfterTaxDist + baseNetLegacy - baseIrmaa;
 
-    // CheatCode: after-tax GI + net legacy - conversion taxes - IRMAA
+    // Formula: after-tax GI + net legacy - conversion taxes - IRMAA
     const blueTotalIncome = giTotalNet;
     const blueTotalCosts = blueConversionTax + blueIrmaa + blueLegacyTax;
     const blueLifetimeWealth = giTotalNet + blueNetLegacy - blueConversionTax - blueIrmaa;
@@ -105,7 +105,7 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
             <div className="grid grid-cols-4 bg-[#141414] border-b border-[#2A2A2A] p-2 font-bold text-[#A0A0A0] uppercase tracking-wider">
                 <div>Metric</div>
                 <div className="text-right">Baseline Trajectory</div>
-                <div className="text-right text-[#F5B800]">CheatCode Trajectory</div>
+                <div className="text-right text-[#F5B800]">Formula Trajectory</div>
                 <div className="text-right text-[#F5B800]">Difference</div>
             </div>
             <div className="divide-y divide-[#2A2A2A]/30">

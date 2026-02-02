@@ -123,7 +123,7 @@ export function ResultsSummary({ clientId, clientName }: ResultsSummaryProps) {
         <CardHeader>
           <CardTitle>Wealth Projection</CardTitle>
           <CardDescription>
-            Comparing net worth over time: Baseline (no conversion) vs CheatCode (Roth conversion)
+            Comparing net worth over time: Baseline (no conversion) vs Formula (Roth conversion)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -143,7 +143,7 @@ export function ResultsSummary({ clientId, clientName }: ResultsSummaryProps) {
                 </p>
               </div>
               <p className="text-sm text-muted-foreground max-w-md">
-                Based on current heir tax bracket, heirs would receive more from the CheatCode scenario
+                Based on current heir tax bracket, heirs would receive more from the Formula scenario
                 due to tax-free Roth distributions.
               </p>
             </div>

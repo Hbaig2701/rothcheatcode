@@ -25,10 +25,10 @@ interface GIChartDataPoint {
 }
 
 function transformToGIAccountChartData(
-  cheatCodeYears: YearlyResult[],
+  formulaYears: YearlyResult[],
   giYearlyData: GIYearlyData[]
 ): GIChartDataPoint[] {
-  return cheatCodeYears.map((year, index) => {
+  return formulaYears.map((year, index) => {
     const giYear = giYearlyData[index];
     return {
       age: year.age,

@@ -5,7 +5,7 @@ import type {
   ProjectionSummary,
 } from "@/lib/types/dashboard";
 import { ALL_PRODUCTS } from "@/lib/config/products";
-import type { CheatCodeType } from "@/lib/config/products";
+import type { FormulaType } from "@/lib/config/products";
 
 const PRODUCT_COLORS = [
   "#F5B800", // Primary Yellow
@@ -49,13 +49,13 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
   const thisMonthClients = clients.filter((c) => isThisMonth(c.created_at));
   const lastMonthClients = clients.filter((c) => isLastMonth(c.created_at));
   const newClientsThisMonth = thisMonthClients.length;
-  const cheatCodesThisMonth = thisMonthClients.length;
+  const formulasThisMonth = thisMonthClients.length;
 
-  const cheatCodesLastMonth = lastMonthClients.length;
-  const cheatCodesChangePercent =
-    cheatCodesLastMonth > 0
-      ? Math.round(((cheatCodesThisMonth - cheatCodesLastMonth) / cheatCodesLastMonth) * 100)
-      : cheatCodesThisMonth > 0
+  const formulasLastMonth = lastMonthClients.length;
+  const formulasChangePercent =
+    formulasLastMonth > 0
+      ? Math.round(((formulasThisMonth - formulasLastMonth) / formulasLastMonth) * 100)
+      : formulasThisMonth > 0
         ? 100
         : 0;
 
@@ -96,7 +96,7 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
   // --- Product Mix ---
   const productCounts = new Map<string, number>();
   for (const c of clients) {
-    const config = ALL_PRODUCTS[c.blueprint_type as CheatCodeType];
+    const config = ALL_PRODUCTS[c.blueprint_type as FormulaType];
     const label = config?.label ?? c.blueprint_type;
     productCounts.set(label, (productCounts.get(label) ?? 0) + 1);
   }
@@ -108,8 +108,8 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
       color: PRODUCT_COLORS[i % PRODUCT_COLORS.length],
     }));
 
-  // --- Recent CheatCodes (first 5, already sorted by created_at DESC) ---
-  const recentCheatCodes = clients.slice(0, 5).map((c) => {
+  // --- Recent Formulas (first 5, already sorted by created_at DESC) ---
+  const recentFormulas = clients.slice(0, 5).map((c) => {
     const p = projMap.get(c.id);
     const percentChange =
       p && p.baseline_final_net_worth > 0
@@ -119,7 +119,7 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
               100
           )
         : 0;
-    const config = ALL_PRODUCTS[c.blueprint_type as CheatCodeType];
+    const config = ALL_PRODUCTS[c.blueprint_type as FormulaType];
     return {
       id: c.id,
       clientName: c.name,
@@ -179,13 +179,13 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
     totalAUM,
     aumChangeThisMonth,
     avgWealthIncrease,
-    cheatCodesThisMonth,
-    cheatCodesChangePercent,
+    formulasThisMonth,
+    formulasChangePercent,
     totalLifetimeWealth,
     totalTaxSavings,
     totalLegacyProtected,
     productMix,
-    recentCheatCodes,
+    recentFormulas,
     avgClientAge,
     avgDeposit,
     filingStatusBreakdown,

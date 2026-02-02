@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { YearlyResult } from "@/lib/calculations";
 import { GISummaryPanel } from "@/components/results/gi-summary-panel";
 import { GIAccountChart } from "@/components/results/gi-account-chart";
-import { isGuaranteedIncomeProduct, type CheatCodeType } from "@/lib/config/products";
+import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import { Copy, Plus, FileText, Loader2 } from "lucide-react";
 
 interface ReportDashboardProps {
@@ -40,7 +40,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
         lifetimeWealth: lifetimeWealthChartRef,
     };
 
-    // Handle duplicate cheatCode
+    // Handle duplicate formula
     const handleDuplicate = async () => {
         if (!client) return;
         setIsDuplicating(true);
@@ -56,15 +56,15 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
             const newClient = await createClient.mutateAsync(duplicateData);
             router.push(`/clients/${newClient.id}/results`);
         } catch (error) {
-            console.error("Failed to duplicate cheatCode:", error);
-            alert("Failed to duplicate cheatCode. Please try again.");
+            console.error("Failed to duplicate formula:", error);
+            alert("Failed to duplicate formula. Please try again.");
         } finally {
             setIsDuplicating(false);
         }
     };
 
-    // Handle new cheatCode
-    const handleNewCheatCode = () => {
+    // Handle new formula
+    const handleNewFormula = () => {
         router.push("/clients/new");
     };
 
@@ -100,7 +100,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
             const link = document.createElement('a');
             link.href = url;
             const timestamp = new Date().toISOString().split('T')[0];
-            link.download = `RothCheatCode_${client.name.replace(/\s+/g, '_')}_${timestamp}.pdf`;
+            link.download = `RothFormula_${client.name.replace(/\s+/g, '_')}_${timestamp}.pdf`;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -123,7 +123,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
     const { projection } = projectionResponse;
     const isGI = client.blueprint_type
-        ? isGuaranteedIncomeProduct(client.blueprint_type as CheatCodeType)
+        ? isGuaranteedIncomeProduct(client.blueprint_type as FormulaType)
         : false;
 
     const chartData = isGI ? transformToGIChartData(projection) : transformToChartData(projection);
@@ -136,15 +136,15 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const toPercent = (amount: number) => new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 }).format(amount);
 
     // --- Calculate Lifetime Wealth ---
-    // CHEATCODE (Growth): eoy_combined - cumulativeTaxes - cumulativeIRMAA
-    const calculateCheatCodeLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
+    // FORMULA (Growth): eoy_combined - cumulativeTaxes - cumulativeIRMAA
+    const calculateFormulaLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
         const totalTaxes = sum(years, 'federalTax') + sum(years, 'stateTax');
         const totalIRMAA = sum(years, 'irmaaSurcharge');
         return finalNetWorth - totalTaxes - totalIRMAA;
     };
 
-    // CHEATCODE (GI): cumulativeNetGI + netLegacy(acctVal*(1-heirTax) + roth) - convTaxes - IRMAA
-    const calculateGICheatCodeLifetimeWealthTotal = () => {
+    // FORMULA (GI): cumulativeNetGI + netLegacy(acctVal*(1-heirTax) + roth) - convTaxes - IRMAA
+    const calculateGIFormulaLifetimeWealthTotal = () => {
         const heirTaxRate = 0.40;
         const giYearlyData = projection.gi_yearly_data || [];
         let conversionTaxes = 0;
@@ -173,8 +173,8 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
     const baseLifetime = calculateBaselineLifetimeWealth(projection.baseline_years, projection.baseline_final_net_worth);
     const blueLifetime = isGI
-        ? calculateGICheatCodeLifetimeWealthTotal()
-        : calculateCheatCodeLifetimeWealth(projection.blueprint_years, projection.blueprint_final_net_worth);
+        ? calculateGIFormulaLifetimeWealthTotal()
+        : calculateFormulaLifetimeWealth(projection.blueprint_years, projection.blueprint_final_net_worth);
 
     const diff = blueLifetime - baseLifetime;
     const percentChange = baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;
@@ -200,13 +200,13 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                             Duplicate
                         </button>
 
-                        {/* New CheatCode Button - Solid Style */}
+                        {/* New Formula Button - Solid Style */}
                         <button
-                            onClick={handleNewCheatCode}
+                            onClick={handleNewFormula}
                             className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-black bg-[#F5B800] rounded-md hover:bg-[#DEAD00] hover:shadow-[0_0_20px_rgba(245,184,0,0.3)] transition-all"
                         >
                             <Plus className="h-4 w-4" />
-                            New CheatCode
+                            New Formula
                         </button>
 
                         {/* Export PDF Button - Solid Style */}
@@ -251,11 +251,11 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                             </div>
                         )}
                         <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium">Lifetime Wealth Before CheatCode</span>
+                            <span className="text-[#A0A0A0] font-medium">Lifetime Wealth Before Formula</span>
                             <span className="font-mono text-white">{toUSD(baseLifetime)}</span>
                         </div>
                         <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium">Lifetime Wealth After CheatCode</span>
+                            <span className="text-[#A0A0A0] font-medium">Lifetime Wealth After Formula</span>
                             <span className="font-mono text-[#F5B800] font-bold">{toUSD(blueLifetime)}</span>
                         </div>
                         <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
@@ -282,7 +282,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                         <div className="flex justify-center gap-8 mt-3 text-[11px] font-medium">
                             <div className="flex items-center gap-2 text-[#F5B800]">
                                 <span className="w-3 h-0.5 bg-[#F5B800] rounded"></span>
-                                CheatCode {isGI ? "(GI + Roth)" : "(Roth)"}
+                                Formula {isGI ? "(GI + Roth)" : "(Roth)"}
                             </div>
                             <div className="flex items-center gap-2 text-red-400">
                                 <span className="w-3 h-0.5 bg-red-500 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 4px, transparent 4px, transparent 6px)' }}></span>
@@ -336,14 +336,14 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                     {isGI ? (
                         <GIYearOverYearTables
                             baselineYears={projection.baseline_years}
-                            cheatCodeYears={projection.blueprint_years}
+                            formulaYears={projection.blueprint_years}
                             giYearlyData={projection.gi_yearly_data || []}
                             client={client}
                         />
                     ) : (
                         <YearOverYearTables
                             baselineYears={projection.baseline_years}
-                            cheatCodeYears={projection.blueprint_years}
+                            formulaYears={projection.blueprint_years}
                             client={client}
                         />
                     )}

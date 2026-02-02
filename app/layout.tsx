@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Rothc - Roth IRA Conversion Optimizer",
+  title: "Roth Formula - Roth IRA Conversion Optimizer",
   description: "Optimize your Roth IRA conversions with advanced tax planning strategies",
 };
 

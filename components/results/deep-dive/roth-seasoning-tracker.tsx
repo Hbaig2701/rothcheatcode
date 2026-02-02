@@ -55,7 +55,7 @@ function extractCohorts(
 }
 
 interface RothSeasoningTrackerProps {
-  cheatCodeYears: YearlyResult[];
+  formulaYears: YearlyResult[];
   currentYear: number;
   clientAge: number;
 }
@@ -69,11 +69,11 @@ interface RothSeasoningTrackerProps {
  * Addresses competitive improvement #10 from requirements.
  */
 export function RothSeasoningTracker({
-  cheatCodeYears,
+  formulaYears,
   currentYear,
   clientAge,
 }: RothSeasoningTrackerProps) {
-  const cohorts = extractCohorts(cheatCodeYears, currentYear);
+  const cohorts = extractCohorts(formulaYears, currentYear);
 
   // Age 59.5+ exempts from 10% early withdrawal penalty on converted principal
   const isOver59Half = clientAge >= 60; // Simplified: use age 60
@@ -110,7 +110,7 @@ export function RothSeasoningTracker({
 
         {cohorts.length === 0 ? (
           <p className="text-muted-foreground text-center py-4">
-            No conversions in cheatCode scenario
+            No conversions in formula scenario
           </p>
         ) : (
           <>

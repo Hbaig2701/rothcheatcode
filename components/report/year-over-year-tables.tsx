@@ -9,11 +9,11 @@ import { getBracketCeiling } from "@/lib/data/federal-brackets-2026";
 
 interface YearOverYearTablesProps {
   baselineYears: YearlyResult[];
-  cheatCodeYears: YearlyResult[];
+  formulaYears: YearlyResult[];
   client: Client;
 }
 
-type Scenario = "baseline" | "cheatCode";
+type Scenario = "baseline" | "formula";
 type TabId = "account" | "taxable" | "irmaa" | "netIncome" | "conversion";
 
 interface Tab {
@@ -92,10 +92,10 @@ const determineBracket = (taxableIncome: number, filingStatus: string): number =
 
 export function YearOverYearTables({
   baselineYears,
-  cheatCodeYears,
+  formulaYears,
   client,
 }: YearOverYearTablesProps) {
-  const [scenario, setScenario] = useState<Scenario>("cheatCode");
+  const [scenario, setScenario] = useState<Scenario>("formula");
   const [activeTab, setActiveTab] = useState<TabId>("account");
 
   // Auto-switch from conversion tab when switching to baseline
@@ -106,7 +106,7 @@ export function YearOverYearTables({
   }, [scenario, activeTab]);
 
   // Get the years data based on selected scenario
-  const years = scenario === "baseline" ? baselineYears : cheatCodeYears;
+  const years = scenario === "baseline" ? baselineYears : formulaYears;
 
   // Compute derived data for each year
   const computedData = useMemo(() => {
@@ -115,7 +115,7 @@ export function YearOverYearTables({
       const prevYear = index > 0 ? years[index - 1] : null;
       const boyTraditional = prevYear
         ? prevYear.traditionalBalance
-        : scenario === "cheatCode"
+        : scenario === "formula"
           ? Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 10) / 100))
           : (client.qualified_account_value ?? 0);
       const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
@@ -160,7 +160,7 @@ export function YearOverYearTables({
         distIra -
         year.totalTax -
         year.irmaaSurcharge -
-        (scenario === "cheatCode" ? year.conversionAmount : 0);
+        (scenario === "formula" ? year.conversionAmount : 0);
 
       return {
         ...year,
@@ -184,7 +184,7 @@ export function YearOverYearTables({
 
   // Filter conversion years (only years with conversions)
   const conversionYears = useMemo(() => {
-    if (scenario !== "cheatCode") return [];
+    if (scenario !== "formula") return [];
     return computedData.filter((y) => y.conversionAmount > 0);
   }, [computedData, scenario]);
 
@@ -399,7 +399,7 @@ export function YearOverYearTables({
     </table>
   );
 
-  // Render Conversion Details table (CheatCode only)
+  // Render Conversion Details table (Formula only)
   const renderConversionDetailsTable = () => (
     <table className="w-full border-collapse min-w-[1100px]">
       <thead>
@@ -466,7 +466,7 @@ export function YearOverYearTables({
   };
 
   // Filter tabs based on scenario
-  const visibleTabs = TABS.filter((tab) => tab.showAlways || scenario === "cheatCode");
+  const visibleTabs = TABS.filter((tab) => tab.showAlways || scenario === "formula");
 
   return (
     <div className="bg-[#141414] rounded-lg border border-[#2A2A2A] overflow-hidden">
@@ -498,18 +498,18 @@ export function YearOverYearTables({
             <input
               type="radio"
               name="scenario"
-              value="cheatCode"
-              checked={scenario === "cheatCode"}
-              onChange={() => setScenario("cheatCode")}
+              value="formula"
+              checked={scenario === "formula"}
+              onChange={() => setScenario("formula")}
               className="w-4 h-4 text-[#F5B800] bg-[#1F1F1F] border-[#2A2A2A] focus:ring-[#F5B800]"
             />
             <span
               className={cn(
                 "text-sm font-medium",
-                scenario === "cheatCode" ? "text-[#F5B800]" : "text-[#A0A0A0]"
+                scenario === "formula" ? "text-[#F5B800]" : "text-[#A0A0A0]"
               )}
             >
-              CheatCode
+              Formula
             </span>
           </label>
         </div>

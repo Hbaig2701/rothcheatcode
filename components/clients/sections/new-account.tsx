@@ -21,22 +21,22 @@ import {
   ALL_PRODUCTS,
   isFieldLocked,
   isGuaranteedIncomeProduct,
-  type CheatCodeType,
+  type FormulaType,
 } from "@/lib/config/products";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function NewAccountSection() {
   const form = useFormContext<ClientFormData>();
-  const cheatCodeType = form.watch("blueprint_type") as CheatCodeType;
+  const formulaType = form.watch("blueprint_type") as FormulaType;
 
-  // Handle cheatCode type change - apply product defaults
-  const handleCheatCodeTypeChange = (value: CheatCodeType | null) => {
+  // Handle formula type change - apply product defaults
+  const handleFormulaTypeChange = (value: FormulaType | null) => {
     if (!value) return;
     const product = ALL_PRODUCTS[value];
     if (!product) return;
 
-    // Update form with new cheatCode type and product defaults
+    // Update form with new formula type and product defaults
     form.setValue("blueprint_type", value);
     form.setValue("carrier_name", product.defaults.carrierName);
     form.setValue("product_name", product.defaults.productName);
@@ -51,26 +51,26 @@ export function NewAccountSection() {
     }
   };
 
-  const isCarrierLocked = isFieldLocked("carrierName", cheatCodeType);
-  const isProductLocked = isFieldLocked("productName", cheatCodeType);
-  const isBonusLocked = isFieldLocked("bonus", cheatCodeType);
-  const isGI = isGuaranteedIncomeProduct(cheatCodeType);
+  const isCarrierLocked = isFieldLocked("carrierName", formulaType);
+  const isProductLocked = isFieldLocked("productName", formulaType);
+  const isBonusLocked = isFieldLocked("bonus", formulaType);
+  const isGI = isGuaranteedIncomeProduct(formulaType);
 
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
-      {/* CheatCode Type Dropdown */}
+      {/* Formula Type Dropdown */}
       <Controller
         name="blueprint_type"
         control={form.control}
         render={({ field }) => {
-          const selectedProduct = ALL_PRODUCTS[field.value as CheatCodeType];
+          const selectedProduct = ALL_PRODUCTS[field.value as FormulaType];
           return (
             <Field>
-              <FieldLabel htmlFor="blueprint_type">CheatCode Type</FieldLabel>
-              <Select value={field.value} onValueChange={handleCheatCodeTypeChange}>
+              <FieldLabel htmlFor="blueprint_type">Formula Type</FieldLabel>
+              <Select value={field.value} onValueChange={handleFormulaTypeChange}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select CheatCode type">
-                    {selectedProduct?.label ?? "Select CheatCode type"}
+                  <SelectValue placeholder="Select Formula type">
+                    {selectedProduct?.label ?? "Select Formula type"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
@@ -99,7 +99,7 @@ export function NewAccountSection() {
                 </SelectContent>
               </Select>
               <FieldDescription>
-                {ALL_PRODUCTS[cheatCodeType]?.description || "Select a product template"}
+                {ALL_PRODUCTS[formulaType]?.description || "Select a product template"}
               </FieldDescription>
             </Field>
           );

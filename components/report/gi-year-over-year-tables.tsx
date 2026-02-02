@@ -10,12 +10,12 @@ import { getBracketCeiling } from "@/lib/data/federal-brackets-2026";
 
 interface GIYearOverYearTablesProps {
   baselineYears: YearlyResult[];
-  cheatCodeYears: YearlyResult[];
+  formulaYears: YearlyResult[];
   giYearlyData: GIYearlyData[];
   client: Client;
 }
 
-type Scenario = "baseline" | "cheatCode";
+type Scenario = "baseline" | "formula";
 type TabId = "account" | "taxable" | "irmaa" | "netIncome" | "conversion";
 
 interface Tab {
@@ -63,11 +63,11 @@ const getIRMAATier = (age: number, irmaaSurcharge: number): string => {
 
 export function GIYearOverYearTables({
   baselineYears,
-  cheatCodeYears,
+  formulaYears,
   giYearlyData,
   client,
 }: GIYearOverYearTablesProps) {
-  const [scenario, setScenario] = useState<Scenario>("cheatCode");
+  const [scenario, setScenario] = useState<Scenario>("formula");
   const [activeTab, setActiveTab] = useState<TabId>("account");
 
   useEffect(() => {
@@ -76,7 +76,7 @@ export function GIYearOverYearTables({
     }
   }, [scenario, activeTab]);
 
-  const years = scenario === "baseline" ? baselineYears : cheatCodeYears;
+  const years = scenario === "baseline" ? baselineYears : formulaYears;
 
   // Build a map from year index to GI data for quick lookup
   const giDataMap = useMemo(() => {
@@ -91,13 +91,13 @@ export function GIYearOverYearTables({
     return years.map((year, index) => {
       const prevYear = index > 0 ? years[index - 1] : null;
 
-      // For cheatCode scenario, use GI data for BOY account value
-      const giYear = scenario === "cheatCode" ? giDataMap.get(index) : undefined;
+      // For formula scenario, use GI data for BOY account value
+      const giYear = scenario === "formula" ? giDataMap.get(index) : undefined;
 
       // B.O.Y. values
       const boyTraditional = prevYear
         ? prevYear.traditionalBalance
-        : scenario === "cheatCode"
+        : scenario === "formula"
           ? Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 10) / 100))
           : (client.qualified_account_value ?? 0);
       const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
@@ -113,7 +113,7 @@ export function GIYearOverYearTables({
       const distIra = scenario === "baseline" ? year.rmdAmount : year.conversionAmount;
 
       // AGI calculation
-      const grossIncome = scenario === "cheatCode" && giYear?.phase === 'income'
+      const grossIncome = scenario === "formula" && giYear?.phase === 'income'
         ? giPaymentGross + year.otherIncome
         : year.otherIncome + distIra;
       const agi = grossIncome;
@@ -129,7 +129,7 @@ export function GIYearOverYearTables({
       const magi = agi + taxExemptNonSSI + year.ssIncome;
 
       // Net income for GI
-      const netIncome = scenario === "cheatCode"
+      const netIncome = scenario === "formula"
         ? year.otherIncome + taxExemptNonSSI + year.ssIncome + giPaymentNet - year.irmaaSurcharge
         : year.otherIncome + taxExemptNonSSI + year.ssIncome + year.rmdAmount - year.totalTax - year.irmaaSurcharge;
 
@@ -157,7 +157,7 @@ export function GIYearOverYearTables({
 
   // Conversion years: only deferral phase with conversions
   const conversionYears = useMemo(() => {
-    if (scenario !== "cheatCode") return [];
+    if (scenario !== "formula") return [];
     return computedData.filter((y) => y.conversionAmount > 0);
   }, [computedData, scenario]);
 
@@ -251,7 +251,7 @@ export function GIYearOverYearTables({
       );
     }
 
-    // CheatCode: GI-specific columns
+    // Formula: GI-specific columns
     return (
       <table className="w-full border-collapse min-w-[1100px]">
         <thead>
@@ -311,7 +311,7 @@ export function GIYearOverYearTables({
           {renderHeaderCell("SSI")}
           {renderHeaderCell("Taxable(Non-SSI)")}
           {renderHeaderCell("Exempt(Non-SSI)")}
-          {renderHeaderCell(scenario === "cheatCode" ? "GI Payment" : "Dist.(IRA)")}
+          {renderHeaderCell(scenario === "formula" ? "GI Payment" : "Dist.(IRA)")}
           {renderHeaderCell("AGI")}
           {renderHeaderCell("Deduc.")}
           {renderHeaderCell("Taxable Income")}
@@ -324,7 +324,7 @@ export function GIYearOverYearTables({
             className={cn(
               "hover:bg-[#1F1F1F]/30 transition-colors",
               idx % 2 === 0 ? "bg-[#0A0A0A]" : "bg-[#141414]",
-              scenario === "cheatCode" && row.accountDepleted && "bg-red-950/20"
+              scenario === "formula" && row.accountDepleted && "bg-red-950/20"
             )}
           >
             {renderCell(row.year, { align: "left" })}
@@ -333,7 +333,7 @@ export function GIYearOverYearTables({
             {renderCell(formatCurrency(row.otherIncome))}
             {renderCell(formatCurrency(row.taxExemptNonSSI))}
             {renderCell(formatCurrency(
-              scenario === "cheatCode"
+              scenario === "formula"
                 ? (row.giPhase === 'income' ? row.giPaymentGross : row.conversionAmount)
                 : row.distIra
             ))}
@@ -424,7 +424,7 @@ export function GIYearOverYearTables({
       );
     }
 
-    // CheatCode: GI-specific net income
+    // Formula: GI-specific net income
     return (
       <table className="w-full border-collapse min-w-[1100px]">
         <thead>
@@ -535,7 +535,7 @@ export function GIYearOverYearTables({
     }
   };
 
-  const visibleTabs = TABS.filter((tab) => tab.showAlways || scenario === "cheatCode");
+  const visibleTabs = TABS.filter((tab) => tab.showAlways || scenario === "formula");
 
   return (
     <div className="bg-[#141414] rounded-lg border border-[#2A2A2A] overflow-hidden">
@@ -567,18 +567,18 @@ export function GIYearOverYearTables({
             <input
               type="radio"
               name="gi-scenario"
-              value="cheatCode"
-              checked={scenario === "cheatCode"}
-              onChange={() => setScenario("cheatCode")}
+              value="formula"
+              checked={scenario === "formula"}
+              onChange={() => setScenario("formula")}
               className="w-4 h-4 text-[#F5B800] bg-[#1F1F1F] border-[#2A2A2A] focus:ring-[#F5B800]"
             />
             <span
               className={cn(
                 "text-sm font-medium",
-                scenario === "cheatCode" ? "text-[#F5B800]" : "text-[#A0A0A0]"
+                scenario === "formula" ? "text-[#F5B800]" : "text-[#A0A0A0]"
               )}
             >
-              CheatCode
+              Formula
             </span>
           </label>
         </div>
@@ -609,7 +609,7 @@ export function GIYearOverYearTables({
 
       {/* Footer */}
       <div className="px-6 py-4 border-t border-[#2A2A2A] bg-[#141414]">
-        {scenario === "cheatCode" && hasDepletedRows && (
+        {scenario === "formula" && hasDepletedRows && (
           <p className="text-xs text-[#F5B800] mb-2">
             Shaded rows indicate account value has been depleted. Guaranteed income payments continue per the contract terms.
           </p>

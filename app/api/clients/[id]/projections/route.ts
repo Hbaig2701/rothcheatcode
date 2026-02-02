@@ -5,12 +5,12 @@ import type { Client } from '@/lib/types/client';
 import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projection';
 import type { SimulationResult } from '@/lib/calculations';
 import type { GIMetrics } from '@/lib/calculations/guaranteed-income/types';
-import { isGuaranteedIncomeProduct, type CheatCodeType } from '@/lib/config/products';
+import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
 import crypto from 'crypto';
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
-    // New CheatCode fields
+    // New Formula fields
     age: client.age,
     qualified_account_value: client.qualified_account_value,
     carrier_name: client.carrier_name,
@@ -83,7 +83,7 @@ function simulationToProjection(
   giMetrics?: GIMetrics
 ): ProjectionInsert {
   const lastBaseline = result.baseline[result.baseline.length - 1];
-  const lastCheatCode = result.cheatCode[result.cheatCode.length - 1];
+  const lastFormula = result.formula[result.formula.length - 1];
 
   // Determine strategy from conversion_type or legacy strategy field
   const strategy = client.conversion_type
@@ -106,12 +106,12 @@ function simulationToProjection(
     baseline_final_roth: lastBaseline.rothBalance,
     baseline_final_taxable: lastBaseline.taxableBalance,
     baseline_final_net_worth: lastBaseline.netWorth,
-    blueprint_final_traditional: lastCheatCode.traditionalBalance,
-    blueprint_final_roth: lastCheatCode.rothBalance,
-    blueprint_final_taxable: lastCheatCode.taxableBalance,
-    blueprint_final_net_worth: lastCheatCode.netWorth,
+    blueprint_final_traditional: lastFormula.traditionalBalance,
+    blueprint_final_roth: lastFormula.rothBalance,
+    blueprint_final_taxable: lastFormula.taxableBalance,
+    blueprint_final_net_worth: lastFormula.netWorth,
     baseline_years: result.baseline,
-    blueprint_years: result.cheatCode,
+    blueprint_years: result.formula,
     strategy,
     projection_years: projectionYears,
     // GI-specific metrics (null for Growth products)
@@ -171,8 +171,8 @@ export async function GET(
 
     // Run simulation - dispatch to GI or Growth engine based on product type
     const simulationInput = createSimulationInput(client as Client);
-    const cheatCodeType = (client as Client).blueprint_type as CheatCodeType;
-    const isGI = cheatCodeType && isGuaranteedIncomeProduct(cheatCodeType);
+    const formulaType = (client as Client).blueprint_type as FormulaType;
+    const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {
@@ -226,8 +226,8 @@ export async function POST(
 
     const inputHash = generateInputHash(client as Client);
     const simulationInput = createSimulationInput(client as Client);
-    const cheatCodeType = (client as Client).blueprint_type as CheatCodeType;
-    const isGI = cheatCodeType && isGuaranteedIncomeProduct(cheatCodeType);
+    const formulaType = (client as Client).blueprint_type as FormulaType;
+    const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {
