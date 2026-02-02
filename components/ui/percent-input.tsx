@@ -37,7 +37,6 @@ export const PercentInput = forwardRef<HTMLInputElement, PercentInputProps>(
           ref={ref}
           value={value?.toString() ?? ""}
           decimalsLimit={2}
-          decimalScale={1}
           groupSeparator=""
           decimalSeparator="."
           placeholder={placeholder}

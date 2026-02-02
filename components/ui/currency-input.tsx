@@ -44,7 +44,6 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
           ref={ref}
           value={displayValue}
           decimalsLimit={decimals}
-          decimalScale={decimals}
           groupSeparator=","
           decimalSeparator="."
           placeholder={placeholder}
