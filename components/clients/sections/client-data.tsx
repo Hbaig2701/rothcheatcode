@@ -26,11 +26,17 @@ export function ClientDataSection() {
 
   const isMarried = filingStatus === "married_filing_jointly";
 
-  // Clear spouse fields when switching to non-married
+  // Clear spouse fields when switching to non-married, re-initialize when switching to married
   useEffect(() => {
     if (!isMarried) {
       form.setValue("spouse_name", undefined);
       form.setValue("spouse_age", undefined);
+    } else {
+      // Re-initialize spouse_age if it was cleared (undefined/NaN)
+      const currentSpouseAge = form.getValues("spouse_age");
+      if (currentSpouseAge === undefined || currentSpouseAge === null || Number.isNaN(currentSpouseAge)) {
+        form.setValue("spouse_age", 60);
+      }
     }
   }, [isMarried, form]);
 

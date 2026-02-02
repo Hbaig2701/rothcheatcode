@@ -14,11 +14,20 @@ export function TaxableIncomeSection() {
   const filingStatus = form.watch("filing_status");
   const isMarried = filingStatus === "married_filing_jointly";
 
-  // Clear spouse SSI fields when switching to non-married
+  // Clear spouse SSI fields when switching to non-married, re-initialize when switching to married
   useEffect(() => {
     if (!isMarried) {
       form.setValue("spouse_ssi_payout_age", undefined);
       form.setValue("spouse_ssi_annual_amount", undefined);
+    } else {
+      const currentPayoutAge = form.getValues("spouse_ssi_payout_age");
+      const currentAmount = form.getValues("spouse_ssi_annual_amount");
+      if (currentPayoutAge === undefined || currentPayoutAge === null || Number.isNaN(currentPayoutAge)) {
+        form.setValue("spouse_ssi_payout_age", 67);
+      }
+      if (currentAmount === undefined || currentAmount === null) {
+        form.setValue("spouse_ssi_annual_amount", 0);
+      }
     }
   }, [isMarried, form]);
 

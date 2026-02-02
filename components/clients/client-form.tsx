@@ -45,6 +45,8 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       filing_status: client?.filing_status ?? "married_filing_jointly",
       name: client?.name ?? "",
       age: client?.age ?? 62,
+      spouse_name: client?.spouse_name ?? "",
+      spouse_age: client?.spouse_age ?? 60,
 
       // Section 2: Current Account
       qualified_account_value: client?.qualified_account_value ?? 25000000, // $250,000 in cents
@@ -66,6 +68,8 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       // Section 5: Taxable Income
       ssi_payout_age: client?.ssi_payout_age ?? 67,
       ssi_annual_amount: client?.ssi_annual_amount ?? 2400000, // $24,000 in cents
+      spouse_ssi_payout_age: client?.spouse_ssi_payout_age ?? 67,
+      spouse_ssi_annual_amount: client?.spouse_ssi_annual_amount ?? 0,
       non_ssi_income: client?.non_ssi_income ?? [],
 
       // Section 6: Conversion
@@ -136,8 +140,12 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
         data.filing_status === "married_filing_jointly" ||
         data.filing_status === "married_filing_separately";
 
-      // Calculate spouse_dob if married
-      const spouseDob = isMarriedFiling ? dateOfBirth : null;
+      // Calculate spouse_dob if married (from spouse_age, not client's own age)
+      let spouseDob: string | null = null;
+      if (isMarriedFiling && data.spouse_age) {
+        const spouseBirthYear = currentYear - data.spouse_age;
+        spouseDob = `${spouseBirthYear}-01-01`;
+      }
 
       // Strip spouse fields for non-married filers
       const cleanedData = { ...data };
@@ -155,7 +163,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
         traditional_ira: data.qualified_account_value,
         other_retirement: 0,
         ss_self: data.ssi_annual_amount,
-        ss_spouse: 0,
+        ss_spouse: isMarriedFiling ? (data.spouse_ssi_annual_amount ?? 0) : 0,
         ss_start_age: data.ssi_payout_age,
         growth_rate: data.rate_of_return,
         strategy: mapConversionTypeToStrategy(data.conversion_type),

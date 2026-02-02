@@ -38,7 +38,9 @@ export function InputSidebar({ client }: InputSidebarProps) {
             name: client?.name ?? "",
             age: client?.age ?? 62,
             spouse_name: client?.spouse_name ?? "",
-            spouse_age: client?.spouse_age ?? 60, // Default or fetch if available
+            spouse_age: client?.spouse_age ?? (
+                (client?.filing_status === "married_filing_jointly" || client?.filing_status === "married_filing_separately") ? 60 : undefined
+            ),
 
             qualified_account_value: client?.qualified_account_value ?? 0,
             carrier_name: client?.carrier_name ?? "Generic Carrier",
