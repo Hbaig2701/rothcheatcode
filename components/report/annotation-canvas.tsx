@@ -175,14 +175,12 @@ export function AnnotationCanvas({
       const svg = svgRef.current;
       if (!svg) return { x: 0, y: 0 };
       const rect = svg.getBoundingClientRect();
-      const scrollContainer = contentRef.current;
-      const scrollTop = scrollContainer?.scrollTop ?? 0;
       return {
         x: e.clientX - rect.left,
-        y: e.clientY - rect.top + scrollTop,
+        y: e.clientY - rect.top,
       };
     },
-    [contentRef]
+    []
   );
 
   const handleMouseDown = useCallback(
