@@ -233,12 +233,12 @@ export function InputSidebar({ client }: InputSidebarProps) {
 
                             // Styles
                             "[&_label]:text-[11px] [&_label]:font-semibold [&_label]:text-[#A0A0A0] [&_label]:uppercase [&_label]:tracking-wide [&_label]:mb-1.5",
-                            "[&_input]:bg-[#0A0A0A] [&_input]:border-[#2A2A2A] [&_input]:h-8 [&_input]:text-xs [&_input]:text-white [&_input]:rounded-sm [&_input]:px-2.5",
+                            "[&_input]:bg-[#1A1A1A] [&_input]:border-[#3A3A3A] [&_input]:h-8 [&_input]:text-xs [&_input]:text-white [&_input]:rounded-sm [&_input]:px-2.5",
                             "[&_input:focus]:border-[#F5B800] [&_input:focus]:ring-0",
-                            "[&_button[role=combobox]]:bg-[#0A0A0A] [&_button[role=combobox]]:border-[#2A2A2A] [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs [&_button[role=combobox]]:text-white [&_button[role=combobox]]:rounded-sm [&_button[role=combobox]]:px-2.5",
+                            "[&_button[role=combobox]]:bg-[#1A1A1A] [&_button[role=combobox]]:border-[#3A3A3A] [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs [&_button[role=combobox]]:text-white [&_button[role=combobox]]:rounded-sm [&_button[role=combobox]]:px-2.5",
 
                             // Select trigger styling for sidebar
-                            "[&_[data-slot=select-trigger]]:bg-[#0A0A0A] [&_[data-slot=select-trigger]]:border-[#2A2A2A] [&_[data-slot=select-trigger]]:h-8 [&_[data-slot=select-trigger]]:text-xs [&_[data-slot=select-trigger]]:text-white [&_[data-slot=select-trigger]]:w-full",
+                            "[&_[data-slot=select-trigger]]:bg-[#1A1A1A] [&_[data-slot=select-trigger]]:border-[#3A3A3A] [&_[data-slot=select-trigger]]:h-8 [&_[data-slot=select-trigger]]:text-xs [&_[data-slot=select-trigger]]:text-white [&_[data-slot=select-trigger]]:w-full",
 
                             // Headers
                             "[&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-[#F5B800] [&_h3]:border-b [&_h3]:border-[#2A2A2A] [&_h3]:pb-1 [&_h3]:mb-3",
