@@ -50,7 +50,7 @@ function CustomTooltip({ active, payload, label }: any) {
     }).format(cents / 100);
 
   return (
-    <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-3 shadow-xl">
+    <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-3 shadow-xl">
       <p className="text-[#A0A0A0] text-xs font-medium mb-2">Age {label}</p>
       {payload.map((entry: any, i: number) => (
         <p key={i} className="text-xs font-mono" style={{ color: entry.color }}>

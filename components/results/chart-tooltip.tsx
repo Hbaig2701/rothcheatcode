@@ -32,7 +32,7 @@ export function ChartTooltip({
     : 0;
 
   return (
-    <div className="rounded-lg border border-[#2A2A2A] bg-[#0A0A0A]/95 p-3 shadow-xl backdrop-blur-sm">
+    <div className="rounded-lg border border-[#2A2A2A] bg-[#141414]/95 p-3 shadow-xl backdrop-blur-sm">
       <p className="font-semibold text-white mb-2">Age {label}</p>
       <div className="space-y-1.5 text-sm">
         <div className="flex justify-between gap-6">

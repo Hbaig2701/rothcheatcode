@@ -114,11 +114,11 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     };
 
     if (clientLoading || projectionLoading) {
-        return <div className="p-8 space-y-4 bg-black h-full"><Skeleton className="h-12 w-full bg-[#141414]" /><Skeleton className="h-64 w-full bg-[#141414]" /></div>;
+        return <div className="p-8 space-y-4 bg-[#0D0D0D] h-full"><Skeleton className="h-12 w-full bg-[#141414]" /><Skeleton className="h-64 w-full bg-[#141414]" /></div>;
     }
 
     if (!client || !projectionResponse?.projection) {
-        return <div className="p-8 bg-black h-full text-[#A0A0A0]">No data available. Please recalculate.</div>;
+        return <div className="p-8 bg-[#0D0D0D] h-full text-[#A0A0A0]">No data available. Please recalculate.</div>;
     }
 
     const { projection } = projectionResponse;
@@ -180,7 +180,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const percentChange = baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;
 
     return (
-        <div className="flex flex-col h-full bg-black text-white overflow-y-auto font-sans">
+        <div className="flex flex-col h-full bg-[#0D0D0D] text-white overflow-y-auto font-sans">
             <div className="p-6 space-y-8">
 
                 {/* Action Button Bar */}
@@ -230,35 +230,35 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                     <h3 className="text-xs font-bold text-[#A0A0A0] uppercase tracking-widest">Conversion Insights</h3>
 
                     <div className="grid grid-cols-1 gap-px bg-[#2A2A2A] border border-[#2A2A2A] text-xs">
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                        <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
                             <span className="text-[#A0A0A0] font-medium">Client Name</span>
                             <span className="font-mono text-white">{client.name}</span>
                         </div>
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                        <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
                             <span className="text-[#A0A0A0] font-medium">Initial Balance</span>
                             <span className="font-mono text-white">{toUSD(client.qualified_account_value)}</span>
                         </div>
                         {isGI && projection.gi_income_start_age != null && (
-                            <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                            <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
                                 <span className="text-[#A0A0A0] font-medium">Income Start Age</span>
                                 <span className="font-mono text-white">{projection.gi_income_start_age}</span>
                             </div>
                         )}
                         {isGI && projection.gi_annual_income_gross != null && (
-                            <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                            <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
                                 <span className="text-[#A0A0A0] font-medium">Guaranteed Annual Income</span>
                                 <span className="font-mono text-[#F5B800] font-bold">{toUSD(projection.gi_annual_income_gross)}</span>
                             </div>
                         )}
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                        <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
                             <span className="text-[#A0A0A0] font-medium">Lifetime Wealth Before CheatCode</span>
                             <span className="font-mono text-white">{toUSD(baseLifetime)}</span>
                         </div>
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                        <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
                             <span className="text-[#A0A0A0] font-medium">Lifetime Wealth After CheatCode</span>
                             <span className="font-mono text-[#F5B800] font-bold">{toUSD(blueLifetime)}</span>
                         </div>
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#0A0A0A]">
+                        <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
                             <span className="text-[#A0A0A0] font-medium">Percent Change</span>
                             <span className="font-mono text-[#22C55E] font-bold">{toPercent(percentChange)}</span>
                         </div>
@@ -271,7 +271,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                 )}
 
                 {/* Chart Section */}
-                <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-6 min-h-[480px] relative">
+                <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-6 min-h-[480px] relative">
                     <div className="text-center mb-4">
                         <h4 className="text-base font-semibold text-white">Lifetime Wealth Trajectory</h4>
                         <p className="text-xs text-[#6B6B6B] mt-1">
@@ -290,7 +290,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                             </div>
                         </div>
                     </div>
-                    <div ref={lifetimeWealthChartRef} className="h-[360px] w-full bg-[#0A0A0A]">
+                    <div ref={lifetimeWealthChartRef} className="h-[360px] w-full bg-[#141414]">
                         <WealthChart data={chartData} breakEvenAge={projection.break_even_age} />
                     </div>
                 </div>
@@ -306,7 +306,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
                 {/* Account Value vs Income Base Chart (GI Only) */}
                 {isGI && projection.gi_yearly_data && projection.gi_yearly_data.length > 0 && (
-                    <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-6 min-h-[480px] relative">
+                    <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-6 min-h-[480px] relative">
                         <div className="text-center mb-4">
                             <h4 className="text-base font-semibold text-white">Account Value vs Income Base</h4>
                             <p className="text-xs text-[#6B6B6B] mt-1">Tracking account value, income base, and Roth balance over time</p>
@@ -325,7 +325,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                                 </div>
                             </div>
                         </div>
-                        <div className="h-[360px] w-full bg-[#0A0A0A]">
+                        <div className="h-[360px] w-full bg-[#141414]">
                             <GIAccountChart projection={projection} />
                         </div>
                     </div>

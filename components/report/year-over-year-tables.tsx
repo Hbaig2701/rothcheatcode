@@ -417,7 +417,7 @@ export function YearOverYearTables({
       </thead>
       <tbody>
         {conversionYears.length === 0 ? (
-          <tr className="bg-[#0A0A0A]">
+          <tr className="bg-[#141414]">
             <td colSpan={9} className="px-4 py-8 text-center text-[#A0A0A0]">
               No conversions in this projection.
             </td>
@@ -469,7 +469,7 @@ export function YearOverYearTables({
   const visibleTabs = TABS.filter((tab) => tab.showAlways || scenario === "cheatCode");
 
   return (
-    <div className="bg-[#0A0A0A] rounded-lg border border-[#2A2A2A] overflow-hidden">
+    <div className="bg-[#141414] rounded-lg border border-[#2A2A2A] overflow-hidden">
       {/* Header */}
       <div className="px-6 py-4 border-b border-[#2A2A2A]">
         <h3 className="text-lg font-semibold text-white mb-3">Year-over-Year Values</h3>
@@ -519,7 +519,7 @@ export function YearOverYearTables({
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-[#2A2A2A] bg-[#0A0A0A]">
+      <div className="flex border-b border-[#2A2A2A] bg-[#141414]">
         {visibleTabs.map((tab) => (
           <button
             key={tab.id}
@@ -540,7 +540,7 @@ export function YearOverYearTables({
       <div className="overflow-x-auto max-h-[600px] overflow-y-auto">{renderTable()}</div>
 
       {/* Footer Disclaimer */}
-      <div className="px-6 py-4 border-t border-[#2A2A2A] bg-[#0A0A0A]">
+      <div className="px-6 py-4 border-t border-[#2A2A2A] bg-[#141414]">
         <p className="text-xs text-[#6B6B6B] italic">
           This optimized plan is for educational purposes only. Before making a Roth conversion,
           discuss your final plan with a tax professional.

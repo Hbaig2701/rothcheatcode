@@ -22,7 +22,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Panel 1: Guaranteed Income Overview */}
-                <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+                <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
                     <h4 className="text-[10px] font-bold text-[#F5B800] uppercase tracking-wider">
                         Income Overview
                     </h4>
@@ -59,7 +59,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                 </div>
 
                 {/* Panel 2: Income Base Snapshot */}
-                <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+                <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
                     <h4 className="text-[10px] font-bold text-[#F5B800] uppercase tracking-wider">
                         Income Base
                     </h4>
@@ -92,7 +92,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                 </div>
 
                 {/* Panel 3: Lifetime Income Totals */}
-                <div className="bg-[#0A0A0A] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+                <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
                     <h4 className="text-[10px] font-bold text-[#F5B800] uppercase tracking-wider">
                         Lifetime Totals
                     </h4>

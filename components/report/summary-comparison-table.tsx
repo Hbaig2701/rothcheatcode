@@ -82,8 +82,8 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     ];
 
     return (
-        <div className="w-full bg-[#0A0A0A] rounded-sm border border-[#2A2A2A] text-xs">
-            <div className="grid grid-cols-4 bg-[#0A0A0A] border-b border-[#2A2A2A] p-2 font-bold text-[#A0A0A0] uppercase tracking-wider">
+        <div className="w-full bg-[#141414] rounded-sm border border-[#2A2A2A] text-xs">
+            <div className="grid grid-cols-4 bg-[#141414] border-b border-[#2A2A2A] p-2 font-bold text-[#A0A0A0] uppercase tracking-wider">
                 <div>Metric</div>
                 <div className="text-right">Baseline Trajectory</div>
                 <div className="text-right text-[#F5B800]">CheatCode Trajectory</div>
@@ -93,7 +93,7 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
                 {rows.map((row, i) => {
                     if (row.type === "header") {
                         return (
-                            <div key={i} className="p-2 bg-[#0A0A0A]/50 text-[#6B6B6B] font-bold uppercase tracking-wider text-[10px] mt-2">
+                            <div key={i} className="p-2 bg-[#1A1A1A]/50 text-[#6B6B6B] font-bold uppercase tracking-wider text-[10px] mt-2">
                                 {row.label}
                             </div>
                         );
