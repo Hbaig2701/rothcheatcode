@@ -18,7 +18,10 @@ import { YearlyResult } from "@/lib/calculations";
 import { GISummaryPanel } from "@/components/results/gi-summary-panel";
 import { GIAccountChart } from "@/components/results/gi-account-chart";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
-import { Copy, Plus, FileText, Loader2 } from "lucide-react";
+import { Copy, Plus, FileText, Loader2, Pencil } from "lucide-react";
+import { useAnnotation } from "@/hooks/use-annotation";
+import { AnnotationToolbar } from "@/components/report/annotation-toolbar";
+import { AnnotationCanvas } from "@/components/report/annotation-canvas";
 
 interface ReportDashboardProps {
     clientId: string;
@@ -29,6 +32,10 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const { data: client, isLoading: clientLoading } = useClient(clientId);
     const { data: projectionResponse, isLoading: projectionLoading } = useProjection(clientId);
     const createClient = useCreateClient();
+
+    // Annotation system
+    const annotation = useAnnotation();
+    const contentRef = useRef<HTMLDivElement>(null);
 
     // Loading states for buttons
     const [isDuplicating, setIsDuplicating] = useState(false);
@@ -180,7 +187,37 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const percentChange = baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;
 
     return (
-        <div className="flex flex-col h-full bg-[#0D0D0D] text-white overflow-y-auto font-sans">
+        <div ref={contentRef} className="flex flex-col h-full bg-[#0D0D0D] text-white overflow-y-auto font-sans relative">
+            {/* Annotation Toolbar */}
+            {annotation.isActive && (
+                <AnnotationToolbar
+                    activeTool={annotation.activeTool}
+                    color={annotation.color}
+                    canUndo={annotation.historyIndex > 0}
+                    canRedo={annotation.historyIndex < annotation.historyLength - 1}
+                    onToolChange={annotation.setTool}
+                    onColorChange={annotation.setColor}
+                    onUndo={annotation.undo}
+                    onRedo={annotation.redo}
+                    onClear={annotation.clearAll}
+                    onDone={annotation.toggleAnnotationMode}
+                />
+            )}
+
+            {/* Annotation Canvas Overlay */}
+            <AnnotationCanvas
+                isActive={annotation.isActive}
+                activeTool={annotation.activeTool}
+                annotations={annotation.annotations}
+                currentAnnotation={annotation.currentAnnotation}
+                drawTick={annotation.drawTick}
+                onMouseDown={annotation.startDrawing}
+                onMouseMove={annotation.continueDrawing}
+                onMouseUp={annotation.endDrawing}
+                onTextPlace={annotation.addTextAnnotation}
+                contentRef={contentRef}
+            />
+
             <div className="p-6 space-y-8">
 
                 {/* Action Button Bar */}
@@ -222,6 +259,17 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                             )}
                             Export as PDF
                         </button>
+
+                        {/* Annotate Button - Outline Style */}
+                        {!annotation.isActive && (
+                            <button
+                                onClick={annotation.toggleAnnotationMode}
+                                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-[#F5B800] bg-transparent border border-[#F5B800] rounded-md hover:bg-[#F5B800]/10 transition-colors"
+                            >
+                                <Pencil className="h-4 w-4" />
+                                Annotate
+                            </button>
+                        )}
                     </div>
                 </div>
 
