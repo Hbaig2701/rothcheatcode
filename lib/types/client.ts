@@ -64,6 +64,8 @@ export interface Client {
   payout_type: 'individual' | 'joint';
   income_start_age: number;
   guaranteed_rate_of_return: number;
+  roll_up_option: 'simple' | 'compound' | null;
+  payout_option: 'level' | 'increasing' | null;
 
   // ===== Section 8: Advanced Data =====
   surrender_years: number;
@@ -155,6 +157,8 @@ export interface FormulaFormData {
   payout_type: Client["payout_type"];
   income_start_age: number;
   guaranteed_rate_of_return: number;
+  roll_up_option: 'simple' | 'compound' | null;
+  payout_option: 'level' | 'increasing' | null;
 
   // Section 8: Advanced
   surrender_years: number;

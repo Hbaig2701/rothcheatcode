@@ -89,6 +89,8 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       payout_type: client?.payout_type ?? "individual",
       income_start_age: client?.income_start_age ?? 65,
       guaranteed_rate_of_return: client?.guaranteed_rate_of_return ?? 0,
+      roll_up_option: client?.roll_up_option ?? null,
+      payout_option: client?.payout_option ?? null,
 
       // Section 8: Advanced
       surrender_years: client?.surrender_years ?? (ud.surrender_years as number) ?? 7,

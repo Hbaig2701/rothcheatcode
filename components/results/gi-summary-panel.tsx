@@ -33,6 +33,14 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                                 {projection.gi_income_start_age ?? "—"}
                             </span>
                         </div>
+                        {projection.gi_payout_percent != null && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-[#A0A0A0]">Payout Percentage</span>
+                                <span className="text-xs font-mono text-[#F5B800]">
+                                    {projection.gi_payout_percent.toFixed(2)}%
+                                </span>
+                            </div>
+                        )}
                         <div className="flex justify-between items-center">
                             <span className="text-xs text-[#A0A0A0]">Annual Income (Gross)</span>
                             <span className="text-xs font-mono text-[#F5B800] font-bold">
@@ -55,6 +63,14 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                                 {projection.gi_depletion_age ?? "Never"}
                             </span>
                         </div>
+                        {projection.gi_depletion_age && (
+                            <div className="flex justify-between items-center pt-1 border-t border-[#2A2A2A]">
+                                <span className="text-xs text-[#A0A0A0]">Income After Depletion</span>
+                                <span className="text-xs font-mono text-emerald-400 font-bold">
+                                    Continues
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -88,6 +104,14 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                                 </span>
                             </div>
                         )}
+                        {projection.gi_roll_up_description && (
+                            <div className="flex justify-between items-center pt-1 border-t border-[#2A2A2A]">
+                                <span className="text-xs text-[#A0A0A0]">Roll-Up</span>
+                                <span className="text-xs font-mono text-[#A0A0A0]">
+                                    {projection.gi_roll_up_description}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -113,6 +137,14 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                                     : "—"}
                             </span>
                         </div>
+                        {projection.gi_total_rider_fees != null && projection.gi_total_rider_fees > 0 && (
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-[#A0A0A0]">Total Rider Fees</span>
+                                <span className="text-xs font-mono text-red-400">
+                                    {toUSD(projection.gi_total_rider_fees)}
+                                </span>
+                            </div>
+                        )}
                         {projection.gi_total_gross_paid && projection.gi_total_net_paid && (
                             <div className="flex justify-between items-center pt-1 border-t border-[#2A2A2A]">
                                 <span className="text-xs text-[#A0A0A0]">Effective Tax Rate</span>

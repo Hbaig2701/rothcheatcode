@@ -123,6 +123,8 @@ export const clientFormulaBaseSchema = z.object({
   payout_type: z.enum(['individual', 'joint']).default('individual'),
   income_start_age: z.number().int().min(55, "Income start age minimum 55").max(80, "Income start age maximum 80").default(65),
   guaranteed_rate_of_return: z.number().min(0).max(30).default(0),
+  roll_up_option: z.enum(['simple', 'compound']).nullable().default(null),
+  payout_option: z.enum(['level', 'increasing']).nullable().default(null),
 
   // Section 8: Advanced Data
   surrender_years: z.number().int().min(0).max(20).default(7),
@@ -216,6 +218,8 @@ export const clientFullBaseSchema = z.object({
   payout_type: z.enum(['individual', 'joint']).default('individual'),
   income_start_age: z.number().int().min(55).max(80).default(65),
   guaranteed_rate_of_return: z.number().min(0).max(30).default(0),
+  roll_up_option: z.enum(['simple', 'compound']).nullable().default(null),
+  payout_option: z.enum(['level', 'increasing']).nullable().default(null),
 
   // Spouse SSI fields
   spouse_ssi_payout_age: z.number().int().min(62).max(70).optional().nullable(),
@@ -374,6 +378,8 @@ export type ClientFormData = {
   payout_type: "individual" | "joint";
   income_start_age: number;
   guaranteed_rate_of_return: number;
+  roll_up_option: "simple" | "compound" | null;
+  payout_option: "level" | "increasing" | null;
 
   // Section 8: Advanced
   surrender_years: number;

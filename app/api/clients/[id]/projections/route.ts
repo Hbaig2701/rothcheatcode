@@ -59,6 +59,8 @@ function generateInputHash(client: Client): string {
     payout_type: client.payout_type,
     income_start_age: client.income_start_age,
     guaranteed_rate_of_return: client.guaranteed_rate_of_return,
+    roll_up_option: client.roll_up_option,
+    payout_option: client.payout_option,
   };
   return crypto.createHash('sha256').update(JSON.stringify(relevantFields)).digest('hex');
 }
@@ -124,6 +126,9 @@ function simulationToProjection(
     gi_total_gross_paid: giMetrics?.totalGrossPaid ?? null,
     gi_total_net_paid: giMetrics?.totalNetPaid ?? null,
     gi_yearly_data: giMetrics?.yearlyData ?? null,
+    gi_total_rider_fees: giMetrics?.totalRiderFees ?? null,
+    gi_payout_percent: giMetrics?.payoutPercent ?? null,
+    gi_roll_up_description: giMetrics?.rollUpDescription ?? null,
   };
 }
 

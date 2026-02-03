@@ -12,6 +12,7 @@ export interface GIYearlyData {
   guaranteedIncomeGross: number;  // In cents (0 during deferral)
   guaranteedIncomeNet: number;    // After-tax (0 during deferral)
   conversionAmount: number;       // Roth conversions during deferral only
+  riderFee: number;               // Annual rider fee deducted (cents)
 }
 
 /**
@@ -54,6 +55,9 @@ export interface Projection {
   gi_total_gross_paid: number | null;
   gi_total_net_paid: number | null;
   gi_yearly_data: GIYearlyData[] | null;
+  gi_total_rider_fees: number | null;
+  gi_payout_percent: number | null;
+  gi_roll_up_description: string | null;
 }
 
 export type ProjectionInsert = Omit<Projection, 'id' | 'created_at'>;

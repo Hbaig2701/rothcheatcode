@@ -23,6 +23,8 @@ import {
   isGuaranteedIncomeProduct,
   type FormulaType,
 } from "@/lib/config/products";
+import { GI_PRODUCT_DATA } from "@/lib/config/gi-product-data";
+import type { GuaranteedIncomeFormulaType } from "@/lib/config/products";
 import { Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -46,8 +48,25 @@ export function NewAccountSection() {
     form.setValue("rate_of_return", product.defaults.rateOfReturn);
 
     // Set GI-specific defaults when switching to a GI product
-    if (product.defaults.guaranteedRateOfReturn !== undefined) {
-      form.setValue("guaranteed_rate_of_return", product.defaults.guaranteedRateOfReturn);
+    const giData = GI_PRODUCT_DATA[value as GuaranteedIncomeFormulaType];
+    if (giData) {
+      // Set roll-up option default for American Equity
+      if (giData.hasRollUpOptions && giData.rollUp.defaultOption) {
+        form.setValue("roll_up_option", giData.rollUp.defaultOption as "simple" | "compound");
+      } else {
+        form.setValue("roll_up_option", null);
+      }
+
+      // Set payout option default for North American
+      if (giData.hasDualPayoutOption) {
+        form.setValue("payout_option", "level");
+      } else {
+        form.setValue("payout_option", null);
+      }
+    } else {
+      // Switching to a Growth product - clear GI-specific fields
+      form.setValue("roll_up_option", null);
+      form.setValue("payout_option", null);
     }
   };
 
@@ -55,6 +74,9 @@ export function NewAccountSection() {
   const isProductLocked = isFieldLocked("productName", formulaType);
   const isBonusLocked = isFieldLocked("bonus", formulaType);
   const isGI = isGuaranteedIncomeProduct(formulaType);
+
+  // Get product-specific GI data for conditional fields
+  const giData = isGI ? GI_PRODUCT_DATA[formulaType as GuaranteedIncomeFormulaType] : null;
 
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
@@ -160,6 +182,22 @@ export function NewAccountSection() {
         )}
       />
 
+      {/* Rider Fee - Locked display for GI products */}
+      {isGI && giData && (
+        <Field>
+          <FieldLabel className="flex items-center gap-1.5">
+            Annual Rider Fee
+            <Lock className="size-3 text-muted-foreground" />
+          </FieldLabel>
+          <Input
+            value={`${giData.riderFee.toFixed(2)}%`}
+            disabled
+            className="opacity-60 cursor-not-allowed bg-muted/30"
+          />
+          <FieldDescription>Deducted from Account Value annually</FieldDescription>
+        </Field>
+      )}
+
       {/* Rate of Return - Always editable */}
       <Controller
         name="rate_of_return"
@@ -176,25 +214,68 @@ export function NewAccountSection() {
           </Field>
         )}
       />
+
       {/* GI-specific fields - only shown for Guaranteed Income products */}
       {isGI && (
         <>
-          {/* Guaranteed Rate of Return */}
-          <Controller
-            name="guaranteed_rate_of_return"
-            control={form.control}
-            render={({ field: { ref, ...field }, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="guaranteed_rate_of_return">Guaranteed Rate of Return %</FieldLabel>
-                <PercentInput
-                  {...field}
-                  aria-invalid={fieldState.invalid}
-                />
-                <FieldDescription>Annual guaranteed roll-up rate for the income base</FieldDescription>
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
+          {/* Roll-Up Option - American Equity only */}
+          {giData?.hasRollUpOptions && giData.rollUp.options && (
+            <Controller
+              name="roll_up_option"
+              control={form.control}
+              render={({ field }) => (
+                <Field>
+                  <FieldLabel htmlFor="roll_up_option">Roll-Up Option</FieldLabel>
+                  <Select
+                    value={field.value ?? "simple"}
+                    onValueChange={(v) => field.onChange(v)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {giData.rollUp.options!.map((option) => (
+                        <SelectItem key={option.id} value={option.id}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    Determines how your Income Base grows during deferral
+                  </FieldDescription>
+                </Field>
+              )}
+            />
+          )}
+
+          {/* Payout Option - North American only */}
+          {giData?.hasDualPayoutOption && (
+            <Controller
+              name="payout_option"
+              control={form.control}
+              render={({ field }) => (
+                <Field>
+                  <FieldLabel htmlFor="payout_option">Payout Option</FieldLabel>
+                  <Select
+                    value={field.value ?? "level"}
+                    onValueChange={(v) => field.onChange(v)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="level">Level LPA - Higher starting income, stays flat</SelectItem>
+                      <SelectItem value="increasing">Increasing LPA - Lower starting, grows over time</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FieldDescription>
+                    Level starts higher but stays flat; Increasing starts lower but can grow
+                  </FieldDescription>
+                </Field>
+              )}
+            />
+          )}
 
           {/* Payout Type */}
           <Controller
@@ -222,7 +303,7 @@ export function NewAccountSection() {
                       onChange={(e) => field.onChange(e.target.value)}
                       className="h-4 w-4 text-primary"
                     />
-                    <span className="text-sm">Joint (88% of individual payout)</span>
+                    <span className="text-sm">Joint</span>
                   </label>
                 </div>
                 <FieldDescription>Individual or joint life payout option</FieldDescription>

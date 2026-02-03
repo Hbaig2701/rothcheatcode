@@ -66,6 +66,8 @@ export function InputSidebar({ client }: InputSidebarProps) {
             payout_type: client?.payout_type ?? "individual",
             income_start_age: client?.income_start_age ?? 65,
             guaranteed_rate_of_return: client?.guaranteed_rate_of_return ?? 0,
+            roll_up_option: client?.roll_up_option ?? null,
+            payout_option: client?.payout_option ?? null,
             surrender_years: client?.surrender_years ?? 7,
             penalty_free_percent: client?.penalty_free_percent ?? 10,
             baseline_comparison_rate: client?.baseline_comparison_rate ?? 7,
@@ -188,9 +190,6 @@ export function InputSidebar({ client }: InputSidebarProps) {
         form.setValue("surrender_years", product.defaults.surrenderYears);
         form.setValue("penalty_free_percent", product.defaults.penaltyFreePercent);
         form.setValue("rate_of_return", product.defaults.rateOfReturn);
-        if (product.defaults.guaranteedRateOfReturn !== undefined) {
-            form.setValue("guaranteed_rate_of_return", product.defaults.guaranteedRateOfReturn);
-        }
     };
 
     return (

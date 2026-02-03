@@ -6,7 +6,10 @@
  *
  * Key differences from Growth:
  * - Tracks two parallel values: Account Value and Income Base
- * - Bonus applies to Income Base (not Account Value in the traditional sense)
+ * - Bonus routing is product-specific (incomeBase, accountValue, or none)
+ * - Income Base grows via product-specific roll-up (simple/compound, tiered)
+ * - Rider fee deducted from Account Value annually
+ * - Payout percentages looked up from product-specific tables by age
  * - Income continues even after Account Value depletes to $0
  * - Conversions only during deferral period (before income starts)
  * - Baseline uses systematic withdrawals matching GI amount for fair comparison
@@ -28,25 +31,13 @@ import { calculateStateTax, calculateConversionStateTax } from '../modules/state
 import { calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
-
-// ---------------------------------------------------------------------------
-// Payout Factor Table
-// ---------------------------------------------------------------------------
-
-const PAYOUT_FACTORS: Record<number, number> = {
-  55: 0.040, 56: 0.041, 57: 0.042, 58: 0.043, 59: 0.044,
-  60: 0.045, 61: 0.046, 62: 0.047, 63: 0.048, 64: 0.049,
-  65: 0.050, 66: 0.052, 67: 0.054, 68: 0.056, 69: 0.058,
-  70: 0.060, 71: 0.062, 72: 0.064, 73: 0.066, 74: 0.068,
-  75: 0.070, 76: 0.072, 77: 0.074, 78: 0.076, 79: 0.078,
-  80: 0.080,
-};
-
-function getPayoutFactor(payoutType: 'individual' | 'joint', age: number): number {
-  const clampedAge = Math.min(Math.max(age, 55), 80);
-  const factor = PAYOUT_FACTORS[clampedAge] ?? 0.050;
-  return payoutType === 'joint' ? factor * 0.88 : factor;
-}
+import {
+  GI_PRODUCT_DATA,
+  getProductPayoutFactor,
+  getRollUpForYear,
+  type GIProductData,
+} from '@/lib/config/gi-product-data';
+import type { GuaranteedIncomeFormulaType } from '@/lib/config/products';
 
 // ---------------------------------------------------------------------------
 // Break-even / Tax savings / Heir benefit (same formulas as Growth engine)
@@ -118,27 +109,55 @@ function runGIFormulaScenario(
   const results: YearlyResult[] = [];
   const giYearlyData: GIYearData[] = [];
 
+  // --- Product config ---
+  const productId = client.blueprint_type as GuaranteedIncomeFormulaType;
+  const productData: GIProductData | undefined = GI_PRODUCT_DATA[productId];
+
   // --- Age setup ---
   const useAgeBased = client.age !== undefined && client.age > 0;
   const clientAge = useAgeBased ? client.age : 62;
-  const birthYear = useAgeBased
-    ? getBirthYearFromAge(clientAge, startYear)
-    : (client.date_of_birth ? new Date(client.date_of_birth).getFullYear() : startYear - clientAge);
 
   // --- Rates ---
   const rateOfReturn = (client.rate_of_return ?? 0) / 100;
-  const guaranteedRateOfReturn = (client.guaranteed_rate_of_return ?? 0) / 100;
-  const baselineComparisonRate = (client.baseline_comparison_rate ?? 7) / 100;
 
   // --- Initial values ---
   const initialQualifiedValue = client.qualified_account_value ?? client.traditional_ira ?? 0;
-  const bonusRate = (client.bonus_percent ?? 10) / 100;
+  const bonusRate = (client.bonus_percent ?? 0) / 100;
 
-  // Account Value: real money (bonus applied for GI products too per spec)
-  let accountValue = Math.round(initialQualifiedValue * (1 + bonusRate));
-  // Income Base: starts at same value (bonus included)
-  let incomeBase = accountValue;
+  // --- Product-specific initialization ---
+  let accountValue: number;
+  let incomeBase: number;
+  let bonusAmount = 0;
+  let bonusAppliesTo: string | null = null;
+
+  if (productData) {
+    const bonus = bonusRate;
+    bonusAppliesTo = productData.bonusAppliesTo;
+
+    if (productData.bonusAppliesTo === 'accountValue') {
+      // American Equity: bonus goes to real money + income base
+      accountValue = Math.round(initialQualifiedValue * (1 + bonus));
+      incomeBase = Math.round(initialQualifiedValue * (1 + bonus));
+      bonusAmount = Math.round(initialQualifiedValue * bonus);
+    } else if (productData.bonusAppliesTo === 'incomeBase') {
+      // Athene, EquiTrust: bonus goes to income base only
+      accountValue = initialQualifiedValue;
+      incomeBase = Math.round(initialQualifiedValue * (1 + bonus));
+      bonusAmount = Math.round(initialQualifiedValue * bonus);
+    } else {
+      // North American: no bonus
+      accountValue = initialQualifiedValue;
+      incomeBase = initialQualifiedValue;
+    }
+  } else {
+    // Fallback for unknown products
+    accountValue = Math.round(initialQualifiedValue * (1 + bonusRate));
+    incomeBase = accountValue;
+    bonusAmount = Math.round(initialQualifiedValue * bonusRate);
+  }
+
   const incomeBaseAtStart = incomeBase;
+  const originalIncomeBase = incomeBase; // Needed for simple interest roll-up
 
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
@@ -146,6 +165,12 @@ function runGIFormulaScenario(
   // --- GI timing ---
   const effectiveIncomeStartAge = Math.max(client.income_start_age ?? 65, clientAge);
   const payoutType = client.payout_type ?? 'individual';
+  const payoutOption = client.payout_option ?? 'level';
+  const rollUpOption = client.roll_up_option ?? null;
+
+  // --- Rider fee config ---
+  const riderFeeRate = productData ? productData.riderFee / 100 : 0;
+  const riderFeeAppliesTo = productData?.riderFeeAppliesTo ?? 'incomeBase';
 
   // --- Tax config ---
   const maxTaxRate = client.max_tax_rate ?? 24;
@@ -181,6 +206,11 @@ function runGIFormulaScenario(
   let totalGrossPaid = 0;
   let totalNetPaid = 0;
   let firstYearNetIncome = 0;
+  let totalRiderFees = 0;
+  let payoutPercent = 0;
+
+  // --- Roll-up description ---
+  const rollUpDescription = productData?.rollUpDescription ?? '';
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
@@ -214,16 +244,36 @@ function runGIFormulaScenario(
     const existingTaxableIncome = calculateTaxableIncome(otherIncome, deductions);
 
     // =======================================================================
-    // DEFERRAL PHASE: Conversions happen, Income Base rolls up
+    // DEFERRAL PHASE: Conversions happen, Income Base rolls up, rider fee
     // =======================================================================
     if (isDeferralPhase) {
-      // Roll up Income Base
-      incomeBase = Math.round(incomeBase * (1 + guaranteedRateOfReturn));
+      const deferralYear = yearOffset + 1; // 1-indexed for roll-up tier lookup
+
+      // Roll up Income Base using product-specific config
+      if (productData) {
+        const rollUpInfo = getRollUpForYear(productId, deferralYear, rollUpOption);
+        if (rollUpInfo) {
+          if (rollUpInfo.type === 'simple') {
+            // Simple interest: add percentage of ORIGINAL income base
+            incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
+          } else {
+            // Compound interest: multiply current income base
+            incomeBase = Math.round(incomeBase * (1 + rollUpInfo.rate));
+          }
+        }
+      } else {
+        // Fallback: use guaranteed_rate_of_return
+        const guaranteedRateOfReturn = (client.guaranteed_rate_of_return ?? 0) / 100;
+        incomeBase = Math.round(incomeBase * (1 + guaranteedRateOfReturn));
+      }
 
       // At the year BEFORE income starts, lock in the income base
       if (age + 1 === effectiveIncomeStartAge) {
         incomeBaseAtIncomeAge = incomeBase;
-        const payoutFactor = getPayoutFactor(payoutType, effectiveIncomeStartAge);
+        const payoutFactor = productData
+          ? getProductPayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption)
+          : 0.05;
+        payoutPercent = payoutFactor * 100;
         guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
       }
 
@@ -276,8 +326,19 @@ function runGIFormulaScenario(
       const accountAfterConversion = boyAccount - conversionAmount;
       const rothAfterConversion = boyRoth + conversionAmount;
 
-      // Interest
+      // Account value grows by Rate of Return
       const accountInterest = Math.round(accountAfterConversion * rateOfReturn);
+      let accountAfterGrowth = accountAfterConversion + accountInterest;
+
+      // Deduct rider fee from Account Value
+      let yearRiderFee = 0;
+      if (riderFeeRate > 0) {
+        const feeBase = riderFeeAppliesTo === 'accountValue' ? accountAfterGrowth : incomeBase;
+        yearRiderFee = Math.round(feeBase * riderFeeRate);
+        accountAfterGrowth = Math.max(0, accountAfterGrowth - yearRiderFee);
+        totalRiderFees += yearRiderFee;
+      }
+
       const rothInterest = Math.round(rothAfterConversion * rateOfReturn);
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
 
@@ -295,7 +356,7 @@ function runGIFormulaScenario(
       const totalTax = conversionTax + irmaaSurcharge;
 
       // EOY balances
-      accountValue = accountAfterConversion + accountInterest;
+      accountValue = accountAfterGrowth;
       rothBalance = rothAfterConversion + rothInterest;
 
       if (payTaxFromIRA) {
@@ -332,6 +393,7 @@ function runGIFormulaScenario(
         guaranteedIncomeGross: 0,
         guaranteedIncomeNet: 0,
         conversionAmount,
+        riderFee: yearRiderFee,
       });
 
     // =======================================================================
@@ -341,7 +403,10 @@ function runGIFormulaScenario(
       // On first income year, lock in if not already done
       if (guaranteedAnnualIncome === 0) {
         incomeBaseAtIncomeAge = incomeBase;
-        const payoutFactor = getPayoutFactor(payoutType, effectiveIncomeStartAge);
+        const payoutFactor = productData
+          ? getProductPayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption)
+          : 0.05;
+        payoutPercent = payoutFactor * 100;
         guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
       }
 
@@ -400,10 +465,20 @@ function runGIFormulaScenario(
 
       // Interest on remaining account value
       const accountInterest = Math.round(accountValue * rateOfReturn);
+      accountValue = accountValue + accountInterest;
+
+      // Deduct rider fee during income phase too
+      let yearRiderFee = 0;
+      if (riderFeeRate > 0 && accountValue > 0) {
+        const feeBase = riderFeeAppliesTo === 'accountValue' ? accountValue : incomeBaseAtIncomeAge;
+        yearRiderFee = Math.round(feeBase * riderFeeRate);
+        accountValue = Math.max(0, accountValue - yearRiderFee);
+        totalRiderFees += yearRiderFee;
+      }
+
       const rothInterest = Math.round(boyRoth * rateOfReturn);
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
 
-      accountValue = accountValue + accountInterest;
       rothBalance = boyRoth + rothInterest;
       taxableBalance = boyTaxable + taxableInterest - totalTax;
 
@@ -435,6 +510,7 @@ function runGIFormulaScenario(
         guaranteedIncomeGross: grossGI,
         guaranteedIncomeNet: netGI,
         conversionAmount: 0,
+        riderFee: yearRiderFee,
       });
     }
   }
@@ -449,6 +525,11 @@ function runGIFormulaScenario(
     totalGrossPaid,
     totalNetPaid,
     yearlyData: giYearlyData,
+    totalRiderFees,
+    payoutPercent,
+    rollUpDescription,
+    bonusAmount,
+    bonusAppliesTo,
   };
 
   return { formula: results, giMetrics };
@@ -469,9 +550,6 @@ function runGIBaselineScenario(
 
   const useAgeBased = client.age !== undefined && client.age > 0;
   const clientAge = useAgeBased ? client.age : 62;
-  const birthYear = useAgeBased
-    ? getBirthYearFromAge(clientAge, startYear)
-    : (client.date_of_birth ? new Date(client.date_of_birth).getFullYear() : startYear - clientAge);
 
   // Baseline uses baseline_comparison_rate
   const growthRate = (client.baseline_comparison_rate ?? 7) / 100;
@@ -527,8 +605,6 @@ function runGIBaselineScenario(
     const otherIncome = grossTaxableNonSSI;
 
     // Systematic withdrawal: match GI amount starting at same age
-    // Before income start age: no withdrawals, just growth
-    // After income start age: withdraw the same dollar amount as GI payment
     let withdrawalAmount = 0;
     if (age >= giIncomeStartAge && boyIRA > 0) {
       withdrawalAmount = Math.min(giAnnualIncome, boyIRA);

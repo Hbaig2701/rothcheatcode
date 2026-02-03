@@ -18,7 +18,7 @@ export interface ProductDefaults {
   surrenderYears: number;
   penaltyFreePercent: number;
   rateOfReturn: number;
-  guaranteedRateOfReturn?: number; // Only for GI products
+  riderFee?: number; // Annual rider fee percentage (GI products only)
 }
 
 export interface ProductConfig {
@@ -26,7 +26,7 @@ export interface ProductConfig {
   label: string;
   category: 'Growth' | 'Guaranteed Income' | 'AUM';
   description: string;
-  lockedFields: Array<'carrierName' | 'productName' | 'bonus' | 'surrenderYears' | 'penaltyFreePercent'>;
+  lockedFields: Array<'carrierName' | 'productName' | 'bonus' | 'surrenderYears' | 'penaltyFreePercent' | 'riderFee'>;
   defaults: ProductDefaults;
   comingSoon?: boolean;
 }
@@ -38,6 +38,7 @@ export const LOCKABLE_FIELDS = [
   'bonus',
   'surrenderYears',
   'penaltyFreePercent',
+  'riderFee',
 ] as const;
 
 export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
@@ -96,15 +97,15 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeFormulaType, Pro
     label: 'Athene Ascent Pro 10',
     category: 'Guaranteed Income',
     description: 'Athene Ascent Pro 10 - Guaranteed Income product',
-    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
     defaults: {
       carrierName: 'Athene',
       productName: 'Ascent Pro 10',
-      bonus: 10,
+      bonus: 20,
       surrenderYears: 10,
       penaltyFreePercent: 10,
       rateOfReturn: 0,
-      guaranteedRateOfReturn: 0,
+      riderFee: 1.00,
     },
   },
 
@@ -113,15 +114,15 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeFormulaType, Pro
     label: 'American Equity IncomeShield Bonus 10',
     category: 'Guaranteed Income',
     description: 'American Equity IncomeShield Bonus 10 - Guaranteed Income product',
-    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
     defaults: {
       carrierName: 'American Equity',
       productName: 'IncomeShield Bonus 10',
-      bonus: 10,
+      bonus: 14,
       surrenderYears: 10,
       penaltyFreePercent: 10,
       rateOfReturn: 0,
-      guaranteedRateOfReturn: 0,
+      riderFee: 1.20,
     },
   },
 
@@ -130,15 +131,15 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeFormulaType, Pro
     label: 'EquiTrust MarketEarly Income Index',
     category: 'Guaranteed Income',
     description: 'EquiTrust MarketEarly Income Index - Guaranteed Income product',
-    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
     defaults: {
       carrierName: 'EquiTrust',
       productName: 'MarketEarly Income Index',
-      bonus: 0,
+      bonus: 20,
       surrenderYears: 10,
       penaltyFreePercent: 10,
       rateOfReturn: 0,
-      guaranteedRateOfReturn: 0,
+      riderFee: 1.25,
     },
   },
 
@@ -147,7 +148,7 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeFormulaType, Pro
     label: 'North American Income Pay Pro',
     category: 'Guaranteed Income',
     description: 'North American Income Pay Pro - Guaranteed Income product',
-    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
     defaults: {
       carrierName: 'North American',
       productName: 'Income Pay Pro',
@@ -155,7 +156,7 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeFormulaType, Pro
       surrenderYears: 10,
       penaltyFreePercent: 10,
       rateOfReturn: 0,
-      guaranteedRateOfReturn: 0,
+      riderFee: 1.15,
     },
   },
 };
