@@ -90,6 +90,19 @@ interface ScenarioData {
   netIncome: YearRow[];
 }
 
+interface BrandingData {
+  companyName: string;
+  tagline: string;
+  logoUrl: string;
+  phone: string;
+  email: string;
+  website: string;
+  primaryColor: string;
+  secondaryColor: string;
+  hasBranding: boolean;
+  hasContactInfo: boolean;
+}
+
 interface TemplateData {
   clientName: string;
   clientAge: number;
@@ -119,6 +132,7 @@ interface TemplateData {
     totalCosts: number;
   };
   conversionDetails: ConversionDetail[];
+  branding: BrandingData;
 }
 
 function formatCurrency(cents: number): string {
@@ -327,7 +341,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string; conversion?: string }): TemplateData {
+function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string; conversion?: string }, branding: BrandingData): TemplateData {
   const { client, projection } = reportData;
 
   // Calculate summary metrics
@@ -463,6 +477,7 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
       totalCosts: (blueTotalCosts - baseTotalCosts) / 100,
     },
     conversionDetails,
+    branding,
   };
 }
 
@@ -485,13 +500,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch user settings for branding
+    const { data: settings } = await supabase
+      .from('user_settings')
+      .select('company_name, tagline, company_phone, company_email, company_website, logo_url, primary_color, secondary_color')
+      .eq('user_id', user.id)
+      .single();
+
+    const branding: BrandingData = {
+      companyName: settings?.company_name || '',
+      tagline: settings?.tagline || '',
+      logoUrl: settings?.logo_url || '',
+      phone: settings?.company_phone || '',
+      email: settings?.company_email || '',
+      website: settings?.company_website || '',
+      primaryColor: settings?.primary_color || '#1a3a5c',
+      secondaryColor: settings?.secondary_color || '#4ecdc4',
+      hasBranding: !!(settings?.company_name || settings?.logo_url),
+      hasContactInfo: !!(settings?.company_phone || settings?.company_email || settings?.company_website),
+    };
+
     // Load and compile template
     const templatePath = path.join(process.cwd(), 'templates', 'pdf-template.html');
     const templateHtml = fs.readFileSync(templatePath, 'utf8');
     const template = Handlebars.compile(templateHtml);
 
     // Prepare data for template
-    const templateData = prepareTemplateData(reportData, charts || {});
+    const templateData = prepareTemplateData(reportData, charts || {}, branding);
 
     // Generate HTML
     const html = template(templateData);
