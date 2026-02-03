@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { isFieldLocked, type FormulaType } from "@/lib/config/products";
+import { isFieldLocked, isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import { Lock, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,15 @@ export function AdvancedDataSection() {
   const [isExpanded, setIsExpanded] = useState(false);
   const form = useFormContext<ClientFormData>();
   const formulaType = form.watch("blueprint_type") as FormulaType;
+  const rateOfReturn = form.watch("rate_of_return");
+  const isGI = isGuaranteedIncomeProduct(formulaType);
+
+  // Auto-sync baseline_comparison_rate with rate_of_return for GI products
+  useEffect(() => {
+    if (isGI) {
+      form.setValue("baseline_comparison_rate", rateOfReturn);
+    }
+  }, [isGI, rateOfReturn, form]);
 
   const isSurrenderLocked = isFieldLocked("surrenderYears", formulaType);
   const isPenaltyFreeLocked = isFieldLocked("penaltyFreePercent", formulaType);
@@ -82,22 +91,24 @@ export function AdvancedDataSection() {
             )}
           />
 
-          {/* Baseline Comparison Rate - Always editable */}
-          <Controller
-            name="baseline_comparison_rate"
-            control={form.control}
-            render={({ field: { ref, ...field }, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="baseline_comparison_rate">Baseline Comparison Rate</FieldLabel>
-                <PercentInput
-                  {...field}
-                  aria-invalid={fieldState.invalid}
-                />
-                <FieldDescription>Return rate for baseline scenario comparison</FieldDescription>
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
+          {/* Baseline Comparison Rate - Hidden for GI (auto-synced with Rate of Return) */}
+          {!isGI && (
+            <Controller
+              name="baseline_comparison_rate"
+              control={form.control}
+              render={({ field: { ref, ...field }, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="baseline_comparison_rate">Baseline Comparison Rate</FieldLabel>
+                  <PercentInput
+                    {...field}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <FieldDescription>Return rate for baseline scenario comparison</FieldDescription>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+          )}
 
           {/* Post Contract Rate - Always editable */}
           <Controller
