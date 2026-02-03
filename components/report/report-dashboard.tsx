@@ -19,6 +19,8 @@ import { GISummaryPanel } from "@/components/results/gi-summary-panel";
 import { GIAccountChart } from "@/components/results/gi-account-chart";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import { Copy, Plus, FileText, Loader2, Pencil } from "lucide-react";
+import { InfoTooltip } from "@/components/report/info-tooltip";
+import { GI_TOOLTIPS } from "@/lib/config/gi-tooltips";
 import { useAnnotation } from "@/hooks/use-annotation";
 import { AnnotationToolbar } from "@/components/report/annotation-toolbar";
 import { AnnotationCanvas } from "@/components/report/annotation-canvas";
@@ -283,31 +285,49 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                             <span className="font-mono text-white">{client.name}</span>
                         </div>
                         <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium">Initial Balance</span>
+                            <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
+                                Initial Balance
+                                {isGI && <InfoTooltip text={GI_TOOLTIPS.initialBalance} />}
+                            </span>
                             <span className="font-mono text-white">{toUSD(client.qualified_account_value)}</span>
                         </div>
                         {isGI && projection.gi_income_start_age != null && (
                             <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                                <span className="text-[#A0A0A0] font-medium">Income Start Age</span>
+                                <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
+                                    Income Start Age
+                                    <InfoTooltip text={GI_TOOLTIPS.incomeStartAge} />
+                                </span>
                                 <span className="font-mono text-white">{projection.gi_income_start_age}</span>
                             </div>
                         )}
                         {isGI && projection.gi_annual_income_gross != null && (
                             <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                                <span className="text-[#A0A0A0] font-medium">Guaranteed Annual Income</span>
+                                <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
+                                    Guaranteed Annual Income
+                                    <InfoTooltip text={GI_TOOLTIPS.guaranteedAnnualIncome} />
+                                </span>
                                 <span className="font-mono text-[#F5B800] font-bold">{toUSD(projection.gi_annual_income_gross)}</span>
                             </div>
                         )}
                         <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium">Lifetime Wealth Before Formula</span>
+                            <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
+                                Lifetime Wealth Before Formula
+                                {isGI && <InfoTooltip text={GI_TOOLTIPS.lifetimeWealthBefore} />}
+                            </span>
                             <span className="font-mono text-white">{toUSD(baseLifetime)}</span>
                         </div>
                         <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium">Lifetime Wealth After Formula</span>
+                            <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
+                                Lifetime Wealth After Formula
+                                {isGI && <InfoTooltip text={GI_TOOLTIPS.lifetimeWealthAfter} />}
+                            </span>
                             <span className="font-mono text-[#F5B800] font-bold">{toUSD(blueLifetime)}</span>
                         </div>
                         <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium">Percent Change</span>
+                            <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
+                                Percent Change
+                                {isGI && <InfoTooltip text={GI_TOOLTIPS.percentChange} />}
+                            </span>
                             <span className="font-mono text-[#22C55E] font-bold">{toPercent(percentChange)}</span>
                         </div>
                     </div>
