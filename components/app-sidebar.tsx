@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { LogoutButton } from '@/components/logout-button'
-import { LayoutDashboard, Users } from 'lucide-react'
+import { LayoutDashboard, Users, Settings } from 'lucide-react'
 
 const navItems = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -44,6 +44,14 @@ export function AppSidebar({ user }: { user: User }) {
       </SidebarContent>
       <SidebarFooter className="border-t p-4">
         <div className="flex flex-col gap-2">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton render={<a href="/settings" />}>
+                <Settings className="size-4" />
+                <span>Settings</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
           <span className="text-sm text-muted-foreground truncate">
             {user.email}
           </span>

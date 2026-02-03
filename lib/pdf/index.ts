@@ -18,6 +18,7 @@ export { PDFYearTable } from './components/pdf-year-table';
 export type {
   PDFDocumentProps,
   PDFDataProps,
+  PDFBranding,
   ChartImages,
   SummaryMetrics,
   YearTableRow,

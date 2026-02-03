@@ -68,6 +68,25 @@ export interface PDFDataProps {
 }
 
 // =============================================================================
+// PDF Branding
+// =============================================================================
+
+/**
+ * Branding data from user settings, applied to PDF cover/header/footer
+ */
+export interface PDFBranding {
+  logoUrl?: string | null;
+  companyName?: string | null;
+  tagline?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  address?: string | null;
+  primaryColor: string;   // Default: #1a3a5c
+  secondaryColor: string; // Default: #14b8a6
+}
+
+// =============================================================================
 // PDF Document Props
 // =============================================================================
 
@@ -86,6 +105,9 @@ export interface PDFDocumentProps {
 
   /** Optional chart images captured from DOM */
   chartImages?: ChartImages;
+
+  /** Optional branding from user settings */
+  branding?: PDFBranding;
 }
 
 // =============================================================================

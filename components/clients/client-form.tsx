@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { clientFormulaSchema, type ClientFormData } from "@/lib/validations/client";
 import { useCreateClient, useUpdateClient } from "@/lib/queries/clients";
+import { useUserSettings } from "@/lib/queries/settings";
 import { useSmartDefaults } from "@/hooks/use-smart-defaults";
 import type { Client } from "@/lib/types/client";
 
@@ -35,11 +36,16 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
   const createClient = useCreateClient();
   const updateClient = useUpdateClient();
 
+  // Fetch user defaults from settings (only used for new formulas)
+  const { data: userSettings } = useUserSettings();
+  const ud = (userSettings?.default_values ?? {}) as Record<string, unknown>;
+
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientFormulaSchema) as Resolver<ClientFormData>,
     defaultValues: {
       // Formula Type (product preset)
-      blueprint_type: client?.blueprint_type ?? "fia",
+      // Priority: client value > user default > system default
+      blueprint_type: client?.blueprint_type ?? (ud.blueprint_type as ClientFormData["blueprint_type"]) ?? "fia",
 
       // Section 1: Client Data
       filing_status: client?.filing_status ?? "married_filing_jointly",
@@ -52,17 +58,17 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       qualified_account_value: client?.qualified_account_value ?? 25000000, // $250,000 in cents
 
       // Section 3: New Account (Insurance Product)
-      carrier_name: client?.carrier_name ?? "Generic Carrier",
-      product_name: client?.product_name ?? "Generic Product",
-      bonus_percent: client?.bonus_percent ?? 10,
-      rate_of_return: client?.rate_of_return ?? 7,
+      carrier_name: client?.carrier_name ?? (ud.carrier_name as string) ?? "Generic Carrier",
+      product_name: client?.product_name ?? (ud.product_name as string) ?? "Generic Product",
+      bonus_percent: client?.bonus_percent ?? (ud.bonus_percent as number) ?? 10,
+      rate_of_return: client?.rate_of_return ?? (ud.rate_of_return as number) ?? 7,
 
       // Section 4: Tax Data
-      state: client?.state ?? "CA",
-      constraint_type: client?.constraint_type ?? "none",
-      tax_rate: client?.tax_rate ?? 24,
-      max_tax_rate: client?.max_tax_rate ?? 24,
-      tax_payment_source: client?.tax_payment_source ?? "from_taxable",
+      state: client?.state ?? (ud.state as string) ?? "CA",
+      constraint_type: client?.constraint_type ?? (ud.constraint_type as ClientFormData["constraint_type"]) ?? "none",
+      tax_rate: client?.tax_rate ?? (ud.tax_rate as number) ?? 24,
+      max_tax_rate: client?.max_tax_rate ?? (ud.max_tax_rate as number) ?? 24,
+      tax_payment_source: client?.tax_payment_source ?? (ud.tax_payment_source as ClientFormData["tax_payment_source"]) ?? "from_taxable",
       state_tax_rate: client?.state_tax_rate ?? null,
 
       // Section 5: Taxable Income
@@ -73,11 +79,11 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       non_ssi_income: client?.non_ssi_income ?? [],
 
       // Section 6: Conversion
-      conversion_type: client?.conversion_type ?? "optimized_amount",
-      protect_initial_premium: client?.protect_initial_premium ?? true,
+      conversion_type: client?.conversion_type ?? (ud.conversion_type as ClientFormData["conversion_type"]) ?? "optimized_amount",
+      protect_initial_premium: client?.protect_initial_premium ?? (ud.protect_initial_premium as boolean) ?? true,
 
       // Section 7: Withdrawals
-      withdrawal_type: client?.withdrawal_type ?? "no_withdrawals",
+      withdrawal_type: client?.withdrawal_type ?? (ud.withdrawal_type as ClientFormData["withdrawal_type"]) ?? "no_withdrawals",
 
       // GI-specific fields
       payout_type: client?.payout_type ?? "individual",
@@ -85,13 +91,13 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       guaranteed_rate_of_return: client?.guaranteed_rate_of_return ?? 0,
 
       // Section 8: Advanced
-      surrender_years: client?.surrender_years ?? 7,
-      penalty_free_percent: client?.penalty_free_percent ?? 10,
-      baseline_comparison_rate: client?.baseline_comparison_rate ?? 7,
-      post_contract_rate: client?.post_contract_rate ?? 7,
-      years_to_defer_conversion: client?.years_to_defer_conversion ?? 0,
-      end_age: client?.end_age ?? 100,
-      heir_tax_rate: client?.heir_tax_rate ?? 40,
+      surrender_years: client?.surrender_years ?? (ud.surrender_years as number) ?? 7,
+      penalty_free_percent: client?.penalty_free_percent ?? (ud.penalty_free_percent as number) ?? 10,
+      baseline_comparison_rate: client?.baseline_comparison_rate ?? (ud.baseline_comparison_rate as number) ?? 7,
+      post_contract_rate: client?.post_contract_rate ?? (ud.post_contract_rate as number) ?? 7,
+      years_to_defer_conversion: client?.years_to_defer_conversion ?? (ud.years_to_defer_conversion as number) ?? 0,
+      end_age: client?.end_age ?? (ud.end_age as number) ?? 100,
+      heir_tax_rate: client?.heir_tax_rate ?? (ud.heir_tax_rate as number) ?? 40,
       widow_analysis: client?.widow_analysis ?? false,
 
       // Additional fields needed

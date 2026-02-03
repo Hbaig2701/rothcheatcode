@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-import type { PDFDataProps, ChartImages, SummaryMetrics } from '@/lib/pdf/types';
+import type { PDFDataProps, ChartImages, SummaryMetrics, PDFBranding } from '@/lib/pdf/types';
 import { runMultiStrategySimulation } from '@/lib/calculations/multi-strategy';
 import type { Client } from '@/lib/types/client';
 import type { MultiStrategyResult, YearlyResult } from '@/lib/calculations/types';
@@ -15,7 +15,8 @@ async function generatePDFBuffer(
   clientName: string,
   generatedAt: string,
   data: PDFDataProps,
-  chartImages?: ChartImages
+  chartImages?: ChartImages,
+  branding?: PDFBranding
 ): Promise<Uint8Array> {
   // Dynamic import at runtime to avoid build issues
   const { renderToBuffer } = await import('@react-pdf/renderer');
@@ -27,6 +28,7 @@ async function generatePDFBuffer(
       generatedAt={generatedAt}
       data={data}
       chartImages={chartImages}
+      branding={branding}
     />
   );
 
@@ -119,6 +121,28 @@ export async function POST(request: Request, context: RouteContext) {
       // Body parsing failed, continue without chart images
     }
 
+    // Fetch user settings for PDF branding
+    let branding: PDFBranding | undefined;
+    const { data: settings } = await supabase
+      .from('user_settings')
+      .select('company_name, tagline, company_phone, company_email, company_website, address, logo_url, primary_color, secondary_color')
+      .eq('user_id', user.id)
+      .single();
+
+    if (settings) {
+      branding = {
+        logoUrl: settings.logo_url,
+        companyName: settings.company_name,
+        tagline: settings.tagline,
+        phone: settings.company_phone,
+        email: settings.company_email,
+        website: settings.company_website,
+        address: settings.address,
+        primaryColor: settings.primary_color || '#1e3a5f',
+        secondaryColor: settings.secondary_color || '#14b8a6',
+      };
+    }
+
     // Fetch client data
     const { data: client, error: fetchError } = await supabase
       .from('clients')
@@ -152,7 +176,8 @@ export async function POST(request: Request, context: RouteContext) {
       client.name,
       new Date().toISOString(),
       pdfData,
-      chartImages
+      chartImages,
+      branding
     );
 
     // Prepare filename

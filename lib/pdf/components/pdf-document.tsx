@@ -12,71 +12,76 @@ import { PDFStrategyTable } from './pdf-strategy-table';
 import { PDFYearTable } from './pdf-year-table';
 import type { PDFDocumentProps } from '../types';
 
-const documentStyles = StyleSheet.create({
-  // Portrait page
-  page: {
-    padding: 40,
-    paddingBottom: 80, // Space for fixed footer
-    fontSize: 10,
-    fontFamily: 'Helvetica',
-    backgroundColor: '#ffffff',
-  },
-  // Landscape page
-  pageLandscape: {
-    padding: 30,
-    paddingBottom: 60,
-    fontSize: 9,
-    fontFamily: 'Helvetica',
-    backgroundColor: '#ffffff',
-  },
-  // Section title
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#111827', // gray-900
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb', // gray-200
-    paddingBottom: 8,
-  },
-  // Content section
-  section: {
-    marginBottom: 20,
-  },
-  // Page title for subsequent pages
-  pageTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#1e3a5f',
-    marginBottom: 4,
-  },
-  pageSubtitle: {
-    fontSize: 8,
-    color: '#6b7280',
-    marginBottom: 15,
-  },
-});
-
 export function PDFDocument({
   clientName,
   generatedAt,
   data,
   chartImages,
+  branding,
 }: PDFDocumentProps) {
   const { metrics, multiStrategy, formulaYears, keyYears } = data;
+
+  const primaryColor = branding?.primaryColor || '#1e3a5f';
+  const secondaryColor = branding?.secondaryColor || '#14b8a6';
+  const companyName = branding?.companyName || 'Roth Formula';
+
+  const documentStyles = StyleSheet.create({
+    // Portrait page
+    page: {
+      padding: 40,
+      paddingBottom: 80, // Space for fixed footer
+      fontSize: 10,
+      fontFamily: 'Helvetica',
+      backgroundColor: '#ffffff',
+    },
+    // Landscape page
+    pageLandscape: {
+      padding: 30,
+      paddingBottom: 60,
+      fontSize: 9,
+      fontFamily: 'Helvetica',
+      backgroundColor: '#ffffff',
+    },
+    // Section title
+    sectionTitle: {
+      fontSize: 14,
+      fontWeight: 'bold',
+      marginBottom: 15,
+      color: primaryColor,
+      borderBottomWidth: 2,
+      borderBottomColor: secondaryColor,
+      paddingBottom: 8,
+    },
+    // Content section
+    section: {
+      marginBottom: 20,
+    },
+    // Page title for subsequent pages
+    pageTitle: {
+      fontSize: 12,
+      fontWeight: 'bold',
+      color: primaryColor,
+      marginBottom: 4,
+    },
+    pageSubtitle: {
+      fontSize: 8,
+      color: '#6b7280',
+      marginBottom: 15,
+    },
+  });
 
   return (
     <Document
       title={`Roth Conversion Analysis - ${clientName}`}
-      author="Rothc"
+      author={companyName}
       subject="Roth Conversion Strategy Report"
-      creator="Rothc"
+      creator={companyName}
     >
       {/* ================================================================== */}
       {/* Page 1: Executive Summary (Portrait) */}
       {/* ================================================================== */}
       <Page size="LETTER" style={documentStyles.page}>
-        <PDFHeader clientName={clientName} generatedAt={generatedAt} />
+        <PDFHeader clientName={clientName} generatedAt={generatedAt} branding={branding} />
 
         <View style={documentStyles.section}>
           <Text style={documentStyles.sectionTitle}>Executive Summary</Text>
@@ -91,7 +96,7 @@ export function PDFDocument({
           />
         )}
 
-        <PDFFooter />
+        <PDFFooter branding={branding} />
       </Page>
 
       {/* ================================================================== */}
@@ -117,7 +122,7 @@ export function PDFDocument({
           />
         )}
 
-        <PDFFooter />
+        <PDFFooter branding={branding} />
       </Page>
 
       {/* ================================================================== */}
@@ -138,7 +143,7 @@ export function PDFDocument({
           />
         </View>
 
-        <PDFFooter />
+        <PDFFooter branding={branding} />
       </Page>
     </Document>
   );
