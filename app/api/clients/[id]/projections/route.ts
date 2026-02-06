@@ -241,6 +241,9 @@ export async function POST(
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
     const isGrowth = formulaType && isGrowthProduct(formulaType);
 
+    // Debug logging
+    console.log('POST projection - blueprint_type:', formulaType, 'isGI:', isGI, 'isGrowth:', isGrowth);
+
     let projectionInsert: ProjectionInsert;
     if (isGI) {
       const giResult = runGuaranteedIncomeSimulation(simulationInput);
@@ -248,10 +251,15 @@ export async function POST(
     } else if (isGrowth) {
       // Growth FIA: use Growth-specific engine (no RMDs in baseline)
       const growthResult = runGrowthSimulation(simulationInput);
+      const lastBaseline = growthResult.baseline[growthResult.baseline.length - 1];
+      const lastFormula = growthResult.formula[growthResult.formula.length - 1];
+      console.log('Growth simulation - baseline years:', growthResult.baseline.length, 'final trad:', lastBaseline?.traditionalBalance);
+      console.log('Growth simulation - formula years:', growthResult.formula.length, 'final roth:', lastFormula?.rothBalance);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, growthResult, inputHash);
     } else {
       // Legacy: use standard simulation with RMD-based baseline
       const result = runSimulation(simulationInput);
+      console.log('Legacy simulation used - baseline final:', result.baseline[result.baseline.length - 1]?.traditionalBalance);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     }
 
