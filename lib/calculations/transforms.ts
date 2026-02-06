@@ -57,31 +57,21 @@ function calculateFormulaLifetimeWealth(years: YearlyResult[]): number[] {
 }
 
 /**
- * Calculate Lifetime Wealth Trajectory for BASELINE scenario
+ * Calculate Wealth Trajectory for BASELINE scenario
  *
- * BASELINE: lifetimeWealth = (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
+ * Shows the raw Traditional IRA balance - what you'd actually have if you did nothing.
+ * Heir taxes are NOT applied here (they only matter at death, shown in summary metrics).
  *
- * RMDs ARE actual distributions the client receives and can spend.
- * Legacy is reduced by 40% heir tax on Traditional IRA.
+ * BASELINE: wealth = traditionalBalance + rothBalance (netWorth)
  */
 function calculateBaselineLifetimeWealth(
   years: YearlyResult[],
   heirTaxRate: number = 0.40
 ): number[] {
-  let cumulativeAfterTaxDist = 0;
-  let cumulativeIRMAA = 0;
-
   return years.map(year => {
-    // RMDs are actual distributions - calculate after-tax amount received
-    const rmdAfterTax = year.rmdAmount - (year.federalTax + year.stateTax);
-    cumulativeAfterTaxDist += rmdAfterTax;
-
-    // Accumulate IRMAA surcharges
-    cumulativeIRMAA += year.irmaaSurcharge || 0;
-
-    // Baseline: Legacy at 60% (heir pays 40% tax) + cumulative distributions received - IRMAA
-    const netLegacy = year.netWorth * (1 - heirTaxRate);
-    return netLegacy + cumulativeAfterTaxDist - cumulativeIRMAA;
+    // Show actual account balance - what the client would have
+    // Heir taxes are a future cost, not a current reduction
+    return year.netWorth;
   });
 }
 
