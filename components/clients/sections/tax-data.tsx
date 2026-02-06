@@ -147,7 +147,7 @@ export function TaxDataSection() {
               <FieldLabel htmlFor="max_tax_rate">Max Tax Rate</FieldLabel>
               <Select
                 value={field.value?.toString() ?? ""}
-                onValueChange={(val) => field.onChange(parseInt(val, 10))}
+                onValueChange={(val: string) => field.onChange(parseInt(val, 10))}
               >
                 <SelectTrigger
                   id="max_tax_rate"
