@@ -57,7 +57,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const blueFinalTraditional = projection.blueprint_final_traditional;
   const blueFinalRoth = projection.blueprint_final_roth;
   const blueNetLegacy = Math.round(blueFinalTraditional * (1 - heirTaxRate)) + blueFinalRoth;
-  const blueLifetimeWealth = projection.blueprint_final_net_worth - blueTax - blueIrmaa;
+  // Lifetime wealth = net legacy (after heir taxes) minus conversion taxes paid minus IRMAA
+  const blueLifetimeWealth = blueNetLegacy - blueTax - blueIrmaa;
   const blueTotalTaxes = blueTax + blueIrmaa + Math.round(blueFinalTraditional * heirTaxRate);
 
   // Differences
