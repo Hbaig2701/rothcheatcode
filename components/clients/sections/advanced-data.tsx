@@ -18,12 +18,11 @@ export function AdvancedDataSection() {
   const rateOfReturn = form.watch("rate_of_return");
   const isGI = isGuaranteedIncomeProduct(formulaType);
 
-  // Auto-sync baseline_comparison_rate with rate_of_return for GI products
+  // Auto-sync baseline_comparison_rate with rate_of_return for ALL products
+  // For a fair comparison, both scenarios should use the same growth rate
   useEffect(() => {
-    if (isGI) {
-      form.setValue("baseline_comparison_rate", rateOfReturn);
-    }
-  }, [isGI, rateOfReturn, form]);
+    form.setValue("baseline_comparison_rate", rateOfReturn);
+  }, [rateOfReturn, form]);
 
   const isSurrenderLocked = isFieldLocked("surrenderYears", formulaType);
   const isPenaltyFreeLocked = isFieldLocked("penaltyFreePercent", formulaType);
