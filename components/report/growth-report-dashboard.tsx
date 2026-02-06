@@ -196,11 +196,11 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           </div>
         )}
 
-        {/* Section 4: Wealth Trajectory Chart */}
+        {/* Section 4: Legacy to Heirs Chart */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
           <div className="flex justify-between items-center mb-6">
             <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-medium">
-              Wealth Over Time
+              Legacy to Heirs Over Time
             </p>
             <div className="flex items-center gap-5 text-sm">
               <span className="flex items-center gap-2 text-gold">
