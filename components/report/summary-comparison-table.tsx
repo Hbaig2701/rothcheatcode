@@ -20,30 +20,32 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     const baseTax = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
     const baseIrmaa = sum(projection.baseline_years, 'irmaaSurcharge');
     const baseFinalBalance = projection.baseline_final_net_worth;
+    const baseFinalTraditional = projection.baseline_final_traditional;
 
-    // Baseline: RMDs are actual distributions received
+    // Baseline: RMDs are actual distributions received (now tracked in taxable account)
     const baseAfterTaxDist = baseRMDs - baseTax;
-    // Baseline: Legacy at 60% (heirs pay 40% tax on Traditional IRA)
-    const baseNetLegacy = baseFinalBalance * (1 - heirTaxRate);
-    const baseLegacyTax = baseFinalBalance * heirTaxRate;
+    // Heir tax only applies to Traditional IRA portion (Roth and taxable already taxed)
+    const baseLegacyTax = Math.round(baseFinalTraditional * heirTaxRate);
+    const baseNetLegacy = baseFinalBalance - baseLegacyTax;
 
     // --- Formula Metrics ---
     const blueConversions = sum(projection.blueprint_years, 'conversionAmount');
     const blueTax = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
     const blueIrmaa = sum(projection.blueprint_years, 'irmaaSurcharge');
     const blueFinalBalance = projection.blueprint_final_net_worth;
+    const blueFinalTraditional = projection.blueprint_final_traditional;
 
-    // Formula: Conversions are NOT distributions (money stays in account)
-    // Formula: Legacy at 100% (Roth has no heir tax)
-    const blueNetLegacy = blueFinalBalance;
-    const blueLegacyTax = 0; // Roth has no heir tax
+    // Formula: Heir tax only on remaining Traditional (most/all should be Roth)
+    const blueLegacyTax = Math.round(blueFinalTraditional * heirTaxRate);
+    const blueNetLegacy = blueFinalBalance - blueLegacyTax;
 
     // --- Lifetime Wealth Calculation (must match report-dashboard.tsx) ---
-    // BASELINE: (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
-    const baseLifetimeWealth = baseNetLegacy + baseAfterTaxDist - baseIrmaa;
+    // Note: Taxes and IRMAA are already deducted from taxableBalance in the engine
+    // BASELINE: net worth - heir tax on traditional
+    const baseLifetimeWealth = baseNetLegacy;
 
-    // FORMULA: eoy_combined - cumulativeTaxes - cumulativeIRMAA
-    const blueLifetimeWealth = blueFinalBalance - blueTax - blueIrmaa;
+    // FORMULA: net worth - heir tax on traditional
+    const blueLifetimeWealth = blueNetLegacy;
 
     // For display purposes - show what client paid/received
     const baseTotalCosts = baseTax + baseIrmaa + baseLegacyTax;

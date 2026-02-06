@@ -15,14 +15,17 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
     const heirTaxRate = 0.40;
 
     // --- Baseline Metrics (systematic withdrawals) ---
+    // Note: Taxes and IRMAA are already deducted from taxableBalance in the engine
     const baseRMDs = sum(projection.baseline_years, 'rmdAmount');
     const baseTax = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
     const baseIrmaa = sum(projection.baseline_years, 'irmaaSurcharge');
     const baseFinalTraditional = projection.baseline_final_traditional;
     const baseFinalRoth = projection.baseline_final_roth;
     const baseAfterTaxDist = baseRMDs - baseTax;
-    const baseNetLegacy = Math.round(baseFinalTraditional * (1 - heirTaxRate)) + baseFinalRoth;
+    // Heir tax only applies to Traditional IRA portion (taxable already taxed)
     const baseLegacyTax = Math.round(baseFinalTraditional * heirTaxRate);
+    // Net legacy = final net worth (includes taxable) minus heir taxes on traditional
+    const baseNetLegacy = projection.baseline_final_net_worth - baseLegacyTax;
 
     // --- Formula Metrics (GI + conversions) ---
     // Split taxes: deferral phase = conversion taxes, income phase = GI taxes
@@ -45,20 +48,22 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
     const giTotalNet = projection.gi_total_net_paid ?? 0;
     const giTaxOnPayments = giTotalGross - giTotalNet;
 
-    // Formula legacy: account value taxed at heir rate, Roth tax-free
-    const blueNetLegacy = Math.round(blueFinalTraditional * (1 - heirTaxRate)) + blueFinalRoth;
+    // Heir tax only on remaining traditional (annuity account value)
     const blueLegacyTax = Math.round(blueFinalTraditional * heirTaxRate);
+    // Net legacy = final net worth (includes taxable where GI accumulates) minus heir taxes
+    const blueNetLegacy = projection.blueprint_final_net_worth - blueLegacyTax;
 
     // --- Lifetime Wealth ---
-    // Baseline: after-tax distributions + net legacy - IRMAA
+    // Note: Taxes and IRMAA are already deducted from taxableBalance in the engine
+    // Baseline: net legacy (taxes already deducted in engine)
     const baseTotalIncome = baseAfterTaxDist;
     const baseTotalCosts = baseTax + baseIrmaa + baseLegacyTax;
-    const baseLifetimeWealth = baseAfterTaxDist + baseNetLegacy - baseIrmaa;
+    const baseLifetimeWealth = baseNetLegacy;
 
-    // Formula: after-tax GI + net legacy - conversion taxes - IRMAA
+    // Formula: net legacy (taxes already deducted in engine)
     const blueTotalIncome = giTotalNet;
     const blueTotalCosts = blueConversionTax + blueIrmaa + blueLegacyTax;
-    const blueLifetimeWealth = giTotalNet + blueNetLegacy - blueConversionTax - blueIrmaa;
+    const blueLifetimeWealth = blueNetLegacy;
 
     const toUSD = (val: number) =>
         new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val / 100);
