@@ -54,14 +54,18 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const calculatedIncome = Math.round(finalIncomeBase * (payoutPercent / 100));
 
   // Baseline calculations
+  // Note: Taxes and IRMAA are already deducted from taxableBalance in the engine
   const baseRMDs = sum(projection.baseline_years, "rmdAmount");
   const baseTax = sum(projection.baseline_years, "federalTax") + sum(projection.baseline_years, "stateTax");
   const baseIrmaa = sum(projection.baseline_years, "irmaaSurcharge");
   const baseFinalTraditional = projection.baseline_final_traditional;
   const baseFinalRoth = projection.baseline_final_roth;
-  const baseAfterTaxDist = baseRMDs - baseTax;
-  const baseNetLegacy = Math.round(baseFinalTraditional * (1 - heirTaxRate)) + baseFinalRoth;
-  const baseLifetimeWealth = baseAfterTaxDist + baseNetLegacy - baseIrmaa;
+  // Heir tax only applies to traditional IRA portion
+  const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
+  // Net legacy = final net worth (includes taxable) minus heir taxes on traditional
+  const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
+  // Lifetime wealth = net legacy (taxes/IRMAA already deducted from taxable in engine)
+  const baseLifetimeWealth = baseNetLegacy;
 
   // Formula (GI) calculations
   let blueConversionTax = 0;
@@ -80,8 +84,12 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const giTotalGross = projection.gi_total_gross_paid ?? 0;
   const giTotalNet = projection.gi_total_net_paid ?? 0;
   const giTaxOnPayments = giTotalGross - giTotalNet;
-  const blueNetLegacy = Math.round(blueFinalTraditional * (1 - heirTaxRate)) + blueFinalRoth;
-  const blueLifetimeWealth = giTotalNet + blueNetLegacy - blueConversionTax - blueIrmaa;
+  // Heir tax only applies to remaining traditional (annuity account value)
+  const blueHeirTax = Math.round(blueFinalTraditional * heirTaxRate);
+  // Net legacy = final net worth (includes taxable where GI payments accumulate) minus heir taxes
+  const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
+  // Lifetime wealth = net legacy (taxes already deducted in engine)
+  const blueLifetimeWealth = blueNetLegacy;
 
   // Differences
   const lifetimeWealthDiff = blueLifetimeWealth - baseLifetimeWealth;
