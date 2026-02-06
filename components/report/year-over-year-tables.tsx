@@ -162,6 +162,14 @@ export function YearOverYearTables({
         year.irmaaSurcharge -
         (scenario === "formula" ? year.conversionAmount : 0);
 
+      // Legacy to Heirs calculation
+      // Traditional taxed at 40% heir rate, Roth is tax-free, Taxable (if positive) passes through
+      const heirTaxRate = 0.40;
+      const legacyToHeirs =
+        Math.round(year.traditionalBalance * (1 - heirTaxRate)) +
+        year.rothBalance +
+        Math.max(0, year.taxableBalance);
+
       return {
         ...year,
         boyTraditional,
@@ -177,6 +185,7 @@ export function YearOverYearTables({
         taxExemptNonSSI,
         magi,
         netIncome,
+        legacyToHeirs,
         irmaaTier: getIRMAATier(year.age, year.irmaaSurcharge),
       };
     });
@@ -241,7 +250,7 @@ export function YearOverYearTables({
 
   // Render Account Values table
   const renderAccountValuesTable = () => (
-    <table className="w-full border-collapse min-w-[1100px]">
+    <table className="w-full border-collapse min-w-[1250px]">
       <thead>
         <tr>
           {renderHeaderCell("Year", "left")}
@@ -255,6 +264,7 @@ export function YearOverYearTables({
           {renderHeaderCell("Interest")}
           {renderHeaderCell("E.O.Y.")}
           {renderHeaderCell("Cash Balance")}
+          {renderHeaderCell("Legacy to Heirs")}
         </tr>
       </thead>
       <tbody>
@@ -282,6 +292,7 @@ export function YearOverYearTables({
                 : `-$${formatCurrency(Math.abs(row.taxableBalance))}`,
               { color: row.taxableBalance >= 0 ? "green" : "red" }
             )}
+            {renderCell(`$${formatCurrency(row.legacyToHeirs)}`, { color: "green" })}
           </tr>
         ))}
       </tbody>

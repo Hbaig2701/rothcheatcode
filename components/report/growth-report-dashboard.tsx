@@ -102,18 +102,18 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             <div>
               <p className={cn(
                 "text-[44px] font-mono font-semibold",
-                lifetimeWealthDiff >= 0 ? "text-gold" : "text-[#f87171]"
+                legacyDiff >= 0 ? "text-gold" : "text-[#f87171]"
               )}>
-                {lifetimeWealthDiff >= 0 ? "+" : ""}{toUSD(lifetimeWealthDiff)}
+                {legacyDiff >= 0 ? "+" : ""}{toUSD(legacyDiff)}
               </p>
-              <p className="text-base text-[rgba(255,255,255,0.5)] mt-1">Additional Lifetime Wealth</p>
+              <p className="text-base text-[rgba(255,255,255,0.5)] mt-1">Additional Legacy to Heirs</p>
             </div>
             <div className="border-l border-[rgba(255,255,255,0.1)] pl-8">
               <p className={cn(
                 "text-[28px] font-mono font-medium",
-                lifetimeWealthPct >= 0 ? "text-[#4ade80]" : "text-[#f87171]"
+                legacyDiff >= 0 ? "text-[#4ade80]" : "text-[#f87171]"
               )}>
-                {lifetimeWealthPct >= 0 ? "+" : ""}{(lifetimeWealthPct * 100).toFixed(1)}%
+                {baseNetLegacy > 0 ? `+${((legacyDiff / baseNetLegacy) * 100).toFixed(1)}%` : "N/A"}
               </p>
               <p className="text-base text-[rgba(255,255,255,0.5)] mt-1">vs Doing Nothing</p>
             </div>
@@ -132,9 +132,14 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         {/* Section 2: Key Metrics (4 Cards) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <ComparisonCard
-            label="Lifetime Wealth"
-            baseline={baseLifetimeWealth}
-            strategy={blueLifetimeWealth}
+            label="Legacy to Heirs"
+            baseline={baseNetLegacy}
+            strategy={blueNetLegacy}
+          />
+          <ComparisonCard
+            label="Tax-Free Wealth"
+            baseline={baseFinalRoth}
+            strategy={blueFinalRoth}
           />
           <ComparisonCard
             label="Total Taxes Paid"
@@ -143,14 +148,9 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             invertColor
           />
           <ComparisonCard
-            label="Net Legacy to Heirs"
-            baseline={baseNetLegacy}
-            strategy={blueNetLegacy}
-          />
-          <ComparisonCard
-            label="Roth Balance at End"
-            baseline={baseFinalRoth}
-            strategy={blueFinalRoth}
+            label="Lifetime Distributions"
+            baseline={baseRMDs}
+            strategy={0}
           />
         </div>
 
