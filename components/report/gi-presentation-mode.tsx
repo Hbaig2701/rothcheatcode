@@ -46,6 +46,9 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
   const chartData = transformToGIChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
 
+  // Calculate break-even from chart data (lifetime wealth trajectory, not raw netWorth)
+  const chartBreakEvenAge = chartData.find(d => d.formula > d.baseline)?.age ?? null;
+
   // GI-specific calculations
   const giYearlyData = projection.gi_yearly_data || [];
 
@@ -324,7 +327,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
             </div>
           </div>
           <div className="h-[300px]">
-            <WealthChart data={chartData} breakEvenAge={projection.break_even_age} />
+            <WealthChart data={chartData} breakEvenAge={chartBreakEvenAge} />
           </div>
         </div>
 

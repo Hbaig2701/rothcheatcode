@@ -34,6 +34,9 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const chartData = transformToChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
 
+  // Calculate break-even from chart data (lifetime wealth trajectory, not raw netWorth)
+  const chartBreakEvenAge = chartData.find(d => d.formula > d.baseline)?.age ?? null;
+
   // Get product config
   const productConfig = ALL_PRODUCTS[client.blueprint_type as FormulaType];
 
@@ -204,11 +207,11 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             </div>
           </div>
           <div className="h-[260px]">
-            <WealthChart data={chartData} breakEvenAge={projection.break_even_age} />
+            <WealthChart data={chartData} breakEvenAge={chartBreakEvenAge} />
           </div>
-          {projection.break_even_age && (
+          {chartBreakEvenAge && (
             <p className="text-sm text-[rgba(255,255,255,0.4)] text-center mt-4">
-              Strategy surpasses baseline at age {projection.break_even_age}
+              Strategy surpasses baseline at age {chartBreakEvenAge}
             </p>
           )}
         </div>

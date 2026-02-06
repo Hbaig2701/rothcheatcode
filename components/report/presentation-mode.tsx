@@ -38,6 +38,9 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
     ? transformToGIChartData(projection)
     : transformToChartData(projection);
 
+  // Calculate break-even from chart data (lifetime wealth trajectory, not raw netWorth)
+  const chartBreakEvenAge = chartData.find(d => d.formula > d.baseline)?.age ?? null;
+
   // Helper methods
   const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
     years.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
@@ -269,7 +272,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
             </div>
           </div>
           <div className="h-[280px]">
-            <WealthChart data={chartData} breakEvenAge={projection.break_even_age} />
+            <WealthChart data={chartData} breakEvenAge={chartBreakEvenAge} />
           </div>
         </div>
 
