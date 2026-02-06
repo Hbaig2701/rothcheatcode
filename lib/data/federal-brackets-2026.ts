@@ -101,9 +101,28 @@ export function getFederalBrackets(year: number, status: string): TaxBracket[] {
 /**
  * Get the bracket ceiling for a target tax rate
  * Returns the maximum taxable income that stays within the target bracket
+ *
+ * If exact rate not found, finds the highest bracket <= maxRate
+ * This handles cases where users enter values like 25% (not a real bracket)
  */
 export function getBracketCeiling(filingStatus: string, maxRate: number, year: number = 2026): number {
   const brackets = getFederalBrackets(year, filingStatus);
-  const targetBracket = brackets.find(b => b.rate === maxRate);
-  return targetBracket ? targetBracket.upper : 0;
+
+  // First try exact match
+  const exactMatch = brackets.find(b => b.rate === maxRate);
+  if (exactMatch) {
+    return exactMatch.upper;
+  }
+
+  // No exact match - find highest bracket with rate <= maxRate
+  // This handles invalid rates like 25% by using the 24% bracket
+  const validBrackets = brackets.filter(b => b.rate <= maxRate);
+  if (validBrackets.length > 0) {
+    // Get the highest rate bracket that's still <= maxRate
+    const bestBracket = validBrackets[validBrackets.length - 1];
+    return bestBracket.upper;
+  }
+
+  // No valid bracket found (maxRate < 10%) - return 0
+  return 0;
 }
