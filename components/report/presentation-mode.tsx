@@ -109,13 +109,33 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
     return map[status] || status;
   };
 
+  // Mouse event handlers that extract point coordinates
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!annotation.isActive) return;
+    const rect = contentRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    annotation.startDrawing({ x: e.clientX - rect.left, y: e.clientY - rect.top + (contentRef.current?.scrollTop || 0) });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!annotation.isActive) return;
+    const rect = contentRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    annotation.continueDrawing({ x: e.clientX - rect.left, y: e.clientY - rect.top + (contentRef.current?.scrollTop || 0) });
+  };
+
+  const handleMouseUp = () => {
+    if (!annotation.isActive) return;
+    annotation.endDrawing();
+  };
+
   return (
     <div
       ref={contentRef}
       className="fixed inset-0 bg-[#0c0c0c] z-50 overflow-y-auto text-white relative"
-      onMouseDown={annotation.startDrawing}
-      onMouseMove={annotation.continueDrawing}
-      onMouseUp={annotation.endDrawing}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
     >
       {/* Annotation Canvas */}
       {annotation.isActive && (
