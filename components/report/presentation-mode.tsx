@@ -200,11 +200,11 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
         {/* Title Section */}
         <div className="text-center mb-20">
           <div className="w-[60px] h-[3px] bg-gold rounded mx-auto mb-7" />
-          <p className="text-[13px] uppercase tracking-[3px] text-[rgba(255,255,255,0.25)] mb-4">
+          <p className="text-sm uppercase tracking-[3px] text-[rgba(255,255,255,0.5)] mb-4">
             Retirement Strategy Analysis
           </p>
           <h1 className="font-display text-[52px] font-normal mb-3">{client.name}</h1>
-          <p className="text-base text-[rgba(255,255,255,0.25)]">
+          <p className="text-lg text-[rgba(255,255,255,0.5)]">
             Age {client.age}
             {client.spouse_name && ` & ${client.spouse_name}, ${client.spouse_age}`} ·{" "}
             {formatFilingStatus(client.filing_status)} ·{" "}
@@ -235,11 +235,11 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
               key={m.label}
               className="text-center py-9 px-7 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]"
             >
-              <p className="text-xs uppercase tracking-[2px] text-[rgba(255,255,255,0.25)] mb-[18px]">
+              <p className="text-sm uppercase tracking-[2px] text-[rgba(255,255,255,0.5)] mb-[18px]">
                 {m.label}
               </p>
               <p className="text-[32px] font-mono font-medium text-gold">{m.value}</p>
-              <p className="text-xs text-[rgba(255,255,255,0.25)] mt-2">{m.sub}</p>
+              <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">{m.sub}</p>
             </div>
           ))}
         </div>
@@ -247,23 +247,23 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
         {/* Chart */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-9 mb-16">
           <div className="text-center mb-6">
-            <h2 className="text-[18px] font-medium mb-2">Lifetime Wealth Trajectory</h2>
-            <p className="text-[13px] text-[rgba(255,255,255,0.25)]">
+            <h2 className="text-xl font-medium mb-2">Lifetime Wealth Trajectory</h2>
+            <p className="text-sm text-[rgba(255,255,255,0.5)]">
               {isGI
                 ? "Total wealth if client passes at each age (GI payments + legacy - costs)"
                 : "Total wealth if client passes at each age (distributions + legacy - costs)"}
             </p>
-            <div className="flex justify-center gap-8 mt-4 text-[11px]">
+            <div className="flex justify-center gap-8 mt-4 text-xs">
               <span className="flex items-center gap-2 text-gold">
                 <span className="w-3.5 h-0.5 bg-gold rounded" />
                 Strategy {isGI ? "(GI + Roth)" : "(Roth)"}
               </span>
-              <span className="flex items-center gap-2 text-[rgba(255,255,255,0.25)]">
+              <span className="flex items-center gap-2 text-[rgba(255,255,255,0.5)]">
                 <span
                   className="w-3.5 h-0.5 rounded"
                   style={{
                     backgroundImage:
-                      "repeating-linear-gradient(90deg, rgba(255,255,255,0.25) 0px, rgba(255,255,255,0.25) 4px, transparent 4px, transparent 6px)",
+                      "repeating-linear-gradient(90deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 4px, transparent 4px, transparent 6px)",
                   }}
                 />
                 Baseline (Traditional)
@@ -278,17 +278,17 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
         {/* Wealth Summary Bar */}
         <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[14px] p-6 flex justify-between items-center mb-16">
           <div>
-            <p className="text-[11px] uppercase tracking-[1.5px] text-[rgba(212,175,55,0.7)] mb-1">
+            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(212,175,55,0.8)] mb-1">
               Lifetime Wealth Improvement
             </p>
             <div className="flex items-center gap-8 mt-2">
               <div>
-                <p className="text-[10px] text-[rgba(255,255,255,0.25)]">BASELINE</p>
-                <p className="text-xl font-mono text-[rgba(255,255,255,0.5)]">{toUSD(baseLifetime)}</p>
+                <p className="text-xs text-[rgba(255,255,255,0.5)]">BASELINE</p>
+                <p className="text-xl font-mono text-[rgba(255,255,255,0.6)]">{toUSD(baseLifetime)}</p>
               </div>
-              <span className="text-xl text-[rgba(255,255,255,0.25)]">→</span>
+              <span className="text-xl text-[rgba(255,255,255,0.4)]">→</span>
               <div>
-                <p className="text-[10px] text-[rgba(212,175,55,0.7)]">STRATEGY</p>
+                <p className="text-xs text-[rgba(212,175,55,0.8)]">STRATEGY</p>
                 <p className="text-xl font-mono font-semibold text-gold">{toUSD(blueLifetime)}</p>
               </div>
             </div>
@@ -299,7 +299,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
         </div>
 
         {/* Disclaimer */}
-        <p className="text-center text-[13px] text-[rgba(255,255,255,0.15)] italic py-8">
+        <p className="text-center text-sm text-[rgba(255,255,255,0.4)] italic py-8">
           This optimized plan is for educational purposes only. Before making a Roth conversion,
           discuss your final plan with a tax professional.
         </p>

@@ -122,7 +122,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
                 {delta >= 0 ? "+" : ""}{delta}%
               </span>
             </div>
-            <p className="text-xs text-[rgba(255,255,255,0.25)] mt-0.5">
+            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-0.5">
               Age {client.age} · {client.filing_status === "married_filing_jointly" ? "MFJ" : client.filing_status === "single" ? "Single" : client.filing_status} · ${(client.qualified_account_value / 100000000).toFixed(1)}M · {client.product_name} · {client.carrier_name}
             </p>
           </div>
@@ -135,7 +135,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
             className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-[10px] transition-all ${
               drawerOpen
                 ? "text-gold border border-[rgba(212,175,55,0.3)] bg-[rgba(212,175,55,0.08)]"
-                : "text-[rgba(255,255,255,0.5)] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)]"
+                : "text-[rgba(255,255,255,0.7)] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)]"
             }`}
           >
             <Settings2 className="h-4 w-4" />

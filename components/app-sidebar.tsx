@@ -37,9 +37,9 @@ export function AppSidebar({ user }: { user: User }) {
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton
                 render={<a href={item.href} />}
-                className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-normal text-[rgba(255,255,255,0.5)] transition-all hover:bg-[rgba(212,175,55,0.08)] hover:text-gold data-active:bg-[rgba(212,175,55,0.08)] data-active:text-gold data-active:border data-active:border-[rgba(212,175,55,0.2)] data-active:font-medium"
+                className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-medium text-[rgba(255,255,255,0.7)] transition-all hover:bg-[rgba(212,175,55,0.08)] hover:text-gold data-active:bg-[rgba(212,175,55,0.08)] data-active:text-gold data-active:border data-active:border-[rgba(212,175,55,0.2)] data-active:font-medium"
               >
-                <item.icon className="size-4 opacity-70" />
+                <item.icon className="size-4 opacity-80" />
                 <span>{item.title}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -52,9 +52,9 @@ export function AppSidebar({ user }: { user: User }) {
           <SidebarMenuItem>
             <SidebarMenuButton
               render={<a href="/settings" />}
-              className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-normal text-[rgba(255,255,255,0.5)] transition-all hover:bg-[rgba(212,175,55,0.08)] hover:text-gold data-active:bg-[rgba(212,175,55,0.08)] data-active:text-gold data-active:border data-active:border-[rgba(212,175,55,0.2)] data-active:font-medium"
+              className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-medium text-[rgba(255,255,255,0.7)] transition-all hover:bg-[rgba(212,175,55,0.08)] hover:text-gold data-active:bg-[rgba(212,175,55,0.08)] data-active:text-gold data-active:border data-active:border-[rgba(212,175,55,0.2)] data-active:font-medium"
             >
-              <Settings className="size-4 opacity-70" />
+              <Settings className="size-4 opacity-80" />
               <span>Settings</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -63,10 +63,10 @@ export function AppSidebar({ user }: { user: User }) {
         <SidebarSeparator className="my-3 bg-[rgba(255,255,255,0.07)]" />
 
         <div className="px-3.5 space-y-1">
-          <p className="text-[13px] text-[rgba(255,255,255,0.5)] truncate">
+          <p className="text-sm text-[rgba(255,255,255,0.7)] truncate">
             {displayName}
           </p>
-          <p className="text-[11px] text-[rgba(255,255,255,0.25)] truncate">
+          <p className="text-xs text-[rgba(255,255,255,0.45)] truncate">
             {user.email}
           </p>
         </div>

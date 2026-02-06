@@ -115,10 +115,10 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                 <div className="bg-gradient-to-br from-[rgba(212,175,55,0.08)] to-[rgba(255,255,255,0.01)] border border-[rgba(212,175,55,0.2)] rounded-[18px] p-7">
                     <div className="flex justify-between items-center mb-6">
                         <div>
-                            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)]">
+                            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)]">
                                 Strategy vs Baseline
                             </p>
-                            <p className="text-[11px] text-[rgba(255,255,255,0.15)] mt-1">
+                            <p className="text-[11px] text-[rgba(255,255,255,0.4)] mt-1">
                                 {client.product_name} · {client.carrier_name} · Optimized Conversion
                             </p>
                         </div>
@@ -173,19 +173,19 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                 {/* Chart Section */}
                 <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
                     <div className="text-center mb-6">
-                        <h4 className="text-base font-medium text-white">Lifetime Wealth Trajectory</h4>
-                        <p className="text-xs text-[rgba(255,255,255,0.25)] mt-1">
+                        <h4 className="text-lg font-medium text-white">Lifetime Wealth Trajectory</h4>
+                        <p className="text-sm text-[rgba(255,255,255,0.5)] mt-1">
                             {isGI
                                 ? "Total wealth if client passes at each age (GI payments + legacy - costs)"
                                 : "Total wealth if client passes at each age (distributions + legacy - costs)"}
                         </p>
-                        <div className="flex justify-center gap-8 mt-4 text-[11px]">
+                        <div className="flex justify-center gap-8 mt-4 text-xs">
                             <span className="flex items-center gap-2 text-gold">
                                 <span className="w-3.5 h-0.5 bg-gold rounded" />
                                 Strategy {isGI ? "(GI + Roth)" : "(Roth)"}
                             </span>
-                            <span className="flex items-center gap-2 text-[rgba(255,255,255,0.25)]">
-                                <span className="w-3.5 h-0.5 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.25) 0px, rgba(255,255,255,0.25) 4px, transparent 4px, transparent 6px)' }} />
+                            <span className="flex items-center gap-2 text-[rgba(255,255,255,0.5)]">
+                                <span className="w-3.5 h-0.5 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 4px, transparent 4px, transparent 6px)' }} />
                                 Baseline (Traditional)
                             </span>
                         </div>
@@ -208,11 +208,11 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                 {isGI && projection.gi_yearly_data && projection.gi_yearly_data.length > 0 && (
                     <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
                         <div className="text-center mb-6">
-                            <h4 className="text-base font-medium text-white">Account Value vs Income Base</h4>
-                            <p className="text-xs text-[rgba(255,255,255,0.25)] mt-1">
+                            <h4 className="text-lg font-medium text-white">Account Value vs Income Base</h4>
+                            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-1">
                                 Tracking account value, income base, and Roth balance over time
                             </p>
-                            <div className="flex justify-center gap-8 mt-4 text-[11px]">
+                            <div className="flex justify-center gap-8 mt-4 text-xs">
                                 <span className="flex items-center gap-2 text-gold">
                                     <span className="w-3.5 h-0.5 bg-gold rounded" />
                                     Roth Balance
@@ -252,7 +252,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                 </div>
 
                 {/* Disclaimer */}
-                <p className="text-xs text-[rgba(255,255,255,0.15)] italic text-center py-4">
+                <p className="text-sm text-[rgba(255,255,255,0.4)] italic text-center py-4">
                     This optimized plan is for educational purposes only. Before making a Roth conversion, discuss your final plan with a tax professional.
                 </p>
             </div>
@@ -276,21 +276,21 @@ function MetricCard({
 }) {
     return (
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[12px] p-5">
-            <p className="text-[11px] uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-4">
+            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-4">
                 {label}
             </p>
             <div className="flex justify-between items-baseline mb-2">
                 <div>
-                    <p className="text-[10px] text-[rgba(255,255,255,0.15)] mb-0.5">BASELINE</p>
-                    <p className="text-[17px] font-mono text-[rgba(255,255,255,0.5)]">{baseline}</p>
+                    <p className="text-[11px] text-[rgba(255,255,255,0.45)] mb-0.5">BASELINE</p>
+                    <p className="text-lg font-mono text-[rgba(255,255,255,0.65)]">{baseline}</p>
                 </div>
                 <div className="text-right">
-                    <p className="text-[10px] text-[rgba(255,255,255,0.15)] mb-0.5">STRATEGY</p>
-                    <p className="text-[17px] font-mono font-medium text-white">{formula}</p>
+                    <p className="text-[11px] text-[rgba(255,255,255,0.45)] mb-0.5">STRATEGY</p>
+                    <p className="text-lg font-mono font-medium text-white">{formula}</p>
                 </div>
             </div>
             <div className="pt-3 mt-3 border-t border-[rgba(255,255,255,0.07)]">
-                <p className={`text-[14px] font-mono font-medium ${positive ? "text-[#4ade80]" : "text-[#f87171]"}`}>
+                <p className={`text-base font-mono font-medium ${positive ? "text-[#4ade80]" : "text-[#f87171]"}`}>
                     {diff}
                 </p>
             </div>
