@@ -6,10 +6,10 @@ import { Plus } from "lucide-react";
 export function DashboardEmptyState() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-12 text-center max-w-md">
-        <div className="w-16 h-16 rounded-full bg-[#F5B800]/15 flex items-center justify-center mx-auto mb-6">
+      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-14 text-center max-w-md">
+        <div className="w-16 h-16 rounded-full bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] flex items-center justify-center mx-auto mb-6">
           <svg
-            className="w-8 h-8 text-[#F5B800]"
+            className="w-8 h-8 text-gold"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -23,18 +23,18 @@ export function DashboardEmptyState() {
           </svg>
         </div>
 
-        <h2 className="text-xl font-bold text-white mb-2">No Formulas Yet</h2>
-        <p className="text-sm text-[#A0A0A0] mb-8">
-          Create your first client Formula to see your dashboard analytics and track your
+        <h2 className="font-display text-xl font-normal text-white mb-2">No Scenarios Yet</h2>
+        <p className="text-sm text-[rgba(255,255,255,0.5)] mb-8">
+          Create your first client scenario to see your dashboard analytics and track your
           impact.
         </p>
 
         <Link
           href="/clients/new"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-[#F5B800] hover:bg-[#D4A000] text-black font-medium rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-gold hover:bg-[rgba(212,175,55,0.9)] text-[#0c0c0c] font-semibold rounded-[10px] transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Create First Formula
+          Create First Scenario
         </Link>
       </div>
     </div>

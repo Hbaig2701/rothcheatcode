@@ -13,17 +13,12 @@ import { SummaryComparisonTable } from "@/components/report/summary-comparison-t
 import { GISummaryBreakdownTable } from "@/components/report/gi-summary-breakdown-table";
 import { ReportChartRefs } from "@/components/report/export-pdf-button";
 import { captureChartAsBase64 } from "@/lib/utils/captureChart";
-import { cn } from "@/lib/utils";
 import { YearlyResult } from "@/lib/calculations";
 import { GISummaryPanel } from "@/components/results/gi-summary-panel";
 import { GIAccountChart } from "@/components/results/gi-account-chart";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
-import { Copy, Plus, FileText, Loader2, Pencil } from "lucide-react";
 import { InfoTooltip } from "@/components/report/info-tooltip";
 import { GI_TOOLTIPS } from "@/lib/config/gi-tooltips";
-import { useAnnotation } from "@/hooks/use-annotation";
-import { AnnotationToolbar } from "@/components/report/annotation-toolbar";
-import { AnnotationCanvas } from "@/components/report/annotation-canvas";
 
 interface ReportDashboardProps {
     clientId: string;
@@ -35,99 +30,27 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const { data: projectionResponse, isLoading: projectionLoading } = useProjection(clientId);
     const createClient = useCreateClient();
 
-    // Annotation system
-    const annotation = useAnnotation();
-    const contentRef = useRef<HTMLDivElement>(null);
-
-    // Loading states for buttons
-    const [isDuplicating, setIsDuplicating] = useState(false);
-    const [isExportingPdf, setIsExportingPdf] = useState(false);
-
     // Refs for chart capture (PDF export)
     const lifetimeWealthChartRef = useRef<HTMLDivElement>(null);
     const chartRefs: ReportChartRefs = {
         lifetimeWealth: lifetimeWealthChartRef,
     };
 
-    // Handle duplicate formula
-    const handleDuplicate = async () => {
-        if (!client) return;
-        setIsDuplicating(true);
-
-        try {
-            // Create a copy of the client data without system fields
-            const { id, user_id, created_at, updated_at, ...clientData } = client;
-            const duplicateData = {
-                ...clientData,
-                name: `Copy of ${client.name}`,
-            };
-
-            const newClient = await createClient.mutateAsync(duplicateData);
-            router.push(`/clients/${newClient.id}/results`);
-        } catch (error) {
-            console.error("Failed to duplicate formula:", error);
-            alert("Failed to duplicate formula. Please try again.");
-        } finally {
-            setIsDuplicating(false);
-        }
-    };
-
-    // Handle new formula
-    const handleNewFormula = () => {
-        router.push("/clients/new");
-    };
-
-    // Handle PDF export
-    const handleExportPdf = async () => {
-        if (!client || !projectionResponse?.projection) return;
-        setIsExportingPdf(true);
-
-        try {
-            // Capture chart as base64
-            const lifetimeWealthChart = await captureChartAsBase64(lifetimeWealthChartRef, {
-                quality: 0.95,
-                pixelRatio: 2,
-                backgroundColor: '#ffffff',
-                delay: 300,
-            });
-
-            // Call PDF generation API
-            const response = await fetch('/api/generate-pdf', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    reportData: { client, projection: projectionResponse.projection },
-                    charts: { lifetimeWealth: lifetimeWealthChart },
-                }),
-            });
-
-            if (!response.ok) throw new Error('PDF generation failed');
-
-            // Download the PDF
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            const timestamp = new Date().toISOString().split('T')[0];
-            link.download = `RothFormula_${client.name.replace(/\s+/g, '_')}_${timestamp}.pdf`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error("PDF export error:", error);
-            alert("Failed to export PDF. Please try again.");
-        } finally {
-            setIsExportingPdf(false);
-        }
-    };
-
     if (clientLoading || projectionLoading) {
-        return <div className="p-8 space-y-4 bg-[#0D0D0D] h-full"><Skeleton className="h-12 w-full bg-[#141414]" /><Skeleton className="h-64 w-full bg-[#141414]" /></div>;
+        return (
+            <div className="p-9 space-y-4 h-full">
+                <Skeleton className="h-12 w-full bg-[rgba(255,255,255,0.025)]" />
+                <Skeleton className="h-64 w-full bg-[rgba(255,255,255,0.025)]" />
+            </div>
+        );
     }
 
     if (!client || !projectionResponse?.projection) {
-        return <div className="p-8 bg-[#0D0D0D] h-full text-[#A0A0A0]">No data available. Please recalculate.</div>;
+        return (
+            <div className="p-9 h-full text-[rgba(255,255,255,0.5)]">
+                No data available. Please recalculate.
+            </div>
+        );
     }
 
     const { projection } = projectionResponse;
@@ -145,14 +68,12 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const toPercent = (amount: number) => new Intl.NumberFormat('en-US', { style: 'percent', maximumFractionDigits: 2 }).format(amount);
 
     // --- Calculate Lifetime Wealth ---
-    // FORMULA (Growth): eoy_combined - cumulativeTaxes - cumulativeIRMAA
     const calculateFormulaLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
         const totalTaxes = sum(years, 'federalTax') + sum(years, 'stateTax');
         const totalIRMAA = sum(years, 'irmaaSurcharge');
         return finalNetWorth - totalTaxes - totalIRMAA;
     };
 
-    // FORMULA (GI): cumulativeNetGI + netLegacy(acctVal*(1-heirTax) + roth) - convTaxes - IRMAA
     const calculateGIFormulaLifetimeWealthTotal = () => {
         const heirTaxRate = 0.40;
         const giYearlyData = projection.gi_yearly_data || [];
@@ -169,7 +90,6 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
         return giTotalNet + netLegacy - conversionTaxes - totalIRMAA;
     };
 
-    // BASELINE: (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
     const calculateBaselineLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
         const heirTaxRate = 0.40;
         const totalRMDs = sum(years, 'rmdAmount');
@@ -189,147 +109,59 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     const percentChange = baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;
 
     return (
-        <div ref={contentRef} className="flex flex-col h-full bg-[#0D0D0D] text-white overflow-y-auto font-sans relative">
-            {/* Annotation Toolbar */}
-            {annotation.isActive && (
-                <AnnotationToolbar
-                    activeTool={annotation.activeTool}
-                    color={annotation.color}
-                    canUndo={annotation.historyIndex > 0}
-                    canRedo={annotation.historyIndex < annotation.historyLength - 1}
-                    onToolChange={annotation.setTool}
-                    onColorChange={annotation.setColor}
-                    onUndo={annotation.undo}
-                    onRedo={annotation.redo}
-                    onClear={annotation.clearAll}
-                    onDone={annotation.toggleAnnotationMode}
-                />
-            )}
-
-            {/* Annotation Canvas Overlay */}
-            <AnnotationCanvas
-                isActive={annotation.isActive}
-                activeTool={annotation.activeTool}
-                annotations={annotation.annotations}
-                currentAnnotation={annotation.currentAnnotation}
-                drawTick={annotation.drawTick}
-                onMouseDown={annotation.startDrawing}
-                onMouseMove={annotation.continueDrawing}
-                onMouseUp={annotation.endDrawing}
-                onTextPlace={annotation.addTextAnnotation}
-                contentRef={contentRef}
-            />
-
-            <div className="p-6 space-y-8">
-
-                {/* Action Button Bar */}
-                <div className="flex items-center justify-between bg-[#1A1A1A] rounded-lg p-3">
-                    <div className="flex items-center gap-3">
-                        {/* Duplicate Button - Outline Style */}
-                        <button
-                            onClick={handleDuplicate}
-                            disabled={isDuplicating}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-[#F5B800] bg-transparent border border-[#F5B800] rounded-md hover:bg-[#F5B800]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        <div className="flex flex-col h-full overflow-y-auto">
+            <div className="p-9 space-y-8">
+                {/* Hero Comparison Cards */}
+                <div className="bg-gradient-to-br from-[rgba(212,175,55,0.08)] to-[rgba(255,255,255,0.01)] border border-[rgba(212,175,55,0.2)] rounded-[18px] p-7">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)]">
+                                Strategy vs Baseline
+                            </p>
+                            <p className="text-[11px] text-[rgba(255,255,255,0.15)] mt-1">
+                                {client.product_name} · {client.carrier_name} · Optimized Conversion
+                            </p>
+                        </div>
+                        <span
+                            className={`inline-block px-[18px] py-2 rounded-[20px] text-[18px] font-mono font-medium ${
+                                percentChange >= 0
+                                    ? "bg-[rgba(74,222,128,0.08)] text-[#4ade80]"
+                                    : "bg-[rgba(248,113,113,0.08)] text-[#f87171]"
+                            }`}
                         >
-                            {isDuplicating ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <Copy className="h-4 w-4" />
-                            )}
-                            Duplicate
-                        </button>
-
-                        {/* New Formula Button - Solid Style */}
-                        <button
-                            onClick={handleNewFormula}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-black bg-[#F5B800] rounded-md hover:bg-[#DEAD00] hover:shadow-[0_0_20px_rgba(245,184,0,0.3)] transition-all"
-                        >
-                            <Plus className="h-4 w-4" />
-                            New Formula
-                        </button>
-
-                        {/* Export PDF Button - Solid Style */}
-                        <button
-                            onClick={handleExportPdf}
-                            disabled={isExportingPdf}
-                            className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-black bg-[#F5B800] rounded-md hover:bg-[#DEAD00] hover:shadow-[0_0_20px_rgba(245,184,0,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {isExportingPdf ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <FileText className="h-4 w-4" />
-                            )}
-                            Export as PDF
-                        </button>
-
-                        {/* Annotate Button - Outline Style */}
-                        {!annotation.isActive && (
-                            <button
-                                onClick={annotation.toggleAnnotationMode}
-                                className="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-[#F5B800] bg-transparent border border-[#F5B800] rounded-md hover:bg-[#F5B800]/10 transition-colors"
-                            >
-                                <Pencil className="h-4 w-4" />
-                                Annotate
-                            </button>
-                        )}
+                            {percentChange >= 0 ? "+" : ""}{Math.round(percentChange * 100)}%
+                        </span>
                     </div>
-                </div>
 
-                {/* Header Section */}
-                <div className="space-y-4">
-                    <h3 className="text-xs font-bold text-[#A0A0A0] uppercase tracking-widest">Conversion Insights</h3>
-
-                    <div className="grid grid-cols-1 gap-px bg-[#2A2A2A] border border-[#2A2A2A] text-xs">
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium">Client Name</span>
-                            <span className="font-mono text-white">{client.name}</span>
-                        </div>
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
-                                Initial Balance
-                                {isGI && <InfoTooltip text={GI_TOOLTIPS.initialBalance} />}
-                            </span>
-                            <span className="font-mono text-white">{toUSD(client.qualified_account_value)}</span>
-                        </div>
-                        {isGI && projection.gi_income_start_age != null && (
-                            <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                                <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
-                                    Income Start Age
-                                    <InfoTooltip text={GI_TOOLTIPS.incomeStartAge} />
-                                </span>
-                                <span className="font-mono text-white">{projection.gi_income_start_age}</span>
-                            </div>
-                        )}
-                        {isGI && projection.gi_annual_income_gross != null && (
-                            <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                                <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
-                                    Guaranteed Annual Income
-                                    <InfoTooltip text={GI_TOOLTIPS.guaranteedAnnualIncome} />
-                                </span>
-                                <span className="font-mono text-[#F5B800] font-bold">{toUSD(projection.gi_annual_income_gross)}</span>
-                            </div>
-                        )}
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
-                                Lifetime Wealth Before Formula
-                                {isGI && <InfoTooltip text={GI_TOOLTIPS.lifetimeWealthBefore} />}
-                            </span>
-                            <span className="font-mono text-white">{toUSD(baseLifetime)}</span>
-                        </div>
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
-                                Lifetime Wealth After Formula
-                                {isGI && <InfoTooltip text={GI_TOOLTIPS.lifetimeWealthAfter} />}
-                            </span>
-                            <span className="font-mono text-[#F5B800] font-bold">{toUSD(blueLifetime)}</span>
-                        </div>
-                        <div className="flex justify-between items-center px-4 py-2 bg-[#141414]">
-                            <span className="text-[#A0A0A0] font-medium flex items-center gap-1.5">
-                                Percent Change
-                                {isGI && <InfoTooltip text={GI_TOOLTIPS.percentChange} />}
-                            </span>
-                            <span className="font-mono text-[#22C55E] font-bold">{toPercent(percentChange)}</span>
-                        </div>
+                    <div className="grid grid-cols-4 gap-4">
+                        <MetricCard
+                            label="Lifetime Wealth"
+                            baseline={toUSD(baseLifetime)}
+                            formula={toUSD(blueLifetime)}
+                            diff={toUSD(diff)}
+                            positive={diff >= 0}
+                        />
+                        <MetricCard
+                            label="Total Distributions"
+                            baseline={toUSD(sum(projection.baseline_years, 'rmdAmount'))}
+                            formula={toUSD(sum(projection.blueprint_years, 'rmdAmount') + sum(projection.blueprint_years, 'conversionAmount'))}
+                            diff={toUSD(sum(projection.blueprint_years, 'conversionAmount'))}
+                            positive={true}
+                        />
+                        <MetricCard
+                            label="Net Legacy"
+                            baseline={toUSD(projection.baseline_final_net_worth * 0.6)}
+                            formula={toUSD(projection.blueprint_final_roth + projection.blueprint_final_traditional * 0.6)}
+                            diff={toUSD((projection.blueprint_final_roth + projection.blueprint_final_traditional * 0.6) - projection.baseline_final_net_worth * 0.6)}
+                            positive={(projection.blueprint_final_roth + projection.blueprint_final_traditional * 0.6) >= projection.baseline_final_net_worth * 0.6}
+                        />
+                        <MetricCard
+                            label="Total Costs"
+                            baseline={toUSD(sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax') + sum(projection.baseline_years, 'irmaaSurcharge'))}
+                            formula={toUSD(sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax') + sum(projection.blueprint_years, 'irmaaSurcharge'))}
+                            diff={toUSD((sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax') + sum(projection.blueprint_years, 'irmaaSurcharge')) - (sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax') + sum(projection.baseline_years, 'irmaaSurcharge')))}
+                            positive={false}
+                        />
                     </div>
                 </div>
 
@@ -339,32 +171,32 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                 )}
 
                 {/* Chart Section */}
-                <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-6 min-h-[480px] relative">
-                    <div className="text-center mb-4">
-                        <h4 className="text-base font-semibold text-white">Lifetime Wealth Trajectory</h4>
-                        <p className="text-xs text-[#6B6B6B] mt-1">
+                <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
+                    <div className="text-center mb-6">
+                        <h4 className="text-base font-medium text-white">Lifetime Wealth Trajectory</h4>
+                        <p className="text-xs text-[rgba(255,255,255,0.25)] mt-1">
                             {isGI
                                 ? "Total wealth if client passes at each age (GI payments + legacy - costs)"
                                 : "Total wealth if client passes at each age (distributions + legacy - costs)"}
                         </p>
-                        <div className="flex justify-center gap-8 mt-3 text-[11px] font-medium">
-                            <div className="flex items-center gap-2 text-[#F5B800]">
-                                <span className="w-3 h-0.5 bg-[#F5B800] rounded"></span>
-                                Formula {isGI ? "(GI + Roth)" : "(Roth)"}
-                            </div>
-                            <div className="flex items-center gap-2 text-red-400">
-                                <span className="w-3 h-0.5 bg-red-500 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 4px, transparent 4px, transparent 6px)' }}></span>
+                        <div className="flex justify-center gap-8 mt-4 text-[11px]">
+                            <span className="flex items-center gap-2 text-gold">
+                                <span className="w-3.5 h-0.5 bg-gold rounded" />
+                                Strategy {isGI ? "(GI + Roth)" : "(Roth)"}
+                            </span>
+                            <span className="flex items-center gap-2 text-[rgba(255,255,255,0.25)]">
+                                <span className="w-3.5 h-0.5 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,0.25) 0px, rgba(255,255,255,0.25) 4px, transparent 4px, transparent 6px)' }} />
                                 Baseline (Traditional)
-                            </div>
+                            </span>
                         </div>
                     </div>
-                    <div ref={lifetimeWealthChartRef} className="h-[360px] w-full bg-[#141414]">
+                    <div ref={lifetimeWealthChartRef} className="h-[360px] w-full">
                         <WealthChart data={chartData} breakEvenAge={projection.break_even_age} />
                     </div>
                 </div>
 
                 {/* Detailed Comparison Table */}
-                <div className="pt-2">
+                <div>
                     {isGI ? (
                         <GISummaryBreakdownTable projection={projection} />
                     ) : (
@@ -374,33 +206,35 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
                 {/* Account Value vs Income Base Chart (GI Only) */}
                 {isGI && projection.gi_yearly_data && projection.gi_yearly_data.length > 0 && (
-                    <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-6 min-h-[480px] relative">
-                        <div className="text-center mb-4">
-                            <h4 className="text-base font-semibold text-white">Account Value vs Income Base</h4>
-                            <p className="text-xs text-[#6B6B6B] mt-1">Tracking account value, income base, and Roth balance over time</p>
-                            <div className="flex justify-center gap-8 mt-3 text-[11px] font-medium">
-                                <div className="flex items-center gap-2 text-[#F5B800]">
-                                    <span className="w-3 h-0.5 bg-[#F5B800] rounded"></span>
+                    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
+                        <div className="text-center mb-6">
+                            <h4 className="text-base font-medium text-white">Account Value vs Income Base</h4>
+                            <p className="text-xs text-[rgba(255,255,255,0.25)] mt-1">
+                                Tracking account value, income base, and Roth balance over time
+                            </p>
+                            <div className="flex justify-center gap-8 mt-4 text-[11px]">
+                                <span className="flex items-center gap-2 text-gold">
+                                    <span className="w-3.5 h-0.5 bg-gold rounded" />
                                     Roth Balance
-                                </div>
-                                <div className="flex items-center gap-2 text-red-400">
-                                    <span className="w-3 h-0.5 bg-red-500 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #ef4444 0px, #ef4444 4px, transparent 4px, transparent 6px)' }}></span>
+                                </span>
+                                <span className="flex items-center gap-2 text-[#f87171]">
+                                    <span className="w-3.5 h-0.5 bg-[#f87171] rounded" />
                                     Account Value
-                                </div>
-                                <div className="flex items-center gap-2 text-[#22C55E]">
-                                    <span className="w-3 h-0.5 bg-[#22C55E] rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #22c55e 0px, #22c55e 2px, transparent 2px, transparent 6px)' }}></span>
+                                </span>
+                                <span className="flex items-center gap-2 text-[#4ade80]">
+                                    <span className="w-3.5 h-0.5 rounded" style={{ backgroundImage: 'repeating-linear-gradient(90deg, #22c55e 0px, #22c55e 2px, transparent 2px, transparent 6px)' }} />
                                     Income Base
-                                </div>
+                                </span>
                             </div>
                         </div>
-                        <div className="h-[360px] w-full bg-[#141414]">
+                        <div className="h-[360px] w-full">
                             <GIAccountChart projection={projection} />
                         </div>
                     </div>
                 )}
 
                 {/* Year-over-Year Tables with Scenario Toggle */}
-                <div className="pt-8">
+                <div className="pt-2">
                     {isGI ? (
                         <GIYearOverYearTables
                             baselineYears={projection.baseline_years}
@@ -417,6 +251,48 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                     )}
                 </div>
 
+                {/* Disclaimer */}
+                <p className="text-xs text-[rgba(255,255,255,0.15)] italic text-center py-4">
+                    This optimized plan is for educational purposes only. Before making a Roth conversion, discuss your final plan with a tax professional.
+                </p>
+            </div>
+        </div>
+    );
+}
+
+// Metric Card Component
+function MetricCard({
+    label,
+    baseline,
+    formula,
+    diff,
+    positive,
+}: {
+    label: string;
+    baseline: string;
+    formula: string;
+    diff: string;
+    positive: boolean;
+}) {
+    return (
+        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[12px] p-5">
+            <p className="text-[11px] uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-4">
+                {label}
+            </p>
+            <div className="flex justify-between items-baseline mb-2">
+                <div>
+                    <p className="text-[10px] text-[rgba(255,255,255,0.15)] mb-0.5">BASELINE</p>
+                    <p className="text-[17px] font-mono text-[rgba(255,255,255,0.5)]">{baseline}</p>
+                </div>
+                <div className="text-right">
+                    <p className="text-[10px] text-[rgba(255,255,255,0.15)] mb-0.5">STRATEGY</p>
+                    <p className="text-[17px] font-mono font-medium text-white">{formula}</p>
+                </div>
+            </div>
+            <div className="pt-3 mt-3 border-t border-[rgba(255,255,255,0.07)]">
+                <p className={`text-[14px] font-mono font-medium ${positive ? "text-[#4ade80]" : "text-[#f87171]"}`}>
+                    {diff}
+                </p>
             </div>
         </div>
     );

@@ -20,15 +20,15 @@ export function MetricCard({ title, value, subtitle, icon }: MetricCardProps) {
   const Icon = ICONS[icon] ?? FileText;
 
   return (
-    <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-5 hover:bg-[#1F1F1F] hover:border-[#F5B800] transition-all">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 bg-[#F5B800]/15 border border-[#F5B800]/30">
-        <Icon className="w-5 h-5 text-[#F5B800]" />
+    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-[22px_24px] transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
+      <div className="w-9 h-9 rounded-[10px] flex items-center justify-center mb-4 bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)]">
+        <Icon className="w-[18px] h-[18px] text-gold" />
       </div>
-      <p className="text-xs font-semibold uppercase tracking-wide text-[#A0A0A0] mb-2">
+      <p className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-2">
         {title}
       </p>
-      <p className="text-3xl font-bold text-white mb-1">{value}</p>
-      <p className="text-[13px] text-[#6B6B6B]">{subtitle}</p>
+      <p className="text-[26px] font-mono font-medium text-white mb-1">{value}</p>
+      <p className="text-xs text-[rgba(255,255,255,0.25)]">{subtitle}</p>
     </div>
   );
 }

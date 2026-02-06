@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
+import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 
 export default async function DashboardLayout({
@@ -17,16 +17,13 @@ export default async function DashboardLayout({
   }
 
   const cookieStore = await cookies()
-  const defaultOpen = cookieStore.get('sidebar_state')?.value === 'true'
+  const defaultOpen = cookieStore.get('sidebar_state')?.value !== 'false'
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <AppSidebar user={user} />
-      <main className="flex-1 flex flex-col">
-        <header className="border-b p-4 flex items-center gap-4">
-          <SidebarTrigger />
-        </header>
-        <div className="flex-1 p-6">
+      <main className="flex-1 flex flex-col min-h-screen bg-[#0c0c0c]">
+        <div className="flex-1">
           {children}
         </div>
       </main>

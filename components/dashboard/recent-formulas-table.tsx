@@ -19,30 +19,46 @@ function formatDate(dateStr: string): string {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+function DeltaBadge({ value }: { value: number }) {
+  const isPositive = value >= 0;
+  return (
+    <span
+      className={`inline-block px-3 py-1 rounded-[20px] text-[13px] font-mono font-medium ${
+        isPositive
+          ? "bg-[rgba(74,222,128,0.08)] text-[#4ade80]"
+          : "bg-[rgba(248,113,113,0.08)] text-[#f87171]"
+      }`}
+    >
+      {isPositive ? "+" : ""}
+      {value}%
+    </span>
+  );
+}
+
 export function RecentFormulasTable({ data }: RecentFormulasTableProps) {
   return (
-    <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-6 hover:bg-[#1F1F1F] hover:border-[#F5B800] transition-all">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#A0A0A0] mb-4">
-        Recent Formulas
+    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
+      <h3 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-5">
+        Recent Scenarios
       </h3>
 
       {data.length === 0 ? (
-        <p className="text-sm text-[#6B6B6B] text-center py-8">No Formulas yet</p>
+        <p className="text-sm text-[rgba(255,255,255,0.25)] text-center py-8">No scenarios yet</p>
       ) : (
         <>
           <table className="w-full">
             <thead>
               <tr>
-                <th className="text-left pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
+                <th className="text-left pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
                   Client
                 </th>
-                <th className="text-left pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
+                <th className="text-left pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
                   Product
                 </th>
-                <th className="text-right pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
+                <th className="text-right pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
                   Change
                 </th>
-                <th className="text-right pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
+                <th className="text-right pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
                   Date
                 </th>
               </tr>
@@ -51,31 +67,24 @@ export function RecentFormulasTable({ data }: RecentFormulasTableProps) {
               {data.map((item) => (
                 <tr
                   key={item.id}
-                  className="hover:bg-[#1A1A1A] cursor-pointer transition-colors"
+                  className="cursor-pointer transition-colors hover:bg-[rgba(255,255,255,0.045)]"
                 >
-                  <td className="py-3 border-b border-[#2A2A2A]">
+                  <td className="py-2.5">
                     <Link
                       href={`/clients/${item.id}`}
-                      className="text-sm text-white hover:text-[#F5B800] transition-colors"
+                      className="text-[13px] text-[rgba(255,255,255,0.5)] hover:text-gold transition-colors"
                     >
                       {item.clientName}
                     </Link>
                   </td>
-                  <td className="py-3 border-b border-[#2A2A2A]">
-                    <span className="text-sm text-[#A0A0A0]">{item.productLabel}</span>
+                  <td className="py-2.5">
+                    <span className="text-[13px] text-[rgba(255,255,255,0.25)]">{item.productLabel}</span>
                   </td>
-                  <td className="py-3 border-b border-[#2A2A2A] text-right">
-                    <span
-                      className={`text-sm font-semibold ${
-                        item.percentChange >= 0 ? "text-green-400" : "text-red-400"
-                      }`}
-                    >
-                      {item.percentChange >= 0 ? "+" : ""}
-                      {item.percentChange}%
-                    </span>
+                  <td className="py-2.5 text-right">
+                    <DeltaBadge value={item.percentChange} />
                   </td>
-                  <td className="py-3 border-b border-[#2A2A2A] text-right">
-                    <span className="text-sm text-[#6B6B6B]">
+                  <td className="py-2.5 text-right">
+                    <span className="text-xs font-mono text-[rgba(255,255,255,0.25)]">
                       {formatDate(item.createdAt)}
                     </span>
                   </td>
@@ -87,9 +96,9 @@ export function RecentFormulasTable({ data }: RecentFormulasTableProps) {
           <div className="mt-4 text-center">
             <Link
               href="/clients"
-              className="text-sm text-[#F5B800] hover:text-[#F5B800]/80 transition-colors"
+              className="text-sm text-gold hover:text-[rgba(212,175,55,0.8)] transition-colors"
             >
-              View All Formulas &rarr;
+              View All Scenarios &rarr;
             </Link>
           </div>
         </>

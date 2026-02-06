@@ -20,23 +20,23 @@ export function ConversionPipeline({
   }
 
   return (
-    <div className="bg-[#141414] border border-[#2A2A2A] rounded-xl p-6 hover:bg-[#1F1F1F] hover:border-[#F5B800] transition-all">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#A0A0A0] mb-1">
+    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
+      <h3 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-2">
         Conversion Pipeline
       </h3>
-      <p className="text-[13px] text-[#6B6B6B] mb-4">
+      <p className="text-xs text-[rgba(255,255,255,0.25)] mb-5">
         Clients currently in active Roth conversion
       </p>
 
       {/* Summary stats */}
       <div className="flex gap-8 mb-6">
         <div>
-          <span className="text-sm text-[#A0A0A0]">Active Conversions: </span>
-          <span className="text-sm font-semibold text-white">{activePipelineCount} clients</span>
+          <span className="text-[13px] text-[rgba(255,255,255,0.5)]">Active Conversions: </span>
+          <span className="text-[13px] font-mono font-medium text-white">{activePipelineCount} clients</span>
         </div>
         <div>
-          <span className="text-sm text-[#A0A0A0]">Total Value in Progress: </span>
-          <span className="text-sm font-semibold text-white">
+          <span className="text-[13px] text-[rgba(255,255,255,0.5)]">Total Value in Progress: </span>
+          <span className="text-[13px] font-mono font-medium text-white">
             {formatWholeDollars(totalPipelineValue)}
           </span>
         </div>
@@ -46,19 +46,19 @@ export function ConversionPipeline({
       <table className="w-full">
         <thead>
           <tr>
-            <th className="text-left pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
+            <th className="text-left pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
               Client
             </th>
-            <th className="text-left pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
+            <th className="text-left pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
               Product
             </th>
-            <th className="text-left pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
+            <th className="text-left pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
               Progress
             </th>
-            <th className="text-right pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A]">
+            <th className="text-right pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
               Remaining
             </th>
-            <th className="pb-3 text-[11px] font-semibold uppercase tracking-wide text-[#A0A0A0] border-b border-[#2A2A2A] w-40 text-center">
+            <th className="pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)] w-40 text-center">
               Status
             </th>
           </tr>
@@ -67,34 +67,34 @@ export function ConversionPipeline({
           {pipeline.map((item) => (
             <tr
               key={item.clientId}
-              className="hover:bg-[#1A1A1A] transition-colors"
+              className="hover:bg-[rgba(255,255,255,0.045)] transition-colors"
             >
-              <td className="py-3 border-b border-[#2A2A2A] text-sm text-white">
+              <td className="py-2.5 text-[13px] text-[rgba(255,255,255,0.5)]">
                 {item.clientName}
               </td>
-              <td className="py-3 border-b border-[#2A2A2A] text-sm text-[#A0A0A0]">
+              <td className="py-2.5 text-[13px] text-[rgba(255,255,255,0.25)]">
                 {item.productLabel}
               </td>
-              <td className="py-3 border-b border-[#2A2A2A] text-sm text-white">
+              <td className="py-2.5 text-[13px] font-mono text-[rgba(255,255,255,0.5)]">
                 Year {item.currentYear}/{item.totalYears}
               </td>
-              <td className="py-3 border-b border-[#2A2A2A] text-sm text-white text-right">
+              <td className="py-2.5 text-[13px] font-mono text-[rgba(255,255,255,0.5)] text-right">
                 {formatWholeDollars(item.remainingAmount)}
               </td>
-              <td className="py-3 border-b border-[#2A2A2A] w-40">
+              <td className="py-2.5 w-40">
                 <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-[#0D0D0D] rounded-full overflow-hidden">
+                  <div className="flex-1 h-1.5 bg-[rgba(255,255,255,0.04)] rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${
                         item.isComplete
-                          ? "bg-green-500"
-                          : "bg-gradient-to-r from-[#F5B800] to-[#D4A000]"
+                          ? "bg-[#4ade80]"
+                          : "bg-gradient-to-r from-gold to-[rgba(212,175,55,0.7)]"
                       }`}
                       style={{ width: `${item.percentComplete}%` }}
                     />
                   </div>
                   {item.isComplete && (
-                    <Check className="w-4 h-4 text-green-400 shrink-0" />
+                    <Check className="w-4 h-4 text-[#4ade80] shrink-0" />
                   )}
                 </div>
               </td>

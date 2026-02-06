@@ -31,15 +31,15 @@ export function SettingsContent({ user }: { user: User }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+        <Loader2 className="size-8 animate-spin text-[rgba(255,255,255,0.25)]" />
       </div>
     );
   }
 
   if (error || !settings) {
     return (
-      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-6">
-        <p className="text-destructive">
+      <div className="rounded-[14px] border border-[rgba(248,113,113,0.2)] bg-[rgba(248,113,113,0.08)] p-6">
+        <p className="text-[#f87171]">
           Failed to load settings. Please try refreshing the page.
         </p>
       </div>
@@ -47,35 +47,45 @@ export function SettingsContent({ user }: { user: User }) {
   }
 
   return (
-    <div className="max-w-5xl">
-      <h1 className="mb-6 text-2xl font-semibold">Settings</h1>
-      <Tabs defaultValue="profile" orientation="vertical">
-        <TabsList variant="line" className="w-48 shrink-0">
-          {TABS.map((tab) => (
-            <TabsTrigger key={tab.value} value={tab.value}>
-              <tab.icon className="size-4" />
-              {tab.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <div className="min-w-0 flex-1 pl-6">
-          <TabsContent value="profile">
-            <ProfileTab user={user} settings={settings} />
-          </TabsContent>
-          <TabsContent value="security">
-            <SecurityTab user={user} />
-          </TabsContent>
-          <TabsContent value="business">
-            <BusinessTab settings={settings} />
-          </TabsContent>
-          <TabsContent value="defaults">
-            <DefaultsTab settings={settings} />
-          </TabsContent>
-          <TabsContent value="billing">
-            <BillingTab />
-          </TabsContent>
-        </div>
-      </Tabs>
+    <div className="p-9 max-w-5xl">
+      <h1 className="font-display text-[30px] font-normal text-white mb-9">Settings</h1>
+
+      <div className="flex gap-8">
+        {/* Left Tab Navigation */}
+        <Tabs defaultValue="profile" orientation="vertical" className="flex gap-8 w-full">
+          <TabsList variant="line" className="w-[200px] shrink-0 flex-col items-stretch gap-1 bg-transparent p-0 border-0">
+            {TABS.map((tab) => (
+              <TabsTrigger
+                key={tab.value}
+                value={tab.value}
+                className="justify-start gap-2.5 h-11 px-3.5 rounded-lg text-sm font-normal text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] data-[state=active]:bg-[rgba(212,175,55,0.08)] data-[state=active]:text-gold data-[state=active]:border data-[state=active]:border-[rgba(212,175,55,0.2)] border border-transparent transition-all"
+              >
+                <tab.icon className="size-4 opacity-70" />
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+
+          {/* Right Content Card */}
+          <div className="flex-1 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-9">
+            <TabsContent value="profile" className="mt-0">
+              <ProfileTab user={user} settings={settings} />
+            </TabsContent>
+            <TabsContent value="security" className="mt-0">
+              <SecurityTab user={user} />
+            </TabsContent>
+            <TabsContent value="business" className="mt-0">
+              <BusinessTab settings={settings} />
+            </TabsContent>
+            <TabsContent value="defaults" className="mt-0">
+              <DefaultsTab settings={settings} />
+            </TabsContent>
+            <TabsContent value="billing" className="mt-0">
+              <BillingTab />
+            </TabsContent>
+          </div>
+        </Tabs>
+      </div>
     </div>
   );
 }

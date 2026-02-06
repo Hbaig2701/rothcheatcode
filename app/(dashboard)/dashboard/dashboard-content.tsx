@@ -34,7 +34,7 @@ export function DashboardContent({ userName }: DashboardContentProps) {
 
   if (isLoading) {
     return (
-      <div className="bg-[#0D0D0D] -m-6 p-6 min-h-screen">
+      <div className="p-9">
         <DashboardSkeleton />
       </div>
     );
@@ -42,10 +42,10 @@ export function DashboardContent({ userName }: DashboardContentProps) {
 
   if (error) {
     return (
-      <div className="bg-[#0D0D0D] -m-6 p-6 min-h-screen">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">
-          <p className="text-red-400">Failed to load dashboard data.</p>
-          <p className="text-sm text-[#6B6B6B] mt-1">{error.message}</p>
+      <div className="p-9">
+        <div className="bg-[rgba(248,113,113,0.08)] border border-[rgba(248,113,113,0.2)] rounded-[14px] p-6 text-center">
+          <p className="text-[#f87171]">Failed to load dashboard data.</p>
+          <p className="text-sm text-[rgba(255,255,255,0.25)] mt-1">{error.message}</p>
         </div>
       </div>
     );
@@ -53,7 +53,7 @@ export function DashboardContent({ userName }: DashboardContentProps) {
 
   if (!data || data.clients.length === 0) {
     return (
-      <div className="bg-[#0D0D0D] -m-6 p-6 min-h-screen">
+      <div className="p-9">
         <DashboardEmptyState />
       </div>
     );
@@ -62,17 +62,24 @@ export function DashboardContent({ userName }: DashboardContentProps) {
   if (!metrics) return null;
 
   return (
-    <div className="bg-[#0D0D0D] -m-6 p-6 min-h-screen">
+    <div className="p-9">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-white">
-          Welcome back, {userName}
-        </h1>
-        <span className="text-sm text-[#6B6B6B]">{today}</span>
+      <div className="flex justify-between items-start mb-9">
+        <div>
+          <h1 className="font-display text-[30px] font-normal text-white">
+            Welcome back, {userName}
+          </h1>
+          <p className="text-sm text-[rgba(255,255,255,0.25)] mt-1.5">
+            Here&apos;s your practice overview
+          </p>
+        </div>
+        <span className="text-[13px] font-mono text-[rgba(255,255,255,0.25)]">
+          {today}
+        </span>
       </div>
 
       {/* Top Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-7">
         <MetricCard
           title="Total Clients"
           value={metrics.totalClients}
@@ -100,7 +107,7 @@ export function DashboardContent({ userName }: DashboardContentProps) {
       </div>
 
       {/* Middle Row: Value Delivered + Product Mix */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-7">
         <ValueDeliveredPanel
           totalLifetimeWealth={metrics.totalLifetimeWealth}
           totalTaxSavings={metrics.totalTaxSavings}
@@ -110,7 +117,7 @@ export function DashboardContent({ userName }: DashboardContentProps) {
       </div>
 
       {/* Bottom Row: Recent Formulas + Client Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-7">
         <RecentFormulasTable data={metrics.recentFormulas} />
         <ClientInsightsPanel
           avgClientAge={metrics.avgClientAge}
