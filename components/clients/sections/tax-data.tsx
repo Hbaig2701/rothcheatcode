@@ -34,6 +34,17 @@ const TAX_SOURCE_OPTIONS = [
   { value: "from_ira", label: "Internal (from IRA)" },
 ] as const;
 
+// Valid federal tax brackets - must match what's in federal-brackets-2026.ts
+const TAX_BRACKET_OPTIONS = [
+  { value: 10, label: "10%" },
+  { value: 12, label: "12%" },
+  { value: 22, label: "22%" },
+  { value: 24, label: "24%" },
+  { value: 32, label: "32%" },
+  { value: 35, label: "35%" },
+  { value: 37, label: "37%" },
+] as const;
+
 export function TaxDataSection() {
   const form = useFormContext<ClientFormData>();
   const state = form.watch("state");
@@ -125,21 +136,41 @@ export function TaxDataSection() {
         )}
       />
 
-      {/* Max Tax Rate */}
+      {/* Max Tax Rate - Dropdown with valid brackets only */}
       <Controller
         name="max_tax_rate"
         control={form.control}
-        render={({ field: { ref, ...field }, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="max_tax_rate">Max Tax Rate</FieldLabel>
-            <PercentInput
-              {...field}
-              aria-invalid={fieldState.invalid}
-            />
-            <FieldDescription>Maximum tax rate ceiling for conversions</FieldDescription>
-            <FieldError errors={[fieldState.error]} />
-          </Field>
-        )}
+        render={({ field, fieldState }) => {
+          const selectedOption = TAX_BRACKET_OPTIONS.find(opt => opt.value === field.value);
+          return (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="max_tax_rate">Max Tax Rate</FieldLabel>
+              <Select
+                value={field.value?.toString()}
+                onValueChange={(val) => field.onChange(parseInt(val, 10))}
+              >
+                <SelectTrigger
+                  id="max_tax_rate"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                >
+                  <SelectValue placeholder="Select bracket">
+                    {selectedOption?.label ?? "Select bracket"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {TAX_BRACKET_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value.toString()}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>Target tax bracket ceiling for conversions</FieldDescription>
+              <FieldError errors={[fieldState.error]} />
+            </Field>
+          );
+        }}
       />
 
       {/* Tax Payment Source */}
