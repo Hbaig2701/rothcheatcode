@@ -161,8 +161,9 @@ export function runBaselineScenario(
     iraBalance = iraAfterDistribution + iraInterest;
     rothBalance = boyRoth + rothInterest;
 
-    // Taxable account pays taxes and earns interest
-    taxableBalance = boyTaxable + taxableInterest - totalTax;
+    // Taxable account receives RMD proceeds, pays taxes, and earns interest
+    // RMD is cash received (added to taxable), then we pay taxes on all income
+    taxableBalance = boyTaxable + rmdAmount + taxableInterest - totalTax;
 
     // Determine tax bracket
     const bracket = determineTaxBracket(taxableIncome, client.filing_status, year);

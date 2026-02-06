@@ -480,7 +480,8 @@ function runGIFormulaScenario(
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
 
       rothBalance = boyRoth + rothInterest;
-      taxableBalance = boyTaxable + taxableInterest - totalTax;
+      // Taxable account receives after-tax GI income (grossGI - taxes)
+      taxableBalance = boyTaxable + grossGI + taxableInterest - totalTax;
 
       results.push({
         year, age, spouseAge,
@@ -647,7 +648,8 @@ function runGIBaselineScenario(
 
     iraBalance = iraAfterWithdrawal + iraInterest;
     rothBalance = boyRoth + rothInterest;
-    taxableBalance = boyTaxable + taxableInterest - totalTax;
+    // Taxable account receives withdrawal proceeds, pays taxes, earns interest
+    taxableBalance = boyTaxable + withdrawalAmount + taxableInterest - totalTax;
 
     results.push({
       year, age, spouseAge,

@@ -1,13 +1,17 @@
 import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
 import { getAgeAtYearOffset } from '../utils/age';
+import { calculateOptimalConversion, calculateConversionFederalTax } from '../modules/federal-tax';
+import { calculateConversionStateTax } from '../modules/state-tax';
+import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getStateTaxRate } from '@/lib/data/states';
 
 /**
  * Run Growth FIA Formula scenario: Roth conversions with FIA product features
  *
  * Implements the Growth FIA calculation logic:
  * - Applies upfront bonus at issue (using client.bonus_percent)
- * - Strategic Roth conversions based on constraint type
+ * - Strategic Roth conversions that fill up to target tax bracket
  * - Compound growth at rate_of_return
  * - Tax calculation on conversions
  */
@@ -26,17 +30,22 @@ export function runGrowthFormulaScenario(
   const initialValue = client.qualified_account_value ?? 0;
   let iraBalance = Math.round(initialValue * (1 + bonusPercent / 100));
   let rothBalance = 0;
+  let taxableBalance = 0; // Track taxes paid externally
 
   // Tax rates
-  const federalTaxRate = (client.tax_rate ?? client.max_tax_rate ?? 24) / 100;
-  const stateTaxRate = (client.state_tax_rate ?? 0) / 100;
-  const totalTaxRate = federalTaxRate + stateTaxRate;
+  const maxTaxRate = client.max_tax_rate ?? 24;
+  const stateTaxRateDecimal = client.state_tax_rate !== undefined && client.state_tax_rate !== null
+    ? client.state_tax_rate / 100
+    : getStateTaxRate(client.state);
 
   // Conversion parameters
   const conversionType = client.conversion_type ?? 'optimized_amount';
   const yearsToDefer = client.years_to_defer_conversion ?? 0;
   const conversionStartAge = clientAge + yearsToDefer;
   const conversionEndAge = client.end_age ?? 100;
+
+  // Other income for bracket calculations
+  const otherIncome = client.gross_taxable_non_ssi ?? 0;
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
@@ -45,12 +54,15 @@ export function runGrowthFormulaScenario(
     // Beginning of Year balances
     const boyIRA = iraBalance;
     const boyRoth = rothBalance;
+    const boyTaxable = taxableBalance;
 
-    // Step 1: Calculate interest on IRA
-    const interest = Math.round(boyIRA * growthRate);
-    let valueAfterInterest = boyIRA + interest;
+    // Standard deduction (age-adjusted)
+    const deductions = getStandardDeduction(client.filing_status, age, undefined, year);
 
-    // Step 2: Handle Roth conversions
+    // Existing taxable income (before conversion)
+    const existingTaxableIncome = Math.max(0, otherIncome - deductions);
+
+    // Step 1: Handle Roth conversions BEFORE interest (so conversion is based on BOY balance)
     let conversionAmount = 0;
     let federalTax = 0;
     let stateTax = 0;
@@ -58,38 +70,58 @@ export function runGrowthFormulaScenario(
     const shouldConvert = conversionType !== 'no_conversion' &&
                           age >= conversionStartAge &&
                           age <= conversionEndAge &&
-                          valueAfterInterest > 0;
+                          boyIRA > 0;
 
     if (shouldConvert) {
       // Determine conversion amount based on type
-      // For Growth FIA, we use optimized conversions that fill to the target tax bracket
-      // The conversion amount is the remaining IRA balance (convert all during conversion period)
       if (conversionType === 'full_conversion') {
-        conversionAmount = valueAfterInterest;
-      } else if (conversionType === 'optimized_amount' || conversionType === 'fixed_amount') {
-        // For optimized and fixed, convert all remaining balance
-        // (The actual amount per year is controlled by the conversion period length)
-        conversionAmount = valueAfterInterest;
+        // Convert everything at once
+        conversionAmount = boyIRA;
+      } else {
+        // For optimized_amount and fixed_amount: fill up to target bracket ceiling
+        conversionAmount = calculateOptimalConversion(
+          boyIRA,
+          existingTaxableIncome,
+          maxTaxRate,
+          client.filing_status,
+          year
+        );
       }
 
       // Calculate taxes on conversion
       if (conversionAmount > 0) {
-        federalTax = Math.round(conversionAmount * federalTaxRate);
-        stateTax = Math.round(conversionAmount * stateTaxRate);
-      }
+        // Federal tax (marginal)
+        federalTax = calculateConversionFederalTax(
+          conversionAmount,
+          existingTaxableIncome,
+          client.filing_status,
+          year
+        );
 
-      // Deduct conversion from IRA
-      valueAfterInterest -= conversionAmount;
+        // State tax (flat rate)
+        stateTax = calculateConversionStateTax(
+          conversionAmount,
+          client.state,
+          stateTaxRateDecimal
+        );
+      }
     }
 
-    // Step 4: Grow existing Roth balance, then add new conversion
-    const rothGrowth = Math.round(boyRoth * growthRate);
-    rothBalance = boyRoth + rothGrowth + conversionAmount;
+    // Execute conversion
+    const iraAfterConversion = boyIRA - conversionAmount;
+    const rothAfterConversion = boyRoth + conversionAmount;
 
-    // Update IRA balance
-    iraBalance = valueAfterInterest;
+    // Step 2: Calculate interest AFTER conversion
+    const iraInterest = Math.round(iraAfterConversion * growthRate);
+    const rothInterest = Math.round(rothAfterConversion * growthRate);
 
+    // Update balances
+    iraBalance = iraAfterConversion + iraInterest;
+    rothBalance = rothAfterConversion + rothInterest;
+
+    // Taxes paid from external funds (taxable account goes negative)
     const totalTax = federalTax + stateTax;
+    taxableBalance = boyTaxable - totalTax;
 
     results.push({
       year,
@@ -97,20 +129,20 @@ export function runGrowthFormulaScenario(
       spouseAge: null,
       traditionalBalance: iraBalance,
       rothBalance,
-      taxableBalance: 0,
+      taxableBalance,
       rmdAmount: 0,
       conversionAmount,
       ssIncome: 0,
       pensionIncome: 0,
-      otherIncome: 0,
-      totalIncome: conversionAmount,
+      otherIncome,
+      totalIncome: conversionAmount + otherIncome,
       federalTax,
       stateTax,
       niitTax: 0,
       irmaaSurcharge: 0,
       totalTax,
       taxableSS: 0,
-      netWorth: iraBalance + rothBalance
+      netWorth: iraBalance + rothBalance + taxableBalance
     });
   }
 
