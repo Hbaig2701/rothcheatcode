@@ -241,7 +241,7 @@ export function YearOverYearTables({
 
   // Render Account Values table
   const renderAccountValuesTable = () => (
-    <table className="w-full border-collapse min-w-[1000px]">
+    <table className="w-full border-collapse min-w-[1100px]">
       <thead>
         <tr>
           {renderHeaderCell("Year", "left")}
@@ -254,6 +254,7 @@ export function YearOverYearTables({
           {renderHeaderCell("Dist.(Roth)")}
           {renderHeaderCell("Interest")}
           {renderHeaderCell("E.O.Y.")}
+          {renderHeaderCell("Cash Balance")}
         </tr>
       </thead>
       <tbody>
@@ -275,6 +276,12 @@ export function YearOverYearTables({
             {renderCell("0")}
             {renderCell(formatCurrency(row.interest))}
             {renderCell(formatCurrency(row.eoyCombined))}
+            {renderCell(
+              row.taxableBalance >= 0
+                ? `$${formatCurrency(row.taxableBalance)}`
+                : `-$${formatCurrency(Math.abs(row.taxableBalance))}`,
+              { color: row.taxableBalance >= 0 ? "green" : "red" }
+            )}
           </tr>
         ))}
       </tbody>
