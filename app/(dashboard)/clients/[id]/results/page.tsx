@@ -1,11 +1,14 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useMemo } from "react";
 import { useClient } from "@/lib/queries/clients";
+import { useProjection } from "@/lib/queries/projections";
 import { InputDrawer } from "@/components/report/input-drawer";
 import { ReportDashboard } from "@/components/report/report-dashboard";
 import { PresentationMode } from "@/components/report/presentation-mode";
 import { Loader2, ArrowLeft, Settings2, ChevronDown, Play, FileText, Copy, Pencil } from "lucide-react";
+import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
+import type { YearlyResult } from "@/lib/calculations";
 
 interface ResultsPageProps {
   params: Promise<{ id: string }>;
@@ -13,10 +16,59 @@ interface ResultsPageProps {
 
 export default function ResultsPage({ params }: ResultsPageProps) {
   const { id } = use(params);
-  const { data: client, isLoading } = useClient(id);
+  const { data: client, isLoading: clientLoading } = useClient(id);
+  const { data: projectionResponse, isLoading: projectionLoading } = useProjection(id);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [presentMode, setPresentMode] = useState(false);
+
+  // Calculate percentage change from projection data
+  const percentChange = useMemo(() => {
+    if (!projectionResponse?.projection || !client) return 0;
+
+    const { projection } = projectionResponse;
+    const isGI = client.blueprint_type
+      ? isGuaranteedIncomeProduct(client.blueprint_type as FormulaType)
+      : false;
+
+    const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
+      years.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
+
+    // Calculate baseline lifetime wealth
+    const heirTaxRate = 0.40;
+    const totalRMDs = sum(projection.baseline_years, 'rmdAmount');
+    const totalBaselineTaxes = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
+    const totalBaselineIRMAA = sum(projection.baseline_years, 'irmaaSurcharge');
+    const afterTaxDistributions = totalRMDs - totalBaselineTaxes;
+    const netBaselineLegacy = projection.baseline_final_net_worth * (1 - heirTaxRate);
+    const baseLifetime = netBaselineLegacy + afterTaxDistributions - totalBaselineIRMAA;
+
+    // Calculate formula/blueprint lifetime wealth
+    let blueLifetime: number;
+    if (isGI) {
+      const giYearlyData = projection.gi_yearly_data || [];
+      let conversionTaxes = 0;
+      projection.blueprint_years.forEach((year, i) => {
+        const giYear = giYearlyData[i];
+        if (giYear && giYear.phase === 'deferral') {
+          conversionTaxes += (year.federalTax + year.stateTax) || 0;
+        }
+      });
+      const totalIRMAA = sum(projection.blueprint_years, 'irmaaSurcharge');
+      const netLegacy = Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) + projection.blueprint_final_roth;
+      const giTotalNet = projection.gi_total_net_paid ?? 0;
+      blueLifetime = giTotalNet + netLegacy - conversionTaxes - totalIRMAA;
+    } else {
+      const totalTaxes = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
+      const totalIRMAA = sum(projection.blueprint_years, 'irmaaSurcharge');
+      blueLifetime = projection.blueprint_final_net_worth - totalTaxes - totalIRMAA;
+    }
+
+    const diff = blueLifetime - baseLifetime;
+    return baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;
+  }, [projectionResponse, client]);
+
+  const isLoading = clientLoading || projectionLoading;
 
   if (isLoading) {
     return (
@@ -34,8 +86,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
     );
   }
 
-  // Placeholder delta
-  const delta = Math.floor(Math.random() * 15) + 1;
+  const delta = Math.round(percentChange * 100);
 
   // Presentation mode overlay
   if (presentMode) {
