@@ -49,15 +49,17 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
       maximumFractionDigits: 0,
     }).format(amount / 100);
 
-  // Calculate Lifetime Wealth
-  const calculateFormulaLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
+  // Calculate Lifetime Wealth for Growth strategy
+  // Net legacy (after heir taxes) minus conversion taxes minus IRMAA
+  const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
+  const calculateFormulaLifetimeWealth = (years: YearlyResult[]) => {
     const totalTaxes = sum(years, "federalTax") + sum(years, "stateTax");
     const totalIRMAA = sum(years, "irmaaSurcharge");
-    return finalNetWorth - totalTaxes - totalIRMAA;
+    const netLegacy = Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) + projection.blueprint_final_roth;
+    return netLegacy - totalTaxes - totalIRMAA;
   };
 
   const calculateGIFormulaLifetimeWealthTotal = () => {
-    const heirTaxRate = 0.4;
     const giYearlyData = projection.gi_yearly_data || [];
     let conversionTaxes = 0;
     projection.blueprint_years.forEach((year, i) => {
@@ -75,7 +77,6 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
   };
 
   const calculateBaselineLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
-    const heirTaxRate = 0.4;
     const totalRMDs = sum(years, "rmdAmount");
     const totalTaxes = sum(years, "federalTax") + sum(years, "stateTax");
     const totalIRMAA = sum(years, "irmaaSurcharge");
@@ -90,10 +91,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
   );
   const blueLifetime = isGI
     ? calculateGIFormulaLifetimeWealthTotal()
-    : calculateFormulaLifetimeWealth(
-        projection.blueprint_years,
-        projection.blueprint_final_net_worth
-      );
+    : calculateFormulaLifetimeWealth(projection.blueprint_years);
 
   const diff = blueLifetime - baseLifetime;
   const percentChange = baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;
