@@ -60,6 +60,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const baseIrmaa = sum(projection.baseline_years, "irmaaSurcharge");
   const baseFinalTraditional = projection.baseline_final_traditional;
   const baseFinalRoth = projection.baseline_final_roth;
+  // After-tax distributions (for display purposes)
+  const baseAfterTaxDist = baseRMDs - baseTax;
   // Heir tax only applies to traditional IRA portion
   const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
   // Net legacy = final net worth (includes taxable) minus heir taxes on traditional
