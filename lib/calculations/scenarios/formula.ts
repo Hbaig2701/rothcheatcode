@@ -204,7 +204,8 @@ export function runFormulaScenario(
     // For formula, the "distribution" is the conversion
     const iraInterest = Math.round(iraAfterConversion * growthRate);
     const rothInterest = Math.round(rothAfterConversion * growthRate);
-    const taxableInterest = Math.round(boyTaxable * growthRate);
+    // NOTE: taxable balance does NOT earn interest - it represents taxes paid from external funds
+    // A negative balance (taxes paid) should NOT compound as debt
 
     // Calculate MAGI for IRMAA
     // Include conversion in income for IRMAA purposes
@@ -247,10 +248,11 @@ export function runFormulaScenario(
     // Taxable account:
     // - If tax paid from external (outside IRA), deduct tax from taxable account
     // - If tax paid from IRA, already accounted for in conversion amount reduction
+    // NOTE: No interest applied - taxable represents taxes paid (fixed cost, not compounding debt)
     if (payTaxFromIRA) {
-      taxableBalance = boyTaxable + taxableInterest;
+      taxableBalance = boyTaxable;
     } else {
-      taxableBalance = boyTaxable + taxableInterest - totalTax;
+      taxableBalance = boyTaxable - totalTax;
     }
 
     // Determine tax bracket
