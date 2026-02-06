@@ -4,13 +4,13 @@ import type { SensitivityResult } from './analysis/types';
 
 /**
  * Data point for wealth chart
- * Now represents Lifetime Wealth Trajectory (not account balances)
+ * Represents net account position over time
  */
 export interface ChartDataPoint {
   age: number;
   year: number;
-  baseline: number;   // Lifetime wealth in cents
-  formula: number;  // Lifetime wealth in cents
+  baseline: number;   // Account balance in cents (Traditional IRA)
+  formula: number;    // Net position in cents (Roth - taxes paid - IRMAA)
 }
 
 /**
@@ -33,45 +33,43 @@ function isProjection(input: Projection | SimulationResult): input is Projection
 }
 
 /**
- * Calculate Lifetime Wealth Trajectory for FORMULA scenario
+ * Calculate Wealth Trajectory for FORMULA scenario
  *
- * FORMULA: lifetimeWealth = netWorth - cumulativeIRMAA
+ * Shows: Account balances minus ONE-TIME taxes paid (not compounding debt)
  *
- * NOTE: netWorth already includes taxableBalance, which is NEGATIVE when taxes are paid.
- * So taxes are already accounted for in netWorth. We should NOT subtract them again.
- * Only subtract IRMAA surcharges which are external costs not reflected in balances.
+ * The taxableBalance in the data compounds as "debt" representing opportunity cost,
+ * but this creates an unfair comparison since baseline doesn't discount future heir taxes.
  *
- * Roth passes to heirs tax-free, so netWorth represents true wealth.
+ * Instead, we subtract only the INITIAL taxes paid (from year 0) as a constant.
+ * This shows the real "payback period" - you paid taxes upfront, Roth grows to recover.
  */
 function calculateFormulaLifetimeWealth(years: YearlyResult[]): number[] {
-  let cumulativeIRMAA = 0;
+  // Get initial taxes paid from first year (before compounding)
+  // taxableBalance is negative, so this gives us a positive number
+  const initialTaxesPaid = years.length > 0 ? Math.abs(Math.min(0, years[0].taxableBalance || 0)) : 0;
 
   return years.map(year => {
-    // Accumulate IRMAA surcharges (external cost not in netWorth)
-    cumulativeIRMAA += year.irmaaSurcharge || 0;
-
-    // netWorth = traditionalBalance + rothBalance + taxableBalance
-    // taxableBalance is negative when taxes paid, so taxes already deducted
-    return year.netWorth - cumulativeIRMAA;
+    // Account balances minus the one-time tax cost (constant, not compounding)
+    return year.traditionalBalance + year.rothBalance - initialTaxesPaid;
   });
 }
 
 /**
  * Calculate Wealth Trajectory for BASELINE scenario
  *
- * Shows the raw Traditional IRA balance - what you'd actually have if you did nothing.
- * Heir taxes are NOT applied here (they only matter at death, shown in summary metrics).
+ * Shows actual account balances: Traditional + Roth
+ * This is the "do nothing" scenario - keep money in Traditional, take RMDs when required.
  *
- * BASELINE: wealth = traditionalBalance + rothBalance (netWorth)
+ * BASELINE: wealth = traditionalBalance + rothBalance
  */
 function calculateBaselineLifetimeWealth(
   years: YearlyResult[],
-  heirTaxRate: number = 0.40
+  _heirTaxRate: number = 0.40  // Kept for API compatibility but not used in chart
 ): number[] {
   return years.map(year => {
-    // Show actual account balance - what the client would have
-    // Heir taxes are a future cost, not a current reduction
-    return year.netWorth;
+    // Show actual retirement account balances
+    // For baseline, this is typically just traditionalBalance (no Roth conversions)
+    return year.traditionalBalance + year.rothBalance;
   });
 }
 
@@ -137,15 +135,21 @@ export function transformToGIChartData(projection: Projection): ChartDataPoint[]
 
 /**
  * Transform projection data into chart-ready format
- * Calculates Lifetime Wealth Trajectory for both scenarios
+ * Shows actual retirement account balances over time
  *
- * Lifetime Wealth represents "if I died at this age, what would my total lifetime wealth be?"
+ * BASELINE: traditionalBalance + rothBalance
+ *   What you'd have if you did nothing (Traditional IRA with RMDs at 73)
  *
- * FORMULA: eoy_combined - cumulativeTaxes - cumulativeIRMAA
- *   (Roth passes tax-free, conversions aren't distributions but taxes are costs)
+ * FORMULA: traditionalBalance + rothBalance
+ *   What you'd have after Roth conversions (mostly/all Roth)
  *
- * BASELINE: (eoy_combined * 0.60) + cumulativeAfterTaxDistributions - cumulativeIRMAA
- *   (Traditional has 40% heir tax, RMDs are actual distributions received)
+ * NOTE: We use actual account balances, NOT netWorth which includes
+ * taxableBalance. The taxableBalance compounds as "debt" representing
+ * opportunity cost of taxes paid, but baseline doesn't have equivalent
+ * treatment for future heir taxes. Using account balances is a fair comparison.
+ *
+ * Strategy starts lower (you paid conversion taxes from outside funds)
+ * but catches up as Roth grows tax-free without RMD depletion.
  *
  * Accepts either database Projection or in-memory SimulationResult
  */
