@@ -43,15 +43,19 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // ===== Calculate metrics =====
 
   // Baseline calculations
+  // Note: Taxes and IRMAA are already deducted from taxableBalance in the engine
   const baseRMDs = sum(projection.baseline_years, "rmdAmount");
   const baseTax = sum(projection.baseline_years, "federalTax") + sum(projection.baseline_years, "stateTax");
   const baseIrmaa = sum(projection.baseline_years, "irmaaSurcharge");
   const baseFinalTraditional = projection.baseline_final_traditional;
   const baseFinalRoth = projection.baseline_final_roth;
-  const baseAfterTaxDist = baseRMDs - baseTax;
-  const baseNetLegacy = Math.round(baseFinalTraditional * (1 - heirTaxRate)) + baseFinalRoth;
-  const baseLifetimeWealth = baseAfterTaxDist + baseNetLegacy - baseIrmaa;
-  const baseTotalTaxes = baseTax + baseIrmaa + Math.round(baseFinalTraditional * heirTaxRate);
+  // Heir tax only applies to traditional IRA portion (Roth and taxable are already taxed)
+  const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
+  // Net legacy = final net worth (includes taxable account) minus heir taxes on traditional
+  const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
+  // Lifetime wealth = net legacy (taxes/IRMAA already deducted from taxable in engine)
+  const baseLifetimeWealth = baseNetLegacy;
+  const baseTotalTaxes = baseTax + baseIrmaa + baseHeirTax;
 
   // Strategy calculations
   const blueConversions = sum(projection.blueprint_years, "conversionAmount");
@@ -59,10 +63,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const blueIrmaa = sum(projection.blueprint_years, "irmaaSurcharge");
   const blueFinalTraditional = projection.blueprint_final_traditional;
   const blueFinalRoth = projection.blueprint_final_roth;
-  const blueNetLegacy = Math.round(blueFinalTraditional * (1 - heirTaxRate)) + blueFinalRoth;
-  // Lifetime wealth = net legacy (after heir taxes) minus conversion taxes paid minus IRMAA
-  const blueLifetimeWealth = blueNetLegacy - blueTax - blueIrmaa;
-  const blueTotalTaxes = blueTax + blueIrmaa + Math.round(blueFinalTraditional * heirTaxRate);
+  // Heir tax only applies to remaining traditional IRA (if any)
+  const blueHeirTax = Math.round(blueFinalTraditional * heirTaxRate);
+  // Net legacy = final net worth minus heir taxes on traditional
+  const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
+  // Lifetime wealth = net legacy (conversion taxes/IRMAA already deducted from taxable in engine)
+  const blueLifetimeWealth = blueNetLegacy;
+  const blueTotalTaxes = blueTax + blueIrmaa + blueHeirTax;
 
   // Differences
   const lifetimeWealthDiff = blueLifetimeWealth - baseLifetimeWealth;
