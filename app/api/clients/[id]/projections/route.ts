@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { runSimulation, createSimulationInput, runGuaranteedIncomeSimulation } from '@/lib/calculations';
+import { runSimulation, createSimulationInput, runGuaranteedIncomeSimulation, runGrowthSimulation } from '@/lib/calculations';
 import type { Client } from '@/lib/types/client';
 import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projection';
 import type { SimulationResult } from '@/lib/calculations';
 import type { GIMetrics } from '@/lib/calculations/guaranteed-income/types';
-import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
+import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/lib/config/products';
 import crypto from 'crypto';
 
 function generateInputHash(client: Client): string {
@@ -174,16 +174,22 @@ export async function GET(
       return NextResponse.json({ projection: existingProjection, cached: true } as ProjectionResponse);
     }
 
-    // Run simulation - dispatch to GI or Growth engine based on product type
+    // Run simulation - dispatch to GI, Growth, or legacy engine based on product type
     const simulationInput = createSimulationInput(client as Client);
     const formulaType = (client as Client).blueprint_type as FormulaType;
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
+    const isGrowth = formulaType && isGrowthProduct(formulaType);
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {
       const giResult = runGuaranteedIncomeSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, giResult, inputHash, giResult.giMetrics);
+    } else if (isGrowth) {
+      // Growth FIA: use Growth-specific engine (no RMDs in baseline)
+      const growthResult = runGrowthSimulation(simulationInput);
+      projectionInsert = simulationToProjection(clientId, user.id, client as Client, growthResult, inputHash);
     } else {
+      // Legacy: use standard simulation with RMD-based baseline
       const result = runSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     }
@@ -233,12 +239,18 @@ export async function POST(
     const simulationInput = createSimulationInput(client as Client);
     const formulaType = (client as Client).blueprint_type as FormulaType;
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
+    const isGrowth = formulaType && isGrowthProduct(formulaType);
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {
       const giResult = runGuaranteedIncomeSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, giResult, inputHash, giResult.giMetrics);
+    } else if (isGrowth) {
+      // Growth FIA: use Growth-specific engine (no RMDs in baseline)
+      const growthResult = runGrowthSimulation(simulationInput);
+      projectionInsert = simulationToProjection(clientId, user.id, client as Client, growthResult, inputHash);
     } else {
+      // Legacy: use standard simulation with RMD-based baseline
       const result = runSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     }

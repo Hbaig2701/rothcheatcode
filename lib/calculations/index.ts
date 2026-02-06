@@ -45,6 +45,9 @@ export type {
 export { runGuaranteedIncomeSimulation } from './guaranteed-income/engine';
 export type { GIMetrics, GIYearData } from './guaranteed-income/types';
 
+// Growth FIA Engine
+export { runGrowthSimulation } from './growth-engine';
+
 // Widow scenario (Phase 08)
 export { runWidowScenario } from './scenarios/widow';
 export type { WidowScenarioInput } from './scenarios/widow';

@@ -172,6 +172,11 @@ export function isGuaranteedIncomeProduct(formulaType: FormulaType): boolean {
   return formulaType in GUARANTEED_INCOME_PRODUCTS;
 }
 
+// Check if a formula type is a growth FIA product
+export function isGrowthProduct(formulaType: FormulaType): boolean {
+  return formulaType in GROWTH_PRODUCTS;
+}
+
 // Utility function to check if a field should be locked
 export function isFieldLocked(
   fieldName: typeof LOCKABLE_FIELDS[number],
