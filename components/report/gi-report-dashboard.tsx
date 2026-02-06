@@ -413,9 +413,9 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                       {tableView === "full" && (
                         <td className={cn(
                           "px-4 py-3 text-sm font-mono text-right",
-                          blueprintYear?.rothBalance && blueprintYear.eoyRoth > 0 ? "text-[#4ade80]" : "text-[rgba(255,255,255,0.25)]"
+                          blueprintYear?.rothBalance && blueprintYear.rothBalance > 0 ? "text-[#4ade80]" : "text-[rgba(255,255,255,0.25)]"
                         )}>
-                          {blueprintYear?.rothBalance && blueprintYear.eoyRoth > 0 ? toUSD(blueprintYear.eoyRoth) : "—"}
+                          {blueprintYear?.rothBalance && blueprintYear.rothBalance > 0 ? toUSD(blueprintYear.rothBalance) : "—"}
                         </td>
                       )}
                     </tr>
