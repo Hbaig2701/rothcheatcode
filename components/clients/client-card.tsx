@@ -92,8 +92,8 @@ export function ClientCard({ client, delta = 0 }: ClientCardProps) {
       {/* Header: Name + Badge */}
       <div className="flex justify-between items-start mb-[18px]">
         <div>
-          <h3 className="text-[17px] font-medium text-white mb-1">{client.name}</h3>
-          <p className="text-xs text-[rgba(255,255,255,0.25)]">
+          <h3 className="text-lg font-medium text-white mb-1">{client.name}</h3>
+          <p className="text-sm text-[rgba(255,255,255,0.6)]">
             {formatFilingStatus(client.filing_status)} · Age {client.age} · {client.state}
           </p>
         </div>
@@ -103,14 +103,14 @@ export function ClientCard({ client, delta = 0 }: ClientCardProps) {
       {/* Stats Row */}
       <div className="flex gap-8 mb-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.15)] mb-1">Balance</p>
-          <p className="text-[15px] font-mono text-[rgba(255,255,255,0.5)]">
+          <p className="text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] mb-1">Balance</p>
+          <p className="text-base font-mono text-[rgba(255,255,255,0.8)]">
             {formatCompactCurrency(client.qualified_account_value)}
           </p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.15)] mb-1">Product</p>
-          <p className="text-[15px] font-mono text-[rgba(255,255,255,0.5)] truncate max-w-[120px]">
+          <p className="text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] mb-1">Product</p>
+          <p className="text-base font-mono text-[rgba(255,255,255,0.8)] truncate max-w-[140px]">
             {client.carrier_name}
           </p>
         </div>
@@ -120,7 +120,7 @@ export function ClientCard({ client, delta = 0 }: ClientCardProps) {
       <Sparkline delta={delta} />
 
       {/* Footer */}
-      <p className="text-[11px] text-[rgba(255,255,255,0.15)] mt-2">
+      <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">
         Created {formatDate(client.created_at)}
       </p>
     </Link>

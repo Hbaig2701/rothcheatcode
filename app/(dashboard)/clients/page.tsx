@@ -54,7 +54,7 @@ export default function ClientsPage() {
       <div className="flex items-center justify-between mb-9">
         <div>
           <h1 className="font-display text-[30px] font-normal text-white">Clients</h1>
-          <p className="text-sm text-[rgba(255,255,255,0.25)] mt-1.5">
+          <p className="text-base text-[rgba(255,255,255,0.6)] mt-1.5">
             {clients?.length || 0} clients total
           </p>
         </div>
@@ -72,13 +72,13 @@ export default function ClientsPage() {
       {/* Search */}
       {hasClients && (
         <div className="relative mb-6 max-w-sm">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[rgba(255,255,255,0.25)]" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[rgba(255,255,255,0.4)]" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search clients..."
-            className="w-full pl-11 pr-4 py-[11px] bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] text-sm text-white placeholder:text-[rgba(255,255,255,0.15)] focus:outline-none focus:border-[rgba(212,175,55,0.3)] transition-colors"
+            className="w-full pl-11 pr-4 py-3 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.1)] rounded-[10px] text-base text-white placeholder:text-[rgba(255,255,255,0.4)] focus:outline-none focus:border-[rgba(212,175,55,0.3)] transition-colors"
           />
         </div>
       )}

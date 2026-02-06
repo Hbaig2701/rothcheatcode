@@ -115,10 +115,10 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
                 <div className="bg-gradient-to-br from-[rgba(212,175,55,0.08)] to-[rgba(255,255,255,0.01)] border border-[rgba(212,175,55,0.2)] rounded-[18px] p-7">
                     <div className="flex justify-between items-center mb-6">
                         <div>
-                            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)]">
+                            <p className="text-sm uppercase tracking-[1.5px] text-[rgba(255,255,255,0.7)]">
                                 Strategy vs Baseline
                             </p>
-                            <p className="text-[11px] text-[rgba(255,255,255,0.4)] mt-1">
+                            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-1">
                                 {client.product_name} · {client.carrier_name} · Optimized Conversion
                             </p>
                         </div>
