@@ -6,6 +6,7 @@ import { useProjection } from "@/lib/queries/projections";
 import { InputDrawer } from "@/components/report/input-drawer";
 import { ReportDashboard } from "@/components/report/report-dashboard";
 import { PresentationMode } from "@/components/report/presentation-mode";
+import { GIPresentationMode } from "@/components/report/gi-presentation-mode";
 import { Loader2, ArrowLeft, Settings2, ChevronDown, Play, FileText, Copy, Pencil } from "lucide-react";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import type { YearlyResult } from "@/lib/calculations";
@@ -87,9 +88,21 @@ export default function ResultsPage({ params }: ResultsPageProps) {
   }
 
   const delta = Math.round(percentChange * 100);
+  const isGI = client.blueprint_type
+    ? isGuaranteedIncomeProduct(client.blueprint_type as FormulaType)
+    : false;
 
   // Presentation mode overlay
   if (presentMode) {
+    // Use GI-specific presentation mode for Guaranteed Income products
+    if (isGI) {
+      return (
+        <GIPresentationMode
+          client={client}
+          onExit={() => setPresentMode(false)}
+        />
+      );
+    }
     return (
       <PresentationMode
         client={client}

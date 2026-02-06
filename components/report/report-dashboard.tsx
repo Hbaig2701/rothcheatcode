@@ -19,6 +19,7 @@ import { GIAccountChart } from "@/components/results/gi-account-chart";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import { InfoTooltip } from "@/components/report/info-tooltip";
 import { GI_TOOLTIPS } from "@/lib/config/gi-tooltips";
+import { GIReportDashboard } from "@/components/report/gi-report-dashboard";
 
 interface ReportDashboardProps {
     clientId: string;
@@ -58,7 +59,12 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
         ? isGuaranteedIncomeProduct(client.blueprint_type as FormulaType)
         : false;
 
-    const chartData = isGI ? transformToGIChartData(projection) : transformToChartData(projection);
+    // Render GI-specific dashboard for Guaranteed Income products
+    if (isGI) {
+        return <GIReportDashboard client={client} projection={projection} />;
+    }
+
+    const chartData = transformToChartData(projection);
 
     // Helper methods
     const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
