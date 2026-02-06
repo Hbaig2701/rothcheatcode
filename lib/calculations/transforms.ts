@@ -4,13 +4,13 @@ import type { SensitivityResult } from './analysis/types';
 
 /**
  * Data point for wealth chart
- * Represents net account position over time
+ * Represents "Legacy to Heirs" - what heirs actually receive after taxes
  */
 export interface ChartDataPoint {
   age: number;
   year: number;
-  baseline: number;   // Account balance in cents (Traditional IRA)
-  formula: number;    // Net position in cents (Roth - taxes paid - IRMAA)
+  baseline: number;   // Legacy to heirs in cents: Traditional × 60% + Roth + Cash
+  formula: number;    // Legacy to heirs in cents: Traditional × 60% + Roth + Cash
 }
 
 /**
@@ -33,43 +33,43 @@ function isProjection(input: Projection | SimulationResult): input is Projection
 }
 
 /**
- * Calculate Wealth Trajectory for FORMULA scenario
+ * Calculate "Legacy to Heirs" Trajectory for FORMULA scenario
  *
- * Shows: Account balances minus ONE-TIME taxes paid (not compounding debt)
+ * Shows what heirs ACTUALLY receive after taxes:
+ * - Traditional IRA: taxed at heir rate (40%), so heirs get 60%
+ * - Roth IRA: 100% tax-free to heirs
+ * - Cash/Taxable: passes through (if positive)
  *
- * The taxableBalance in the data compounds as "debt" representing opportunity cost,
- * but this creates an unfair comparison since baseline doesn't discount future heir taxes.
- *
- * Instead, we subtract only the INITIAL taxes paid (from year 0) as a constant.
- * This shows the real "payback period" - you paid taxes upfront, Roth grows to recover.
+ * This creates a dramatic comparison because Roth conversions move money
+ * from 60%-to-heirs (Traditional) to 100%-to-heirs (Roth).
  */
-function calculateFormulaLifetimeWealth(years: YearlyResult[]): number[] {
-  // Get initial taxes paid from first year (before compounding)
-  // taxableBalance is negative, so this gives us a positive number
-  const initialTaxesPaid = years.length > 0 ? Math.abs(Math.min(0, years[0].taxableBalance || 0)) : 0;
-
+function calculateFormulaLegacyToHeirs(years: YearlyResult[], heirTaxRate: number = 0.40): number[] {
   return years.map(year => {
-    // Account balances minus the one-time tax cost (constant, not compounding)
-    return year.traditionalBalance + year.rothBalance - initialTaxesPaid;
+    // Traditional taxed at heir rate, Roth is tax-free, cash passes through
+    const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    const rothToHeirs = year.rothBalance;
+    const cashToHeirs = Math.max(0, year.taxableBalance || 0);
+    return traditionalToHeirs + rothToHeirs + cashToHeirs;
   });
 }
 
 /**
- * Calculate Wealth Trajectory for BASELINE scenario
+ * Calculate "Legacy to Heirs" Trajectory for BASELINE scenario
  *
- * Shows actual account balances: Traditional + Roth
- * This is the "do nothing" scenario - keep money in Traditional, take RMDs when required.
+ * Shows what heirs would receive if client does nothing:
+ * - Traditional IRA: taxed at 40% heir rate, so heirs get 60%
+ * - Roth IRA: 100% tax-free to heirs (usually 0 in baseline)
+ * - Cash/Taxable (from RMDs): passes through
  *
- * BASELINE: wealth = traditionalBalance + rothBalance
+ * This creates a LOWER line because Traditional IRA gets taxed at 40%.
  */
-function calculateBaselineLifetimeWealth(
-  years: YearlyResult[],
-  _heirTaxRate: number = 0.40  // Kept for API compatibility but not used in chart
-): number[] {
+function calculateBaselineLegacyToHeirs(years: YearlyResult[], heirTaxRate: number = 0.40): number[] {
   return years.map(year => {
-    // Show actual retirement account balances
-    // For baseline, this is typically just traditionalBalance (no Roth conversions)
-    return year.traditionalBalance + year.rothBalance;
+    // Traditional taxed at heir rate, Roth is tax-free, cash passes through
+    const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    const rothToHeirs = year.rothBalance;
+    const cashToHeirs = Math.max(0, year.taxableBalance || 0);
+    return traditionalToHeirs + rothToHeirs + cashToHeirs;
   });
 }
 
@@ -116,70 +116,69 @@ function calculateGIFormulaLifetimeWealth(
 
 /**
  * Transform GI projection data into chart-ready format
- * Uses GI-specific Formula wealth calculation and standard baseline calculation
+ * Uses GI-specific Formula wealth calculation and Legacy to Heirs for baseline
  */
-export function transformToGIChartData(projection: Projection): ChartDataPoint[] {
-  const baselineWealth = calculateBaselineLifetimeWealth(projection.baseline_years);
+export function transformToGIChartData(projection: Projection, heirTaxRate: number = 0.40): ChartDataPoint[] {
+  const baselineLegacy = calculateBaselineLegacyToHeirs(projection.baseline_years, heirTaxRate);
   const formulaWealth = calculateGIFormulaLifetimeWealth(
     projection.blueprint_years,
     projection.gi_yearly_data || [],
+    heirTaxRate
   );
 
   return projection.baseline_years.map((baseYear, index) => ({
     age: baseYear.age,
     year: baseYear.year,
-    baseline: Math.round(baselineWealth[index]),
+    baseline: Math.round(baselineLegacy[index]),
     formula: Math.round(formulaWealth[index]),
   }));
 }
 
 /**
  * Transform projection data into chart-ready format
- * Shows actual retirement account balances over time
+ * Shows "Legacy to Heirs" - what heirs ACTUALLY receive after taxes
  *
- * BASELINE: traditionalBalance + rothBalance
- *   What you'd have if you did nothing (Traditional IRA with RMDs at 73)
+ * BASELINE: Traditional × 60% + Roth + Cash
+ *   Heirs only get 60% of Traditional IRA (40% goes to taxes)
  *
- * FORMULA: traditionalBalance + rothBalance
- *   What you'd have after Roth conversions (mostly/all Roth)
+ * FORMULA: Traditional × 60% + Roth + Cash
+ *   Roth passes 100% tax-free, so conversions create dramatic benefit
  *
- * NOTE: We use actual account balances, NOT netWorth which includes
- * taxableBalance. The taxableBalance compounds as "debt" representing
- * opportunity cost of taxes paid, but baseline doesn't have equivalent
- * treatment for future heir taxes. Using account balances is a fair comparison.
+ * This methodology creates a large disparity that highlights the value
+ * of Roth conversions - moving money from 60%-to-heirs to 100%-to-heirs.
  *
- * Strategy starts lower (you paid conversion taxes from outside funds)
- * but catches up as Roth grows tax-free without RMD depletion.
+ * Example: $1M Traditional → $600K to heirs
+ *          $1M Roth → $1M to heirs (67% more!)
  *
  * Accepts either database Projection or in-memory SimulationResult
  */
-export function transformToChartData(data: Projection | SimulationResult): ChartDataPoint[] {
+export function transformToChartData(data: Projection | SimulationResult, heirTaxRate: number = 0.40): ChartDataPoint[] {
   if (isProjection(data)) {
     // Database Projection (snake_case)
     const baselineYears = data.baseline_years;
     const formulaYears = data.blueprint_years;
 
-    const baselineWealth = calculateBaselineLifetimeWealth(baselineYears);
-    const formulaWealth = calculateFormulaLifetimeWealth(formulaYears);
+    const baselineLegacy = calculateBaselineLegacyToHeirs(baselineYears, heirTaxRate);
+    const formulaLegacy = calculateFormulaLegacyToHeirs(formulaYears, heirTaxRate);
 
     return baselineYears.map((baseYear, index) => ({
       age: baseYear.age,
       year: baseYear.year,
-      baseline: Math.round(baselineWealth[index]),
-      formula: Math.round(formulaWealth[index]),
+      baseline: Math.round(baselineLegacy[index]),
+      formula: Math.round(formulaLegacy[index]),
     }));
   } else {
     // In-memory SimulationResult (camelCase)
     const { baseline, formula } = data;
 
-    const baselineWealth = calculateBaselineLifetimeWealth(baseline);
-    const formulaWealth = calculateFormulaLifetimeWealth(formula);
+    const baselineLegacy = calculateBaselineLegacyToHeirs(baseline, heirTaxRate);
+    const formulaLegacy = calculateFormulaLegacyToHeirs(formula, heirTaxRate);
 
     return baseline.map((baseYear, index) => ({
       age: baseYear.age,
       year: baseYear.year,
-      baseline: Math.round(baselineWealth[index]),
-      formula: Math.round(formulaWealth[index]),
+      baseline: Math.round(baselineLegacy[index]),
+      formula: Math.round(formulaLegacy[index]),
     }));
   }
 }
