@@ -35,24 +35,24 @@ function isProjection(input: Projection | SimulationResult): input is Projection
 /**
  * Calculate Lifetime Wealth Trajectory for FORMULA scenario
  *
- * FORMULA: lifetimeWealth = eoy_combined - cumulativeConversionTaxes - cumulativeIRMAA
+ * FORMULA: lifetimeWealth = netWorth - cumulativeIRMAA
  *
- * Conversions are NOT distributions (money stays in account, just moves from Traditional to Roth).
- * But conversion taxes ARE costs. Roth passes to heirs tax-free.
+ * NOTE: netWorth already includes taxableBalance, which is NEGATIVE when taxes are paid.
+ * So taxes are already accounted for in netWorth. We should NOT subtract them again.
+ * Only subtract IRMAA surcharges which are external costs not reflected in balances.
+ *
+ * Roth passes to heirs tax-free, so netWorth represents true wealth.
  */
 function calculateFormulaLifetimeWealth(years: YearlyResult[]): number[] {
-  let cumulativeTaxes = 0;
   let cumulativeIRMAA = 0;
 
   return years.map(year => {
-    // Accumulate taxes paid on conversions
-    cumulativeTaxes += (year.federalTax + year.stateTax) || 0;
-
-    // Accumulate IRMAA surcharges
+    // Accumulate IRMAA surcharges (external cost not in netWorth)
     cumulativeIRMAA += year.irmaaSurcharge || 0;
 
-    // Formula: Full account balance (Roth = no heir tax) minus costs paid
-    return year.netWorth - cumulativeTaxes - cumulativeIRMAA;
+    // netWorth = traditionalBalance + rothBalance + taxableBalance
+    // taxableBalance is negative when taxes paid, so taxes already deducted
+    return year.netWorth - cumulativeIRMAA;
   });
 }
 
