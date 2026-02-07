@@ -348,7 +348,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               <StrategyTable years={projection.blueprint_years} client={client} />
             )}
             {tableView === "baseline" && (
-              <BaselineTable years={projection.baseline_years} />
+              <BaselineTable years={projection.baseline_years} client={client} />
             )}
             {tableView === "comparison" && (
               <ComparisonTable
@@ -422,22 +422,43 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
   const totalConverted = years.reduce((sum, row) => sum + row.conversionAmount, 0);
   const totalTaxes = years.reduce((sum, row) => sum + row.federalTax + row.stateTax, 0);
 
+  // Calculate BOY (Beginning of Year) values
+  // Year 1: Starting balance + bonus
+  // Year N: Previous year's EOY balance
+  const bonusPercent = client.bonus_percent ?? 0;
+  const startingBalance = client.qualified_account_value ?? 0;
+  const year1TradBOY = Math.round(startingBalance * (1 + bonusPercent / 100));
+  const year1RothBOY = client.roth_ira ?? 0;
+
+  const getBOY = (idx: number) => {
+    if (idx === 0) {
+      return { tradBOY: year1TradBOY, rothBOY: year1RothBOY };
+    }
+    const prevYear = years[idx - 1];
+    return {
+      tradBOY: prevYear.traditionalBalance,
+      rothBOY: prevYear.rothBalance
+    };
+  };
+
   return (
     <table className="w-full">
       <thead>
         <tr className="bg-[rgba(255,255,255,0.02)]">
           <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Year</th>
           <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Age</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Traditional</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad BOY</th>
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Converted</th>
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Taxes</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Roth Balance</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad EOY</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Roth EOY</th>
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net Worth</th>
         </tr>
       </thead>
       <tbody>
-        {years.map((row) => {
+        {years.map((row, idx) => {
           const hasConversion = row.conversionAmount > 0;
+          const { tradBOY, rothBOY } = getBOY(idx);
           return (
             <tr
               key={row.year}
@@ -449,7 +470,7 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
               <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
               <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{row.age}</td>
               <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
-                {toUSD(row.traditionalBalance)}
+                {toUSD(tradBOY)}
               </td>
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
@@ -459,6 +480,9 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
               </td>
               <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
                 {toUSD(row.federalTax + row.stateTax)}
+              </td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+                {toUSD(row.traditionalBalance)}
               </td>
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
@@ -475,16 +499,14 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
       </tbody>
       <tfoot>
         <tr className="bg-[rgba(255,255,255,0.04)] border-t border-[rgba(255,255,255,0.1)]">
-          <td className="px-4 py-3 text-sm font-semibold text-white" colSpan={2}>TOTALS</td>
-          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">—</td>
+          <td className="px-4 py-3 text-sm font-semibold text-white" colSpan={3}>TOTALS</td>
           <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-gold">
             {toUSD(totalConverted)}
           </td>
           <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-[#f87171]">
             {toUSD(totalTaxes)}
           </td>
-          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">—</td>
-          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]" colSpan={3}>—</td>
         </tr>
       </tfoot>
     </table>
@@ -492,10 +514,21 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
 }
 
 // Baseline Table
-function BaselineTable({ years }: { years: YearlyResult[] }) {
+function BaselineTable({ years, client }: { years: YearlyResult[]; client: Client }) {
   // Calculate totals
   const totalRMDs = years.reduce((sum, row) => sum + row.rmdAmount, 0);
   const totalTaxes = years.reduce((sum, row) => sum + row.federalTax + row.stateTax, 0);
+
+  // Calculate BOY (Beginning of Year) values
+  // Baseline does NOT get the product bonus
+  const startingBalance = client.qualified_account_value ?? 0;
+
+  const getBOY = (idx: number) => {
+    if (idx === 0) {
+      return startingBalance;
+    }
+    return years[idx - 1].traditionalBalance;
+  };
 
   return (
     <table className="w-full">
@@ -503,49 +536,55 @@ function BaselineTable({ years }: { years: YearlyResult[] }) {
         <tr className="bg-[rgba(255,255,255,0.02)]">
           <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Year</th>
           <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Age</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Traditional</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad BOY</th>
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">RMD</th>
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Taxes</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad EOY</th>
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net Worth</th>
         </tr>
       </thead>
       <tbody>
-        {years.map((row) => (
-          <tr
-            key={row.year}
-            className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors"
-          >
-            <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
-            <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{row.age}</td>
-            <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
-              {toUSD(row.traditionalBalance)}
-            </td>
-            <td className={cn(
-              "px-4 py-3 text-sm font-mono text-right",
-              row.rmdAmount > 0 ? "text-[rgba(255,255,255,0.6)]" : "text-[rgba(255,255,255,0.25)]"
-            )}>
-              {row.rmdAmount > 0 ? toUSD(row.rmdAmount) : "—"}
-            </td>
-            <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
-              {toUSD(row.federalTax + row.stateTax)}
-            </td>
-            <td className="px-4 py-3 text-sm font-mono text-right text-white">
-              {toUSD(row.netWorth)}
-            </td>
-          </tr>
-        ))}
+        {years.map((row, idx) => {
+          const tradBOY = getBOY(idx);
+          return (
+            <tr
+              key={row.year}
+              className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+            >
+              <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
+              <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{row.age}</td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+                {toUSD(tradBOY)}
+              </td>
+              <td className={cn(
+                "px-4 py-3 text-sm font-mono text-right",
+                row.rmdAmount > 0 ? "text-[rgba(255,255,255,0.6)]" : "text-[rgba(255,255,255,0.25)]"
+              )}>
+                {row.rmdAmount > 0 ? toUSD(row.rmdAmount) : "—"}
+              </td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
+                {toUSD(row.federalTax + row.stateTax)}
+              </td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+                {toUSD(row.traditionalBalance)}
+              </td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-white">
+                {toUSD(row.netWorth)}
+              </td>
+            </tr>
+          );
+        })}
       </tbody>
       <tfoot>
         <tr className="bg-[rgba(255,255,255,0.04)] border-t border-[rgba(255,255,255,0.1)]">
-          <td className="px-4 py-3 text-sm font-semibold text-white" colSpan={2}>TOTALS</td>
-          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">—</td>
+          <td className="px-4 py-3 text-sm font-semibold text-white" colSpan={3}>TOTALS</td>
           <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-white">
             {toUSD(totalRMDs)}
           </td>
           <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-[#f87171]">
             {toUSD(totalTaxes)}
           </td>
-          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]" colSpan={2}>—</td>
         </tr>
       </tfoot>
     </table>
