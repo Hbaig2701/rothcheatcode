@@ -150,11 +150,22 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             infoContent={
               <LifetimeWealthInfo
                 client={client}
+                projection={projection}
+                baseFinalTraditional={baseFinalTraditional}
+                baseFinalRoth={baseFinalRoth}
+                baseHeirTax={baseHeirTax}
                 baseNetLegacy={baseNetLegacy}
                 baseCumulativeDistributions={baseCumulativeDistributions}
                 baseLifetimeWealth={baseLifetimeWealth}
+                baseTax={baseTax}
+                baseRMDs={baseRMDs}
+                blueFinalTraditional={blueFinalTraditional}
+                blueFinalRoth={blueFinalRoth}
+                blueHeirTax={blueHeirTax}
                 blueNetLegacy={blueNetLegacy}
                 blueLifetimeWealth={blueLifetimeWealth}
+                blueTax={blueTax}
+                blueConversions={blueConversions}
                 rmdTreatment={rmdTreatment}
                 heirTaxRate={heirTaxRate}
               />
@@ -533,88 +544,150 @@ function ComparisonCard({
 // Info Content Components
 function LifetimeWealthInfo({
   client,
+  projection,
+  baseFinalTraditional,
+  baseFinalRoth,
+  baseHeirTax,
   baseNetLegacy,
   baseCumulativeDistributions,
   baseLifetimeWealth,
+  baseTax,
+  baseRMDs,
+  blueFinalTraditional,
+  blueFinalRoth,
+  blueHeirTax,
   blueNetLegacy,
   blueLifetimeWealth,
+  blueTax,
+  blueConversions,
   rmdTreatment,
   heirTaxRate,
 }: {
   client: Client;
+  projection: Projection;
+  baseFinalTraditional: number;
+  baseFinalRoth: number;
+  baseHeirTax: number;
   baseNetLegacy: number;
   baseCumulativeDistributions: number;
   baseLifetimeWealth: number;
+  baseTax: number;
+  baseRMDs: number;
+  blueFinalTraditional: number;
+  blueFinalRoth: number;
+  blueHeirTax: number;
   blueNetLegacy: number;
   blueLifetimeWealth: number;
+  blueTax: number;
+  blueConversions: number;
   rmdTreatment: string;
   heirTaxRate: number;
 }) {
   const heirTaxPct = Math.round(heirTaxRate * 100);
+  const startingBalance = client.qualified_account_value ?? 0;
+  const bonusAmount = Math.round(startingBalance * (client.bonus_percent ?? 0) / 100);
+  const startingWithBonus = startingBalance + bonusAmount;
+  const projectionYears = (client.end_age ?? 100) - (client.age ?? 62);
+  const wealthDiff = blueLifetimeWealth - baseLifetimeWealth;
 
   return (
     <>
       <p className="text-white font-medium">What is Lifetime Wealth?</p>
       <p>
-        Lifetime Wealth represents the total value your family receives over your lifetime and beyond—combining
-        what you pass to heirs (after their taxes) plus any distributions you received during retirement.
+        Lifetime Wealth is the total value your family receives—what you pass to heirs (after their taxes)
+        plus any retirement distributions you received. Here's exactly how we calculated yours:
       </p>
 
+      {/* Starting Point */}
+      <div className="bg-[rgba(255,255,255,0.05)] rounded-lg p-4">
+        <p className="text-white font-medium text-xs uppercase tracking-wider mb-2">Your Starting Point</p>
+        <div className="space-y-1 font-mono text-sm">
+          <p>Initial Investment: {toUSD(startingBalance)}</p>
+          <p>Age: {client.age} → projecting to age {client.end_age} ({projectionYears} years)</p>
+          <p>Assumed Growth Rate: {client.rate_of_return}% annually</p>
+        </div>
+      </div>
+
+      {/* Baseline Calculation */}
       <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-3">
-        <p className="text-white font-medium text-xs uppercase tracking-wider">Baseline ("Do Nothing")</p>
-        <p>
-          If you keep your money in a Traditional IRA without converting to Roth, here's what happens:
+        <p className="text-white font-medium text-xs uppercase tracking-wider">Baseline: Keep Traditional IRA</p>
+        <p className="text-xs text-[rgba(255,255,255,0.5)]">
+          Your {toUSD(startingBalance)} stays in a Traditional IRA, growing at {client.rate_of_return}% with RMDs starting at 73:
         </p>
-        <ul className="list-disc pl-5 space-y-1">
-          <li>Your IRA grows tax-deferred at {client.rate_of_return}% annually</li>
-          <li>Starting at age 73, you're forced to take Required Minimum Distributions (RMDs)</li>
-          <li>RMDs are taxed as ordinary income each year</li>
-          <li>When you pass away, your heirs inherit the remaining IRA balance</li>
-          <li>Your heirs pay approximately {heirTaxPct}% income tax on what they inherit</li>
-        </ul>
-        <div className="border-t border-[rgba(255,255,255,0.1)] pt-3 mt-3">
-          <p className="text-xs text-[rgba(255,255,255,0.5)]">Calculation:</p>
-          {rmdTreatment === 'spent' ? (
+        <div className="space-y-1 font-mono text-sm border-t border-[rgba(255,255,255,0.1)] pt-3">
+          <p>Final Traditional IRA: {toUSD(baseFinalTraditional)}</p>
+          <p>Final Roth IRA: {toUSD(baseFinalRoth)}</p>
+          <p>Final Taxable Account: {toUSD(Math.max(0, projection.baseline_final_taxable))}</p>
+          <p className="text-[rgba(255,255,255,0.5)]">─────────────────────</p>
+          <p>Gross Estate: {toUSD(projection.baseline_final_net_worth)}</p>
+          <p className="text-[#f87171]">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
+          <p className="text-white font-medium">= Net Legacy to Heirs: {toUSD(baseNetLegacy)}</p>
+          {rmdTreatment === 'spent' && (
             <>
-              <p className="font-mono text-sm">Net Legacy to Heirs: {toUSD(baseNetLegacy)}</p>
-              <p className="font-mono text-sm">+ Distributions Received: {toUSD(baseCumulativeDistributions)}</p>
-              <p className="font-mono text-sm text-white font-medium">= Baseline Lifetime Wealth: {toUSD(baseLifetimeWealth)}</p>
+              <p className="text-[rgba(255,255,255,0.5)] mt-2">Plus distributions you received:</p>
+              <p>+ After-Tax RMDs Spent: {toUSD(baseCumulativeDistributions)}</p>
+            </>
+          )}
+          <p className="text-[rgba(255,255,255,0.5)]">─────────────────────</p>
+          <p className="text-white font-semibold text-base">Baseline Lifetime Wealth: {toUSD(baseLifetimeWealth)}</p>
+        </div>
+        <p className="text-xs text-[rgba(255,255,255,0.4)] mt-2">
+          Over {projectionYears} years, you'd take {toUSD(baseRMDs)} in RMDs and pay {toUSD(baseTax)} in income taxes on them.
+        </p>
+      </div>
+
+      {/* Strategy Calculation */}
+      <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
+        <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy: Roth Conversions</p>
+        <p className="text-xs text-[rgba(255,255,255,0.5)]">
+          Your {toUSD(startingBalance)} + {client.bonus_percent}% bonus ({toUSD(bonusAmount)}) = {toUSD(startingWithBonus)} starting balance,
+          converted to Roth over time:
+        </p>
+        <div className="space-y-1 font-mono text-sm border-t border-[rgba(212,175,55,0.2)] pt-3">
+          <p>Total Converted to Roth: {toUSD(blueConversions)}</p>
+          <p>Conversion Taxes Paid: {toUSD(blueTax)}</p>
+          <p className="text-[rgba(255,255,255,0.5)]">─────────────────────</p>
+          <p>Final Traditional IRA: {toUSD(blueFinalTraditional)}</p>
+          <p className="text-[#4ade80]">Final Roth IRA: {toUSD(blueFinalRoth)}</p>
+          <p>Final Taxable Account: {toUSD(Math.max(0, projection.blueprint_final_taxable))}</p>
+          <p className="text-[rgba(255,255,255,0.5)]">─────────────────────</p>
+          <p>Gross Estate: {toUSD(projection.blueprint_final_net_worth)}</p>
+          <p className="text-[#f87171]">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
+          <p className="text-gold font-semibold text-base">Strategy Lifetime Wealth: {toUSD(blueLifetimeWealth)}</p>
+        </div>
+        <p className="text-xs text-[rgba(255,255,255,0.4)] mt-2">
+          No RMDs required from Roth. Your heirs inherit {toUSD(blueFinalRoth)} completely tax-free.
+        </p>
+      </div>
+
+      {/* The Difference */}
+      <div className={cn(
+        "rounded-lg p-4",
+        wealthDiff > 0
+          ? "bg-[rgba(74,222,128,0.08)] border border-[rgba(74,222,128,0.2)]"
+          : "bg-[rgba(248,113,113,0.08)] border border-[rgba(248,113,113,0.2)]"
+      )}>
+        <p className={cn("font-medium", wealthDiff > 0 ? "text-[#4ade80]" : "text-[#f87171]")}>
+          The Bottom Line: {wealthDiff > 0 ? "+" : ""}{toUSD(wealthDiff)}
+        </p>
+        <p className="mt-2 text-sm">
+          {wealthDiff > 0 ? (
+            <>
+              The Roth conversion strategy creates <strong>{toUSD(wealthDiff)} more</strong> in total family wealth.
+              This comes from:
             </>
           ) : (
-            <p className="font-mono text-sm text-white font-medium">Net Legacy to Heirs = Baseline Lifetime Wealth: {toUSD(baseLifetimeWealth)}</p>
+            <>The baseline scenario results in {toUSD(Math.abs(wealthDiff))} more lifetime wealth in this case.</>
           )}
-        </div>
-      </div>
-
-      <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
-        <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy (Roth Conversions)</p>
-        <p>
-          By strategically converting your Traditional IRA to a Roth IRA now, here's what changes:
         </p>
-        <ul className="list-disc pl-5 space-y-1">
-          <li>You pay income tax on conversions now, staying in the {client.max_tax_rate}% bracket</li>
-          <li>Your Roth IRA then grows completely tax-free</li>
-          <li>No RMDs are required from Roth IRAs during your lifetime</li>
-          <li>Your heirs inherit the Roth balance 100% tax-free</li>
-          <li>You also benefit from a {client.bonus_percent}% product bonus on your initial investment</li>
-        </ul>
-        <div className="border-t border-[rgba(212,175,55,0.2)] pt-3 mt-3">
-          <p className="text-xs text-[rgba(255,255,255,0.5)]">Calculation:</p>
-          <p className="font-mono text-sm text-gold font-medium">Net Legacy to Heirs = Strategy Lifetime Wealth: {toUSD(blueLifetimeWealth)}</p>
-        </div>
-      </div>
-
-      <div className="bg-[rgba(74,222,128,0.08)] border border-[rgba(74,222,128,0.2)] rounded-lg p-4">
-        <p className="text-[#4ade80] font-medium">Why the Difference?</p>
-        <p className="mt-2">
-          The strategy creates {toUSD(blueLifetimeWealth - baseLifetimeWealth)} more in lifetime wealth because:
-        </p>
-        <ul className="list-disc pl-5 space-y-1 mt-2">
-          <li>You pay taxes at a lower rate now ({client.max_tax_rate}%) instead of your heirs paying {heirTaxPct}%</li>
-          <li>The {client.bonus_percent}% product bonus adds {toUSD(Math.round((client.qualified_account_value ?? 0) * (client.bonus_percent ?? 0) / 100))} to your starting balance</li>
-          <li>Roth growth is never taxed, maximizing compound growth</li>
-          <li>No forced RMDs means your money stays invested longer</li>
-        </ul>
+        {wealthDiff > 0 && (
+          <ul className="list-disc pl-5 space-y-1 mt-2 text-sm">
+            <li><strong>{client.bonus_percent}% product bonus</strong> adding {toUSD(bonusAmount)} upfront</li>
+            <li><strong>Tax-free Roth growth</strong> at {client.rate_of_return}% for {projectionYears} years</li>
+            <li><strong>No heir taxes</strong> on {toUSD(blueFinalRoth)} Roth balance (vs {heirTaxPct}% on Traditional)</li>
+            <li><strong>No forced RMDs</strong> keeping money invested longer</li>
+          </ul>
+        )}
       </div>
     </>
   );
