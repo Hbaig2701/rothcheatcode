@@ -12,10 +12,11 @@ import {
   ArrowRight,
   Pencil,
   Type,
+  MousePointer2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Tool = "pen" | "line" | "arrow" | "rectangle" | "circle" | "text";
+type Tool = "select" | "pen" | "line" | "arrow" | "rectangle" | "circle" | "text";
 type AnnotationShape = {
   id: string;
   tool: Tool;
@@ -59,6 +60,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
   const [textValue, setTextValue] = useState("");
   const svgRef = useRef<SVGSVGElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Focus text input when it appears
   useEffect(() => {
@@ -66,6 +68,24 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
       textInputRef.current.focus();
     }
   }, [textInput]);
+
+  // Handle scroll pass-through
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      // Find the scrollable element underneath and scroll it
+      const scrollableParent = document.querySelector('[data-scroll-container]') as HTMLElement;
+      if (scrollableParent) {
+        scrollableParent.scrollTop += e.deltaY;
+        scrollableParent.scrollLeft += e.deltaX;
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: true });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, []);
 
   const saveToHistory = useCallback((newAnnotations: AnnotationShape[]) => {
     const newHistory = history.slice(0, historyIndex + 1);
@@ -98,12 +118,15 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
     return {
-      x: e.clientX - rect.left + svg.parentElement!.scrollLeft,
-      y: e.clientY - rect.top + svg.parentElement!.scrollTop,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
     };
   };
 
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    // In select mode, don't draw
+    if (tool === "select") return;
+
     if (tool === "text") {
       const pos = getMousePosition(e);
       setTextInput({ x: pos.x, y: pos.y });
@@ -308,6 +331,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
   };
 
   const tools: { id: Tool; icon: React.ReactNode; label: string }[] = [
+    { id: "select", icon: <MousePointer2 className="h-4 w-4" />, label: "Select (scroll)" },
     { id: "pen", icon: <Pencil className="h-4 w-4" />, label: "Pen" },
     { id: "line", icon: <Minus className="h-4 w-4" />, label: "Line" },
     { id: "arrow", icon: <ArrowRight className="h-4 w-4" />, label: "Arrow" },
@@ -316,10 +340,19 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
     { id: "text", icon: <Type className="h-4 w-4" />, label: "Text" },
   ];
 
+  const getCursor = () => {
+    if (tool === "select") return "default";
+    if (tool === "text") return "text";
+    return "crosshair";
+  };
+
   return (
-    <div className="fixed inset-0 z-50 pointer-events-none">
+    <div ref={containerRef} className="fixed inset-0" style={{ zIndex: 50 }}>
       {/* Toolbar - Fixed at top */}
-      <div className="pointer-events-auto absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-xl p-1.5 shadow-2xl">
+      <div
+        className="fixed top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-xl p-1.5 shadow-2xl"
+        style={{ zIndex: 60 }}
+      >
         {/* Tools */}
         <div className="flex items-center gap-0.5 pr-2 border-r border-[rgba(255,255,255,0.1)]">
           {tools.map((t) => (
@@ -425,11 +458,14 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
         </button>
       </div>
 
-      {/* Drawing Canvas - Covers the whole viewport */}
+      {/* Drawing Canvas */}
       <svg
         ref={svgRef}
-        className="pointer-events-auto absolute inset-0 w-full h-full"
-        style={{ cursor: tool === "text" ? "text" : "crosshair" }}
+        className="absolute inset-0 w-full h-full"
+        style={{
+          cursor: getCursor(),
+          pointerEvents: tool === "select" ? "none" : "auto",
+        }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -444,8 +480,8 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
       {/* Text input overlay */}
       {textInput && (
         <div
-          className="pointer-events-auto absolute"
-          style={{ left: textInput.x, top: textInput.y }}
+          className="fixed"
+          style={{ left: textInput.x, top: textInput.y, zIndex: 70 }}
         >
           <input
             ref={textInputRef}
@@ -467,6 +503,13 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
             }}
             placeholder="Type and press Enter"
           />
+        </div>
+      )}
+
+      {/* Select mode hint */}
+      {tool === "select" && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[rgba(0,0,0,0.8)] text-white text-sm px-4 py-2 rounded-lg" style={{ zIndex: 60 }}>
+          Select mode: Click and scroll normally. Switch to a drawing tool to annotate.
         </div>
       )}
     </div>
