@@ -296,6 +296,29 @@ export function YearOverYearTables({
           </tr>
         ))}
       </tbody>
+      <tfoot>
+        <tr className="bg-[#1F1F1F] border-t-2 border-[#F5B800]/30 font-semibold">
+          <td className="px-4 py-3 text-sm text-[#F5B800]" colSpan={2}>TOTALS</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[#A0A0A0]">—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-white">
+            ${formatCurrency(computedData.reduce((sum, row) => sum + row.distIra, 0))}
+          </td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-red-400">
+            ${formatCurrency(computedData.reduce((sum, row) => sum + row.totalTax, 0))}
+          </td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[#A0A0A0]">—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-white">
+            ${formatCurrency(computedData.reduce((sum, row) => sum + row.conversionAmount, 0))}
+          </td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[#A0A0A0]">—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-white">
+            ${formatCurrency(computedData.reduce((sum, row) => sum + row.interest, 0))}
+          </td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[#A0A0A0]">—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[#A0A0A0]">—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[#A0A0A0]">—</td>
+        </tr>
+      </tfoot>
     </table>
   );
 
