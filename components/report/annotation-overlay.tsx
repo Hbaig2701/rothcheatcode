@@ -347,10 +347,10 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
   };
 
   return (
-    <div ref={containerRef} className="fixed inset-0" style={{ zIndex: 50 }}>
+    <div ref={containerRef} className="fixed inset-0 pointer-events-none" style={{ zIndex: 50 }}>
       {/* Toolbar - Fixed at top */}
       <div
-        className="fixed top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-xl p-1.5 shadow-2xl"
+        className="pointer-events-auto fixed top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-xl p-1.5 shadow-2xl"
         style={{ zIndex: 60 }}
       >
         {/* Tools */}
@@ -461,11 +461,11 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
       {/* Drawing Canvas */}
       <svg
         ref={svgRef}
-        className="absolute inset-0 w-full h-full"
-        style={{
-          cursor: getCursor(),
-          pointerEvents: tool === "select" ? "none" : "auto",
-        }}
+        className={cn(
+          "absolute inset-0 w-full h-full",
+          tool !== "select" && "pointer-events-auto"
+        )}
+        style={{ cursor: getCursor() }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -480,7 +480,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
       {/* Text input overlay */}
       {textInput && (
         <div
-          className="fixed"
+          className="fixed pointer-events-auto"
           style={{ left: textInput.x, top: textInput.y, zIndex: 70 }}
         >
           <input
