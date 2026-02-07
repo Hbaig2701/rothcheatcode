@@ -7,7 +7,8 @@ import { InputDrawer } from "@/components/report/input-drawer";
 import { ReportDashboard } from "@/components/report/report-dashboard";
 import { PresentationMode } from "@/components/report/presentation-mode";
 import { GIPresentationMode } from "@/components/report/gi-presentation-mode";
-import { Loader2, ArrowLeft, Settings2, ChevronDown, Play, FileText, Copy, Pencil } from "lucide-react";
+import { StoryMode } from "@/components/report/story-mode";
+import { Loader2, ArrowLeft, Settings2, ChevronDown, Play, FileText, Copy, Pencil, BookOpen } from "lucide-react";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import type { YearlyResult } from "@/lib/calculations";
 
@@ -22,6 +23,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [presentMode, setPresentMode] = useState(false);
+  const [storyMode, setStoryMode] = useState(false);
 
   // Calculate percentage change from projection data
   const percentChange = useMemo(() => {
@@ -93,6 +95,17 @@ export default function ResultsPage({ params }: ResultsPageProps) {
   const isGI = client.blueprint_type
     ? isGuaranteedIncomeProduct(client.blueprint_type as FormulaType)
     : false;
+
+  // Story mode overlay - only for Growth products
+  if (storyMode && !isGI && projectionResponse?.projection) {
+    return (
+      <StoryMode
+        client={client}
+        projection={projectionResponse.projection}
+        onExit={() => setStoryMode(false)}
+      />
+    );
+  }
 
   // Presentation mode overlay
   if (presentMode) {
@@ -205,6 +218,19 @@ export default function ResultsPage({ params }: ResultsPageProps) {
                     <Pencil className="h-4 w-4" />
                     Annotate
                   </button>
+                  {/* Story Mode - Only for Growth products */}
+                  {!isGI && (
+                    <button
+                      onClick={() => {
+                        setStoryMode(true);
+                        setActionsOpen(false);
+                      }}
+                      className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
+                    >
+                      <BookOpen className="h-4 w-4" />
+                      Story Mode
+                    </button>
+                  )}
                 </div>
               </>
             )}
