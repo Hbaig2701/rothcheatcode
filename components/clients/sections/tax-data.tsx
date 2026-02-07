@@ -34,6 +34,12 @@ const TAX_SOURCE_OPTIONS = [
   { value: "from_ira", label: "Internal (from IRA)" },
 ] as const;
 
+const RMD_TREATMENT_OPTIONS = [
+  { value: "spent", label: "Spent on Living Expenses", description: "RMDs are consumed during retirement" },
+  { value: "reinvested", label: "Reinvested (Taxable Brokerage)", description: "RMDs grow at rate of return" },
+  { value: "cash", label: "Sits in Cash (No Growth)", description: "RMDs accumulate without growth" },
+] as const;
+
 // Valid federal tax brackets - must match what's in federal-brackets-2026.ts
 const TAX_BRACKET_OPTIONS = [
   { value: 10, label: "10%" },
@@ -199,6 +205,43 @@ export function TaxDataSection() {
             <FieldError errors={[fieldState.error]} />
           </Field>
         )}
+      />
+
+      {/* RMD Treatment (Baseline Scenario) */}
+      <Controller
+        name="rmd_treatment"
+        control={form.control}
+        render={({ field, fieldState }) => {
+          const selectedOption = RMD_TREATMENT_OPTIONS.find(opt => opt.value === field.value);
+          return (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="rmd_treatment">RMD Treatment (Baseline)</FieldLabel>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <SelectTrigger
+                  id="rmd_treatment"
+                  className="w-full"
+                  aria-invalid={fieldState.invalid}
+                >
+                  <SelectValue placeholder="Select RMD treatment">
+                    {selectedOption?.label ?? "Select RMD treatment"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {RMD_TREATMENT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex flex-col">
+                        <span>{option.label}</span>
+                        <span className="text-xs text-muted-foreground">{option.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldDescription>How RMDs are handled in the &quot;do nothing&quot; baseline scenario</FieldDescription>
+              <FieldError errors={[fieldState.error]} />
+            </Field>
+          );
+        }}
       />
 
       {/* State */}

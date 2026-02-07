@@ -35,6 +35,7 @@ function generateInputHash(client: Client): string {
     post_contract_rate: client.post_contract_rate,
     years_to_defer_conversion: client.years_to_defer_conversion,
     heir_tax_rate: client.heir_tax_rate,
+    rmd_treatment: client.rmd_treatment,
     // Legacy fields (kept for backwards compatibility)
     traditional_ira: client.traditional_ira,
     roth_ira: client.roth_ira,
