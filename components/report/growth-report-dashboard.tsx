@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
 import type { YearlyResult } from "@/lib/calculations";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData } from "@/lib/calculations/transforms";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Info, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
 
@@ -147,22 +147,73 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             label="Lifetime Wealth"
             baseline={baseLifetimeWealth}
             strategy={blueLifetimeWealth}
+            infoContent={
+              <LifetimeWealthInfo
+                client={client}
+                baseNetLegacy={baseNetLegacy}
+                baseCumulativeDistributions={baseCumulativeDistributions}
+                baseLifetimeWealth={baseLifetimeWealth}
+                blueNetLegacy={blueNetLegacy}
+                blueLifetimeWealth={blueLifetimeWealth}
+                rmdTreatment={rmdTreatment}
+                heirTaxRate={heirTaxRate}
+              />
+            }
           />
           <ComparisonCard
             label="Legacy to Heirs"
             baseline={baseNetLegacy}
             strategy={blueNetLegacy}
+            infoContent={
+              <LegacyToHeirsInfo
+                client={client}
+                baseFinalTraditional={baseFinalTraditional}
+                baseFinalRoth={baseFinalRoth}
+                baseFinalTaxable={projection.baseline_final_taxable}
+                baseHeirTax={baseHeirTax}
+                baseNetLegacy={baseNetLegacy}
+                blueFinalTraditional={blueFinalTraditional}
+                blueFinalRoth={blueFinalRoth}
+                blueFinalTaxable={projection.blueprint_final_taxable}
+                blueHeirTax={blueHeirTax}
+                blueNetLegacy={blueNetLegacy}
+                heirTaxRate={heirTaxRate}
+              />
+            }
           />
           <ComparisonCard
             label="Total Taxes Paid"
             baseline={baseTotalTaxes}
             strategy={blueTotalTaxes}
             invertColor
+            infoContent={
+              <TotalTaxesInfo
+                client={client}
+                baseTax={baseTax}
+                baseIrmaa={baseIrmaa}
+                baseHeirTax={baseHeirTax}
+                baseTotalTaxes={baseTotalTaxes}
+                blueTax={blueTax}
+                blueIrmaa={blueIrmaa}
+                blueHeirTax={blueHeirTax}
+                blueTotalTaxes={blueTotalTaxes}
+                blueConversions={blueConversions}
+                heirTaxRate={heirTaxRate}
+              />
+            }
           />
           <ComparisonCard
             label={rmdTreatment === 'spent' ? "After-Tax Distributions" : "Gross Distributions"}
             baseline={rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs}
             strategy={0}
+            infoContent={
+              <DistributionsInfo
+                client={client}
+                baseRMDs={baseRMDs}
+                baseCumulativeDistributions={baseCumulativeDistributions}
+                rmdTreatment={rmdTreatment}
+              />
+            }
           />
         </div>
 
@@ -373,46 +424,422 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   );
 }
 
+// Info Modal Component
+function InfoModal({
+  isOpen,
+  onClose,
+  title,
+  children,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      {/* Modal */}
+      <div className="relative bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-[16px] max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[rgba(255,255,255,0.07)]">
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+          >
+            <X className="h-5 w-5 text-[rgba(255,255,255,0.5)]" />
+          </button>
+        </div>
+        {/* Content */}
+        <div className="px-6 py-5 overflow-y-auto max-h-[60vh] text-sm text-[rgba(255,255,255,0.7)] space-y-4">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Comparison Card Component
 function ComparisonCard({
   label,
   baseline,
   strategy,
   invertColor = false,
+  infoContent,
 }: {
   label: string;
   baseline: number;
   strategy: number;
   invertColor?: boolean;
+  infoContent?: ReactNode;
 }) {
+  const [showInfo, setShowInfo] = useState(false);
   const diff = strategy - baseline;
   const pct = baseline !== 0 ? diff / Math.abs(baseline) : 0;
   const isPositive = invertColor ? diff <= 0 : diff >= 0;
 
   return (
-    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[12px] p-5">
-      <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-4 font-medium">
-        {label}
-      </p>
-      <div className="flex justify-between mb-2">
-        <div>
-          <p className="text-[10px] uppercase text-[rgba(255,255,255,0.35)] mb-1">Baseline</p>
-          <p className="text-lg font-mono text-[rgba(255,255,255,0.6)]">{toUSD(baseline)}</p>
+    <>
+      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[12px] p-5">
+        <div className="flex items-center gap-1.5 mb-4">
+          <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-medium">
+            {label}
+          </p>
+          {infoContent && (
+            <button
+              onClick={() => setShowInfo(true)}
+              className="p-0.5 rounded hover:bg-[rgba(255,255,255,0.1)] transition-colors"
+              title="Learn how this is calculated"
+            >
+              <Info className="h-3.5 w-3.5 text-[rgba(255,255,255,0.4)] hover:text-gold" />
+            </button>
+          )}
         </div>
-        <div className="text-right">
-          <p className="text-[10px] uppercase text-[rgba(255,255,255,0.35)] mb-1">Strategy</p>
-          <p className="text-lg font-mono font-medium text-white">{toUSD(strategy)}</p>
+        <div className="flex justify-between mb-2">
+          <div>
+            <p className="text-[10px] uppercase text-[rgba(255,255,255,0.35)] mb-1">Baseline</p>
+            <p className="text-lg font-mono text-[rgba(255,255,255,0.6)]">{toUSD(baseline)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] uppercase text-[rgba(255,255,255,0.35)] mb-1">Strategy</p>
+            <p className="text-lg font-mono font-medium text-white">{toUSD(strategy)}</p>
+          </div>
+        </div>
+        <div className="pt-3 border-t border-[rgba(255,255,255,0.07)]">
+          <p className={cn(
+            "text-base font-mono font-medium",
+            isPositive ? "text-[#4ade80]" : "text-[#f87171]"
+          )}>
+            {diff >= 0 ? "+" : ""}{toUSD(diff)} ({pct >= 0 ? "+" : ""}{(pct * 100).toFixed(1)}%)
+          </p>
         </div>
       </div>
-      <div className="pt-3 border-t border-[rgba(255,255,255,0.07)]">
-        <p className={cn(
-          "text-base font-mono font-medium",
-          isPositive ? "text-[#4ade80]" : "text-[#f87171]"
-        )}>
-          {diff >= 0 ? "+" : ""}{toUSD(diff)} ({pct >= 0 ? "+" : ""}{(pct * 100).toFixed(1)}%)
+      {infoContent && (
+        <InfoModal isOpen={showInfo} onClose={() => setShowInfo(false)} title={label}>
+          {infoContent}
+        </InfoModal>
+      )}
+    </>
+  );
+}
+
+// Info Content Components
+function LifetimeWealthInfo({
+  client,
+  baseNetLegacy,
+  baseCumulativeDistributions,
+  baseLifetimeWealth,
+  blueNetLegacy,
+  blueLifetimeWealth,
+  rmdTreatment,
+  heirTaxRate,
+}: {
+  client: Client;
+  baseNetLegacy: number;
+  baseCumulativeDistributions: number;
+  baseLifetimeWealth: number;
+  blueNetLegacy: number;
+  blueLifetimeWealth: number;
+  rmdTreatment: string;
+  heirTaxRate: number;
+}) {
+  const heirTaxPct = Math.round(heirTaxRate * 100);
+
+  return (
+    <>
+      <p className="text-white font-medium">What is Lifetime Wealth?</p>
+      <p>
+        Lifetime Wealth represents the total value your family receives over your lifetime and beyond—combining
+        what you pass to heirs (after their taxes) plus any distributions you received during retirement.
+      </p>
+
+      <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-3">
+        <p className="text-white font-medium text-xs uppercase tracking-wider">Baseline ("Do Nothing")</p>
+        <p>
+          If you keep your money in a Traditional IRA without converting to Roth, here's what happens:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>Your IRA grows tax-deferred at {client.rate_of_return}% annually</li>
+          <li>Starting at age 73, you're forced to take Required Minimum Distributions (RMDs)</li>
+          <li>RMDs are taxed as ordinary income each year</li>
+          <li>When you pass away, your heirs inherit the remaining IRA balance</li>
+          <li>Your heirs pay approximately {heirTaxPct}% income tax on what they inherit</li>
+        </ul>
+        <div className="border-t border-[rgba(255,255,255,0.1)] pt-3 mt-3">
+          <p className="text-xs text-[rgba(255,255,255,0.5)]">Calculation:</p>
+          {rmdTreatment === 'spent' ? (
+            <>
+              <p className="font-mono text-sm">Net Legacy to Heirs: {toUSD(baseNetLegacy)}</p>
+              <p className="font-mono text-sm">+ Distributions Received: {toUSD(baseCumulativeDistributions)}</p>
+              <p className="font-mono text-sm text-white font-medium">= Baseline Lifetime Wealth: {toUSD(baseLifetimeWealth)}</p>
+            </>
+          ) : (
+            <p className="font-mono text-sm text-white font-medium">Net Legacy to Heirs = Baseline Lifetime Wealth: {toUSD(baseLifetimeWealth)}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
+        <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy (Roth Conversions)</p>
+        <p>
+          By strategically converting your Traditional IRA to a Roth IRA now, here's what changes:
+        </p>
+        <ul className="list-disc pl-5 space-y-1">
+          <li>You pay income tax on conversions now, staying in the {client.max_tax_rate}% bracket</li>
+          <li>Your Roth IRA then grows completely tax-free</li>
+          <li>No RMDs are required from Roth IRAs during your lifetime</li>
+          <li>Your heirs inherit the Roth balance 100% tax-free</li>
+          <li>You also benefit from a {client.bonus_percent}% product bonus on your initial investment</li>
+        </ul>
+        <div className="border-t border-[rgba(212,175,55,0.2)] pt-3 mt-3">
+          <p className="text-xs text-[rgba(255,255,255,0.5)]">Calculation:</p>
+          <p className="font-mono text-sm text-gold font-medium">Net Legacy to Heirs = Strategy Lifetime Wealth: {toUSD(blueLifetimeWealth)}</p>
+        </div>
+      </div>
+
+      <div className="bg-[rgba(74,222,128,0.08)] border border-[rgba(74,222,128,0.2)] rounded-lg p-4">
+        <p className="text-[#4ade80] font-medium">Why the Difference?</p>
+        <p className="mt-2">
+          The strategy creates {toUSD(blueLifetimeWealth - baseLifetimeWealth)} more in lifetime wealth because:
+        </p>
+        <ul className="list-disc pl-5 space-y-1 mt-2">
+          <li>You pay taxes at a lower rate now ({client.max_tax_rate}%) instead of your heirs paying {heirTaxPct}%</li>
+          <li>The {client.bonus_percent}% product bonus adds {toUSD(Math.round((client.qualified_account_value ?? 0) * (client.bonus_percent ?? 0) / 100))} to your starting balance</li>
+          <li>Roth growth is never taxed, maximizing compound growth</li>
+          <li>No forced RMDs means your money stays invested longer</li>
+        </ul>
+      </div>
+    </>
+  );
+}
+
+function LegacyToHeirsInfo({
+  client,
+  baseFinalTraditional,
+  baseFinalRoth,
+  baseFinalTaxable,
+  baseHeirTax,
+  baseNetLegacy,
+  blueFinalTraditional,
+  blueFinalRoth,
+  blueFinalTaxable,
+  blueHeirTax,
+  blueNetLegacy,
+  heirTaxRate,
+}: {
+  client: Client;
+  baseFinalTraditional: number;
+  baseFinalRoth: number;
+  baseFinalTaxable: number;
+  baseHeirTax: number;
+  baseNetLegacy: number;
+  blueFinalTraditional: number;
+  blueFinalRoth: number;
+  blueFinalTaxable: number;
+  blueHeirTax: number;
+  blueNetLegacy: number;
+  heirTaxRate: number;
+}) {
+  const heirTaxPct = Math.round(heirTaxRate * 100);
+
+  return (
+    <>
+      <p className="text-white font-medium">What is Legacy to Heirs?</p>
+      <p>
+        This is the net amount your beneficiaries actually receive after paying any taxes owed on inherited accounts.
+        Roth IRAs pass tax-free, but Traditional IRAs are taxed as income to your heirs.
+      </p>
+
+      <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-3">
+        <p className="text-white font-medium text-xs uppercase tracking-wider">Baseline Inheritance</p>
+        <p className="text-xs text-[rgba(255,255,255,0.5)]">Your heirs receive:</p>
+        <div className="space-y-1 font-mono text-sm">
+          <p>Traditional IRA Balance: {toUSD(baseFinalTraditional)}</p>
+          <p className="text-[#f87171]">− Heir's Income Tax ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
+          <p>+ Roth IRA (tax-free): {toUSD(baseFinalRoth)}</p>
+          <p>+ Taxable Account: {toUSD(Math.max(0, baseFinalTaxable))}</p>
+          <p className="border-t border-[rgba(255,255,255,0.1)] pt-2 text-white font-medium">
+            = Net Legacy: {toUSD(baseNetLegacy)}
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
+        <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy Inheritance</p>
+        <p className="text-xs text-[rgba(255,255,255,0.5)]">Your heirs receive:</p>
+        <div className="space-y-1 font-mono text-sm">
+          <p>Traditional IRA Balance: {toUSD(blueFinalTraditional)}</p>
+          <p className="text-[#f87171]">− Heir's Income Tax ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
+          <p className="text-[#4ade80]">+ Roth IRA (tax-free): {toUSD(blueFinalRoth)}</p>
+          <p>+ Taxable Account: {toUSD(Math.max(0, blueFinalTaxable))}</p>
+          <p className="border-t border-[rgba(212,175,55,0.2)] pt-2 text-gold font-medium">
+            = Net Legacy: {toUSD(blueNetLegacy)}
+          </p>
+        </div>
+      </div>
+
+      <p className="text-[rgba(255,255,255,0.5)] text-xs">
+        Note: We assume your heirs will be in the {heirTaxPct}% tax bracket when they inherit.
+        Under current law, non-spouse beneficiaries must withdraw inherited IRAs within 10 years.
+      </p>
+    </>
+  );
+}
+
+function TotalTaxesInfo({
+  client,
+  baseTax,
+  baseIrmaa,
+  baseHeirTax,
+  baseTotalTaxes,
+  blueTax,
+  blueIrmaa,
+  blueHeirTax,
+  blueTotalTaxes,
+  blueConversions,
+  heirTaxRate,
+}: {
+  client: Client;
+  baseTax: number;
+  baseIrmaa: number;
+  baseHeirTax: number;
+  baseTotalTaxes: number;
+  blueTax: number;
+  blueIrmaa: number;
+  blueHeirTax: number;
+  blueTotalTaxes: number;
+  blueConversions: number;
+  heirTaxRate: number;
+}) {
+  const heirTaxPct = Math.round(heirTaxRate * 100);
+  const taxSavings = baseTotalTaxes - blueTotalTaxes;
+
+  return (
+    <>
+      <p className="text-white font-medium">What are Total Taxes Paid?</p>
+      <p>
+        This includes all taxes paid by you AND your heirs over the projection period—income taxes on
+        distributions/conversions, Medicare IRMAA surcharges, and the taxes your heirs pay on inherited IRAs.
+      </p>
+
+      <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-3">
+        <p className="text-white font-medium text-xs uppercase tracking-wider">Baseline Taxes</p>
+        <div className="space-y-1 font-mono text-sm">
+          <p>Income Tax on RMDs: {toUSD(baseTax)}</p>
+          <p>Medicare IRMAA Surcharges: {toUSD(baseIrmaa)}</p>
+          <p>Heir's Tax on Inheritance ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
+          <p className="border-t border-[rgba(255,255,255,0.1)] pt-2 text-[#f87171] font-medium">
+            = Total Taxes: {toUSD(baseTotalTaxes)}
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
+        <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy Taxes</p>
+        <div className="space-y-1 font-mono text-sm">
+          <p>Income Tax on Conversions: {toUSD(blueTax)}</p>
+          <p className="text-xs text-[rgba(255,255,255,0.5)]">
+            (Converted {toUSD(blueConversions)} staying in {client.max_tax_rate}% bracket)
+          </p>
+          <p>Medicare IRMAA Surcharges: {toUSD(blueIrmaa)}</p>
+          <p>Heir's Tax on Remaining Traditional ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
+          <p className="border-t border-[rgba(212,175,55,0.2)] pt-2 text-gold font-medium">
+            = Total Taxes: {toUSD(blueTotalTaxes)}
+          </p>
+        </div>
+      </div>
+
+      <div className={cn(
+        "rounded-lg p-4",
+        taxSavings > 0
+          ? "bg-[rgba(74,222,128,0.08)] border border-[rgba(74,222,128,0.2)]"
+          : "bg-[rgba(248,113,113,0.08)] border border-[rgba(248,113,113,0.2)]"
+      )}>
+        <p className={taxSavings > 0 ? "text-[#4ade80] font-medium" : "text-[#f87171] font-medium"}>
+          {taxSavings > 0 ? "Tax Savings" : "Additional Taxes"}
+        </p>
+        <p className="mt-2">
+          {taxSavings > 0 ? (
+            <>The strategy saves {toUSD(taxSavings)} in total taxes because you're converting at a {client.max_tax_rate}%
+            rate now instead of your heirs paying {heirTaxPct}% later. Lower taxes = more wealth for your family.</>
+          ) : (
+            <>The strategy results in {toUSD(Math.abs(taxSavings))} more in taxes, but this is offset by
+            greater tax-free growth in the Roth account.</>
+          )}
         </p>
       </div>
-    </div>
+    </>
+  );
+}
+
+function DistributionsInfo({
+  client,
+  baseRMDs,
+  baseCumulativeDistributions,
+  rmdTreatment,
+}: {
+  client: Client;
+  baseRMDs: number;
+  baseCumulativeDistributions: number;
+  rmdTreatment: string;
+}) {
+  return (
+    <>
+      <p className="text-white font-medium">
+        {rmdTreatment === 'spent' ? "What are After-Tax Distributions?" : "What are Gross Distributions?"}
+      </p>
+
+      {rmdTreatment === 'spent' ? (
+        <>
+          <p>
+            After-Tax Distributions represent the actual money you received and spent during retirement
+            from Required Minimum Distributions, after paying income taxes on them.
+          </p>
+          <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-2">
+            <p className="font-mono text-sm">Gross RMDs Taken: {toUSD(baseRMDs)}</p>
+            <p className="font-mono text-sm">After Taxes: {toUSD(baseCumulativeDistributions)}</p>
+          </div>
+          <p className="text-[rgba(255,255,255,0.5)] text-xs">
+            Since you selected "Spent on Living Expenses" for RMD treatment, these distributions
+            are added to your Lifetime Wealth calculation (money you received and used).
+          </p>
+        </>
+      ) : (
+        <>
+          <p>
+            Gross Distributions represent the total Required Minimum Distributions (RMDs) you're
+            forced to take from your Traditional IRA starting at age 73, before taxes.
+          </p>
+          <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-2">
+            <p className="font-mono text-sm">Total Gross RMDs: {toUSD(baseRMDs)}</p>
+            <p className="text-xs text-[rgba(255,255,255,0.5)]">
+              (These are taxed as ordinary income each year)
+            </p>
+          </div>
+        </>
+      )}
+
+      <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4">
+        <p className="text-gold font-medium">Strategy: No Forced Distributions</p>
+        <p className="mt-2">
+          With the Roth conversion strategy, you convert to a Roth IRA which has <strong>no Required
+          Minimum Distributions</strong>. This means:
+        </p>
+        <ul className="list-disc pl-5 space-y-1 mt-2">
+          <li>Your money stays invested and growing tax-free</li>
+          <li>You choose when (or if) to take distributions</li>
+          <li>No forced taxable income that could push you into higher brackets</li>
+          <li>More control over your retirement income and tax situation</li>
+        </ul>
+      </div>
+    </>
   );
 }
 
