@@ -16,6 +16,11 @@ import { getStandardDeduction } from '@/lib/data/standard-deductions';
  * - SSI is treated as tax-exempt (simplified model)
  * - IRMAA uses 2-year lookback
  *
+ * RMD Treatment Options:
+ * - 'spent': RMDs used for living expenses (not accumulated)
+ * - 'reinvested': RMDs go to taxable account and earn interest (default)
+ * - 'cash': RMDs accumulate in cash but don't earn interest
+ *
  * Supports both legacy DOB-based approach and new age-based approach
  */
 export function runBaselineScenario(
@@ -69,6 +74,12 @@ export function runBaselineScenario(
   const stateTaxRateOverride = client.state_tax_rate !== undefined && client.state_tax_rate !== null
     ? client.state_tax_rate / 100
     : undefined;
+
+  // RMD treatment option (default to 'reinvested' for backwards compatibility)
+  const rmdTreatment = client.rmd_treatment ?? 'reinvested';
+
+  // Track cumulative after-tax distributions for 'spent' scenario
+  let cumulativeAfterTaxDistributions = 0;
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
@@ -154,16 +165,34 @@ export function runBaselineScenario(
     const iraAfterDistribution = boyIRA - rmdAmount;
     const iraInterest = Math.round(iraAfterDistribution * growthRate);
     const rothInterest = Math.round(boyRoth * growthRate);
-    const taxableInterest = Math.round(boyTaxable * growthRate);
+
+    // Taxable interest only applies in 'reinvested' mode
+    const taxableInterest = rmdTreatment === 'reinvested'
+      ? Math.round(boyTaxable * growthRate)
+      : 0;
 
     // End of Year balances
     // E.O.Y. = B.O.Y. - Distribution + Interest
     iraBalance = iraAfterDistribution + iraInterest;
     rothBalance = boyRoth + rothInterest;
 
-    // Taxable account receives RMD proceeds, pays taxes, and earns interest
-    // RMD is cash received (added to taxable), then we pay taxes on all income
-    taxableBalance = boyTaxable + rmdAmount + taxableInterest - totalTax;
+    // Taxable balance handling depends on RMD treatment option
+    // After-tax RMD = RMD - taxes attributable to the RMD
+    const afterTaxRmd = rmdAmount - totalTax;
+
+    if (rmdTreatment === 'spent') {
+      // RMDs are spent on living expenses - don't accumulate in taxable
+      // Track as distributions received (for Lifetime Wealth calculation)
+      cumulativeAfterTaxDistributions += Math.max(0, afterTaxRmd);
+      // Taxable balance stays flat (no RMDs added, but also no tax deducted since paid from RMD)
+      taxableBalance = boyTaxable;
+    } else if (rmdTreatment === 'cash') {
+      // RMDs accumulate in cash but don't earn interest
+      taxableBalance = boyTaxable + rmdAmount - totalTax;
+    } else {
+      // 'reinvested' (default): RMDs go to taxable account and earn interest
+      taxableBalance = boyTaxable + rmdAmount + taxableInterest - totalTax;
+    }
 
     // Determine tax bracket
     const bracket = determineTaxBracket(taxableIncome, client.filing_status, year);
@@ -187,7 +216,8 @@ export function runBaselineScenario(
       irmaaSurcharge,
       totalTax,
       taxableSS: 0, // SSI is tax-exempt per simplified model
-      netWorth: iraBalance + rothBalance + taxableBalance
+      netWorth: iraBalance + rothBalance + taxableBalance,
+      cumulativeDistributions: rmdTreatment === 'spent' ? cumulativeAfterTaxDistributions : undefined
     });
   }
 

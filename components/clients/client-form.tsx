@@ -101,6 +101,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       end_age: client?.end_age ?? (ud.end_age as number) ?? 100,
       heir_tax_rate: client?.heir_tax_rate ?? (ud.heir_tax_rate as number) ?? 40,
       widow_analysis: client?.widow_analysis ?? false,
+      rmd_treatment: client?.rmd_treatment ?? (ud.rmd_treatment as ClientFormData["rmd_treatment"]) ?? "reinvested",
 
       // Additional fields needed
       taxable_accounts: client?.taxable_accounts ?? 0,

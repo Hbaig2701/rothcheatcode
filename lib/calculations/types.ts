@@ -166,6 +166,10 @@ export interface YearlyResult {
 
   // Net worth (in cents)
   netWorth: number;
+
+  // Cumulative after-tax distributions (for 'spent' RMD treatment)
+  // Only populated in baseline scenario when rmd_treatment = 'spent'
+  cumulativeDistributions?: number;
 }
 
 export interface SimulationInput {

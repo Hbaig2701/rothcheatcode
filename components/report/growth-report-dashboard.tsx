@@ -42,6 +42,9 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
   // ===== Calculate metrics =====
 
+  // RMD treatment option affects how we calculate lifetime wealth
+  const rmdTreatment = client.rmd_treatment ?? 'reinvested';
+
   // Baseline calculations
   // Note: Taxes and IRMAA are already deducted from taxableBalance in the engine
   const baseRMDs = sum(projection.baseline_years, "rmdAmount");
@@ -53,8 +56,17 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
   // Net legacy = final net worth (includes taxable account) minus heir taxes on traditional
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
-  // Lifetime wealth = net legacy (taxes/IRMAA already deducted from taxable in engine)
-  const baseLifetimeWealth = baseNetLegacy;
+
+  // Get cumulative after-tax distributions for 'spent' scenario
+  const lastBaselineYear = projection.baseline_years[projection.baseline_years.length - 1];
+  const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
+
+  // Lifetime wealth calculation depends on RMD treatment:
+  // - 'spent': Net Legacy + Cumulative Distributions (RMDs were spent, not in legacy)
+  // - 'reinvested'/'cash': Net Legacy only (RMDs are already in taxable balance)
+  const baseLifetimeWealth = rmdTreatment === 'spent'
+    ? baseNetLegacy + baseCumulativeDistributions
+    : baseNetLegacy;
   const baseTotalTaxes = baseTax + baseIrmaa + baseHeirTax;
 
   // Strategy calculations
@@ -102,18 +114,18 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             <div>
               <p className={cn(
                 "text-[44px] font-mono font-semibold",
-                legacyDiff >= 0 ? "text-gold" : "text-[#f87171]"
+                lifetimeWealthDiff >= 0 ? "text-gold" : "text-[#f87171]"
               )}>
-                {legacyDiff >= 0 ? "+" : ""}{toUSD(legacyDiff)}
+                {lifetimeWealthDiff >= 0 ? "+" : ""}{toUSD(lifetimeWealthDiff)}
               </p>
-              <p className="text-base text-[rgba(255,255,255,0.5)] mt-1">Additional Legacy to Heirs</p>
+              <p className="text-base text-[rgba(255,255,255,0.5)] mt-1">Additional Lifetime Wealth</p>
             </div>
             <div className="border-l border-[rgba(255,255,255,0.1)] pl-8">
               <p className={cn(
                 "text-[28px] font-mono font-medium",
-                legacyDiff >= 0 ? "text-[#4ade80]" : "text-[#f87171]"
+                lifetimeWealthDiff >= 0 ? "text-[#4ade80]" : "text-[#f87171]"
               )}>
-                {baseNetLegacy > 0 ? `+${((legacyDiff / baseNetLegacy) * 100).toFixed(1)}%` : "N/A"}
+                {baseLifetimeWealth > 0 ? `+${((lifetimeWealthDiff / baseLifetimeWealth) * 100).toFixed(1)}%` : "N/A"}
               </p>
               <p className="text-base text-[rgba(255,255,255,0.5)] mt-1">vs Doing Nothing</p>
             </div>
@@ -132,14 +144,14 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         {/* Section 2: Key Metrics (4 Cards) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <ComparisonCard
+            label="Lifetime Wealth"
+            baseline={baseLifetimeWealth}
+            strategy={blueLifetimeWealth}
+          />
+          <ComparisonCard
             label="Legacy to Heirs"
             baseline={baseNetLegacy}
             strategy={blueNetLegacy}
-          />
-          <ComparisonCard
-            label="Tax-Free Wealth"
-            baseline={baseFinalRoth}
-            strategy={blueFinalRoth}
           />
           <ComparisonCard
             label="Total Taxes Paid"
@@ -148,8 +160,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             invertColor
           />
           <ComparisonCard
-            label="Lifetime Distributions"
-            baseline={baseRMDs}
+            label={rmdTreatment === 'spent' ? "After-Tax Distributions" : "Gross Distributions"}
+            baseline={rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs}
             strategy={0}
           />
         </div>

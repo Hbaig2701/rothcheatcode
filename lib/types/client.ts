@@ -76,6 +76,7 @@ export interface Client {
   end_age: number;
   heir_tax_rate: number;            // Percentage
   widow_analysis: boolean;
+  rmd_treatment: 'spent' | 'reinvested' | 'cash'; // How RMDs are treated in baseline
 
   // ===== Legacy fields (kept for backwards compatibility) =====
   date_of_birth: string | null;  // ISO date string YYYY-MM-DD (deprecated, use age)
@@ -169,6 +170,7 @@ export interface FormulaFormData {
   end_age: number;
   heir_tax_rate: number;
   widow_analysis: boolean;
+  rmd_treatment: 'spent' | 'reinvested' | 'cash';
 
   // Additional needed for tax payments
   taxable_accounts: number;

@@ -53,6 +53,9 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const payoutPercent = projection.gi_payout_percent || 0;
   const calculatedIncome = Math.round(finalIncomeBase * (payoutPercent / 100));
 
+  // RMD treatment option affects how we calculate lifetime wealth
+  const rmdTreatment = client.rmd_treatment ?? 'reinvested';
+
   // Baseline calculations
   // Note: Taxes and IRMAA are already deducted from taxableBalance in the engine
   const baseRMDs = sum(projection.baseline_years, "rmdAmount");
@@ -66,8 +69,17 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
   // Net legacy = final net worth (includes taxable) minus heir taxes on traditional
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
-  // Lifetime wealth = net legacy (taxes/IRMAA already deducted from taxable in engine)
-  const baseLifetimeWealth = baseNetLegacy;
+
+  // Get cumulative after-tax distributions for 'spent' scenario
+  const lastBaselineYear = projection.baseline_years[projection.baseline_years.length - 1];
+  const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
+
+  // Lifetime wealth calculation depends on RMD treatment:
+  // - 'spent': Net Legacy + Cumulative Distributions (RMDs were spent, not in legacy)
+  // - 'reinvested'/'cash': Net Legacy only (RMDs are already in taxable balance)
+  const baseLifetimeWealth = rmdTreatment === 'spent'
+    ? baseNetLegacy + baseCumulativeDistributions
+    : baseNetLegacy;
 
   // Formula (GI) calculations
   let blueConversionTax = 0;

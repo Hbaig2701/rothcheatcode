@@ -33,6 +33,8 @@ export const withdrawalTypeEnum = z.enum([
 
 export const taxSourceEnum = z.enum(["from_ira", "from_taxable"]);
 
+export const rmdTreatmentEnum = z.enum(["spent", "reinvested", "cash"]);
+
 export const formulaTypeEnum = z.enum([
   "fia",
   "lincoln-optiblend-7",
@@ -135,6 +137,7 @@ export const clientFormulaBaseSchema = z.object({
   end_age: z.number().int().min(55).max(120).default(100),
   heir_tax_rate: z.number().min(0).max(100).default(40),
   widow_analysis: z.boolean().default(false),
+  rmd_treatment: rmdTreatmentEnum.default("reinvested"),
 
   // Additional fields needed for calculations
   taxable_accounts: z.number().int().min(0).default(0),
@@ -390,6 +393,7 @@ export type ClientFormData = {
   end_age: number;
   heir_tax_rate: number;
   widow_analysis: boolean;
+  rmd_treatment: "spent" | "reinvested" | "cash";
 
   // Additional
   taxable_accounts: number;

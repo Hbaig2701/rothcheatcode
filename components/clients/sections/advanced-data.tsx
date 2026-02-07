@@ -7,6 +7,7 @@ import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { isFieldLocked, isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import { Lock, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -153,6 +154,32 @@ export function AdvancedDataSection() {
             <FieldDescription>Age to project until (55-120)</FieldDescription>
             <FieldError errors={[form.formState.errors.end_age]} />
           </Field>
+
+          {/* RMD Treatment - How RMDs are handled in baseline */}
+          <Controller
+            name="rmd_treatment"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="rmd_treatment">RMD Treatment (Baseline)</FieldLabel>
+                <Select
+                  value={field.value}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select RMD treatment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="spent">Spent on Living Expenses</SelectItem>
+                    <SelectItem value="reinvested">Reinvested (Taxable Brokerage)</SelectItem>
+                    <SelectItem value="cash">Sits in Cash (No Growth)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>How RMDs are treated in the baseline scenario</FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
 
           {/* Heir Tax Rate - Always editable */}
           <Controller
