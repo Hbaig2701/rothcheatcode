@@ -61,6 +61,8 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const scrollContainerRef = useRef<HTMLElement | null>(null);
 
   // Focus text input when it appears
   useEffect(() => {
@@ -69,23 +71,38 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
     }
   }, [textInput]);
 
-  // Handle scroll pass-through - find and scroll the dashboard container
+  // Find scroll container and track scroll position
   useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      // Find the scrollable dashboard element (has overflow-y-auto and h-full)
-      const scrollContainers = document.querySelectorAll('.overflow-y-auto');
-      for (const container of scrollContainers) {
-        const rect = container.getBoundingClientRect();
-        // Check if this container is visible and large enough to be the main scroll area
-        if (rect.height > 200 && rect.width > 200) {
-          (container as HTMLElement).scrollTop += e.deltaY;
-          break;
-        }
+    // Find the scrollable dashboard element
+    const scrollContainers = document.querySelectorAll('.overflow-y-auto');
+    for (const container of scrollContainers) {
+      const rect = container.getBoundingClientRect();
+      if (rect.height > 200 && rect.width > 200) {
+        scrollContainerRef.current = container as HTMLElement;
+        setScrollOffset(scrollContainerRef.current.scrollTop);
+        break;
+      }
+    }
+
+    const handleScroll = () => {
+      if (scrollContainerRef.current) {
+        setScrollOffset(scrollContainerRef.current.scrollTop);
       }
     };
 
+    const handleWheel = (e: WheelEvent) => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop += e.deltaY;
+      }
+    };
+
+    scrollContainerRef.current?.addEventListener('scroll', handleScroll);
     window.addEventListener('wheel', handleWheel, { passive: true });
-    return () => window.removeEventListener('wheel', handleWheel);
+
+    return () => {
+      scrollContainerRef.current?.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('wheel', handleWheel);
+    };
   }, []);
 
   const saveToHistory = useCallback((newAnnotations: AnnotationShape[]) => {
@@ -118,9 +135,10 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
     const rect = svg.getBoundingClientRect();
+    // Add scroll offset so annotations are in content coordinates
     return {
       x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
+      y: e.clientY - rect.top + scrollOffset,
     };
   };
 
@@ -463,26 +481,33 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
       <svg
         ref={svgRef}
         className={cn(
-          "absolute inset-0 w-full h-full",
+          "absolute inset-0 w-full",
           tool !== "select" && "pointer-events-auto"
         )}
-        style={{ cursor: getCursor() }}
+        style={{
+          cursor: getCursor(),
+          height: '100%',
+          overflow: 'visible',
+        }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {/* Rendered annotations */}
-        {annotations.map((shape) => renderShape(shape))}
-        {/* Current shape being drawn */}
-        {currentShape && renderShape(currentShape, true)}
+        {/* Group with scroll offset transform - annotations stay in content position */}
+        <g transform={`translate(0, ${-scrollOffset})`}>
+          {/* Rendered annotations */}
+          {annotations.map((shape) => renderShape(shape))}
+          {/* Current shape being drawn */}
+          {currentShape && renderShape(currentShape, true)}
+        </g>
       </svg>
 
       {/* Text input overlay */}
       {textInput && (
         <div
           className="fixed pointer-events-auto"
-          style={{ left: textInput.x, top: textInput.y, zIndex: 70 }}
+          style={{ left: textInput.x, top: textInput.y - scrollOffset, zIndex: 70 }}
         >
           <input
             ref={textInputRef}
