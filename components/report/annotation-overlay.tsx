@@ -69,22 +69,23 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
     }
   }, [textInput]);
 
-  // Handle scroll pass-through
+  // Handle scroll pass-through - find and scroll the dashboard container
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
     const handleWheel = (e: WheelEvent) => {
-      // Find the scrollable element underneath and scroll it
-      const scrollableParent = document.querySelector('[data-scroll-container]') as HTMLElement;
-      if (scrollableParent) {
-        scrollableParent.scrollTop += e.deltaY;
-        scrollableParent.scrollLeft += e.deltaX;
+      // Find the scrollable dashboard element (has overflow-y-auto and h-full)
+      const scrollContainers = document.querySelectorAll('.overflow-y-auto');
+      for (const container of scrollContainers) {
+        const rect = container.getBoundingClientRect();
+        // Check if this container is visible and large enough to be the main scroll area
+        if (rect.height > 200 && rect.width > 200) {
+          (container as HTMLElement).scrollTop += e.deltaY;
+          break;
+        }
       }
     };
 
-    container.addEventListener('wheel', handleWheel, { passive: true });
-    return () => container.removeEventListener('wheel', handleWheel);
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    return () => window.removeEventListener('wheel', handleWheel);
   }, []);
 
   const saveToHistory = useCallback((newAnnotations: AnnotationShape[]) => {
