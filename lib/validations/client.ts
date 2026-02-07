@@ -292,6 +292,7 @@ export const clientFullBaseSchema = z.object({
   baseline_comparison_rate: z.number().min(0).max(30).default(7),
   post_contract_rate: z.number().min(0).max(30).default(7),
   years_to_defer_conversion: z.number().int().min(0).max(30).default(0),
+  rmd_treatment: rmdTreatmentEnum.default("reinvested"),
 });
 
 // Partial schema for updates
