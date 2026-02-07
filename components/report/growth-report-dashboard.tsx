@@ -418,6 +418,10 @@ function ComparisonCard({
 
 // Strategy Table
 function StrategyTable({ years, client }: { years: YearlyResult[]; client: Client }) {
+  // Calculate totals
+  const totalConverted = years.reduce((sum, row) => sum + row.conversionAmount, 0);
+  const totalTaxes = years.reduce((sum, row) => sum + row.federalTax + row.stateTax, 0);
+
   return (
     <table className="w-full">
       <thead>
@@ -469,12 +473,30 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
           );
         })}
       </tbody>
+      <tfoot>
+        <tr className="bg-[rgba(255,255,255,0.04)] border-t border-[rgba(255,255,255,0.1)]">
+          <td className="px-4 py-3 text-sm font-semibold text-white" colSpan={2}>TOTALS</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-gold">
+            {toUSD(totalConverted)}
+          </td>
+          <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-[#f87171]">
+            {toUSD(totalTaxes)}
+          </td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">—</td>
+        </tr>
+      </tfoot>
     </table>
   );
 }
 
 // Baseline Table
 function BaselineTable({ years }: { years: YearlyResult[] }) {
+  // Calculate totals
+  const totalRMDs = years.reduce((sum, row) => sum + row.rmdAmount, 0);
+  const totalTaxes = years.reduce((sum, row) => sum + row.federalTax + row.stateTax, 0);
+
   return (
     <table className="w-full">
       <thead>
@@ -513,6 +535,19 @@ function BaselineTable({ years }: { years: YearlyResult[] }) {
           </tr>
         ))}
       </tbody>
+      <tfoot>
+        <tr className="bg-[rgba(255,255,255,0.04)] border-t border-[rgba(255,255,255,0.1)]">
+          <td className="px-4 py-3 text-sm font-semibold text-white" colSpan={2}>TOTALS</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-white">
+            {toUSD(totalRMDs)}
+          </td>
+          <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-[#f87171]">
+            {toUSD(totalTaxes)}
+          </td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">—</td>
+        </tr>
+      </tfoot>
     </table>
   );
 }
