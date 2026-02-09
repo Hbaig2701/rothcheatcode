@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
+import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import {
   Field,
   FieldLabel,
@@ -55,6 +56,8 @@ export function TaxDataSection() {
   const form = useFormContext<ClientFormData>();
   const state = form.watch("state");
   const currentStateTaxRate = form.watch("state_tax_rate");
+  const formulaType = form.watch("blueprint_type") as FormulaType;
+  const isGI = isGuaranteedIncomeProduct(formulaType);
 
   // Track if user is manually editing state tax
   const [isManualEdit, setIsManualEdit] = useState(false);
@@ -207,42 +210,44 @@ export function TaxDataSection() {
         )}
       />
 
-      {/* RMD Treatment (Baseline Scenario) */}
-      <Controller
-        name="rmd_treatment"
-        control={form.control}
-        render={({ field, fieldState }) => {
-          const selectedOption = RMD_TREATMENT_OPTIONS.find(opt => opt.value === field.value);
-          return (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="rmd_treatment">RMD Treatment (Baseline)</FieldLabel>
-              <Select value={field.value} onValueChange={field.onChange}>
-                <SelectTrigger
-                  id="rmd_treatment"
-                  className="w-full"
-                  aria-invalid={fieldState.invalid}
-                >
-                  <SelectValue placeholder="Select RMD treatment">
-                    {selectedOption?.label ?? "Select RMD treatment"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {RMD_TREATMENT_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <div className="flex flex-col">
-                        <span>{option.label}</span>
-                        <span className="text-xs text-muted-foreground">{option.description}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldDescription>How RMDs are handled in the &quot;do nothing&quot; baseline scenario</FieldDescription>
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          );
-        }}
-      />
+      {/* RMD Treatment (Baseline Scenario) - Only for Growth products */}
+      {!isGI && (
+        <Controller
+          name="rmd_treatment"
+          control={form.control}
+          render={({ field, fieldState }) => {
+            const selectedOption = RMD_TREATMENT_OPTIONS.find(opt => opt.value === field.value);
+            return (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="rmd_treatment">RMD Treatment (Baseline)</FieldLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger
+                    id="rmd_treatment"
+                    className="w-full"
+                    aria-invalid={fieldState.invalid}
+                  >
+                    <SelectValue placeholder="Select RMD treatment">
+                      {selectedOption?.label ?? "Select RMD treatment"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {RMD_TREATMENT_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        <div className="flex flex-col">
+                          <span>{option.label}</span>
+                          <span className="text-xs text-muted-foreground">{option.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>How RMDs are handled in the &quot;do nothing&quot; baseline scenario</FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            );
+          }}
+        />
+      )}
 
       {/* State */}
       <Controller

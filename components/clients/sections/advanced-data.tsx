@@ -109,36 +109,40 @@ export function AdvancedDataSection() {
             />
           )}
 
-          {/* Post Contract Rate - Always editable */}
-          <Controller
-            name="post_contract_rate"
-            control={form.control}
-            render={({ field: { ref, ...field }, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="post_contract_rate">Post Contract Rate</FieldLabel>
-                <PercentInput
-                  {...field}
-                  aria-invalid={fieldState.invalid}
-                />
-                <FieldDescription>Return rate after contract period ends</FieldDescription>
-                <FieldError errors={[fieldState.error]} />
-              </Field>
-            )}
-          />
-
-          {/* Years to Defer Conversion - Always editable */}
-          <Field data-invalid={!!form.formState.errors.years_to_defer_conversion}>
-            <FieldLabel htmlFor="years_to_defer_conversion">Years to Defer Conversion</FieldLabel>
-            <Input
-              id="years_to_defer_conversion"
-              type="number"
-              min={0}
-              max={30}
-              {...form.register("years_to_defer_conversion", { valueAsNumber: true })}
+          {/* Post Contract Rate - Growth products only */}
+          {!isGI && (
+            <Controller
+              name="post_contract_rate"
+              control={form.control}
+              render={({ field: { ref, ...field }, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="post_contract_rate">Post Contract Rate</FieldLabel>
+                  <PercentInput
+                    {...field}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <FieldDescription>Return rate after contract period ends</FieldDescription>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
             />
-            <FieldDescription>Delay conversions by this many years</FieldDescription>
-            <FieldError errors={[form.formState.errors.years_to_defer_conversion]} />
-          </Field>
+          )}
+
+          {/* Years to Defer Conversion - Growth products only (GI uses gi_conversion_years) */}
+          {!isGI && (
+            <Field data-invalid={!!form.formState.errors.years_to_defer_conversion}>
+              <FieldLabel htmlFor="years_to_defer_conversion">Years to Defer Conversion</FieldLabel>
+              <Input
+                id="years_to_defer_conversion"
+                type="number"
+                min={0}
+                max={30}
+                {...form.register("years_to_defer_conversion", { valueAsNumber: true })}
+              />
+              <FieldDescription>Delay conversions by this many years</FieldDescription>
+              <FieldError errors={[form.formState.errors.years_to_defer_conversion]} />
+            </Field>
+          )}
 
           {/* End Age - Always editable */}
           <Field data-invalid={!!form.formState.errors.end_age}>

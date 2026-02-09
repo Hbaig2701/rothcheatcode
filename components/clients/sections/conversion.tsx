@@ -5,6 +5,7 @@ import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { Checkbox } from "@/components/ui/checkbox";
+import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 
 const CONVERSION_TYPE_OPTIONS = [
   { value: "optimized_amount", label: "Optimized Amount" },
@@ -15,6 +16,12 @@ const CONVERSION_TYPE_OPTIONS = [
 
 export function ConversionSection() {
   const form = useFormContext<ClientFormData>();
+  const formulaType = form.watch("blueprint_type") as FormulaType;
+
+  // Hide for GI products - they use gi_conversion_years and gi_conversion_bracket instead
+  if (isGuaranteedIncomeProduct(formulaType)) {
+    return null;
+  }
 
   return (
     <FormSection title="6. Conversion">
