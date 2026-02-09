@@ -74,14 +74,16 @@ function calculateBaselineLegacyToHeirs(years: YearlyResult[], heirTaxRate: numb
 /**
  * Calculate Lifetime Wealth Trajectory for GI FORMULA scenario
  *
- * GI Formula:
- *   lifetimeWealth = cumulativeNetGIPayments
- *                  + netLegacy (accountValue * (1 - heirTaxRate) + rothBalance)
- *                  - cumulativeConversionTaxes (deferral phase only)
- *                  - cumulativeIRMAA
+ * GI 4-Phase Model:
+ *   Phase 1 (conversion): Traditional → Roth, taxes paid
+ *   Phase 2 (purchase): Roth → GI FIA
+ *   Phase 3 (deferral): Income Base grows via roll-up
+ *   Phase 4 (income): Tax-free GI payments
  *
- * During deferral: taxes are conversion taxes (cost). No income received.
- * During income: after-tax GI payments are income. Taxes on GI already excluded from net.
+ * lifetimeWealth = cumulativeNetGIPayments
+ *                + netLegacy (accountValue + rothBalance + taxableBalance)
+ *                - cumulativeConversionTaxes
+ *                - cumulativeIRMAA
  */
 function calculateGIFormulaLifetimeWealth(
   formulaYears: YearlyResult[],
@@ -97,16 +99,30 @@ function calculateGIFormulaLifetimeWealth(
 
     cumulativeIRMAA += year.irmaaSurcharge || 0;
 
-    if (giYear && giYear.phase === 'deferral') {
-      // Deferral: federalTax + stateTax are conversion taxes
-      cumulativeConversionTaxes += (year.federalTax + year.stateTax) || 0;
-    } else if (giYear && giYear.phase === 'income') {
-      // Income: accumulate after-tax GI payments
-      cumulativeNetGI += giYear.guaranteedIncomeNet;
+    if (giYear) {
+      if (giYear.phase === 'conversion') {
+        // Conversion phase: federalTax + stateTax are conversion taxes
+        cumulativeConversionTaxes += giYear.conversionTax || 0;
+      } else if (giYear.phase === 'income') {
+        // Income phase: accumulate after-tax GI payments (tax-free from Roth!)
+        cumulativeNetGI += giYear.guaranteedIncomeNet;
+      }
     }
 
-    // Legacy: account value (annuity) taxed at heir rate, Roth is tax-free
-    const netLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + year.rothBalance;
+    // Legacy calculation depends on phase
+    let netLegacy = 0;
+    if (giYear && (giYear.phase === 'conversion' || giYear.phase === 'purchase')) {
+      // Before GI purchase: Track Traditional + Roth + Taxable
+      netLegacy = Math.round(giYear.traditionalBalance * (1 - heirTaxRate))
+                + giYear.rothBalance
+                + (year.taxableBalance || 0);
+    } else if (giYear && (giYear.phase === 'deferral' || giYear.phase === 'income')) {
+      // After GI purchase: Account value (in Roth, so no heir tax) + Taxable
+      netLegacy = giYear.accountValue + (year.taxableBalance || 0);
+    } else {
+      // Fallback
+      netLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + year.rothBalance;
+    }
 
     return cumulativeNetGI + netLegacy - cumulativeConversionTaxes - cumulativeIRMAA;
   });

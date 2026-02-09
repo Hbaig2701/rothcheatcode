@@ -53,42 +53,47 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const payoutPercent = projection.gi_payout_percent || 0;
   const calculatedIncome = Math.round(finalIncomeBase * (payoutPercent / 100));
 
-  // RMD treatment option affects how we calculate lifetime wealth
-  const rmdTreatment = client.rmd_treatment ?? 'reinvested';
+  // GI Baseline calculations (Traditional GI - taxable income)
+  // Use the new GI comparison metrics from projection
+  const baselineAnnualIncomeGross = projection.gi_baseline_annual_income_gross ?? 0;
+  const baselineAnnualIncomeNet = projection.gi_baseline_annual_income_net ?? 0;
+  const baselineAnnualTax = projection.gi_baseline_annual_tax ?? 0;
+  const baselineIncomeBase = projection.gi_baseline_income_base ?? 0;
 
-  // Baseline calculations
-  // Note: Taxes and IRMAA are already deducted from taxableBalance in the engine
-  const baseRMDs = sum(projection.baseline_years, "rmdAmount");
+  // Sum baseline taxes from baseline_years
   const baseTax = sum(projection.baseline_years, "federalTax") + sum(projection.baseline_years, "stateTax");
   const baseIrmaa = sum(projection.baseline_years, "irmaaSurcharge");
   const baseFinalTraditional = projection.baseline_final_traditional;
-  const baseFinalRoth = projection.baseline_final_roth;
-  // After-tax distributions (for display purposes)
-  const baseAfterTaxDist = baseRMDs - baseTax;
-  // Heir tax only applies to traditional IRA portion
+
+  // For GI baseline, lifetime income is the key metric
+  const baselineGIYearlyData = projection.gi_baseline_yearly_data || [];
+  let baselineTotalNetIncome = 0;
+  baselineGIYearlyData.forEach((year) => {
+    if (year.phase === 'income') {
+      baselineTotalNetIncome += year.guaranteedIncomeNet;
+    }
+  });
+
+  // Fallback: calculate from projection years if gi_baseline_yearly_data not available
+  if (baselineTotalNetIncome === 0) {
+    const incomeYears = projection.baseline_years.filter(y => y.rmdAmount > 0);
+    baselineTotalNetIncome = incomeYears.reduce((sum, y) => sum + (y.rmdAmount - y.federalTax - y.stateTax), 0);
+  }
+
+  // Heir tax only applies to traditional IRA portion (the GI account value)
   const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
-  // Net legacy = final net worth (includes taxable) minus heir taxes on traditional
+  // Net legacy = final account value minus heir taxes
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
+  // Lifetime wealth = net legacy + lifetime income received
+  const baseLifetimeWealth = baseNetLegacy + baselineTotalNetIncome;
 
-  // Get cumulative after-tax distributions for 'spent' scenario
-  const lastBaselineYear = projection.baseline_years[projection.baseline_years.length - 1];
-  const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
-
-  // Lifetime wealth calculation depends on RMD treatment:
-  // - 'spent': Net Legacy + Cumulative Distributions (RMDs were spent, not in legacy)
-  // - 'reinvested'/'cash': Net Legacy only (RMDs are already in taxable balance)
-  const baseLifetimeWealth = rmdTreatment === 'spent'
-    ? baseNetLegacy + baseCumulativeDistributions
-    : baseNetLegacy;
-
-  // Formula (GI) calculations
+  // Formula (GI) calculations - use data from the CONVERSION phase
   let blueConversionTax = 0;
   let totalConverted = 0;
-  projection.blueprint_years.forEach((year, i) => {
-    const giYear = giYearlyData[i];
-    if (giYear && giYear.phase === "deferral") {
-      blueConversionTax += (year.federalTax + year.stateTax) || 0;
-      totalConverted += year.conversionAmount || 0;
+  giYearlyData.forEach((giYear) => {
+    if (giYear && giYear.phase === "conversion") {
+      blueConversionTax += giYear.conversionTax || 0;
+      totalConverted += giYear.conversionAmount || 0;
     }
   });
 
@@ -388,7 +393,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
           />
           <ComparisonCard
             label="Lifetime Income"
-            baseline={baseAfterTaxDist}
+            baseline={baselineTotalNetIncome}
             strategy={giTotalNet}
           />
           <ComparisonCard
