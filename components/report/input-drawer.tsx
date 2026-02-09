@@ -65,6 +65,8 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       guaranteed_rate_of_return: client?.guaranteed_rate_of_return ?? 0,
       roll_up_option: client?.roll_up_option ?? null,
       payout_option: client?.payout_option ?? null,
+      gi_conversion_years: client?.gi_conversion_years ?? 5,
+      gi_conversion_bracket: client?.gi_conversion_bracket ?? 24,
       surrender_years: client?.surrender_years ?? 7,
       penalty_free_percent: client?.penalty_free_percent ?? 10,
       baseline_comparison_rate: client?.baseline_comparison_rate ?? 7,
