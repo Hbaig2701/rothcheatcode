@@ -760,8 +760,9 @@ function runGIBaselineScenario(
   const payoutOption = client.payout_option ?? 'level';
   const rollUpOption = client.roll_up_option ?? null;
 
-  // Baseline: Purchase GI immediately (no conversion phase)
-  const purchaseAge = clientAge;
+  // Baseline: Purchase GI at SAME AGE as strategy for fair comparison
+  // Both scenarios should have the same deferral period
+  const purchaseAge = strategyMetrics.purchaseAge;
   const deferralYears = Math.max(0, effectiveIncomeStartAge - purchaseAge);
 
   // --- Tax config ---
@@ -787,34 +788,14 @@ function runGIBaselineScenario(
   const riderFeeAppliesTo = productData?.riderFeeAppliesTo ?? 'incomeBase';
 
   // --- Initial values ---
-  // Baseline: Buy GI directly with Traditional IRA balance
-  const purchaseAmount = client.qualified_account_value ?? 0;
-
-  // Apply product-specific bonus logic
+  // Baseline: Traditional IRA grows during waiting period, then purchases GI at same age as strategy
+  let traditionalBalance = client.qualified_account_value ?? 0;
   let accountValue = 0;
   let incomeBase = 0;
-
-  if (productData) {
-    const bonusRate = (client.bonus_percent ?? 0) / 100;
-
-    if (productData.bonusAppliesTo === 'accountValue') {
-      accountValue = Math.round(purchaseAmount * (1 + bonusRate));
-      incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
-    } else if (productData.bonusAppliesTo === 'incomeBase') {
-      accountValue = purchaseAmount;
-      incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
-    } else {
-      accountValue = purchaseAmount;
-      incomeBase = purchaseAmount;
-    }
-  } else {
-    const bonusRate = (client.bonus_percent ?? 0) / 100;
-    accountValue = Math.round(purchaseAmount * (1 + bonusRate));
-    incomeBase = accountValue;
-  }
-
-  const originalIncomeBase = incomeBase;
-  let incomeBaseAtIncomeAge = incomeBase;
+  let originalIncomeBase = 0;
+  let giPurchased = false;
+  let incomeBaseAtStart = 0;
+  let incomeBaseAtIncomeAge = 0;
   let guaranteedAnnualIncome = 0;
   let payoutPercent = 0;
   let cumulativeIncome = 0;
@@ -856,18 +837,171 @@ function runGIBaselineScenario(
 
     // --- Standard deduction ---
     const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
+    const boyTraditional = traditionalBalance;
 
-    // Determine phase
-    const isDeferralPhase = age < effectiveIncomeStartAge;
+    // Determine phase - baseline has: waiting, purchase, deferral, income
+    let currentPhase: 'waiting' | 'purchase' | 'deferral' | 'income';
+    if (age < purchaseAge) {
+      currentPhase = 'waiting';
+    } else if (age === purchaseAge && !giPurchased) {
+      currentPhase = 'purchase';
+    } else if (age < effectiveIncomeStartAge) {
+      currentPhase = 'deferral';
+    } else {
+      currentPhase = 'income';
+    }
+
+    // =======================================================================
+    // WAITING PHASE: Traditional IRA grows before GI purchase
+    // =======================================================================
+    if (currentPhase === 'waiting') {
+      // Traditional IRA grows
+      const iraGrowth = Math.round(traditionalBalance * rateOfReturn);
+      traditionalBalance = traditionalBalance + iraGrowth;
+
+      // Taxable account grows
+      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      taxableBalance = boyTaxable + taxableInterest;
+
+      // IRMAA
+      const magi = otherIncome + taxExemptNonSSI + ssIncome;
+      incomeHistory.set(year, magi);
+
+      let irmaaSurcharge = 0;
+      if (age >= 65) {
+        const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+        irmaaSurcharge = irmaaResult.annualSurcharge;
+      }
+
+      results.push({
+        year, age, spouseAge,
+        traditionalBalance,
+        rothBalance: 0,
+        taxableBalance,
+        rmdAmount: 0,
+        conversionAmount: 0,
+        ssIncome,
+        pensionIncome: 0,
+        otherIncome,
+        totalIncome: otherIncome + ssIncome,
+        federalTax: 0,
+        stateTax: 0,
+        niitTax: 0,
+        irmaaSurcharge,
+        totalTax: irmaaSurcharge,
+        taxableSS: 0,
+        netWorth: traditionalBalance + taxableBalance,
+      });
+
+      giYearlyData.push({
+        year, age,
+        phase: 'conversion', // Use 'conversion' to match strategy phase naming
+        traditionalBalance,
+        rothBalance: 0,
+        conversionAmount: 0,
+        conversionTax: 0,
+        accountValue: 0,
+        incomeBase: 0,
+        guaranteedIncomeGross: 0,
+        guaranteedIncomeNet: 0,
+        riderFee: 0,
+        cumulativeIncome: 0,
+      });
+      continue;
+    }
+
+    // =======================================================================
+    // PURCHASE PHASE: Buy GI with grown Traditional IRA balance
+    // =======================================================================
+    if (currentPhase === 'purchase') {
+      giPurchased = true;
+
+      // Purchase amount is the grown Traditional IRA balance
+      const purchaseAmount = traditionalBalance;
+      traditionalBalance = 0;
+
+      // Apply product-specific bonus logic
+      if (productData) {
+        const bonusRate = (client.bonus_percent ?? 0) / 100;
+
+        if (productData.bonusAppliesTo === 'accountValue') {
+          accountValue = Math.round(purchaseAmount * (1 + bonusRate));
+          incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
+        } else if (productData.bonusAppliesTo === 'incomeBase') {
+          accountValue = purchaseAmount;
+          incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
+        } else {
+          accountValue = purchaseAmount;
+          incomeBase = purchaseAmount;
+        }
+      } else {
+        const bonusRate = (client.bonus_percent ?? 0) / 100;
+        accountValue = Math.round(purchaseAmount * (1 + bonusRate));
+        incomeBase = accountValue;
+      }
+
+      originalIncomeBase = incomeBase;
+      incomeBaseAtStart = incomeBase;
+
+      // Taxable account grows
+      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      taxableBalance = boyTaxable + taxableInterest;
+
+      // IRMAA
+      const magi = otherIncome + taxExemptNonSSI + ssIncome;
+      incomeHistory.set(year, magi);
+
+      let irmaaSurcharge = 0;
+      if (age >= 65) {
+        const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+        irmaaSurcharge = irmaaResult.annualSurcharge;
+      }
+
+      results.push({
+        year, age, spouseAge,
+        traditionalBalance: accountValue,
+        rothBalance: 0,
+        taxableBalance,
+        rmdAmount: 0,
+        conversionAmount: 0,
+        ssIncome,
+        pensionIncome: 0,
+        otherIncome,
+        totalIncome: otherIncome + ssIncome,
+        federalTax: 0,
+        stateTax: 0,
+        niitTax: 0,
+        irmaaSurcharge,
+        totalTax: irmaaSurcharge,
+        taxableSS: 0,
+        netWorth: accountValue + taxableBalance,
+      });
+
+      giYearlyData.push({
+        year, age,
+        phase: 'purchase',
+        traditionalBalance: 0,
+        rothBalance: 0,
+        conversionAmount: 0,
+        conversionTax: 0,
+        accountValue,
+        incomeBase,
+        guaranteedIncomeGross: 0,
+        guaranteedIncomeNet: 0,
+        riderFee: 0,
+        cumulativeIncome: 0,
+      });
+      continue;
+    }
 
     // =======================================================================
     // DEFERRAL PHASE: Income Base grows via roll-up
     // =======================================================================
-    if (isDeferralPhase) {
-      const deferralYear = yearOffset + 1;
+    if (currentPhase === 'deferral') {
+      const deferralYear = age - purchaseAge; // Years since purchase
 
       // Roll up Income Base
-      if (productData) {
+      if (productData && deferralYear > 0) {
         const rollUpInfo = getRollUpForYear(productId, deferralYear, rollUpOption);
         if (rollUpInfo) {
           if (rollUpInfo.type === 'simple') {
