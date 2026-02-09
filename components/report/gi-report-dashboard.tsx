@@ -18,6 +18,8 @@ import {
   getBreakEvenTooltip,
   getDepletionAgeTooltip,
 } from "./gi-info-tooltip";
+import { GIStoryMode } from "./gi-story-mode";
+import { BookOpen } from "lucide-react";
 
 interface GIReportDashboardProps {
   client: Client;
@@ -39,6 +41,7 @@ const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
 export function GIReportDashboard({ client, projection }: GIReportDashboardProps) {
   const [tableView, setTableView] = useState<"summary" | "full" | "baseline">("summary");
   const [productDetailsOpen, setProductDetailsOpen] = useState(false);
+  const [storyModeOpen, setStoryModeOpen] = useState(false);
 
   const chartData = transformToGIChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
@@ -142,7 +145,27 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
+      {/* Story Mode Modal */}
+      {storyModeOpen && (
+        <GIStoryMode
+          client={client}
+          projection={projection}
+          onClose={() => setStoryModeOpen(false)}
+        />
+      )}
+
       <div className="p-9 space-y-6">
+        {/* Action Bar */}
+        <div className="flex justify-end">
+          <button
+            onClick={() => setStoryModeOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[rgba(212,175,55,0.1)] border border-[rgba(212,175,55,0.2)] text-gold hover:bg-[rgba(212,175,55,0.15)] transition-colors"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span className="text-sm font-medium">Story Mode</span>
+          </button>
+        </div>
+
         {/* Section 1: The Guarantee (Hero Card) - Tax-Free Roth GI Income */}
         <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[16px] py-10 px-12 text-center relative">
           <div className="absolute top-4 right-4">
