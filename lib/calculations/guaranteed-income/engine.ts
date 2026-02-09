@@ -312,15 +312,24 @@ function runGIStrategyScenario(
       let federalConversionTax = 0;
       let stateConversionTax = 0;
 
+      // Check if this is the LAST year of conversion phase
+      const isLastConversionYear = age === conversionEndAge;
+
       if (boyTraditional > 0) {
-        // Calculate optimal conversion that fills up to target bracket
-        conversionAmount = calculateOptimalConversion(
-          boyTraditional,
-          existingTaxableIncome,
-          conversionBracket,
-          client.filing_status,
-          year
-        );
+        if (isLastConversionYear) {
+          // LAST YEAR: Convert ALL remaining Traditional to ensure everything goes into Roth GI
+          // This may push into higher brackets, but ensures full participation in the strategy
+          conversionAmount = boyTraditional;
+        } else {
+          // Normal year: Calculate optimal conversion that fills up to target bracket
+          conversionAmount = calculateOptimalConversion(
+            boyTraditional,
+            existingTaxableIncome,
+            conversionBracket,
+            client.filing_status,
+            year
+          );
+        }
 
         // Handle tax payment from IRA
         if (payTaxFromIRA && conversionAmount > 0) {
@@ -329,7 +338,7 @@ function runGIStrategyScenario(
           conversionAmount = Math.min(conversionAmount, boyTraditional);
         }
 
-        // Calculate conversion tax
+        // Calculate conversion tax (use actual brackets, not just target bracket)
         if (conversionAmount > 0) {
           federalConversionTax = calculateConversionFederalTax(
             conversionAmount,
