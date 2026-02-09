@@ -127,6 +127,8 @@ export const clientFormulaBaseSchema = z.object({
   guaranteed_rate_of_return: z.number().min(0).max(30).default(0),
   roll_up_option: z.enum(['simple', 'compound']).nullable().default(null),
   payout_option: z.enum(['level', 'increasing']).nullable().default(null),
+  gi_conversion_years: z.number().int().min(1, "Minimum 1 year").max(15, "Maximum 15 years").default(5),
+  gi_conversion_bracket: z.number().min(10).max(40).default(24),
 
   // Section 8: Advanced Data
   surrender_years: z.number().int().min(0).max(20).default(7),
@@ -223,6 +225,8 @@ export const clientFullBaseSchema = z.object({
   guaranteed_rate_of_return: z.number().min(0).max(30).default(0),
   roll_up_option: z.enum(['simple', 'compound']).nullable().default(null),
   payout_option: z.enum(['level', 'increasing']).nullable().default(null),
+  gi_conversion_years: z.number().int().min(1).max(15).default(5),
+  gi_conversion_bracket: z.number().min(10).max(40).default(24),
 
   // Spouse SSI fields
   spouse_ssi_payout_age: z.number().int().min(62).max(70).optional().nullable(),
@@ -384,6 +388,8 @@ export type ClientFormData = {
   guaranteed_rate_of_return: number;
   roll_up_option: "simple" | "compound" | null;
   payout_option: "level" | "increasing" | null;
+  gi_conversion_years: number;
+  gi_conversion_bracket: number;
 
   // Section 8: Advanced
   surrender_years: number;

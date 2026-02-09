@@ -6,7 +6,7 @@ import type { Client } from "@/lib/types/client";
 import type { YearlyResult } from "@/lib/calculations";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToGIChartData } from "@/lib/calculations/transforms";
-import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
 
@@ -129,25 +129,132 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       <div className="p-9 space-y-6">
-        {/* Section 1: The Guarantee (Hero Card) */}
+        {/* Section 1: The Guarantee (Hero Card) - Tax-Free Roth GI Income */}
         <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[16px] py-10 px-12 text-center">
           <p className="text-sm uppercase tracking-[3px] text-[rgba(212,175,55,0.7)] mb-2 font-medium">
-            Your Guaranteed Lifetime Income
+            Your Tax-Free Guaranteed Income
           </p>
           <div className="w-16 h-[2px] bg-gold mx-auto mb-6" />
           <p className="text-5xl font-mono font-semibold text-gold mb-1">
-            {toUSD(projection.gi_annual_income_gross || 0)}/year
+            {toUSD(projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0)}/year
           </p>
-          <p className="text-lg font-display text-white mb-5">for life</p>
+          <p className="text-lg font-display text-white mb-3">tax-free for life</p>
+
+          {/* Comparison with baseline taxable income */}
+          {projection.gi_baseline_annual_income_net && (
+            <div className="bg-[rgba(0,0,0,0.2)] rounded-lg py-3 px-6 inline-block mb-4">
+              <p className="text-sm text-[rgba(255,255,255,0.6)]">
+                vs. Traditional GI: {toUSD(projection.gi_baseline_annual_income_gross || 0)}/year gross
+                → <span className="text-[#f87171]">{toUSD(projection.gi_baseline_annual_income_net)}/year after tax</span>
+              </p>
+            </div>
+          )}
+
           <p className="text-base text-[rgba(255,255,255,0.6)]">
-            After taxes: {toUSD(projection.gi_annual_income_net || 0)}/year · Starting age {incomeStartAge}
+            Starting age {incomeStartAge} · {payoutTypeDisplay} · {payoutPercent.toFixed(2)}% payout rate
           </p>
-          <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">
-            {payoutTypeDisplay} · {payoutPercent.toFixed(2)}% payout rate
-          </p>
+          {projection.gi_annual_income_advantage && projection.gi_annual_income_advantage > 0 && (
+            <p className="text-base text-[#4ade80] mt-2 font-medium">
+              +{toUSD(projection.gi_annual_income_advantage)}/year advantage over traditional
+            </p>
+          )}
         </div>
 
-        {/* Section 2: Income Base Journey */}
+        {/* Section 2: 4-Phase Journey */}
+        {projection.gi_conversion_phase_years && projection.gi_conversion_phase_years > 0 && (
+          <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
+            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-6 font-medium">
+              Your Tax-Free Income Journey
+            </p>
+
+            {/* 4-Phase Timeline */}
+            <div className="flex items-stretch gap-3 mb-6 overflow-x-auto pb-2">
+              {/* Phase 1: Conversion */}
+              <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] p-5 min-w-[180px] flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-[rgba(212,175,55,0.15)] flex items-center justify-center text-gold text-sm font-bold">1</div>
+                  <p className="text-sm font-medium text-gold uppercase tracking-wide">Convert</p>
+                </div>
+                <p className="text-2xl font-mono font-medium text-white mb-1">
+                  {projection.gi_conversion_phase_years} years
+                </p>
+                <p className="text-xs text-[rgba(255,255,255,0.5)] mb-2">Traditional → Roth IRA</p>
+                <p className="text-sm font-mono text-[#f87171]">
+                  Tax: {toUSD(projection.gi_total_conversion_tax || 0)}
+                </p>
+              </div>
+
+              <div className="flex items-center">
+                <ArrowRight className="w-5 h-5 text-[rgba(255,255,255,0.3)]" />
+              </div>
+
+              {/* Phase 2: Purchase */}
+              <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] p-5 min-w-[180px] flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-[rgba(212,175,55,0.15)] flex items-center justify-center text-gold text-sm font-bold">2</div>
+                  <p className="text-sm font-medium text-gold uppercase tracking-wide">Purchase</p>
+                </div>
+                <p className="text-2xl font-mono font-medium text-white mb-1">
+                  Age {projection.gi_purchase_age}
+                </p>
+                <p className="text-xs text-[rgba(255,255,255,0.5)] mb-2">Buy GI in Roth IRA</p>
+                <p className="text-sm font-mono text-[#4ade80]">
+                  {toUSD(projection.gi_purchase_amount || 0)}
+                </p>
+              </div>
+
+              <div className="flex items-center">
+                <ArrowRight className="w-5 h-5 text-[rgba(255,255,255,0.3)]" />
+              </div>
+
+              {/* Phase 3: Grow (Deferral) */}
+              <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] p-5 min-w-[180px] flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-[rgba(212,175,55,0.15)] flex items-center justify-center text-gold text-sm font-bold">3</div>
+                  <p className="text-sm font-medium text-gold uppercase tracking-wide">Grow</p>
+                </div>
+                <p className="text-2xl font-mono font-medium text-white mb-1">
+                  {projection.gi_deferral_years || 0} years
+                </p>
+                <p className="text-xs text-[rgba(255,255,255,0.5)] mb-2">Income Base grows</p>
+                <p className="text-sm font-mono text-gold">
+                  +{toUSD(rollUpGrowth)}
+                </p>
+              </div>
+
+              <div className="flex items-center">
+                <ArrowRight className="w-5 h-5 text-[rgba(255,255,255,0.3)]" />
+              </div>
+
+              {/* Phase 4: Income */}
+              <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[10px] p-5 min-w-[180px] flex-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-full bg-[rgba(212,175,55,0.25)] flex items-center justify-center text-gold text-sm font-bold">4</div>
+                  <p className="text-sm font-medium text-gold uppercase tracking-wide">Income</p>
+                </div>
+                <p className="text-2xl font-mono font-semibold text-gold mb-1">
+                  For Life
+                </p>
+                <p className="text-xs text-[rgba(212,175,55,0.7)] mb-2">Tax-free payments</p>
+                <p className="text-sm font-mono text-[#4ade80]">
+                  {toUSD(projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0)}/yr
+                </p>
+              </div>
+            </div>
+
+            {/* Break-even callout */}
+            {projection.gi_break_even_years && projection.gi_break_even_age && (
+              <div className="bg-[rgba(74,222,128,0.05)] border border-[rgba(74,222,128,0.15)] rounded-lg p-4 text-center">
+                <p className="text-sm text-[#4ade80]">
+                  <span className="font-semibold">Break-even at age {projection.gi_break_even_age}</span>
+                  {" "}({projection.gi_break_even_years} years after income starts) — then pure tax-free advantage
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Section 3: Income Base Journey */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
           <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-6 font-medium">
             How Your Income Is Calculated
@@ -254,26 +361,49 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
 
         {/* Section 4: Strategy Comparison Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Highlight Card: Tax-Free Wealth Created */}
+          {projection.gi_tax_free_wealth_created !== null && projection.gi_tax_free_wealth_created !== undefined && (
+            <div className="col-span-2 lg:col-span-4 bg-[rgba(74,222,128,0.05)] border border-[rgba(74,222,128,0.15)] rounded-[14px] p-6 text-center">
+              <p className="text-xs uppercase tracking-[1.5px] text-[rgba(74,222,128,0.7)] mb-2 font-medium">
+                Tax-Free Wealth Created
+              </p>
+              <p className="text-4xl font-mono font-semibold text-[#4ade80] mb-2">
+                +{toUSD(projection.gi_tax_free_wealth_created)}
+              </p>
+              <p className="text-sm text-[rgba(255,255,255,0.5)]">
+                Lifetime advantage over Traditional GI
+                {projection.gi_percent_improvement && (
+                  <span className="text-[#4ade80] ml-2">
+                    (+{projection.gi_percent_improvement.toFixed(1)}% improvement)
+                  </span>
+                )}
+              </p>
+            </div>
+          )}
+
+          <ComparisonCard
+            label="Annual Income"
+            baseline={projection.gi_baseline_annual_income_net || 0}
+            strategy={projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0}
+          />
           <ComparisonCard
             label="Lifetime Income"
             baseline={baseAfterTaxDist}
             strategy={giTotalNet}
           />
           <ComparisonCard
-            label="Net Legacy"
-            baseline={baseNetLegacy}
-            strategy={blueNetLegacy}
-          />
-          <ComparisonCard
-            label="Total Taxes Paid"
-            baseline={baseTax + Math.round(baseFinalTraditional * heirTaxRate)}
-            strategy={blueConversionTax + giTaxOnPayments + Math.round(blueFinalTraditional * heirTaxRate)}
+            label="Conversion Cost"
+            baseline={0}
+            strategy={projection.gi_total_conversion_tax || blueConversionTax}
             invertColor
+            showAsAbsolute
           />
           <ComparisonCard
-            label="Lifetime Wealth"
-            baseline={baseLifetimeWealth}
-            strategy={blueLifetimeWealth}
+            label="Break-Even"
+            baseline={0}
+            strategy={projection.gi_break_even_years || 0}
+            suffix=" years"
+            showAsAbsolute
           />
         </div>
 
@@ -366,20 +496,25 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                 <tr className="bg-[rgba(255,255,255,0.02)]">
                   <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Year</th>
                   <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Age</th>
+                  <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Phase</th>
+                  {tableView === "full" && (
+                    <>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad IRA</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Roth IRA</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Conversion</th>
+                    </>
+                  )}
                   {tableView === "full" && (
                     <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Income Base</th>
                   )}
-                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Guaranteed Income</th>
+                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">GI Income</th>
                   {tableView === "full" && (
                     <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Rider Fee</th>
                   )}
                   <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Taxes</th>
-                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net Income</th>
+                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net</th>
                   <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Cumulative</th>
                   <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Account Value</th>
-                  {tableView === "full" && (
-                    <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Roth Balance</th>
-                  )}
                 </tr>
               </thead>
               <tbody>
@@ -387,6 +522,10 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                   const blueprintYear = projection.blueprint_years[idx];
                   const isDepletionRow = depletionAge && row.age === depletionAge && row.accountValue <= 0;
                   const isAccountZero = row.accountValue <= 0;
+                  const isConversionPhase = row.phase === "conversion";
+                  const isPurchasePhase = row.phase === "purchase";
+                  const isDeferralPhase = row.phase === "deferral";
+                  const isIncomePhase = row.phase === "income";
 
                   // Calculate cumulative income up to this row
                   let cumulative = 0;
@@ -394,22 +533,54 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                     cumulative += giYearlyData[i].guaranteedIncomeNet;
                   }
 
+                  // Phase display
+                  const phaseLabel = {
+                    conversion: "Convert",
+                    purchase: "Purchase",
+                    deferral: "Grow",
+                    income: "Income",
+                  }[row.phase] || row.phase;
+
+                  const phaseColor = {
+                    conversion: "text-[#f97316]",
+                    purchase: "text-[#a855f7]",
+                    deferral: "text-[#3b82f6]",
+                    income: "text-[#4ade80]",
+                  }[row.phase] || "text-[rgba(255,255,255,0.5)]";
+
                   return (
                     <tr
                       key={row.year}
                       className={cn(
                         "border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors",
-                        isDepletionRow && "bg-[rgba(212,175,55,0.03)] border-l-[3px] border-l-gold"
+                        isDepletionRow && "bg-[rgba(212,175,55,0.03)] border-l-[3px] border-l-gold",
+                        isPurchasePhase && "bg-[rgba(168,85,247,0.05)]"
                       )}
                     >
                       <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
                       <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{row.age}</td>
+                      <td className={cn("px-4 py-3 text-sm font-medium uppercase tracking-wide", phaseColor)}>
+                        {phaseLabel}
+                      </td>
+                      {tableView === "full" && (
+                        <>
+                          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+                            {row.traditionalBalance > 0 ? toUSD(row.traditionalBalance) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-mono text-right text-[#4ade80]">
+                            {row.rothBalance > 0 ? toUSD(row.rothBalance) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-mono text-right text-[#f97316]">
+                            {row.conversionAmount > 0 ? toUSD(row.conversionAmount) : "—"}
+                          </td>
+                        </>
+                      )}
                       {tableView === "full" && (
                         <td className={cn(
                           "px-4 py-3 text-sm font-mono text-right",
-                          row.phase === "deferral" ? "text-gold" : "text-[rgba(255,255,255,0.5)]"
+                          isDeferralPhase ? "text-gold" : "text-[rgba(255,255,255,0.5)]"
                         )}>
-                          {toUSD(row.incomeBase)}
+                          {row.incomeBase > 0 ? toUSD(row.incomeBase) : "—"}
                         </td>
                       )}
                       <td className="px-4 py-3 text-sm font-mono text-right text-gold">
@@ -421,7 +592,9 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                         </td>
                       )}
                       <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
-                        {blueprintYear ? toUSD(blueprintYear.federalTax + blueprintYear.stateTax) : "—"}
+                        {(row.conversionTax > 0 || (blueprintYear && (blueprintYear.federalTax + blueprintYear.stateTax) > 0))
+                          ? toUSD(row.conversionTax || (blueprintYear?.federalTax || 0) + (blueprintYear?.stateTax || 0))
+                          : "—"}
                       </td>
                       <td className="px-4 py-3 text-sm font-mono text-right text-[#4ade80]">
                         {row.guaranteedIncomeNet > 0 ? toUSD(row.guaranteedIncomeNet) : "—"}
@@ -433,16 +606,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                         "px-4 py-3 text-sm font-mono text-right",
                         isAccountZero ? "text-[rgba(255,255,255,0.25)]" : "text-[rgba(255,255,255,0.5)]"
                       )}>
-                        {isAccountZero ? "—" : toUSD(row.accountValue)}
+                        {(isConversionPhase || isPurchasePhase) ? "—" : (isAccountZero ? "—" : toUSD(row.accountValue))}
                       </td>
-                      {tableView === "full" && (
-                        <td className={cn(
-                          "px-4 py-3 text-sm font-mono text-right",
-                          blueprintYear?.rothBalance && blueprintYear.rothBalance > 0 ? "text-[#4ade80]" : "text-[rgba(255,255,255,0.25)]"
-                        )}>
-                          {blueprintYear?.rothBalance && blueprintYear.rothBalance > 0 ? toUSD(blueprintYear.rothBalance) : "—"}
-                        </td>
-                      )}
                     </tr>
                   );
                 })}
@@ -508,15 +673,33 @@ function ComparisonCard({
   baseline,
   strategy,
   invertColor = false,
+  showAsAbsolute = false,
+  suffix = "",
 }: {
   label: string;
   baseline: number;
   strategy: number;
   invertColor?: boolean;
+  showAsAbsolute?: boolean;
+  suffix?: string;
 }) {
   const diff = strategy - baseline;
   const pct = baseline !== 0 ? diff / Math.abs(baseline) : 0;
   const isPositive = invertColor ? diff <= 0 : diff >= 0;
+
+  // For absolute display (like break-even years), just show the strategy value
+  if (showAsAbsolute) {
+    return (
+      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[12px] p-5">
+        <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-4 font-medium">
+          {label}
+        </p>
+        <p className="text-2xl font-mono font-medium text-white">
+          {suffix ? `${strategy}${suffix}` : toUSD(strategy)}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[12px] p-5">

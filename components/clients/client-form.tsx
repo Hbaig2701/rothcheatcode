@@ -91,6 +91,8 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       guaranteed_rate_of_return: client?.guaranteed_rate_of_return ?? 0,
       roll_up_option: client?.roll_up_option ?? null,
       payout_option: client?.payout_option ?? null,
+      gi_conversion_years: client?.gi_conversion_years ?? 5,
+      gi_conversion_bracket: client?.gi_conversion_bracket ?? 24,
 
       // Section 8: Advanced
       surrender_years: client?.surrender_years ?? (ud.surrender_years as number) ?? 7,

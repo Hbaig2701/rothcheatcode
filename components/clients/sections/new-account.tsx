@@ -326,6 +326,48 @@ export function NewAccountSection() {
             <FieldDescription>Age when guaranteed income payments begin (55-80)</FieldDescription>
             <FieldError errors={[form.formState.errors.income_start_age]} />
           </Field>
+
+          {/* GI Conversion Years */}
+          <Field data-invalid={!!form.formState.errors.gi_conversion_years}>
+            <FieldLabel htmlFor="gi_conversion_years">Years to Convert Before GI Purchase</FieldLabel>
+            <Input
+              id="gi_conversion_years"
+              type="number"
+              min={1}
+              max={15}
+              {...form.register("gi_conversion_years", { valueAsNumber: true })}
+              aria-invalid={!!form.formState.errors.gi_conversion_years}
+            />
+            <FieldDescription>Number of years to convert Traditional IRA to Roth before purchasing GI (1-15)</FieldDescription>
+            <FieldError errors={[form.formState.errors.gi_conversion_years]} />
+          </Field>
+
+          {/* GI Conversion Bracket */}
+          <Controller
+            name="gi_conversion_bracket"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel>Conversion Tax Bracket</FieldLabel>
+                <Select
+                  value={field.value?.toString() || "24"}
+                  onValueChange={(val) => field.onChange(Number(val))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select tax bracket" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="12">12%</SelectItem>
+                    <SelectItem value="22">22%</SelectItem>
+                    <SelectItem value="24">24%</SelectItem>
+                    <SelectItem value="32">32%</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FieldDescription>Target tax bracket for Roth conversions during conversion phase</FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
         </>
       )}
     </FormSection>
