@@ -43,6 +43,7 @@ import {
   GI_PRODUCT_DATA,
   getProductPayoutFactor,
   getRollUpForYear,
+  getIncreasingLPARate,
   type GIProductData,
 } from '@/lib/config/gi-product-data';
 import type { GuaranteedIncomeFormulaType } from '@/lib/config/products';
@@ -625,7 +626,16 @@ function runGIStrategyScenario(
         guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
       }
 
-      const grossGI = guaranteedAnnualIncome;
+      // For "increasing" LPA option, apply annual increase after first year
+      // Per North American spec: income grows by ~2% annually (minimum 0.25%)
+      const yearsOfIncome = age - effectiveIncomeStartAge;
+      let grossGI = guaranteedAnnualIncome;
+      if (payoutOption === 'increasing' && yearsOfIncome > 0) {
+        const increaseRate = getIncreasingLPARate(productId);
+        if (increaseRate > 0) {
+          grossGI = Math.round(guaranteedAnnualIncome * Math.pow(1 + increaseRate, yearsOfIncome));
+        }
+      }
 
       // TAX-FREE because it's inside a Roth IRA!
       const netGI = grossGI; // No tax on Roth distributions
@@ -1106,7 +1116,15 @@ function runGIBaselineScenario(
         guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
       }
 
-      const grossGI = guaranteedAnnualIncome;
+      // For "increasing" LPA option, apply annual increase after first year
+      const yearsOfIncome = age - effectiveIncomeStartAge;
+      let grossGI = guaranteedAnnualIncome;
+      if (payoutOption === 'increasing' && yearsOfIncome > 0) {
+        const increaseRate = getIncreasingLPARate(productId);
+        if (increaseRate > 0) {
+          grossGI = Math.round(guaranteedAnnualIncome * Math.pow(1 + increaseRate, yearsOfIncome));
+        }
+      }
 
       // TAXABLE because it's inside a Traditional IRA!
       const grossTaxableIncome = grossGI + otherIncome;

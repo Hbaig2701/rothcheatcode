@@ -82,6 +82,8 @@ export interface GIProductData {
   hasRollUpOptions: boolean;
   /** Human-readable roll-up description */
   rollUpDescription: string;
+  /** Annual increase rate for "increasing" LPA option (North American) */
+  increasingLPARate?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -199,11 +201,12 @@ export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData>
 
   // =========================================================================
   // North American Income Pay Pro
+  // Per spec: No bonus, 8% compound roll-up (highest in industry), 1.15% rider fee
   // =========================================================================
   'north-american-income-pay-pro': {
     bonusAppliesTo: null,
     riderFee: 1.15,
-    riderFeeAppliesTo: 'incomeBase',
+    riderFeeAppliesTo: 'incomeBase', // Fee calculated on GLWB Value, deducted from Accumulation Value
     rollUp: {
       type: 'compound',
       rate: 8,
@@ -212,14 +215,17 @@ export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData>
     payoutTable: {
       level: {
         single: {
-          55: 5.80, 56: 5.90, 57: 6.00, 58: 6.10, 59: 6.20,
+          // Ages 50-55 all get 5.80% per spec
+          50: 5.80, 51: 5.80, 52: 5.80, 53: 5.80, 54: 5.80, 55: 5.80,
+          56: 5.90, 57: 6.00, 58: 6.10, 59: 6.20,
           60: 6.30, 61: 6.40, 62: 6.50, 63: 6.60, 64: 6.70,
           65: 6.80, 66: 6.90, 67: 7.00, 68: 7.10, 69: 7.20,
           70: 7.30, 71: 7.40, 72: 7.50, 73: 7.60, 74: 7.70,
           75: 7.80, 76: 7.90, 77: 8.00, 78: 8.10, 79: 8.20, 80: 8.30,
         },
         joint: {
-          55: 5.30, 56: 5.40, 57: 5.50, 58: 5.60, 59: 5.70,
+          50: 5.30, 51: 5.30, 52: 5.30, 53: 5.30, 54: 5.30, 55: 5.30,
+          56: 5.40, 57: 5.50, 58: 5.60, 59: 5.70,
           60: 5.80, 61: 5.90, 62: 6.00, 63: 6.10, 64: 6.20,
           65: 6.30, 66: 6.40, 67: 6.50, 68: 6.60, 69: 6.70,
           70: 6.80, 71: 6.90, 72: 7.00, 73: 7.10, 74: 7.20,
@@ -228,14 +234,16 @@ export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData>
       },
       increasing: {
         single: {
-          55: 3.80, 56: 3.90, 57: 4.00, 58: 4.10, 59: 4.20,
+          50: 3.80, 51: 3.80, 52: 3.80, 53: 3.80, 54: 3.80, 55: 3.80,
+          56: 3.90, 57: 4.00, 58: 4.10, 59: 4.20,
           60: 4.30, 61: 4.40, 62: 4.50, 63: 4.60, 64: 4.70,
           65: 4.80, 66: 4.90, 67: 5.00, 68: 5.10, 69: 5.20,
           70: 5.30, 71: 5.40, 72: 5.50, 73: 5.60, 74: 5.70,
           75: 5.80, 76: 5.90, 77: 6.00, 78: 6.10, 79: 6.20, 80: 6.30,
         },
         joint: {
-          55: 3.30, 56: 3.40, 57: 3.50, 58: 3.60, 59: 3.70,
+          50: 3.30, 51: 3.30, 52: 3.30, 53: 3.30, 54: 3.30, 55: 3.30,
+          56: 3.40, 57: 3.50, 58: 3.60, 59: 3.70,
           60: 3.80, 61: 3.90, 62: 4.00, 63: 4.10, 64: 4.20,
           65: 4.30, 66: 4.40, 67: 4.50, 68: 4.60, 69: 4.70,
           70: 4.80, 71: 4.90, 72: 5.00, 73: 5.10, 74: 5.20,
@@ -246,6 +254,8 @@ export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData>
     hasDualPayoutOption: true,
     hasRollUpOptions: false,
     rollUpDescription: '8% Compound (10yr)',
+    // Increasing LPA annual increase rate (per spec: currently ~2%, minimum 0.25%)
+    increasingLPARate: 2.0,
   },
 };
 
@@ -266,7 +276,9 @@ export function getProductPayoutFactor(
   const product = GI_PRODUCT_DATA[productId];
   if (!product) return 0.05; // fallback
 
-  const clampedAge = Math.min(Math.max(age, 55), 80);
+  // North American supports ages 50-80, others 55-80
+  const minAge = product.hasDualPayoutOption ? 50 : 55;
+  const clampedAge = Math.min(Math.max(age, minAge), 80);
   const tableKey = payoutType === 'individual' ? 'single' : 'joint';
 
   if (product.hasDualPayoutOption) {
@@ -277,6 +289,15 @@ export function getProductPayoutFactor(
 
   const standardTable = product.payoutTable as StandardPayoutTable;
   return (standardTable[tableKey][clampedAge] ?? 5.0) / 100;
+}
+
+/**
+ * Get the annual increase rate for "increasing" LPA option.
+ * Returns the rate as a decimal (e.g. 0.02 for 2%).
+ */
+export function getIncreasingLPARate(productId: GuaranteedIncomeFormulaType): number {
+  const product = GI_PRODUCT_DATA[productId];
+  return (product?.increasingLPARate ?? 0) / 100;
 }
 
 // ---------------------------------------------------------------------------
