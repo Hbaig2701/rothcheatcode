@@ -32,7 +32,6 @@ import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/
 import {
   calculateFederalTax,
   calculateTaxableIncome,
-  calculateOptimalConversion,
   calculateConversionFederalTax,
 } from '../modules/federal-tax';
 import { calculateStateTax, calculateConversionStateTax } from '../modules/state-tax';
@@ -107,8 +106,12 @@ export function runGuaranteedIncomeSimulation(
     strategyMetrics
   );
 
-  // Calculate comparison metrics
-  const comparison = calculateComparisonMetrics(strategyMetrics, baselineMetrics);
+  // Calculate comparison metrics using client's flat tax rate for baseline
+  const clientTaxRate = (client.tax_rate ?? 24) / 100;
+  const clientStateTaxRate = client.state_tax_rate !== undefined && client.state_tax_rate !== null
+    ? client.state_tax_rate / 100
+    : 0;
+  const comparison = calculateComparisonMetrics(strategyMetrics, baselineMetrics, clientTaxRate + clientStateTaxRate);
 
   // Build GIMetrics object
   const giMetrics: GIMetrics = {
@@ -237,6 +240,12 @@ function runGIStrategyScenario(
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
 
+  // For fixed-years conversion, calculate the base annual conversion amount
+  // This ensures predictable conversion behavior: convert initial amount / years
+  // The IRA grows between conversions, so we convert the fixed amount each year
+  // (or remaining balance if less than fixed amount)
+  const fixedAnnualConversion = Math.round(traditionalBalance / conversionYears);
+
   // --- Tracking ---
   const incomeHistory = new Map<number, number>();
   let totalConversionTax = 0;
@@ -322,14 +331,11 @@ function runGIStrategyScenario(
           // This may push into higher brackets, but ensures full participation in the strategy
           conversionAmount = boyTraditional;
         } else {
-          // Normal year: Calculate optimal conversion that fills up to target bracket
-          conversionAmount = calculateOptimalConversion(
-            boyTraditional,
-            existingTaxableIncome,
-            conversionBracket,
-            client.filing_status,
-            year
-          );
+          // For GI products, use FIXED annual conversion amount
+          // This provides predictable conversion behavior: initial IRA / conversion years
+          // The remaining balance grows, which results in total conversion > initial IRA
+          // This matches user expectation for "Fixed Years" conversion
+          conversionAmount = Math.min(fixedAnnualConversion, boyTraditional);
         }
 
         // Handle tax payment from IRA
@@ -463,6 +469,20 @@ function runGIStrategyScenario(
 
       incomeBaseAtStart = incomeBase;
       originalIncomeBase = incomeBase;
+
+      // Apply FIRST year of roll-up during purchase phase
+      // This ensures we get the full deferral period of roll-ups
+      // (e.g., 10 years from age 60 to 70 = 10 roll-ups, not 9)
+      if (productData) {
+        const rollUpInfo = getRollUpForYear(productId, 1, rollUpOption); // Year 1 roll-up
+        if (rollUpInfo) {
+          if (rollUpInfo.type === 'simple') {
+            incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
+          } else {
+            incomeBase = Math.round(incomeBase * (1 + rollUpInfo.rate));
+          }
+        }
+      }
 
       // Roth balance is now 0 (money moved into GI)
       rothBalance = 0;
@@ -962,6 +982,18 @@ function runGIBaselineScenario(
       originalIncomeBase = incomeBase;
       incomeBaseAtStart = incomeBase;
 
+      // Apply FIRST year of roll-up during purchase phase (same as strategy)
+      if (productData) {
+        const rollUpInfo = getRollUpForYear(productId, 1, rollUpOption);
+        if (rollUpInfo) {
+          if (rollUpInfo.type === 'simple') {
+            incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
+          } else {
+            incomeBase = Math.round(incomeBase * (1 + rollUpInfo.rate));
+          }
+        }
+      }
+
       // Taxable account grows
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
       taxableBalance = boyTaxable + taxableInterest;
@@ -1247,10 +1279,21 @@ function runGIBaselineScenario(
 
 function calculateComparisonMetrics(
   strategy: GIStrategyMetrics & { incomeBaseAtStart: number },
-  baseline: GIBaselineMetrics
+  baseline: GIBaselineMetrics,
+  flatTaxRate: number = 0.24
 ): GIComparisonMetrics {
-  const annualAdvantage = strategy.annualIncomeNet - baseline.annualIncomeNet;
-  const lifetimeAdvantage = strategy.lifetimeIncomeNet - baseline.lifetimeIncomeNet;
+  // For comparison display, use flat tax rate (user-entered) on baseline income
+  // This makes the comparison clearer and matches user expectations
+  const baselineGross = baseline.annualIncomeGross;
+  const baselineAnnualTaxFlat = Math.round(baselineGross * flatTaxRate);
+  const baselineNetFlat = baselineGross - baselineAnnualTaxFlat;
+
+  // Annual advantage: Strategy (tax-free) vs Baseline (taxed at flat rate)
+  const annualAdvantage = strategy.annualIncomeNet - baselineNetFlat;
+
+  // Lifetime calculations using flat rate
+  const incomeYears = 100 - baseline.incomeStartAge; // Assume income to age 100
+  const lifetimeAdvantage = annualAdvantage * incomeYears;
 
   // Break-even years = Conversion Tax / Annual Advantage
   const breakEvenYears = annualAdvantage > 0
@@ -1261,8 +1304,10 @@ function calculateComparisonMetrics(
     ? strategy.incomeStartAge + breakEvenYears
     : null;
 
-  const percentImprovement = baseline.lifetimeIncomeNet > 0
-    ? (lifetimeAdvantage / baseline.lifetimeIncomeNet) * 100
+  // Use flat-rate baseline net for percentage improvement
+  const baselineLifetimeNetFlat = baselineNetFlat * incomeYears;
+  const percentImprovement = baselineLifetimeNetFlat > 0
+    ? (lifetimeAdvantage / baselineLifetimeNetFlat) * 100
     : 0;
 
   return {
@@ -1274,12 +1319,12 @@ function calculateComparisonMetrics(
     strategyTotalConversionTax: strategy.totalConversionTax,
     strategyIncomeBase: strategy.incomeBaseAtIncomeAge,
 
-    // Baseline (Traditional GI)
-    baselineAnnualIncomeGross: baseline.annualIncomeGross,
-    baselineAnnualIncomeNet: baseline.annualIncomeNet,
-    baselineLifetimeIncomeGross: baseline.lifetimeIncomeGross,
-    baselineLifetimeIncomeNet: baseline.lifetimeIncomeNet,
-    baselineAnnualTax: baseline.annualTax,
+    // Baseline (Traditional GI) - using flat tax rate for comparison display
+    baselineAnnualIncomeGross: baselineGross,
+    baselineAnnualIncomeNet: baselineNetFlat,
+    baselineLifetimeIncomeGross: baselineGross * incomeYears,
+    baselineLifetimeIncomeNet: baselineLifetimeNetFlat,
+    baselineAnnualTax: baselineAnnualTaxFlat,
     baselineIncomeBase: baseline.incomeBaseAtIncomeAge,
 
     // Comparison
