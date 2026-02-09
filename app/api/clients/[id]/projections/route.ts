@@ -62,6 +62,9 @@ function generateInputHash(client: Client): string {
     guaranteed_rate_of_return: client.guaranteed_rate_of_return,
     roll_up_option: client.roll_up_option,
     payout_option: client.payout_option,
+    // GI 4-phase model fields
+    gi_conversion_years: client.gi_conversion_years,
+    gi_conversion_bracket: client.gi_conversion_bracket,
   };
   return crypto.createHash('sha256').update(JSON.stringify(relevantFields)).digest('hex');
 }
@@ -130,6 +133,25 @@ function simulationToProjection(
     gi_total_rider_fees: giMetrics?.totalRiderFees ?? null,
     gi_payout_percent: giMetrics?.payoutPercent ?? null,
     gi_roll_up_description: giMetrics?.rollUpDescription ?? null,
+    // GI 4-phase model fields
+    gi_conversion_phase_years: giMetrics?.conversionPhaseYears ?? null,
+    gi_purchase_age: giMetrics?.purchaseAge ?? null,
+    gi_purchase_amount: giMetrics?.purchaseAmount ?? null,
+    gi_total_conversion_tax: giMetrics?.totalConversionTax ?? null,
+    gi_deferral_years: giMetrics?.deferralYears ?? null,
+    // GI comparison metrics
+    gi_strategy_annual_income_net: giMetrics?.comparison?.strategyAnnualIncomeNet ?? null,
+    gi_baseline_annual_income_gross: giMetrics?.comparison?.baselineAnnualIncomeGross ?? null,
+    gi_baseline_annual_income_net: giMetrics?.comparison?.baselineAnnualIncomeNet ?? null,
+    gi_baseline_annual_tax: giMetrics?.comparison?.baselineAnnualTax ?? null,
+    gi_baseline_income_base: giMetrics?.comparison?.baselineIncomeBase ?? null,
+    gi_annual_income_advantage: giMetrics?.comparison?.annualIncomeAdvantage ?? null,
+    gi_lifetime_income_advantage: giMetrics?.comparison?.lifetimeIncomeAdvantage ?? null,
+    gi_tax_free_wealth_created: giMetrics?.comparison?.taxFreeWealthCreated ?? null,
+    gi_break_even_years: giMetrics?.comparison?.breakEvenYears ?? null,
+    gi_break_even_age: giMetrics?.comparison?.breakEvenAge ?? null,
+    gi_percent_improvement: giMetrics?.comparison?.percentImprovement ?? null,
+    gi_baseline_yearly_data: giMetrics?.baselineYearlyData ?? null,
   };
 }
 

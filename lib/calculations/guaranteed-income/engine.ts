@@ -1,25 +1,33 @@
 /**
- * Guaranteed Income Calculation Engine
+ * Guaranteed Income Calculation Engine - 4-Phase Model
  *
- * This is a SEPARATE engine from the Growth engine. It does NOT modify
- * any existing Growth calculation files.
+ * The core value proposition: Tax-free guaranteed income for life.
+ * Strategy: Convert to Roth FIRST, then buy GI inside the Roth.
+ * Baseline: Buy GI directly in Traditional IRA (taxable income).
  *
- * Key differences from Growth:
- * - Tracks two parallel values: Account Value and Income Base
- * - Bonus routing is product-specific (incomeBase, accountValue, or none)
- * - Income Base grows via product-specific roll-up (simple/compound, tiered)
- * - Rider fee deducted from Account Value annually
- * - Payout percentages looked up from product-specific tables by age
- * - Income continues even after Account Value depletes to $0
- * - Conversions only during deferral period (before income starts)
- * - Baseline uses systematic withdrawals matching GI amount for fair comparison
+ * 4-PHASE ARCHITECTURE:
+ * Phase 1 (Conversion): Convert Traditional IRA to Roth over N years
+ * Phase 2 (Purchase): Use full Roth balance to buy GI FIA inside Roth
+ * Phase 3 (Deferral): Income Base grows via roll-up, rider fees apply
+ * Phase 4 (Income): Tax-FREE guaranteed income for life
+ *
+ * BASELINE COMPARISON:
+ * Same GI product purchased directly in Traditional IRA.
+ * Same deferral period, same roll-up, same payout rate.
+ * BUT: Income is TAXABLE.
  *
  * All monetary values are in cents (integers).
  */
 
 import type { Client } from '@/lib/types/client';
 import type { SimulationInput, SimulationResult, YearlyResult } from '../types';
-import type { GIMetrics, GIYearData } from './types';
+import type {
+  GIMetrics,
+  GIYearData,
+  GIComparisonMetrics,
+  GIStrategyMetrics,
+  GIBaselineMetrics,
+} from './types';
 import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/age';
 import {
   calculateFederalTax,
@@ -40,7 +48,7 @@ import {
 import type { GuaranteedIncomeFormulaType } from '@/lib/config/products';
 
 // ---------------------------------------------------------------------------
-// Break-even / Tax savings / Heir benefit (same formulas as Growth engine)
+// Helper Functions
 // ---------------------------------------------------------------------------
 
 function calculateBreakEvenAge(baseline: YearlyResult[], formula: YearlyResult[]): number | null {
@@ -83,9 +91,54 @@ export function runGuaranteedIncomeSimulation(
   const { client, startYear, endYear } = input;
   const projectionYears = endYear - startYear + 1;
 
-  // Run both scenarios
-  const { formula, giMetrics } = runGIFormulaScenario(client, startYear, projectionYears);
-  const baseline = runGIBaselineScenario(client, startYear, projectionYears, giMetrics.annualIncomeGross, giMetrics.incomeStartAge);
+  // Run STRATEGY: Convert First, Then Roth GI (tax-free income)
+  const { formula, strategyMetrics, strategyGIYearlyData } = runGIStrategyScenario(
+    client,
+    startYear,
+    projectionYears
+  );
+
+  // Run BASELINE: Traditional GI (taxable income)
+  const { baseline, baselineMetrics, baselineGIYearlyData } = runGIBaselineScenario(
+    client,
+    startYear,
+    projectionYears,
+    strategyMetrics
+  );
+
+  // Calculate comparison metrics
+  const comparison = calculateComparisonMetrics(strategyMetrics, baselineMetrics);
+
+  // Build GIMetrics object
+  const giMetrics: GIMetrics = {
+    annualIncomeGross: strategyMetrics.annualIncomeGross,
+    annualIncomeNet: strategyMetrics.annualIncomeNet, // Same as gross for Roth GI!
+    incomeStartAge: strategyMetrics.incomeStartAge,
+    depletionAge: findDepletionAge(strategyGIYearlyData),
+    incomeBaseAtStart: strategyMetrics.incomeBaseAtStart,
+    incomeBaseAtIncomeAge: strategyMetrics.incomeBaseAtIncomeAge,
+    totalGrossPaid: strategyMetrics.lifetimeIncomeGross,
+    totalNetPaid: strategyMetrics.lifetimeIncomeNet,
+    yearlyData: strategyGIYearlyData,
+    totalRiderFees: strategyMetrics.totalRiderFees,
+    payoutPercent: strategyMetrics.payoutPercent,
+    rollUpDescription: strategyMetrics.rollUpDescription,
+    bonusAmount: strategyMetrics.bonusAmount,
+    bonusAppliesTo: strategyMetrics.bonusAppliesTo,
+
+    // New 4-phase model fields
+    conversionPhaseYears: strategyMetrics.conversionPhaseYears,
+    purchaseAge: strategyMetrics.purchaseAge,
+    purchaseAmount: strategyMetrics.purchaseAmount,
+    totalConversionTax: strategyMetrics.totalConversionTax,
+    deferralYears: strategyMetrics.deferralYears,
+
+    // Comparison metrics
+    comparison,
+
+    // Baseline data
+    baselineYearlyData: baselineGIYearlyData,
+  };
 
   return {
     baseline,
@@ -97,15 +150,35 @@ export function runGuaranteedIncomeSimulation(
   };
 }
 
+function findDepletionAge(yearlyData: GIYearData[]): number | null {
+  for (const year of yearlyData) {
+    if (year.phase === 'income' && year.accountValue <= 0) {
+      return year.age;
+    }
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
-// GI Formula Scenario
+// STRATEGY SCENARIO: Convert First, Then Roth GI
 // ---------------------------------------------------------------------------
 
-function runGIFormulaScenario(
+function runGIStrategyScenario(
   client: Client,
   startYear: number,
   projectionYears: number
-): { formula: YearlyResult[]; giMetrics: GIMetrics } {
+): {
+  formula: YearlyResult[];
+  strategyMetrics: GIStrategyMetrics & {
+    incomeBaseAtStart: number;
+    totalRiderFees: number;
+    payoutPercent: number;
+    rollUpDescription: string;
+    bonusAmount: number;
+    bonusAppliesTo: string | null;
+  };
+  strategyGIYearlyData: GIYearData[];
+} {
   const results: YearlyResult[] = [];
   const giYearlyData: GIYearData[] = [];
 
@@ -118,49 +191,7 @@ function runGIFormulaScenario(
   const clientAge = useAgeBased ? client.age : 62;
 
   // --- Rates ---
-  const rateOfReturn = (client.rate_of_return ?? 0) / 100;
-
-  // --- Initial values ---
-  const initialQualifiedValue = client.qualified_account_value ?? client.traditional_ira ?? 0;
-  const bonusRate = (client.bonus_percent ?? 0) / 100;
-
-  // --- Product-specific initialization ---
-  let accountValue: number;
-  let incomeBase: number;
-  let bonusAmount = 0;
-  let bonusAppliesTo: string | null = null;
-
-  if (productData) {
-    const bonus = bonusRate;
-    bonusAppliesTo = productData.bonusAppliesTo;
-
-    if (productData.bonusAppliesTo === 'accountValue') {
-      // American Equity: bonus goes to real money + income base
-      accountValue = Math.round(initialQualifiedValue * (1 + bonus));
-      incomeBase = Math.round(initialQualifiedValue * (1 + bonus));
-      bonusAmount = Math.round(initialQualifiedValue * bonus);
-    } else if (productData.bonusAppliesTo === 'incomeBase') {
-      // Athene, EquiTrust: bonus goes to income base only
-      accountValue = initialQualifiedValue;
-      incomeBase = Math.round(initialQualifiedValue * (1 + bonus));
-      bonusAmount = Math.round(initialQualifiedValue * bonus);
-    } else {
-      // North American: no bonus
-      accountValue = initialQualifiedValue;
-      incomeBase = initialQualifiedValue;
-    }
-  } else {
-    // Fallback for unknown products
-    accountValue = Math.round(initialQualifiedValue * (1 + bonusRate));
-    incomeBase = accountValue;
-    bonusAmount = Math.round(initialQualifiedValue * bonusRate);
-  }
-
-  const incomeBaseAtStart = incomeBase;
-  const originalIncomeBase = incomeBase; // Needed for simple interest roll-up
-
-  let rothBalance = client.roth_ira ?? 0;
-  let taxableBalance = client.taxable_accounts ?? 0;
+  const rateOfReturn = (client.rate_of_return ?? 7) / 100;
 
   // --- GI timing ---
   const effectiveIncomeStartAge = Math.max(client.income_start_age ?? 65, clientAge);
@@ -168,59 +199,77 @@ function runGIFormulaScenario(
   const payoutOption = client.payout_option ?? 'level';
   const rollUpOption = client.roll_up_option ?? null;
 
-  // --- Rider fee config ---
-  const riderFeeRate = productData ? productData.riderFee / 100 : 0;
-  const riderFeeAppliesTo = productData?.riderFeeAppliesTo ?? 'incomeBase';
+  // --- Conversion timing ---
+  const conversionYears = client.gi_conversion_years ?? 5;
+  const conversionBracket = client.gi_conversion_bracket ?? client.max_tax_rate ?? 24;
+  const conversionEndAge = clientAge + conversionYears - 1;
+  const purchaseAge = conversionEndAge + 1;
+
+  // Calculate deferral years (from purchase to income start)
+  const deferralYears = Math.max(0, effectiveIncomeStartAge - purchaseAge);
 
   // --- Tax config ---
-  const maxTaxRate = client.max_tax_rate ?? 24;
   const stateTaxRateDecimal = client.state_tax_rate !== undefined && client.state_tax_rate !== null
     ? client.state_tax_rate / 100
     : getStateTaxRate(client.state);
   const payTaxFromIRA = client.tax_payment_source === 'from_ira';
 
-  // --- Conversion timing ---
-  const yearsToDefer = client.years_to_defer_conversion ?? 0;
-  const conversionStartAge = clientAge + yearsToDefer;
-
   // --- SSI config ---
-  const primarySsStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
-  const primarySsAmount = client.ssi_annual_amount ?? client.ss_self ?? 0;
+  const primarySsStartAge = client.ssi_payout_age ?? 67;
+  const primarySsAmount = client.ssi_annual_amount ?? 0;
   const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
-  const spouseSsAmount = client.spouse_ssi_annual_amount ?? client.ss_spouse ?? 0;
+  const spouseSsAmount = client.spouse_ssi_annual_amount ?? 0;
   const useSpouseAgeBased = client.spouse_age !== undefined && client.spouse_age !== null && client.spouse_age > 0;
   const initialSpouseAge = useSpouseAgeBased ? client.spouse_age! : null;
   const ssiColaRate = 0.02;
 
   // --- Other income ---
-  const grossTaxableNonSSI = client.gross_taxable_non_ssi ??
-    (client.non_ssi_income?.[0]?.gross_taxable ?? client.other_income ?? 500000);
+  const grossTaxableNonSSI = client.gross_taxable_non_ssi ?? 500000;
   const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
+
+  // --- Rider fee config ---
+  const riderFeeRate = productData ? productData.riderFee / 100 : 0;
+  const riderFeeAppliesTo = productData?.riderFeeAppliesTo ?? 'incomeBase';
+
+  // --- Initial values ---
+  let traditionalBalance = client.qualified_account_value ?? 0;
+  let rothBalance = client.roth_ira ?? 0;
+  let taxableBalance = client.taxable_accounts ?? 0;
 
   // --- Tracking ---
   const incomeHistory = new Map<number, number>();
-  let conversionComplete = false;
-  let depletionAge: number | null = null;
-  let incomeBaseAtIncomeAge = incomeBase;
+  let totalConversionTax = 0;
+  let totalRiderFees = 0;
+  let cumulativeIncome = 0;
+
+  // GI-specific tracking (populated after purchase)
+  let accountValue = 0;
+  let incomeBase = 0;
+  let incomeBaseAtStart = 0;
+  let incomeBaseAtIncomeAge = 0;
+  let originalIncomeBase = 0;
   let guaranteedAnnualIncome = 0;
+  let purchaseAmount = 0;
+  let bonusAmount = 0;
+  let bonusAppliesTo: string | null = null;
+  let payoutPercent = 0;
+  let giPurchased = false;
+  const rollUpDescription = productData?.rollUpDescription ?? '';
+
+  // Track lifetime income
   let totalGrossPaid = 0;
   let totalNetPaid = 0;
-  let firstYearNetIncome = 0;
-  let totalRiderFees = 0;
-  let payoutPercent = 0;
-
-  // --- Roll-up description ---
-  const rollUpDescription = productData?.rollUpDescription ?? '';
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
-    const age = useAgeBased ? getAgeAtYearOffset(clientAge, yearOffset) : calculateAge(client.date_of_birth!, year);
+    const age = useAgeBased ? getAgeAtYearOffset(clientAge, yearOffset) : 62 + yearOffset;
     const spouseAge = client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
 
-    const isDeferralPhase = age < effectiveIncomeStartAge;
-    const boyAccount = accountValue;
+    // Beginning of Year balances
+    const boyTraditional = traditionalBalance;
     const boyRoth = rothBalance;
     const boyTaxable = taxableBalance;
+    const boyAccount = accountValue;
 
     // --- SSI income ---
     const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
@@ -230,7 +279,7 @@ function runGIFormulaScenario(
 
     let spouseSsIncome = 0;
     if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
-      const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : (spouseAge ?? 0);
+      const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : 0;
       const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
       spouseSsIncome = spouseYearsCollecting >= 0
         ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
@@ -243,65 +292,44 @@ function runGIFormulaScenario(
     const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
     const existingTaxableIncome = calculateTaxableIncome(otherIncome, deductions);
 
+    // Determine current phase
+    let currentPhase: 'conversion' | 'purchase' | 'deferral' | 'income';
+    if (age <= conversionEndAge) {
+      currentPhase = 'conversion';
+    } else if (age === purchaseAge && !giPurchased) {
+      currentPhase = 'purchase';
+    } else if (age < effectiveIncomeStartAge) {
+      currentPhase = 'deferral';
+    } else {
+      currentPhase = 'income';
+    }
+
     // =======================================================================
-    // DEFERRAL PHASE: Conversions happen, Income Base rolls up, rider fee
+    // PHASE 1: CONVERSION - Convert Traditional IRA to Roth
     // =======================================================================
-    if (isDeferralPhase) {
-      const deferralYear = yearOffset + 1; // 1-indexed for roll-up tier lookup
-
-      // Roll up Income Base using product-specific config
-      if (productData) {
-        const rollUpInfo = getRollUpForYear(productId, deferralYear, rollUpOption);
-        if (rollUpInfo) {
-          if (rollUpInfo.type === 'simple') {
-            // Simple interest: add percentage of ORIGINAL income base
-            incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
-          } else {
-            // Compound interest: multiply current income base
-            incomeBase = Math.round(incomeBase * (1 + rollUpInfo.rate));
-          }
-        }
-      } else {
-        // Fallback: use guaranteed_rate_of_return
-        const guaranteedRateOfReturn = (client.guaranteed_rate_of_return ?? 0) / 100;
-        incomeBase = Math.round(incomeBase * (1 + guaranteedRateOfReturn));
-      }
-
-      // At the year BEFORE income starts, lock in the income base
-      if (age + 1 === effectiveIncomeStartAge) {
-        incomeBaseAtIncomeAge = incomeBase;
-        const payoutFactor = productData
-          ? getProductPayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption)
-          : 0.05;
-        payoutPercent = payoutFactor * 100;
-        guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
-      }
-
-      // --- Roth conversions ---
+    if (currentPhase === 'conversion') {
       let conversionAmount = 0;
-      let conversionTax = 0;
       let federalConversionTax = 0;
       let stateConversionTax = 0;
 
-      const shouldConvert = !conversionComplete &&
-        age >= conversionStartAge &&
-        boyAccount > 0;
-
-      if (shouldConvert) {
+      if (boyTraditional > 0) {
+        // Calculate optimal conversion that fills up to target bracket
         conversionAmount = calculateOptimalConversion(
-          boyAccount,
+          boyTraditional,
           existingTaxableIncome,
-          maxTaxRate,
+          conversionBracket,
           client.filing_status,
           year
         );
 
+        // Handle tax payment from IRA
         if (payTaxFromIRA && conversionAmount > 0) {
-          const effectiveRate = maxTaxRate / 100 + stateTaxRateDecimal;
+          const effectiveRate = conversionBracket / 100 + stateTaxRateDecimal;
           conversionAmount = Math.round(conversionAmount * (1 - effectiveRate));
-          conversionAmount = Math.min(conversionAmount, boyAccount);
+          conversionAmount = Math.min(conversionAmount, boyTraditional);
         }
 
+        // Calculate conversion tax
         if (conversionAmount > 0) {
           federalConversionTax = calculateConversionFederalTax(
             conversionAmount,
@@ -314,33 +342,30 @@ function runGIFormulaScenario(
             client.state,
             stateTaxRateDecimal
           );
-          conversionTax = federalConversionTax + stateConversionTax;
-        }
-
-        if (boyAccount - conversionAmount <= 0) {
-          conversionComplete = true;
         }
       }
+
+      const conversionTax = federalConversionTax + stateConversionTax;
+      totalConversionTax += conversionTax;
 
       // Execute conversion
-      const accountAfterConversion = boyAccount - conversionAmount;
-      const rothAfterConversion = boyRoth + conversionAmount;
+      traditionalBalance = boyTraditional - conversionAmount;
+      rothBalance = boyRoth + conversionAmount;
 
-      // Account value grows by Rate of Return
-      const accountInterest = Math.round(accountAfterConversion * rateOfReturn);
-      let accountAfterGrowth = accountAfterConversion + accountInterest;
-
-      // Deduct rider fee from Account Value
-      let yearRiderFee = 0;
-      if (riderFeeRate > 0) {
-        const feeBase = riderFeeAppliesTo === 'accountValue' ? accountAfterGrowth : incomeBase;
-        yearRiderFee = Math.round(feeBase * riderFeeRate);
-        accountAfterGrowth = Math.max(0, accountAfterGrowth - yearRiderFee);
-        totalRiderFees += yearRiderFee;
-      }
-
-      const rothInterest = Math.round(rothAfterConversion * rateOfReturn);
+      // Apply growth
+      const traditionalInterest = Math.round(traditionalBalance * rateOfReturn);
+      const rothInterest = Math.round(rothBalance * rateOfReturn);
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+
+      traditionalBalance += traditionalInterest;
+      rothBalance += rothInterest;
+
+      // Handle tax payment
+      if (payTaxFromIRA) {
+        taxableBalance = boyTaxable + taxableInterest;
+      } else {
+        taxableBalance = boyTaxable + taxableInterest - conversionTax;
+      }
 
       // IRMAA
       const grossIncomeWithConversion = otherIncome + conversionAmount;
@@ -355,19 +380,9 @@ function runGIFormulaScenario(
 
       const totalTax = conversionTax + irmaaSurcharge;
 
-      // EOY balances
-      accountValue = accountAfterGrowth;
-      rothBalance = rothAfterConversion + rothInterest;
-
-      if (payTaxFromIRA) {
-        taxableBalance = boyTaxable + taxableInterest;
-      } else {
-        taxableBalance = boyTaxable + taxableInterest - totalTax;
-      }
-
       results.push({
         year, age, spouseAge,
-        traditionalBalance: accountValue,
+        traditionalBalance,
         rothBalance,
         taxableBalance,
         rmdAmount: 0,
@@ -382,24 +397,215 @@ function runGIFormulaScenario(
         irmaaSurcharge,
         totalTax,
         taxableSS: 0,
-        netWorth: accountValue + rothBalance + taxableBalance,
+        netWorth: traditionalBalance + rothBalance + taxableBalance,
+      });
+
+      giYearlyData.push({
+        year, age,
+        phase: 'conversion',
+        traditionalBalance,
+        rothBalance,
+        conversionAmount,
+        conversionTax,
+        accountValue: 0,
+        incomeBase: 0,
+        guaranteedIncomeGross: 0,
+        guaranteedIncomeNet: 0,
+        riderFee: 0,
+        cumulativeIncome: 0,
+      });
+    }
+
+    // =======================================================================
+    // PHASE 2: PURCHASE - Buy GI FIA inside Roth
+    // =======================================================================
+    else if (currentPhase === 'purchase') {
+      // Use entire Roth balance to purchase GI FIA
+      purchaseAmount = rothBalance;
+
+      // Apply product-specific bonus logic
+      if (productData) {
+        bonusAppliesTo = productData.bonusAppliesTo;
+        const bonusRate = (client.bonus_percent ?? 0) / 100;
+
+        if (productData.bonusAppliesTo === 'accountValue') {
+          // American Equity: bonus goes to both account value and income base
+          accountValue = Math.round(purchaseAmount * (1 + bonusRate));
+          incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
+          bonusAmount = Math.round(purchaseAmount * bonusRate);
+        } else if (productData.bonusAppliesTo === 'incomeBase') {
+          // Athene, EquiTrust: bonus goes to income base only
+          accountValue = purchaseAmount;
+          incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
+          bonusAmount = Math.round(purchaseAmount * bonusRate);
+        } else {
+          // North American: no bonus
+          accountValue = purchaseAmount;
+          incomeBase = purchaseAmount;
+        }
+      } else {
+        // Fallback
+        const bonusRate = (client.bonus_percent ?? 0) / 100;
+        accountValue = Math.round(purchaseAmount * (1 + bonusRate));
+        incomeBase = accountValue;
+        bonusAmount = Math.round(purchaseAmount * bonusRate);
+      }
+
+      incomeBaseAtStart = incomeBase;
+      originalIncomeBase = incomeBase;
+
+      // Roth balance is now 0 (money moved into GI)
+      rothBalance = 0;
+      giPurchased = true;
+
+      // No tax event on purchase (inside Roth)
+      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      taxableBalance = boyTaxable + taxableInterest;
+
+      // IRMAA tracking
+      const magi = otherIncome + taxExemptNonSSI + ssIncome;
+      incomeHistory.set(year, magi);
+
+      let irmaaSurcharge = 0;
+      if (age >= 65) {
+        const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+        irmaaSurcharge = irmaaResult.annualSurcharge;
+      }
+
+      results.push({
+        year, age, spouseAge,
+        traditionalBalance: accountValue, // Map GI account value to traditional for chart compatibility
+        rothBalance: 0,
+        taxableBalance,
+        rmdAmount: 0,
+        conversionAmount: 0,
+        ssIncome,
+        pensionIncome: 0,
+        otherIncome,
+        totalIncome: otherIncome + ssIncome,
+        federalTax: 0,
+        stateTax: 0,
+        niitTax: 0,
+        irmaaSurcharge,
+        totalTax: irmaaSurcharge,
+        taxableSS: 0,
+        netWorth: accountValue + taxableBalance,
+      });
+
+      giYearlyData.push({
+        year, age,
+        phase: 'purchase',
+        traditionalBalance: 0,
+        rothBalance: 0,
+        conversionAmount: 0,
+        conversionTax: 0,
+        accountValue,
+        incomeBase,
+        guaranteedIncomeGross: 0,
+        guaranteedIncomeNet: 0,
+        riderFee: 0,
+        cumulativeIncome: 0,
+      });
+    }
+
+    // =======================================================================
+    // PHASE 3: DEFERRAL - Income Base grows via roll-up
+    // =======================================================================
+    else if (currentPhase === 'deferral') {
+      const deferralYear = age - purchaseAge + 1; // 1-indexed for roll-up tier lookup
+
+      // Roll up Income Base using product-specific config
+      if (productData) {
+        const rollUpInfo = getRollUpForYear(productId, deferralYear, rollUpOption);
+        if (rollUpInfo) {
+          if (rollUpInfo.type === 'simple') {
+            incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
+          } else {
+            incomeBase = Math.round(incomeBase * (1 + rollUpInfo.rate));
+          }
+        }
+      } else {
+        const guaranteedRateOfReturn = (client.guaranteed_rate_of_return ?? 7) / 100;
+        incomeBase = Math.round(incomeBase * (1 + guaranteedRateOfReturn));
+      }
+
+      // Account value grows
+      const accountInterest = Math.round(accountValue * rateOfReturn);
+      accountValue = accountValue + accountInterest;
+
+      // Deduct rider fee
+      let yearRiderFee = 0;
+      if (riderFeeRate > 0) {
+        const feeBase = riderFeeAppliesTo === 'accountValue' ? accountValue : incomeBase;
+        yearRiderFee = Math.round(feeBase * riderFeeRate);
+        accountValue = Math.max(0, accountValue - yearRiderFee);
+        totalRiderFees += yearRiderFee;
+      }
+
+      // If this is the last deferral year, lock in income base and payout
+      if (age + 1 === effectiveIncomeStartAge) {
+        incomeBaseAtIncomeAge = incomeBase;
+        const payoutFactor = productData
+          ? getProductPayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption)
+          : 0.05;
+        payoutPercent = payoutFactor * 100;
+        guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
+      }
+
+      // Taxable account grows
+      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      taxableBalance = boyTaxable + taxableInterest;
+
+      // IRMAA
+      const magi = otherIncome + taxExemptNonSSI + ssIncome;
+      incomeHistory.set(year, magi);
+
+      let irmaaSurcharge = 0;
+      if (age >= 65) {
+        const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+        irmaaSurcharge = irmaaResult.annualSurcharge;
+      }
+
+      results.push({
+        year, age, spouseAge,
+        traditionalBalance: accountValue,
+        rothBalance: 0,
+        taxableBalance,
+        rmdAmount: 0,
+        conversionAmount: 0,
+        ssIncome,
+        pensionIncome: 0,
+        otherIncome,
+        totalIncome: otherIncome + ssIncome,
+        federalTax: 0,
+        stateTax: 0,
+        niitTax: 0,
+        irmaaSurcharge,
+        totalTax: irmaaSurcharge,
+        taxableSS: 0,
+        netWorth: accountValue + taxableBalance,
       });
 
       giYearlyData.push({
         year, age,
         phase: 'deferral',
+        traditionalBalance: 0,
+        rothBalance: 0,
+        conversionAmount: 0,
+        conversionTax: 0,
         accountValue,
         incomeBase,
         guaranteedIncomeGross: 0,
         guaranteedIncomeNet: 0,
-        conversionAmount,
         riderFee: yearRiderFee,
+        cumulativeIncome: 0,
       });
+    }
 
     // =======================================================================
-    // INCOME PHASE: Guaranteed income paid out, no conversions
+    // PHASE 4: INCOME - Tax-free guaranteed income for life
     // =======================================================================
-    } else {
+    else {
       // On first income year, lock in if not already done
       if (guaranteedAnnualIncome === 0) {
         incomeBaseAtIncomeAge = incomeBase;
@@ -412,54 +618,18 @@ function runGIFormulaScenario(
 
       const grossGI = guaranteedAnnualIncome;
 
-      // Gross taxable income = GI payment + other income
-      const grossTaxableIncome = grossGI + otherIncome;
-      const taxableIncome = calculateTaxableIncome(grossTaxableIncome, deductions);
-
-      // Federal tax on total income
-      const federalResult = calculateFederalTax({
-        taxableIncome,
-        filingStatus: client.filing_status,
-        taxYear: year,
-      });
-
-      // State tax
-      const stateResult = calculateStateTax({
-        taxableIncome,
-        state: client.state,
-        filingStatus: client.filing_status,
-        overrideRate: stateTaxRateDecimal,
-      });
-
-      // IRMAA
-      const magi = grossTaxableIncome + taxExemptNonSSI + ssIncome;
-      incomeHistory.set(year, magi);
-
-      let irmaaSurcharge = 0;
-      if (age >= 65) {
-        const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
-        irmaaSurcharge = irmaaResult.annualSurcharge;
-      }
-
-      const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge;
-      const netGI = grossGI - federalResult.totalTax - stateResult.totalTax;
-
-      // Track first year net income for the metrics
-      if (totalGrossPaid === 0) {
-        firstYearNetIncome = netGI;
-      }
+      // TAX-FREE because it's inside a Roth IRA!
+      const netGI = grossGI; // No tax on Roth distributions
 
       totalGrossPaid += grossGI;
       totalNetPaid += netGI;
+      cumulativeIncome += netGI;
 
       // Deduct GI payment from account value
       accountValue = boyAccount - grossGI;
 
       // Account value floors at $0, but income keeps paying
       if (accountValue < 0) {
-        if (depletionAge === null) {
-          depletionAge = age;
-        }
         accountValue = 0;
       }
 
@@ -476,19 +646,394 @@ function runGIFormulaScenario(
         totalRiderFees += yearRiderFee;
       }
 
-      const rothInterest = Math.round(boyRoth * rateOfReturn);
+      // Taxable account receives tax-free GI income
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      taxableBalance = boyTaxable + grossGI + taxableInterest;
 
-      rothBalance = boyRoth + rothInterest;
-      // Taxable account receives after-tax GI income (grossGI - taxes)
+      // IRMAA (GI from Roth doesn't count toward MAGI)
+      const magi = otherIncome + taxExemptNonSSI + ssIncome;
+      incomeHistory.set(year, magi);
+
+      let irmaaSurcharge = 0;
+      if (age >= 65) {
+        const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+        irmaaSurcharge = irmaaResult.annualSurcharge;
+      }
+
+      results.push({
+        year, age, spouseAge,
+        traditionalBalance: accountValue,
+        rothBalance: 0,
+        taxableBalance,
+        rmdAmount: grossGI, // Map to RMD for chart compatibility
+        conversionAmount: 0,
+        ssIncome,
+        pensionIncome: 0,
+        otherIncome,
+        totalIncome: grossGI + otherIncome + ssIncome,
+        federalTax: 0, // TAX-FREE
+        stateTax: 0,   // TAX-FREE
+        niitTax: 0,
+        irmaaSurcharge,
+        totalTax: irmaaSurcharge,
+        taxableSS: 0,
+        netWorth: accountValue + taxableBalance,
+      });
+
+      giYearlyData.push({
+        year, age,
+        phase: 'income',
+        traditionalBalance: 0,
+        rothBalance: 0,
+        conversionAmount: 0,
+        conversionTax: 0,
+        accountValue,
+        incomeBase: incomeBaseAtIncomeAge,
+        guaranteedIncomeGross: grossGI,
+        guaranteedIncomeNet: netGI,
+        riderFee: yearRiderFee,
+        cumulativeIncome,
+      });
+    }
+  }
+
+  const strategyMetrics = {
+    annualIncomeGross: guaranteedAnnualIncome,
+    annualIncomeNet: guaranteedAnnualIncome, // Same as gross - TAX-FREE!
+    lifetimeIncomeGross: totalGrossPaid,
+    lifetimeIncomeNet: totalNetPaid,
+    totalConversionTax,
+    incomeStartAge: effectiveIncomeStartAge,
+    incomeBaseAtIncomeAge,
+    purchaseAge,
+    purchaseAmount,
+    conversionPhaseYears: conversionYears,
+    deferralYears,
+    incomeBaseAtStart,
+    totalRiderFees,
+    payoutPercent,
+    rollUpDescription,
+    bonusAmount,
+    bonusAppliesTo,
+  };
+
+  return { formula: results, strategyMetrics, strategyGIYearlyData: giYearlyData };
+}
+
+// ---------------------------------------------------------------------------
+// BASELINE SCENARIO: Traditional GI (taxable income)
+// ---------------------------------------------------------------------------
+
+function runGIBaselineScenario(
+  client: Client,
+  startYear: number,
+  projectionYears: number,
+  strategyMetrics: GIStrategyMetrics & {
+    incomeBaseAtStart: number;
+    payoutPercent: number;
+    rollUpDescription: string;
+    bonusAmount: number;
+    bonusAppliesTo: string | null;
+  }
+): {
+  baseline: YearlyResult[];
+  baselineMetrics: GIBaselineMetrics;
+  baselineGIYearlyData: GIYearData[];
+} {
+  const results: YearlyResult[] = [];
+  const giYearlyData: GIYearData[] = [];
+
+  // --- Product config ---
+  const productId = client.blueprint_type as GuaranteedIncomeFormulaType;
+  const productData: GIProductData | undefined = GI_PRODUCT_DATA[productId];
+
+  // --- Age setup ---
+  const useAgeBased = client.age !== undefined && client.age > 0;
+  const clientAge = useAgeBased ? client.age : 62;
+
+  // --- Rates ---
+  const rateOfReturn = (client.rate_of_return ?? 7) / 100;
+
+  // --- GI timing (same as strategy for fair comparison) ---
+  const effectiveIncomeStartAge = strategyMetrics.incomeStartAge;
+  const payoutType = client.payout_type ?? 'individual';
+  const payoutOption = client.payout_option ?? 'level';
+  const rollUpOption = client.roll_up_option ?? null;
+
+  // Baseline: Purchase GI immediately (no conversion phase)
+  const purchaseAge = clientAge;
+  const deferralYears = Math.max(0, effectiveIncomeStartAge - purchaseAge);
+
+  // --- Tax config ---
+  const stateTaxRateDecimal = client.state_tax_rate !== undefined && client.state_tax_rate !== null
+    ? client.state_tax_rate / 100
+    : getStateTaxRate(client.state);
+
+  // --- SSI config ---
+  const primarySsStartAge = client.ssi_payout_age ?? 67;
+  const primarySsAmount = client.ssi_annual_amount ?? 0;
+  const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
+  const spouseSsAmount = client.spouse_ssi_annual_amount ?? 0;
+  const useSpouseAgeBased = client.spouse_age !== undefined && client.spouse_age !== null && client.spouse_age > 0;
+  const initialSpouseAge = useSpouseAgeBased ? client.spouse_age! : null;
+  const ssiColaRate = 0.02;
+
+  // --- Other income ---
+  const grossTaxableNonSSI = client.gross_taxable_non_ssi ?? 500000;
+  const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
+
+  // --- Rider fee config ---
+  const riderFeeRate = productData ? productData.riderFee / 100 : 0;
+  const riderFeeAppliesTo = productData?.riderFeeAppliesTo ?? 'incomeBase';
+
+  // --- Initial values ---
+  // Baseline: Buy GI directly with Traditional IRA balance
+  const purchaseAmount = client.qualified_account_value ?? 0;
+
+  // Apply product-specific bonus logic
+  let accountValue = 0;
+  let incomeBase = 0;
+
+  if (productData) {
+    const bonusRate = (client.bonus_percent ?? 0) / 100;
+
+    if (productData.bonusAppliesTo === 'accountValue') {
+      accountValue = Math.round(purchaseAmount * (1 + bonusRate));
+      incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
+    } else if (productData.bonusAppliesTo === 'incomeBase') {
+      accountValue = purchaseAmount;
+      incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
+    } else {
+      accountValue = purchaseAmount;
+      incomeBase = purchaseAmount;
+    }
+  } else {
+    const bonusRate = (client.bonus_percent ?? 0) / 100;
+    accountValue = Math.round(purchaseAmount * (1 + bonusRate));
+    incomeBase = accountValue;
+  }
+
+  const originalIncomeBase = incomeBase;
+  let incomeBaseAtIncomeAge = incomeBase;
+  let guaranteedAnnualIncome = 0;
+  let payoutPercent = 0;
+  let cumulativeIncome = 0;
+
+  let taxableBalance = client.taxable_accounts ?? 0;
+
+  // --- Tracking ---
+  const incomeHistory = new Map<number, number>();
+  let totalGrossPaid = 0;
+  let totalNetPaid = 0;
+  let totalTaxOnIncome = 0;
+  let firstYearTax = 0;
+  let firstYearNetIncome = 0;
+
+  for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
+    const year = startYear + yearOffset;
+    const age = useAgeBased ? getAgeAtYearOffset(clientAge, yearOffset) : 62 + yearOffset;
+    const spouseAge = client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
+
+    const boyAccount = accountValue;
+    const boyTaxable = taxableBalance;
+
+    // --- SSI income ---
+    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
+    const primarySsIncome = primaryYearsCollecting >= 0
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
+      : 0;
+
+    let spouseSsIncome = 0;
+    if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
+      const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : 0;
+      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
+      spouseSsIncome = spouseYearsCollecting >= 0
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
+        : 0;
+    }
+    const ssIncome = primarySsIncome + spouseSsIncome;
+    const otherIncome = grossTaxableNonSSI;
+
+    // --- Standard deduction ---
+    const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
+
+    // Determine phase
+    const isDeferralPhase = age < effectiveIncomeStartAge;
+
+    // =======================================================================
+    // DEFERRAL PHASE: Income Base grows via roll-up
+    // =======================================================================
+    if (isDeferralPhase) {
+      const deferralYear = yearOffset + 1;
+
+      // Roll up Income Base
+      if (productData) {
+        const rollUpInfo = getRollUpForYear(productId, deferralYear, rollUpOption);
+        if (rollUpInfo) {
+          if (rollUpInfo.type === 'simple') {
+            incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
+          } else {
+            incomeBase = Math.round(incomeBase * (1 + rollUpInfo.rate));
+          }
+        }
+      }
+
+      // At the year BEFORE income starts, lock in income base and payout
+      if (age + 1 === effectiveIncomeStartAge) {
+        incomeBaseAtIncomeAge = incomeBase;
+        const payoutFactor = productData
+          ? getProductPayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption)
+          : 0.05;
+        payoutPercent = payoutFactor * 100;
+        guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
+      }
+
+      // Account value grows
+      const accountInterest = Math.round(accountValue * rateOfReturn);
+      accountValue = accountValue + accountInterest;
+
+      // Deduct rider fee
+      let yearRiderFee = 0;
+      if (riderFeeRate > 0) {
+        const feeBase = riderFeeAppliesTo === 'accountValue' ? accountValue : incomeBase;
+        yearRiderFee = Math.round(feeBase * riderFeeRate);
+        accountValue = Math.max(0, accountValue - yearRiderFee);
+      }
+
+      // Taxable account grows
+      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      taxableBalance = boyTaxable + taxableInterest;
+
+      // IRMAA
+      const magi = otherIncome + taxExemptNonSSI + ssIncome;
+      incomeHistory.set(year, magi);
+
+      let irmaaSurcharge = 0;
+      if (age >= 65) {
+        const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+        irmaaSurcharge = irmaaResult.annualSurcharge;
+      }
+
+      results.push({
+        year, age, spouseAge,
+        traditionalBalance: accountValue,
+        rothBalance: 0,
+        taxableBalance,
+        rmdAmount: 0,
+        conversionAmount: 0,
+        ssIncome,
+        pensionIncome: 0,
+        otherIncome,
+        totalIncome: otherIncome + ssIncome,
+        federalTax: 0,
+        stateTax: 0,
+        niitTax: 0,
+        irmaaSurcharge,
+        totalTax: irmaaSurcharge,
+        taxableSS: 0,
+        netWorth: accountValue + taxableBalance,
+      });
+
+      giYearlyData.push({
+        year, age,
+        phase: 'deferral',
+        traditionalBalance: accountValue,
+        rothBalance: 0,
+        conversionAmount: 0,
+        conversionTax: 0,
+        accountValue,
+        incomeBase,
+        guaranteedIncomeGross: 0,
+        guaranteedIncomeNet: 0,
+        riderFee: yearRiderFee,
+        cumulativeIncome: 0,
+      });
+    }
+    // =======================================================================
+    // INCOME PHASE: Taxable guaranteed income
+    // =======================================================================
+    else {
+      // On first income year, lock in if not already done
+      if (guaranteedAnnualIncome === 0) {
+        incomeBaseAtIncomeAge = incomeBase;
+        const payoutFactor = productData
+          ? getProductPayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption)
+          : 0.05;
+        payoutPercent = payoutFactor * 100;
+        guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
+      }
+
+      const grossGI = guaranteedAnnualIncome;
+
+      // TAXABLE because it's inside a Traditional IRA!
+      const grossTaxableIncome = grossGI + otherIncome;
+      const taxableIncome = calculateTaxableIncome(grossTaxableIncome, deductions);
+
+      const federalResult = calculateFederalTax({
+        taxableIncome,
+        filingStatus: client.filing_status,
+        taxYear: year,
+      });
+
+      const stateResult = calculateStateTax({
+        taxableIncome,
+        state: client.state,
+        filingStatus: client.filing_status,
+        overrideRate: stateTaxRateDecimal,
+      });
+
+      // IRMAA (Traditional GI income counts toward MAGI)
+      const magi = grossTaxableIncome + taxExemptNonSSI + ssIncome;
+      incomeHistory.set(year, magi);
+
+      let irmaaSurcharge = 0;
+      if (age >= 65) {
+        const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+        irmaaSurcharge = irmaaResult.annualSurcharge;
+      }
+
+      const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge;
+      const netGI = grossGI - federalResult.totalTax - stateResult.totalTax;
+
+      // Track first year values
+      if (totalGrossPaid === 0) {
+        firstYearTax = federalResult.totalTax + stateResult.totalTax;
+        firstYearNetIncome = netGI;
+      }
+
+      totalGrossPaid += grossGI;
+      totalNetPaid += netGI;
+      totalTaxOnIncome += federalResult.totalTax + stateResult.totalTax;
+      cumulativeIncome += netGI;
+
+      // Deduct GI payment from account value
+      accountValue = boyAccount - grossGI;
+      if (accountValue < 0) {
+        accountValue = 0;
+      }
+
+      // Interest on remaining account value
+      const accountInterest = Math.round(accountValue * rateOfReturn);
+      accountValue = accountValue + accountInterest;
+
+      // Deduct rider fee
+      let yearRiderFee = 0;
+      if (riderFeeRate > 0 && accountValue > 0) {
+        const feeBase = riderFeeAppliesTo === 'accountValue' ? accountValue : incomeBaseAtIncomeAge;
+        yearRiderFee = Math.round(feeBase * riderFeeRate);
+        accountValue = Math.max(0, accountValue - yearRiderFee);
+      }
+
+      // Taxable account receives after-tax GI income
+      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
       taxableBalance = boyTaxable + grossGI + taxableInterest - totalTax;
 
       results.push({
         year, age, spouseAge,
         traditionalBalance: accountValue,
-        rothBalance,
+        rothBalance: 0,
         taxableBalance,
-        rmdAmount: grossGI, // Map GI payment to rmdAmount for chart compatibility
+        rmdAmount: grossGI,
         conversionAmount: 0,
         ssIncome,
         pensionIncome: 0,
@@ -500,177 +1045,88 @@ function runGIFormulaScenario(
         irmaaSurcharge,
         totalTax,
         taxableSS: 0,
-        netWorth: accountValue + rothBalance + taxableBalance,
+        netWorth: accountValue + taxableBalance,
       });
 
       giYearlyData.push({
         year, age,
         phase: 'income',
+        traditionalBalance: accountValue,
+        rothBalance: 0,
+        conversionAmount: 0,
+        conversionTax: 0,
         accountValue,
         incomeBase: incomeBaseAtIncomeAge,
         guaranteedIncomeGross: grossGI,
         guaranteedIncomeNet: netGI,
-        conversionAmount: 0,
         riderFee: yearRiderFee,
+        cumulativeIncome,
       });
     }
   }
 
-  const giMetrics: GIMetrics = {
+  const baselineMetrics: GIBaselineMetrics = {
     annualIncomeGross: guaranteedAnnualIncome,
     annualIncomeNet: firstYearNetIncome,
+    annualTax: firstYearTax,
+    lifetimeIncomeGross: totalGrossPaid,
+    lifetimeIncomeNet: totalNetPaid,
+    lifetimeTax: totalTaxOnIncome,
     incomeStartAge: effectiveIncomeStartAge,
-    depletionAge,
-    incomeBaseAtStart,
     incomeBaseAtIncomeAge,
-    totalGrossPaid,
-    totalNetPaid,
     yearlyData: giYearlyData,
-    totalRiderFees,
-    payoutPercent,
-    rollUpDescription,
-    bonusAmount,
-    bonusAppliesTo,
   };
 
-  return { formula: results, giMetrics };
+  return { baseline: results, baselineMetrics, baselineGIYearlyData: giYearlyData };
 }
 
 // ---------------------------------------------------------------------------
-// GI Baseline Scenario: Systematic withdrawals matching GI amount
+// Comparison Metrics Calculation
 // ---------------------------------------------------------------------------
 
-function runGIBaselineScenario(
-  client: Client,
-  startYear: number,
-  projectionYears: number,
-  giAnnualIncome: number,
-  giIncomeStartAge: number
-): YearlyResult[] {
-  const results: YearlyResult[] = [];
+function calculateComparisonMetrics(
+  strategy: GIStrategyMetrics & { incomeBaseAtStart: number },
+  baseline: GIBaselineMetrics
+): GIComparisonMetrics {
+  const annualAdvantage = strategy.annualIncomeNet - baseline.annualIncomeNet;
+  const lifetimeAdvantage = strategy.lifetimeIncomeNet - baseline.lifetimeIncomeNet;
 
-  const useAgeBased = client.age !== undefined && client.age > 0;
-  const clientAge = useAgeBased ? client.age : 62;
+  // Break-even years = Conversion Tax / Annual Advantage
+  const breakEvenYears = annualAdvantage > 0
+    ? Math.ceil(strategy.totalConversionTax / annualAdvantage)
+    : null;
 
-  // Baseline uses baseline_comparison_rate
-  const growthRate = (client.baseline_comparison_rate ?? 7) / 100;
+  const breakEvenAge = breakEvenYears !== null
+    ? strategy.incomeStartAge + breakEvenYears
+    : null;
 
-  // Baseline does NOT apply bonus (fair comparison = same starting balance without product)
-  let iraBalance = client.qualified_account_value ?? client.traditional_ira ?? 0;
-  let rothBalance = client.roth_ira ?? 0;
-  let taxableBalance = client.taxable_accounts ?? 0;
+  const percentImprovement = baseline.lifetimeIncomeNet > 0
+    ? (lifetimeAdvantage / baseline.lifetimeIncomeNet) * 100
+    : 0;
 
-  const incomeHistory = new Map<number, number>();
+  return {
+    // Strategy (Roth GI)
+    strategyAnnualIncomeGross: strategy.annualIncomeGross,
+    strategyAnnualIncomeNet: strategy.annualIncomeNet, // Same as gross
+    strategyLifetimeIncomeGross: strategy.lifetimeIncomeGross,
+    strategyLifetimeIncomeNet: strategy.lifetimeIncomeNet,
+    strategyTotalConversionTax: strategy.totalConversionTax,
+    strategyIncomeBase: strategy.incomeBaseAtIncomeAge,
 
-  // SSI
-  const primarySsStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
-  const primarySsAmount = client.ssi_annual_amount ?? client.ss_self ?? 0;
-  const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
-  const spouseSsAmount = client.spouse_ssi_annual_amount ?? client.ss_spouse ?? 0;
-  const useSpouseAgeBased = client.spouse_age !== undefined && client.spouse_age !== null && client.spouse_age > 0;
-  const initialSpouseAge = useSpouseAgeBased ? client.spouse_age! : null;
-  const ssiColaRate = 0.02;
+    // Baseline (Traditional GI)
+    baselineAnnualIncomeGross: baseline.annualIncomeGross,
+    baselineAnnualIncomeNet: baseline.annualIncomeNet,
+    baselineLifetimeIncomeGross: baseline.lifetimeIncomeGross,
+    baselineLifetimeIncomeNet: baseline.lifetimeIncomeNet,
+    baselineAnnualTax: baseline.annualTax,
+    baselineIncomeBase: baseline.incomeBaseAtIncomeAge,
 
-  const grossTaxableNonSSI = client.gross_taxable_non_ssi ??
-    (client.non_ssi_income?.[0]?.gross_taxable ?? client.other_income ?? 500000);
-  const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
-
-  const stateTaxRateOverride = client.state_tax_rate !== undefined && client.state_tax_rate !== null
-    ? client.state_tax_rate / 100
-    : undefined;
-
-  for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
-    const year = startYear + yearOffset;
-    const age = useAgeBased ? getAgeAtYearOffset(clientAge, yearOffset) : calculateAge(client.date_of_birth!, year);
-    const spouseAge = client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
-
-    const boyIRA = iraBalance;
-    const boyRoth = rothBalance;
-    const boyTaxable = taxableBalance;
-
-    // SSI
-    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
-    const primarySsIncome = primaryYearsCollecting >= 0
-      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
-      : 0;
-
-    let spouseSsIncome = 0;
-    if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
-      const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : (spouseAge ?? 0);
-      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
-      spouseSsIncome = spouseYearsCollecting >= 0
-        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
-        : 0;
-    }
-    const ssIncome = primarySsIncome + spouseSsIncome;
-    const otherIncome = grossTaxableNonSSI;
-
-    // Systematic withdrawal: match GI amount starting at same age
-    let withdrawalAmount = 0;
-    if (age >= giIncomeStartAge && boyIRA > 0) {
-      withdrawalAmount = Math.min(giAnnualIncome, boyIRA);
-    }
-
-    const grossTaxableIncome = withdrawalAmount + otherIncome;
-    const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
-    const taxableIncome = calculateTaxableIncome(grossTaxableIncome, deductions);
-
-    const federalResult = calculateFederalTax({
-      taxableIncome,
-      filingStatus: client.filing_status,
-      taxYear: year,
-    });
-
-    const stateResult = calculateStateTax({
-      taxableIncome,
-      state: client.state,
-      filingStatus: client.filing_status,
-      overrideRate: stateTaxRateOverride,
-    });
-
-    const agi = grossTaxableIncome;
-    const magi = agi + taxExemptNonSSI + ssIncome;
-    incomeHistory.set(year, magi);
-
-    let irmaaSurcharge = 0;
-    if (age >= 65) {
-      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
-      irmaaSurcharge = irmaaResult.annualSurcharge;
-    }
-
-    const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge;
-
-    // Interest after withdrawal
-    const iraAfterWithdrawal = boyIRA - withdrawalAmount;
-    const iraInterest = Math.round(iraAfterWithdrawal * growthRate);
-    const rothInterest = Math.round(boyRoth * growthRate);
-    const taxableInterest = Math.round(boyTaxable * growthRate);
-
-    iraBalance = iraAfterWithdrawal + iraInterest;
-    rothBalance = boyRoth + rothInterest;
-    // Taxable account receives withdrawal proceeds, pays taxes, earns interest
-    taxableBalance = boyTaxable + withdrawalAmount + taxableInterest - totalTax;
-
-    results.push({
-      year, age, spouseAge,
-      traditionalBalance: iraBalance,
-      rothBalance,
-      taxableBalance,
-      rmdAmount: withdrawalAmount,
-      conversionAmount: 0,
-      ssIncome,
-      pensionIncome: 0,
-      otherIncome,
-      totalIncome: grossTaxableIncome + ssIncome,
-      federalTax: federalResult.totalTax,
-      stateTax: stateResult.totalTax,
-      niitTax: 0,
-      irmaaSurcharge,
-      totalTax,
-      taxableSS: 0,
-      netWorth: iraBalance + rothBalance + taxableBalance,
-    });
-  }
-
-  return results;
+    // Comparison
+    annualIncomeAdvantage: annualAdvantage,
+    lifetimeIncomeAdvantage: lifetimeAdvantage,
+    taxFreeWealthCreated: lifetimeAdvantage,
+    breakEvenYears,
+    breakEvenAge,
+    percentImprovement,
+  };
 }
