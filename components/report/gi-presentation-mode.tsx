@@ -2,8 +2,8 @@
 
 import { useRef } from "react";
 import { useProjection } from "@/lib/queries/projections";
-import { WealthChart } from "@/components/results/wealth-chart";
-import { transformToGIChartData } from "@/lib/calculations/transforms";
+import { GIIncomeChart } from "@/components/results/gi-income-chart";
+import { transformToGIIncomeChartData } from "@/lib/calculations/transforms";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
 import type { Client } from "@/lib/types/client";
 import type { YearlyResult } from "@/lib/calculations";
@@ -43,11 +43,9 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
   }
 
   const { projection } = projectionResponse;
-  const chartData = transformToGIChartData(projection);
+  const incomeChartData = transformToGIIncomeChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
-
-  // Calculate break-even from chart data (lifetime wealth trajectory, not raw netWorth)
-  const chartBreakEvenAge = chartData.find(d => d.formula > d.baseline)?.age ?? null;
+  const flatTaxRate = client.tax_rate / 100;
 
   // GI-specific calculations
   const giYearlyData = projection.gi_yearly_data || [];
@@ -62,53 +60,41 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
   const payoutPercent = projection.gi_payout_percent || 0;
   const calculatedIncome = Math.round(finalIncomeBase * (payoutPercent / 100));
 
-  // Baseline calculations
-  // Note: Taxes and IRMAA are already deducted from taxableBalance in the engine
-  const baseRMDs = sum(projection.baseline_years, "rmdAmount");
-  const baseTax = sum(projection.baseline_years, "federalTax") + sum(projection.baseline_years, "stateTax");
-  const baseIrmaa = sum(projection.baseline_years, "irmaaSurcharge");
-  const baseFinalTraditional = projection.baseline_final_traditional;
-  const baseFinalRoth = projection.baseline_final_roth;
-  // Heir tax only applies to traditional IRA portion
-  const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
-  // Net legacy = final net worth (includes taxable) minus heir taxes on traditional
-  const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
-  const baseLifetimeWealth = baseNetLegacy;
+  // Use comparison metrics from projection (flat rate calculations)
+  const strategyAnnualNet = projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0;
+  const baselineAnnualNet = projection.gi_baseline_annual_income_net || 0;
+  const baselineAnnualGross = projection.gi_baseline_annual_income_gross || 0;
+  const annualAdvantage = projection.gi_annual_income_advantage || (strategyAnnualNet - baselineAnnualNet);
+  const taxFreeWealthCreated = projection.gi_tax_free_wealth_created || 0;
 
-  // Formula (GI) calculations
-  let blueConversionTax = 0;
-  projection.blueprint_years.forEach((year, i) => {
-    const giYear = giYearlyData[i];
-    if (giYear && giYear.phase === "deferral") {
-      blueConversionTax += (year.federalTax + year.stateTax) || 0;
-    }
-  });
+  // Conversion tax from comparison metrics or calculate from yearly data
+  let totalConversionTax = projection.gi_total_conversion_tax || 0;
+  if (totalConversionTax === 0) {
+    giYearlyData.forEach((giYear) => {
+      if (giYear.phase === "conversion") {
+        totalConversionTax += giYear.conversionTax || 0;
+      }
+    });
+  }
 
-  const blueIrmaa = sum(projection.blueprint_years, "irmaaSurcharge");
-  const blueFinalTraditional = projection.blueprint_final_traditional;
-  const blueFinalRoth = projection.blueprint_final_roth;
-  const giTotalGross = projection.gi_total_gross_paid ?? 0;
-  const giTotalNet = projection.gi_total_net_paid ?? 0;
-  // Heir tax only applies to remaining traditional (annuity account value)
-  const blueHeirTax = Math.round(blueFinalTraditional * heirTaxRate);
-  // Net legacy = final net worth (includes taxable where GI payments accumulate) minus heir taxes
-  const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
-  const blueLifetimeWealth = blueNetLegacy;
+  // Lifetime income using flat rate (consistent with dashboard)
+  const incomeYears = client.end_age - (projection.gi_income_start_age || client.income_start_age || 70) + 1;
+  const strategyLifetimeNet = strategyAnnualNet * incomeYears;
+  const baselineLifetimeNet = baselineAnnualNet * incomeYears;
 
-  // Differences
-  const lifetimeWealthDiff = blueLifetimeWealth - baseLifetimeWealth;
-  const lifetimeWealthPct = baseLifetimeWealth !== 0 ? lifetimeWealthDiff / Math.abs(baseLifetimeWealth) : 0;
+  // Baseline taxes (flat rate)
+  const baselineLifetimeTax = Math.round(baselineAnnualGross * flatTaxRate) * incomeYears;
 
   // Depletion info
   const depletionAge = projection.gi_depletion_age;
   const incomeStartAge = projection.gi_income_start_age || client.income_start_age;
 
-  // Calculate cumulative income at depletion
+  // Calculate cumulative income at depletion using flat rate
   let cumulativeAtDepletion = 0;
   if (depletionAge && giYearlyData.length > 0) {
     for (const year of giYearlyData) {
-      if (year.age <= depletionAge) {
-        cumulativeAtDepletion += year.guaranteedIncomeNet;
+      if (year.phase === 'income' && year.age <= depletionAge) {
+        cumulativeAtDepletion += strategyAnnualNet; // Use consistent annual value
       }
     }
   }
@@ -232,19 +218,30 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
         {/* 2. The Guarantee Hero */}
         <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[16px] py-12 px-14 text-center mb-12">
           <p className="text-sm uppercase tracking-[3px] text-[rgba(212,175,55,0.7)] mb-2 font-medium">
-            Your Guaranteed Lifetime Income
+            Your Tax-Free Guaranteed Income
           </p>
           <div className="w-16 h-[2px] bg-gold mx-auto mb-6" />
           <p className="text-[56px] font-mono font-semibold text-gold mb-1">
-            {toUSD(projection.gi_annual_income_gross || 0)}/year
+            {toUSD(strategyAnnualNet)}/year
           </p>
-          <p className="text-xl font-display text-white mb-5">for life</p>
-          <p className="text-lg text-[rgba(255,255,255,0.6)]">
-            After taxes: {toUSD(projection.gi_annual_income_net || 0)}/year · Starting age {incomeStartAge}
+          <p className="text-xl font-display text-white mb-5">tax-free for life</p>
+
+          {/* Comparison with baseline */}
+          <div className="bg-[rgba(0,0,0,0.2)] rounded-lg py-3 px-6 inline-block mb-4">
+            <p className="text-sm text-[rgba(255,255,255,0.6)]">
+              vs. Traditional GI: {toUSD(baselineAnnualGross)}/year gross
+              → <span className="text-[#f87171]">{toUSD(baselineAnnualNet)}/year after tax</span>
+            </p>
+          </div>
+
+          <p className="text-base text-[rgba(255,255,255,0.6)]">
+            Starting age {incomeStartAge} · {payoutTypeDisplay} · {payoutPercent.toFixed(2)}% payout rate
           </p>
-          <p className="text-base text-[rgba(255,255,255,0.4)] mt-1">
-            {payoutTypeDisplay} · {payoutPercent.toFixed(2)}% payout rate
-          </p>
+          {annualAdvantage > 0 && (
+            <p className="text-base text-[#4ade80] mt-2 font-medium">
+              +{toUSD(annualAdvantage)}/year advantage over traditional
+            </p>
+          )}
         </div>
 
         {/* 3. Income Base Journey */}
@@ -287,53 +284,73 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
           </div>
         </div>
 
-        {/* 4. Key Metrics (3-column grid) */}
-        <div className="grid grid-cols-3 gap-6 mb-12">
-          <div className="text-center py-9 px-7 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]">
-            <p className="text-sm uppercase tracking-[2px] text-[rgba(255,255,255,0.5)] mb-4">
+        {/* 4. Key Metrics (4-column grid) */}
+        <div className="grid grid-cols-4 gap-5 mb-12">
+          <div className="text-center py-8 px-5 bg-[rgba(74,222,128,0.05)] border border-[rgba(74,222,128,0.15)] rounded-[16px]">
+            <p className="text-xs uppercase tracking-[2px] text-[rgba(74,222,128,0.7)] mb-4">
+              Tax-Free Wealth Created
+            </p>
+            <p className="text-[26px] font-mono font-semibold text-[#4ade80]">+{toUSD(taxFreeWealthCreated)}</p>
+            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">Lifetime advantage</p>
+          </div>
+          <div className="text-center py-8 px-5 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]">
+            <p className="text-xs uppercase tracking-[2px] text-[rgba(255,255,255,0.5)] mb-4">
               Lifetime Income
             </p>
-            <p className="text-[28px] font-mono font-medium text-gold">{toUSD(giTotalNet)}</p>
-            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">Net after taxes</p>
+            <p className="text-[26px] font-mono font-medium text-gold">{toUSD(strategyLifetimeNet)}</p>
+            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">Tax-free ({incomeYears} years)</p>
           </div>
-          <div className="text-center py-9 px-7 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]">
-            <p className="text-sm uppercase tracking-[2px] text-[rgba(255,255,255,0.5)] mb-4">
-              Net Improvement
+          <div className="text-center py-8 px-5 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]">
+            <p className="text-xs uppercase tracking-[2px] text-[rgba(255,255,255,0.5)] mb-4">
+              Taxes Paid
             </p>
-            <p className="text-[28px] font-mono font-medium text-[#4ade80]">{toUSD(lifetimeWealthDiff)}</p>
-            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">+{Math.round(lifetimeWealthPct * 100)}% over baseline</p>
+            <p className="text-[26px] font-mono font-medium text-white">{toUSD(totalConversionTax)}</p>
+            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">vs. {toUSD(baselineLifetimeTax)} baseline</p>
           </div>
-          <div className="text-center py-9 px-7 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]">
-            <p className="text-sm uppercase tracking-[2px] text-[rgba(255,255,255,0.5)] mb-4">
-              Legacy to Heirs
+          <div className="text-center py-8 px-5 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]">
+            <p className="text-xs uppercase tracking-[2px] text-[rgba(255,255,255,0.5)] mb-4">
+              Break-Even
             </p>
-            <p className="text-[28px] font-mono font-medium text-gold">{toUSD(blueNetLegacy)}</p>
-            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">After heir taxes</p>
+            <p className="text-[26px] font-mono font-medium text-gold">
+              {projection.gi_break_even_years ? `${projection.gi_break_even_years} years` : "—"}
+            </p>
+            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">
+              {projection.gi_break_even_age ? `Age ${projection.gi_break_even_age}` : ""}
+            </p>
           </div>
         </div>
 
-        {/* 5. Wealth Trajectory Chart (taller) */}
+        {/* 5. Cumulative Income Chart (taller) */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-9 mb-12">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <h2 className="text-xl font-medium mb-1">Wealth Over Time</h2>
+              <h2 className="text-xl font-medium mb-1">Cumulative Income Received</h2>
               <p className="text-sm text-[rgba(255,255,255,0.5)]">
-                Total wealth if client passes at each age (GI payments + legacy - costs)
+                Total net income in your pocket over time
               </p>
             </div>
             <div className="flex items-center gap-5 text-sm">
-              <span className="flex items-center gap-2 text-gold">
-                <span className="w-4 h-0.5 bg-gold rounded" />
-                Strategy
+              <span className="flex items-center gap-2 text-[#4ade80]">
+                <span className="w-4 h-0.5 bg-[#4ade80] rounded" />
+                Tax-Free (Strategy)
               </span>
               <span className="flex items-center gap-2 text-[rgba(255,255,255,0.5)]">
-                <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 4px, transparent 4px, transparent 6px)" }} />
-                Baseline
+                <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 4px, transparent 4px, transparent 6px)" }} />
+                After-Tax (Baseline)
               </span>
             </div>
           </div>
           <div className="h-[300px]">
-            <WealthChart data={chartData} breakEvenAge={chartBreakEvenAge} />
+            <GIIncomeChart
+              data={incomeChartData}
+              breakEvenAge={projection.gi_break_even_age || null}
+              incomeStartAge={incomeStartAge || 70}
+            />
+          </div>
+          <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.07)]">
+            <p className="text-sm text-[rgba(255,255,255,0.4)]">
+              The gap between the lines is your <span className="text-[#4ade80] font-medium">Tax-Free Wealth Created</span> — the extra money you keep by having Roth income instead of taxable income.
+            </p>
           </div>
         </div>
 
@@ -355,7 +372,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
                 <Check className="w-4 h-4 text-[#4ade80]" />
               </div>
               <p className="text-base text-white">
-                Your guaranteed income of {toUSD(projection.gi_annual_income_gross || 0)}/year continues for life
+                Your guaranteed income of {toUSD(strategyAnnualNet)}/year continues tax-free for life
               </p>
             </div>
             {depletionAge && cumulativeAtDepletion > 0 && (
@@ -373,7 +390,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
                 <Check className="w-4 h-4 text-[#4ade80]" />
               </div>
               <p className="text-base text-white">
-                Total projected lifetime income: {toUSD(giTotalGross)} (to age {client.end_age})
+                Total projected lifetime income: {toUSD(strategyLifetimeNet)} (to age {client.end_age})
               </p>
             </div>
           </div>
