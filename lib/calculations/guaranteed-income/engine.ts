@@ -32,9 +32,8 @@ import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/
 import {
   calculateFederalTax,
   calculateTaxableIncome,
-  calculateConversionFederalTax,
 } from '../modules/federal-tax';
-import { calculateStateTax, calculateConversionStateTax } from '../modules/state-tax';
+import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
@@ -345,19 +344,11 @@ function runGIStrategyScenario(
           conversionAmount = Math.min(conversionAmount, boyTraditional);
         }
 
-        // Calculate conversion tax (use actual brackets, not just target bracket)
+        // Calculate conversion tax using user's selected bracket (flat rate)
+        // This matches the flat rate approach used for all display/comparison metrics
         if (conversionAmount > 0) {
-          federalConversionTax = calculateConversionFederalTax(
-            conversionAmount,
-            existingTaxableIncome,
-            client.filing_status,
-            year
-          );
-          stateConversionTax = calculateConversionStateTax(
-            conversionAmount,
-            client.state,
-            stateTaxRateDecimal
-          );
+          federalConversionTax = Math.round(conversionAmount * (conversionBracket / 100));
+          stateConversionTax = Math.round(conversionAmount * stateTaxRateDecimal);
         }
       }
 
