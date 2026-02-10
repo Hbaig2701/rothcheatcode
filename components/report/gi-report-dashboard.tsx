@@ -668,16 +668,19 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                   const isIncomePhase = row.phase === "income";
                   const isAccountZero = row.accountValue <= 0;
 
-                  // Calculate cumulative net income (after-tax) for baseline
-                  let cumulative = 0;
-                  for (let i = 0; i <= idx; i++) {
-                    cumulative += baselineGIYearlyData[i].guaranteedIncomeNet || 0;
-                  }
-
-                  // Calculate tax on this year's income using flat rate
+                  // Calculate tax on this year's income using flat rate (consistent with chart)
                   const grossIncome = row.guaranteedIncomeGross || 0;
                   const taxOnIncome = isIncomePhase ? Math.round(grossIncome * (client.tax_rate / 100)) : 0;
                   const netIncome = grossIncome - taxOnIncome;
+
+                  // Calculate cumulative net income using flat rate (must match chart)
+                  let cumulative = 0;
+                  for (let i = 0; i <= idx; i++) {
+                    const yearGross = baselineGIYearlyData[i].guaranteedIncomeGross || 0;
+                    const yearIsIncome = baselineGIYearlyData[i].phase === "income";
+                    const yearTax = yearIsIncome ? Math.round(yearGross * (client.tax_rate / 100)) : 0;
+                    cumulative += yearGross - yearTax;
+                  }
 
                   // Phase display for baseline
                   const phaseLabel = isDeferralPhase ? "Grow" : isIncomePhase ? "Income" : row.phase;
