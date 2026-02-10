@@ -5,6 +5,7 @@ import Handlebars from 'handlebars';
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@/lib/supabase/server';
+import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -481,6 +482,283 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
   };
 }
 
+// GI Year Row for PDF table
+interface GIYearRow {
+  year: number;
+  age: number;
+  phase: string;
+  phaseClass: string;
+  incomeBase: string;
+  accountValue: string;
+  giIncome: string;
+  taxes: string;
+  netIncome: string;
+  cumulative: string;
+  isIncomePhase?: boolean;
+  isDeferral?: boolean;
+}
+
+// GI Template Data interface
+interface GITemplateData {
+  clientName: string;
+  reportDate: string;
+  branding: BrandingData;
+
+  // Hero metrics
+  strategyAnnualIncome: string;
+  baselineAnnualIncomeGross: string;
+  baselineAnnualIncomeNet: string;
+
+  // Key metrics
+  taxFreeWealthCreated: string;
+  percentImprovement: string;
+  strategyLifetimeIncome: string;
+  baselineLifetimeIncome: string;
+  lifetimeIncomeAdvantage: string;
+  strategyTotalTaxes: string;
+  baselineTotalTaxes: string;
+  taxSavings: string;
+
+  // Break-even
+  breakEvenYears: number | null;
+  breakEvenAge: number | null;
+
+  // Income details
+  incomeStartAge: number;
+  payoutType: string;
+  payoutPercent: string;
+
+  // 4-Phase journey
+  showConversionPhase: boolean;
+  conversionYears: number;
+  conversionTax: string;
+  purchaseAge: number;
+  purchaseAmount: string;
+  deferralYears: number;
+  rollUpGrowth: string;
+
+  // Income Base calculation
+  deposit: string;
+  bonusAmount: string;
+  bonusPercent: number;
+  startingIncomeBase: string;
+  finalIncomeBase: string;
+  calculatedIncome: string;
+
+  // Guarantee section
+  depletionAge: number | null;
+  lifetimeIncomeGross: string;
+  endAge: number;
+  baselineAnnualTax: string;
+  annualAdvantage: string;
+
+  // Product details
+  carrierName: string;
+  productName: string;
+  riderFee: string;
+  rollUpDescription: string;
+  totalRiderFees: string;
+
+  // Year-by-year tables
+  strategyYears: GIYearRow[];
+  baselineYears: GIYearRow[];
+  taxRate: number;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function prepareGITemplateData(reportData: any, branding: BrandingData): GITemplateData {
+  const { client, projection } = reportData;
+
+  const giYearlyData = projection.gi_yearly_data || [];
+  const baselineGIYearlyData = projection.gi_baseline_yearly_data || [];
+  const taxRate = client.tax_rate || 24;
+  const flatTaxRate = taxRate / 100;
+
+  // Calculate metrics
+  const deposit = client.qualified_account_value || 0;
+  const bonusPercent = client.bonus_percent || 0;
+  const bonusAmount = Math.round(deposit * (bonusPercent / 100));
+  const startingIncomeBase = projection.gi_income_base_at_start || (deposit + bonusAmount);
+  const finalIncomeBase = projection.gi_income_base_at_income_age || startingIncomeBase;
+  const rollUpGrowth = finalIncomeBase - startingIncomeBase;
+  const payoutPercent = projection.gi_payout_percent || 0;
+  const calculatedIncome = Math.round(finalIncomeBase * (payoutPercent / 100));
+
+  // Income calculations
+  const strategyAnnualIncome = projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0;
+  const baselineAnnualIncomeGross = projection.gi_baseline_annual_income_gross || 0;
+  const baselineAnnualIncomeNet = projection.gi_baseline_annual_income_net || 0;
+  const baselineAnnualTax = Math.round(baselineAnnualIncomeGross * flatTaxRate);
+  const annualAdvantage = strategyAnnualIncome - baselineAnnualIncomeNet;
+
+  const incomeStartAge = projection.gi_income_start_age || client.income_start_age || 70;
+  const endAge = client.end_age || 100;
+  const incomeYears = endAge - incomeStartAge + 1;
+
+  // Lifetime income
+  const strategyLifetimeIncome = projection.gi_total_net_paid || (strategyAnnualIncome * incomeYears);
+  const baselineLifetimeIncome = baselineAnnualIncomeNet * incomeYears;
+  const lifetimeIncomeAdvantage = strategyLifetimeIncome - baselineLifetimeIncome;
+
+  // Taxes
+  const conversionTax = projection.gi_total_conversion_tax || 0;
+  const baselineTotalTaxes = baselineAnnualTax * incomeYears;
+  const taxSavings = baselineTotalTaxes - conversionTax;
+
+  // Tax-free wealth created
+  const taxFreeWealthCreated = projection.gi_tax_free_wealth_created || lifetimeIncomeAdvantage;
+  const percentImprovement = projection.gi_percent_improvement ||
+    (baselineLifetimeIncome > 0 ? ((taxFreeWealthCreated / baselineLifetimeIncome) * 100) : 0);
+
+  // Process strategy years
+  let strategyCumulative = 0;
+  const strategyYears: GIYearRow[] = giYearlyData.map((row: any) => {
+    if (row.guaranteedIncomeNet > 0) {
+      strategyCumulative += row.guaranteedIncomeNet;
+    }
+
+    const phaseMap: Record<string, string> = {
+      conversion: 'Convert',
+      purchase: 'Purchase',
+      deferral: 'Grow',
+      income: 'Income',
+    };
+
+    const phaseClassMap: Record<string, string> = {
+      conversion: 'phase-convert',
+      purchase: 'phase-purchase',
+      deferral: 'phase-grow',
+      income: 'phase-income',
+    };
+
+    return {
+      year: row.year,
+      age: row.age,
+      phase: phaseMap[row.phase] || row.phase,
+      phaseClass: phaseClassMap[row.phase] || '',
+      incomeBase: row.incomeBase > 0 ? formatCurrency(row.incomeBase) : '—',
+      accountValue: row.phase === 'conversion' || row.phase === 'purchase' ? '—' :
+        (row.accountValue <= 0 ? '$0' : formatCurrency(row.accountValue)),
+      giIncome: row.guaranteedIncomeGross > 0 ? formatCurrency(row.guaranteedIncomeGross) : '—',
+      taxes: row.conversionTax > 0 ? formatCurrency(row.conversionTax) : '—',
+      netIncome: row.guaranteedIncomeNet > 0 ? formatCurrency(row.guaranteedIncomeNet) : '—',
+      cumulative: strategyCumulative > 0 ? formatCurrency(strategyCumulative) : '—',
+      isIncomePhase: row.phase === 'income',
+      isDeferral: row.phase === 'deferral',
+    };
+  });
+
+  // Process baseline years
+  let baselineCumulative = 0;
+  const baselineYears: GIYearRow[] = baselineGIYearlyData.map((row: any) => {
+    const isIncomePhase = row.phase === 'income';
+    const grossIncome = row.guaranteedIncomeGross || 0;
+    const taxOnIncome = isIncomePhase ? Math.round(grossIncome * flatTaxRate) : 0;
+    const netIncome = grossIncome - taxOnIncome;
+
+    if (isIncomePhase && netIncome > 0) {
+      baselineCumulative += netIncome;
+    }
+
+    const phaseMap: Record<string, string> = {
+      deferral: 'Grow',
+      income: 'Income',
+    };
+
+    const phaseClassMap: Record<string, string> = {
+      deferral: 'phase-grow',
+      income: 'phase-income',
+    };
+
+    return {
+      year: row.year,
+      age: row.age,
+      phase: phaseMap[row.phase] || row.phase,
+      phaseClass: phaseClassMap[row.phase] || '',
+      incomeBase: row.incomeBase > 0 ? formatCurrency(row.incomeBase) : '—',
+      accountValue: row.accountValue <= 0 ? '$0' : formatCurrency(row.accountValue),
+      giIncome: grossIncome > 0 ? formatCurrency(grossIncome) : '—',
+      taxes: taxOnIncome > 0 ? formatCurrency(taxOnIncome) : '—',
+      netIncome: netIncome > 0 ? formatCurrency(netIncome) : '—',
+      cumulative: baselineCumulative > 0 ? formatCurrency(baselineCumulative) : '—',
+      isIncomePhase,
+      isDeferral: row.phase === 'deferral',
+    };
+  });
+
+  const payoutTypeDisplay = client.payout_type === 'joint' ? 'Joint Life' : 'Single Life';
+
+  return {
+    clientName: client.name,
+    reportDate: new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }),
+    branding,
+
+    // Hero
+    strategyAnnualIncome: formatCurrency(strategyAnnualIncome),
+    baselineAnnualIncomeGross: formatCurrency(baselineAnnualIncomeGross),
+    baselineAnnualIncomeNet: formatCurrency(baselineAnnualIncomeNet),
+
+    // Key metrics
+    taxFreeWealthCreated: formatCurrency(taxFreeWealthCreated),
+    percentImprovement: percentImprovement.toFixed(1),
+    strategyLifetimeIncome: formatCurrency(strategyLifetimeIncome),
+    baselineLifetimeIncome: formatCurrency(baselineLifetimeIncome),
+    lifetimeIncomeAdvantage: formatCurrency(lifetimeIncomeAdvantage),
+    strategyTotalTaxes: formatCurrency(conversionTax),
+    baselineTotalTaxes: formatCurrency(baselineTotalTaxes),
+    taxSavings: formatCurrency(taxSavings),
+
+    // Break-even
+    breakEvenYears: projection.gi_break_even_years || null,
+    breakEvenAge: projection.gi_break_even_age || null,
+
+    // Income details
+    incomeStartAge,
+    payoutType: payoutTypeDisplay,
+    payoutPercent: payoutPercent.toFixed(2),
+
+    // 4-Phase journey
+    showConversionPhase: (projection.gi_conversion_phase_years || 0) > 0,
+    conversionYears: projection.gi_conversion_phase_years || 0,
+    conversionTax: formatCurrency(conversionTax),
+    purchaseAge: projection.gi_purchase_age || 0,
+    purchaseAmount: formatCurrency(projection.gi_purchase_amount || 0),
+    deferralYears: projection.gi_deferral_years || 0,
+    rollUpGrowth: formatCurrency(rollUpGrowth),
+
+    // Income Base calculation
+    deposit: formatCurrency(deposit),
+    bonusAmount: formatCurrency(bonusAmount),
+    bonusPercent,
+    startingIncomeBase: formatCurrency(startingIncomeBase),
+    finalIncomeBase: formatCurrency(finalIncomeBase),
+    calculatedIncome: formatCurrency(calculatedIncome),
+
+    // Guarantee section
+    depletionAge: projection.gi_depletion_age || null,
+    lifetimeIncomeGross: formatCurrency(projection.gi_total_gross_paid || 0),
+    endAge,
+    baselineAnnualTax: formatCurrency(baselineAnnualTax),
+    annualAdvantage: formatCurrency(annualAdvantage),
+
+    // Product details
+    carrierName: client.carrier_name || 'N/A',
+    productName: client.product_name || 'N/A',
+    riderFee: (client.rider_fee || 1.00).toFixed(2),
+    rollUpDescription: projection.gi_roll_up_description || 'N/A',
+    totalRiderFees: formatCurrency(projection.gi_total_rider_fees || 0),
+
+    // Year-by-year tables
+    strategyYears,
+    baselineYears,
+    taxRate,
+  };
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Auth check
@@ -520,13 +798,20 @@ export async function POST(request: NextRequest) {
       hasContactInfo: !!(settings?.company_phone || settings?.company_email || settings?.company_website),
     };
 
-    // Load and compile template
-    const templatePath = path.join(process.cwd(), 'templates', 'pdf-template.html');
+    // Detect if this is a GI product
+    const blueprintType = reportData.client.blueprint_type as FormulaType;
+    const isGI = blueprintType && isGuaranteedIncomeProduct(blueprintType);
+
+    // Load and compile the appropriate template
+    const templateFileName = isGI ? 'gi-pdf-template.html' : 'pdf-template.html';
+    const templatePath = path.join(process.cwd(), 'templates', templateFileName);
     const templateHtml = fs.readFileSync(templatePath, 'utf8');
     const template = Handlebars.compile(templateHtml);
 
-    // Prepare data for template
-    const templateData = prepareTemplateData(reportData, charts || {}, branding);
+    // Prepare data for the appropriate template
+    const templateData = isGI
+      ? prepareGITemplateData(reportData, branding)
+      : prepareTemplateData(reportData, charts || {}, branding);
 
     // Generate HTML
     const html = template(templateData);
@@ -568,12 +853,13 @@ export async function POST(request: NextRequest) {
     const sanitizedName = clientName
       .replace(/[^a-zA-Z0-9\s-]/g, '')
       .replace(/\s+/g, '_');
+    const pdfPrefix = isGI ? 'RothFormula_GI' : 'RothFormula';
 
     return new NextResponse(Buffer.from(pdf), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="RothFormula_${sanitizedName}.pdf"`,
+        'Content-Disposition': `attachment; filename="${pdfPrefix}_${sanitizedName}.pdf"`,
       },
     });
   } catch (error) {

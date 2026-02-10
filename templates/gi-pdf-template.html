@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    /* PDF Styles for Guaranteed Income Report */
+    @page {
+      size: letter;
+      margin: 0.5in;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      color: #333;
+      font-size: 10pt;
+    }
+
+    .page {
+      page-break-after: always;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .page:last-child {
+      page-break-after: avoid;
+    }
+
+    /* Cover Page */
+    .cover-page {
+      background: linear-gradient(135deg, {{branding.primaryColor}} 0%, {{branding.primaryColor}}cc 100%);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 100vh;
+    }
+
+    .cover-page .logo-image {
+      max-width: 320px;
+      max-height: 100px;
+      margin-bottom: 80px;
+    }
+
+    .cover-page .company-name {
+      font-size: 36pt;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .cover-page .company-tagline {
+      font-size: 14pt;
+      opacity: 0.7;
+      margin-bottom: 80px;
+    }
+
+    .cover-page .logo {
+      font-size: 48pt;
+      font-weight: bold;
+      margin-bottom: 80px;
+    }
+
+    .cover-page .logo span {
+      color: {{branding.secondaryColor}};
+    }
+
+    .cover-page .report-type {
+      font-size: 18pt;
+      opacity: 0.8;
+      margin-bottom: 10px;
+    }
+
+    .cover-page .prepared-for {
+      font-size: 14pt;
+      margin-bottom: 10px;
+      opacity: 0.8;
+    }
+
+    .cover-page .client-name {
+      font-size: 28pt;
+      font-weight: 300;
+    }
+
+    .cover-page .date {
+      font-size: 12pt;
+      margin-top: 40px;
+      opacity: 0.7;
+    }
+
+    /* Headers */
+    .page-header {
+      font-size: 8pt;
+      color: #666;
+      text-align: right;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .section-title {
+      font-size: 18pt;
+      color: {{branding.primaryColor}};
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid {{branding.secondaryColor}};
+    }
+
+    .subsection-title {
+      font-size: 14pt;
+      color: {{branding.primaryColor}};
+      margin: 25px 0 15px;
+    }
+
+    /* Hero Card */
+    .hero-card {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border: 2px solid #22c55e;
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .hero-label {
+      font-size: 11pt;
+      color: #166534;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 10px;
+    }
+
+    .hero-value {
+      font-size: 36pt;
+      font-weight: 700;
+      color: #166534;
+      margin-bottom: 5px;
+    }
+
+    .hero-subtitle {
+      font-size: 14pt;
+      color: #16a34a;
+    }
+
+    .hero-comparison {
+      background: rgba(0,0,0,0.05);
+      border-radius: 8px;
+      padding: 12px 20px;
+      margin-top: 15px;
+      display: inline-block;
+    }
+
+    .hero-comparison-text {
+      font-size: 10pt;
+      color: #666;
+    }
+
+    .hero-comparison-highlight {
+      color: #dc2626;
+    }
+
+    /* Metrics Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 25px;
+    }
+
+    .metric-card {
+      background: #f8f9fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 20px;
+    }
+
+    .metric-card.highlight {
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      border-color: #22c55e;
+    }
+
+    .metric-card.full-width {
+      grid-column: span 2;
+    }
+
+    .metric-label {
+      font-size: 9pt;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: 20pt;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .metric-value.green {
+      color: #16a34a;
+    }
+
+    .metric-value.gold {
+      color: #b45309;
+    }
+
+    .metric-comparison {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .metric-comparison-item {
+      text-align: center;
+    }
+
+    .metric-comparison-label {
+      font-size: 8pt;
+      color: #888;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .metric-comparison-value {
+      font-size: 12pt;
+      font-weight: 500;
+    }
+
+    .metric-comparison-value.baseline {
+      color: #666;
+    }
+
+    .metric-comparison-value.strategy {
+      color: #333;
+    }
+
+    .metric-difference {
+      margin-top: 10px;
+      font-size: 12pt;
+      font-weight: 600;
+    }
+
+    .metric-difference.positive {
+      color: #16a34a;
+    }
+
+    .metric-difference.negative {
+      color: #dc2626;
+    }
+
+    /* 4-Phase Journey */
+    .phase-journey {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 25px;
+    }
+
+    .phase-card {
+      flex: 1;
+      background: #f8f9fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .phase-card.income {
+      background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
+      border-color: #eab308;
+    }
+
+    .phase-number {
+      width: 28px;
+      height: 28px;
+      background: {{branding.primaryColor}};
+      color: white;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12pt;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .phase-name {
+      font-size: 10pt;
+      font-weight: 600;
+      color: {{branding.primaryColor}};
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+    }
+
+    .phase-value {
+      font-size: 16pt;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .phase-subtext {
+      font-size: 8pt;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    .phase-detail {
+      font-size: 10pt;
+      font-weight: 500;
+    }
+
+    .phase-detail.tax {
+      color: #dc2626;
+    }
+
+    .phase-detail.green {
+      color: #16a34a;
+    }
+
+    .phase-detail.gold {
+      color: #b45309;
+    }
+
+    .phase-arrow {
+      display: flex;
+      align-items: center;
+      color: #ccc;
+      font-size: 20pt;
+    }
+
+    /* Income Base Journey */
+    .income-journey {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .journey-step {
+      background: #f8f9fa;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 12px 16px;
+      text-align: center;
+      min-width: 100px;
+    }
+
+    .journey-step.final {
+      background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
+      border-color: #eab308;
+    }
+
+    .journey-step-value {
+      font-size: 14pt;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .journey-step-value.gold {
+      color: #b45309;
+    }
+
+    .journey-step-label {
+      font-size: 8pt;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .journey-arrow {
+      color: #ccc;
+      font-size: 16pt;
+    }
+
+    .income-formula {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      font-size: 11pt;
+      color: #666;
+    }
+
+    .income-formula strong {
+      color: #b45309;
+    }
+
+    /* Data Tables */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8pt;
+      margin-bottom: 20px;
+    }
+
+    .data-table th {
+      background: #2d3748;
+      color: white;
+      padding: 10px 8px;
+      text-align: right;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .data-table th:first-child,
+    .data-table th:nth-child(2),
+    .data-table th:nth-child(3) {
+      text-align: left;
+    }
+
+    .data-table td {
+      padding: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: right;
+    }
+
+    .data-table td:first-child,
+    .data-table td:nth-child(2),
+    .data-table td:nth-child(3) {
+      text-align: left;
+    }
+
+    .data-table tr:nth-child(even) {
+      background: #f7fafc;
+    }
+
+    .data-table .phase-convert {
+      color: #ea580c;
+      font-weight: 500;
+    }
+
+    .data-table .phase-purchase {
+      color: #9333ea;
+      font-weight: 500;
+    }
+
+    .data-table .phase-grow {
+      color: #2563eb;
+      font-weight: 500;
+    }
+
+    .data-table .phase-income {
+      color: #16a34a;
+      font-weight: 500;
+    }
+
+    .data-table .tax-value {
+      color: #dc2626;
+    }
+
+    .data-table .positive-value {
+      color: #16a34a;
+    }
+
+    .data-table .gold-value {
+      color: #b45309;
+      font-weight: 500;
+    }
+
+    /* Comparison Table */
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+      margin-bottom: 20px;
+    }
+
+    .comparison-table th {
+      background: {{branding.primaryColor}};
+      color: white;
+      padding: 12px;
+      text-align: left;
+      font-weight: 500;
+    }
+
+    .comparison-table th:not(:first-child) {
+      text-align: right;
+    }
+
+    .comparison-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .comparison-table td:not(:first-child) {
+      text-align: right;
+    }
+
+    .comparison-table tr:nth-child(even) {
+      background: #f8f9fa;
+    }
+
+    .comparison-table .highlight-row {
+      background: #f0fdf4 !important;
+      font-weight: 600;
+    }
+
+    .comparison-table .highlight-row td {
+      color: #166534;
+    }
+
+    /* Guarantee Section */
+    .guarantee-box {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .guarantee-title {
+      font-size: 12pt;
+      font-weight: 600;
+      color: #166534;
+      margin-bottom: 12px;
+    }
+
+    .guarantee-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .guarantee-check {
+      width: 20px;
+      height: 20px;
+      background: #22c55e;
+      border-radius: 50%;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12pt;
+      flex-shrink: 0;
+    }
+
+    .guarantee-text {
+      font-size: 10pt;
+      color: #333;
+      line-height: 1.4;
+    }
+
+    /* Disclaimer */
+    .disclaimer {
+      font-size: 8pt;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .disclaimer p {
+      margin-bottom: 12px;
+    }
+
+    .footer-branding {
+      margin-top: 40px;
+      text-align: center;
+      font-style: italic;
+    }
+
+    .footer-contact {
+      margin-top: 15px;
+      text-align: center;
+      font-size: 9pt;
+      color: #888;
+    }
+
+    /* Product Details */
+    .product-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 30px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .product-detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .product-detail-label {
+      color: #666;
+      font-size: 9pt;
+    }
+
+    .product-detail-value {
+      font-weight: 500;
+      font-size: 9pt;
+    }
+  </style>
+</head>
+<body>
+  <!-- Page 1: Cover -->
+  <div class="page cover-page">
+    {{#if branding.logoUrl}}
+    <img class="logo-image" src="{{branding.logoUrl}}" alt="{{branding.companyName}}" />
+    {{else if branding.hasBranding}}
+    <div class="company-name">{{branding.companyName}}</div>
+    {{#if branding.tagline}}
+    <div class="company-tagline">{{branding.tagline}}</div>
+    {{/if}}
+    {{else}}
+    <div class="logo">Roth<span>Formula</span></div>
+    {{/if}}
+    <div class="report-type">Guaranteed Income Analysis</div>
+    <div class="prepared-for">Prepared especially for:</div>
+    <div class="client-name">{{clientName}}</div>
+    <div class="date">{{reportDate}}</div>
+  </div>
+
+  <!-- Page 2: Executive Summary -->
+  <div class="page">
+    <div class="page-header">Executive Summary</div>
+    <h1 class="section-title">Your Tax-Free Guaranteed Income</h1>
+
+    <!-- Hero: Annual Income -->
+    <div class="hero-card">
+      <div class="hero-label">Your Tax-Free Guaranteed Income</div>
+      <div class="hero-value">{{strategyAnnualIncome}}/year</div>
+      <div class="hero-subtitle">tax-free for life</div>
+      {{#if baselineAnnualIncomeGross}}
+      <div class="hero-comparison">
+        <span class="hero-comparison-text">
+          vs. Traditional GI: {{baselineAnnualIncomeGross}}/year gross →
+          <span class="hero-comparison-highlight">{{baselineAnnualIncomeNet}}/year after tax</span>
+        </span>
+      </div>
+      {{/if}}
+    </div>
+
+    <!-- Key Metrics Grid -->
+    <div class="metrics-grid">
+      {{#if taxFreeWealthCreated}}
+      <div class="metric-card highlight full-width">
+        <div class="metric-label">Tax-Free Wealth Created</div>
+        <div class="metric-value green">+{{taxFreeWealthCreated}}</div>
+        <div style="font-size: 10pt; color: #666; margin-top: 8px;">
+          Lifetime advantage over Traditional GI
+          {{#if percentImprovement}}
+          <span style="color: #16a34a;">(+{{percentImprovement}}% improvement)</span>
+          {{/if}}
+        </div>
+      </div>
+      {{/if}}
+
+      <div class="metric-card">
+        <div class="metric-label">Lifetime Income (Net)</div>
+        <div class="metric-comparison">
+          <div class="metric-comparison-item">
+            <div class="metric-comparison-label">Baseline</div>
+            <div class="metric-comparison-value baseline">{{baselineLifetimeIncome}}</div>
+          </div>
+          <div class="metric-comparison-item">
+            <div class="metric-comparison-label">Strategy</div>
+            <div class="metric-comparison-value strategy">{{strategyLifetimeIncome}}</div>
+          </div>
+        </div>
+        <div class="metric-difference positive">+{{lifetimeIncomeAdvantage}}</div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-label">Total Taxes Paid</div>
+        <div class="metric-comparison">
+          <div class="metric-comparison-item">
+            <div class="metric-comparison-label">Baseline</div>
+            <div class="metric-comparison-value baseline">{{baselineTotalTaxes}}</div>
+          </div>
+          <div class="metric-comparison-item">
+            <div class="metric-comparison-label">Strategy</div>
+            <div class="metric-comparison-value strategy">{{strategyTotalTaxes}}</div>
+          </div>
+        </div>
+        <div class="metric-difference positive">{{taxSavings}} saved</div>
+      </div>
+    </div>
+
+    <!-- Break-Even & Details -->
+    <div class="metrics-grid">
+      {{#if breakEvenYears}}
+      <div class="metric-card">
+        <div class="metric-label">Break-Even</div>
+        <div class="metric-value">{{breakEvenYears}} years</div>
+        <div style="font-size: 10pt; color: #666; margin-top: 8px;">
+          At age {{breakEvenAge}}, then pure advantage
+        </div>
+      </div>
+      {{/if}}
+
+      <div class="metric-card">
+        <div class="metric-label">Income Details</div>
+        <div style="font-size: 10pt; color: #666;">
+          <div>Starting Age: {{incomeStartAge}}</div>
+          <div>Payout Type: {{payoutType}}</div>
+          <div>Payout Rate: {{payoutPercent}}%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page 3: 4-Phase Journey -->
+  {{#if showConversionPhase}}
+  <div class="page">
+    <div class="page-header">Strategy Overview</div>
+    <h1 class="section-title">Your Tax-Free Income Journey</h1>
+
+    <!-- 4-Phase Timeline -->
+    <div class="phase-journey">
+      <div class="phase-card">
+        <div class="phase-number">1</div>
+        <div class="phase-name">Convert</div>
+        <div class="phase-value">{{conversionYears}} years</div>
+        <div class="phase-subtext">Traditional → Roth IRA</div>
+        <div class="phase-detail tax">Tax: {{conversionTax}}</div>
+      </div>
+
+      <div class="phase-arrow">→</div>
+
+      <div class="phase-card">
+        <div class="phase-number">2</div>
+        <div class="phase-name">Purchase</div>
+        <div class="phase-value">Age {{purchaseAge}}</div>
+        <div class="phase-subtext">Buy GI in Roth IRA</div>
+        <div class="phase-detail green">{{purchaseAmount}}</div>
+      </div>
+
+      <div class="phase-arrow">→</div>
+
+      <div class="phase-card">
+        <div class="phase-number">3</div>
+        <div class="phase-name">Grow</div>
+        <div class="phase-value">{{deferralYears}} years</div>
+        <div class="phase-subtext">Income Base grows</div>
+        <div class="phase-detail gold">+{{rollUpGrowth}}</div>
+      </div>
+
+      <div class="phase-arrow">→</div>
+
+      <div class="phase-card income">
+        <div class="phase-number">4</div>
+        <div class="phase-name">Income</div>
+        <div class="phase-value">For Life</div>
+        <div class="phase-subtext">Tax-free payments</div>
+        <div class="phase-detail green">{{strategyAnnualIncome}}/yr</div>
+      </div>
+    </div>
+
+    {{#if breakEvenYears}}
+    <div class="guarantee-box" style="margin-top: 20px;">
+      <div class="guarantee-item">
+        <div class="guarantee-check">✓</div>
+        <div class="guarantee-text">
+          <strong>Break-even at age {{breakEvenAge}}</strong> ({{breakEvenYears}} years after income starts) — then pure tax-free advantage
+        </div>
+      </div>
+    </div>
+    {{/if}}
+
+    <h2 class="subsection-title">How Your Income Is Calculated</h2>
+
+    <div class="income-journey">
+      <div class="journey-step">
+        <div class="journey-step-value">{{deposit}}</div>
+        <div class="journey-step-label">Deposit</div>
+      </div>
+      <div class="journey-arrow">→</div>
+      <div class="journey-step">
+        <div class="journey-step-value gold">+{{bonusAmount}}</div>
+        <div class="journey-step-label">{{bonusPercent}}% Bonus</div>
+      </div>
+      <div class="journey-arrow">→</div>
+      <div class="journey-step">
+        <div class="journey-step-value">{{startingIncomeBase}}</div>
+        <div class="journey-step-label">Starting Base</div>
+      </div>
+      <div class="journey-arrow">→</div>
+      <div class="journey-step">
+        <div class="journey-step-value gold">+{{rollUpGrowth}}</div>
+        <div class="journey-step-label">Roll-Up Growth</div>
+      </div>
+      <div class="journey-arrow">→</div>
+      <div class="journey-step final">
+        <div class="journey-step-value gold">{{finalIncomeBase}}</div>
+        <div class="journey-step-label">Final Income Base</div>
+      </div>
+    </div>
+
+    <div class="income-formula">
+      {{finalIncomeBase}} × {{payoutPercent}}% = <strong>{{calculatedIncome}}/year guaranteed</strong>
+    </div>
+  </div>
+  {{/if}}
+
+  <!-- Page 4: The Guarantee -->
+  <div class="page">
+    <div class="page-header">The Guarantee</div>
+    <h1 class="section-title">Your Lifetime Protection</h1>
+
+    <div class="guarantee-box">
+      <div class="guarantee-title">What You're Guaranteed</div>
+
+      <div class="guarantee-item">
+        <div class="guarantee-check">✓</div>
+        <div class="guarantee-text">
+          Your guaranteed income of <strong>{{strategyAnnualIncome}}/year</strong> continues for life, regardless of market conditions
+        </div>
+      </div>
+
+      {{#if depletionAge}}
+      <div class="guarantee-item">
+        <div class="guarantee-check">✓</div>
+        <div class="guarantee-text">
+          Even after account depletion at age {{depletionAge}}, your income payments continue
+        </div>
+      </div>
+      {{/if}}
+
+      <div class="guarantee-item">
+        <div class="guarantee-check">✓</div>
+        <div class="guarantee-text">
+          Total projected lifetime income: <strong>{{lifetimeIncomeGross}}</strong> (to age {{endAge}})
+        </div>
+      </div>
+
+      <div class="guarantee-item">
+        <div class="guarantee-check">✓</div>
+        <div class="guarantee-text">
+          Because income comes from a Roth IRA, every dollar is <strong>tax-free</strong>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="subsection-title">Strategy vs. Baseline Comparison</h2>
+
+    <table class="comparison-table">
+      <tr>
+        <th>Metric</th>
+        <th>Baseline (Traditional GI)</th>
+        <th>Strategy (Roth GI)</th>
+        <th>Difference</th>
+      </tr>
+      <tr>
+        <td>Annual Income (Gross)</td>
+        <td>{{baselineAnnualIncomeGross}}</td>
+        <td>{{strategyAnnualIncome}}</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Annual Tax on Income</td>
+        <td style="color: #dc2626;">{{baselineAnnualTax}}</td>
+        <td style="color: #16a34a;">$0</td>
+        <td style="color: #16a34a;">{{baselineAnnualTax}} saved/yr</td>
+      </tr>
+      <tr>
+        <td>Annual Income (Net)</td>
+        <td>{{baselineAnnualIncomeNet}}</td>
+        <td>{{strategyAnnualIncome}}</td>
+        <td style="color: #16a34a;">+{{annualAdvantage}}</td>
+      </tr>
+      <tr>
+        <td>Lifetime Income (Net)</td>
+        <td>{{baselineLifetimeIncome}}</td>
+        <td>{{strategyLifetimeIncome}}</td>
+        <td style="color: #16a34a;">+{{lifetimeIncomeAdvantage}}</td>
+      </tr>
+      <tr class="highlight-row">
+        <td><strong>Tax-Free Wealth Created</strong></td>
+        <td>—</td>
+        <td>—</td>
+        <td><strong>+{{taxFreeWealthCreated}}</strong></td>
+      </tr>
+    </table>
+
+    <h2 class="subsection-title">Product Details</h2>
+
+    <div class="product-details">
+      <div class="product-detail-row">
+        <span class="product-detail-label">Carrier</span>
+        <span class="product-detail-value">{{carrierName}}</span>
+      </div>
+      <div class="product-detail-row">
+        <span class="product-detail-label">Product</span>
+        <span class="product-detail-value">{{productName}}</span>
+      </div>
+      <div class="product-detail-row">
+        <span class="product-detail-label">Premium Bonus</span>
+        <span class="product-detail-value">{{bonusPercent}}%</span>
+      </div>
+      <div class="product-detail-row">
+        <span class="product-detail-label">Rider Fee</span>
+        <span class="product-detail-value">{{riderFee}}%/year</span>
+      </div>
+      <div class="product-detail-row">
+        <span class="product-detail-label">Roll-Up Rate</span>
+        <span class="product-detail-value">{{rollUpDescription}}</span>
+      </div>
+      <div class="product-detail-row">
+        <span class="product-detail-label">Payout Type</span>
+        <span class="product-detail-value">{{payoutType}}</span>
+      </div>
+      <div class="product-detail-row">
+        <span class="product-detail-label">Payout Rate</span>
+        <span class="product-detail-value">{{payoutPercent}}% (age {{incomeStartAge}})</span>
+      </div>
+      <div class="product-detail-row">
+        <span class="product-detail-label">Total Rider Fees</span>
+        <span class="product-detail-value">{{totalRiderFees}}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page 5+: Year-by-Year Projection -->
+  <div class="page">
+    <div class="page-header">Year-by-Year Projection</div>
+    <h1 class="section-title">Strategy: Roth GI Projection</h1>
+
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>Phase</th>
+        <th>Income Base</th>
+        <th>Acct Value</th>
+        <th>GI Income</th>
+        <th>Taxes</th>
+        <th>Net Income</th>
+        <th>Cumulative</th>
+      </tr>
+      {{#each strategyYears}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td class="{{this.phaseClass}}">{{this.phase}}</td>
+        <td class="{{#if this.isIncomePhase}}gold-value{{/if}}">{{this.incomeBase}}</td>
+        <td>{{this.accountValue}}</td>
+        <td class="gold-value">{{this.giIncome}}</td>
+        <td class="tax-value">{{this.taxes}}</td>
+        <td class="positive-value">{{this.netIncome}}</td>
+        <td>{{this.cumulative}}</td>
+      </tr>
+      {{/each}}
+    </table>
+
+    {{#if depletionAge}}
+    <div style="background: #fef9c3; border: 1px solid #eab308; border-radius: 8px; padding: 12px; margin-top: 15px;">
+      <span style="color: #b45309; font-style: italic;">
+        ✓ Income continues for life after account depletion at age {{depletionAge}}
+      </span>
+    </div>
+    {{/if}}
+  </div>
+
+  <!-- Page 6: Baseline Comparison Table -->
+  <div class="page">
+    <div class="page-header">Year-by-Year Projection</div>
+    <h1 class="section-title">Baseline: Traditional GI Projection</h1>
+
+    <p style="color: #666; font-size: 10pt; margin-bottom: 15px;">
+      What would happen if you purchased the GI product inside a Traditional IRA without Roth conversion:
+    </p>
+
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>Phase</th>
+        <th>Income Base</th>
+        <th>Acct Value</th>
+        <th>GI Income</th>
+        <th>Tax ({{taxRate}}%)</th>
+        <th>Net Income</th>
+        <th>Cumulative</th>
+      </tr>
+      {{#each baselineYears}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td class="{{this.phaseClass}}">{{this.phase}}</td>
+        <td class="{{#if this.isDeferral}}gold-value{{/if}}">{{this.incomeBase}}</td>
+        <td>{{this.accountValue}}</td>
+        <td>{{this.giIncome}}</td>
+        <td class="tax-value">{{this.taxes}}</td>
+        <td>{{this.netIncome}}</td>
+        <td>{{this.cumulative}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <!-- Page 7: Disclaimer -->
+  <div class="page">
+    <div class="page-header">Disclaimer</div>
+    <h1 class="section-title">Important Information</h1>
+    <div class="disclaimer">
+      <p>
+        <strong>Hypothetical calculations only.</strong> This is an educational illustration only and is not intended to indicate actual performance nor predict future results. The hypothetical, non-guaranteed values shown are calculated based on user-defined assumptions and over a user-defined specified period. Please engage and rely on the advice of a properly licensed professional prior to making any financial decisions.
+      </p>
+      <p>
+        The information, data, calculations, and opinions contained herein are not intended to indicate actual performance nor predict future results and (1) are educational only and designed to help you better understand how guaranteed income and Roth conversion strategies might work under various conditions, (2) aren't recommendations to buy or sell a particular annuity or make a Roth conversion, (3) do not constitute investment, tax, or legal advice, (4) are not warranted to be correct, complete or accurate, (5) assume non-guaranteed rates as of the assumed issue year and age, (6) these hypothetical, non-guaranteed values shown are calculated based on user-defined assumptions and are subject to change.
+      </p>
+      <p>
+        Guaranteed income payments are subject to the claims-paying ability of the issuing insurance company. All guarantees and benefits are backed solely by the financial strength and claims-paying ability of the issuing company.
+      </p>
+      <p>
+        <strong>Tax Information:</strong> Tax calculations shown are estimates based on current tax law and the tax rate specified ({{taxRate}}%). Actual taxes may vary. Consult a qualified tax professional for advice specific to your situation.
+      </p>
+      <p>
+        <strong>Roth Conversion:</strong> Converting Traditional IRA assets to a Roth IRA is a taxable event. You should consult with a tax advisor to understand the tax implications specific to your situation before making any conversions.
+      </p>
+      <p class="footer-branding">
+        Generated by {{#if branding.hasBranding}}{{branding.companyName}}{{else}}RothFormula{{/if}} on {{reportDate}}
+      </p>
+      {{#if branding.hasContactInfo}}
+      <div class="footer-contact">
+        {{#if branding.phone}}{{branding.phone}}{{/if}}
+        {{#if branding.email}} | {{branding.email}}{{/if}}
+        {{#if branding.website}}<br/>{{branding.website}}{{/if}}
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</body>
+</html>
