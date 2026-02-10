@@ -1292,7 +1292,8 @@ function calculateComparisonMetrics(
   const annualAdvantage = strategy.annualIncomeNet - baselineNetFlat;
 
   // Lifetime calculations using flat rate
-  const incomeYears = 100 - baseline.incomeStartAge; // Assume income to age 100
+  // Use +1 for inclusive count: ages 70-100 = 31 years (matches simulation loop)
+  const incomeYears = 100 - baseline.incomeStartAge + 1;
   const lifetimeAdvantage = annualAdvantage * incomeYears;
 
   // Break-even years = Conversion Tax / Annual Advantage

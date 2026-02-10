@@ -421,7 +421,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                   {...getTaxFreeWealthTooltip(
                     projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0,
                     projection.gi_baseline_annual_income_net || 0,
-                    client.end_age - (incomeStartAge || 70)
+                    client.end_age - (incomeStartAge || 70) + 1
                   )}
                 />
               </div>
@@ -473,7 +473,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
             label="Taxes Paid"
             baseline={(() => {
               // Baseline: pays tax on GI income every year
-              const incomeYears = client.end_age - (incomeStartAge || 70);
+              const incomeYears = client.end_age - (incomeStartAge || 70) + 1;
               const annualTax = Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100));
               return annualTax * incomeYears;
             })()}
@@ -485,9 +485,9 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                 { label: "Strategy: Conversion Tax", value: toUSD(projection.gi_total_conversion_tax || blueConversionTax), highlight: "red" as const },
                 { label: "Strategy: Tax on Income", value: "$0 (tax-free)", highlight: "green" as const },
                 { isSeparator: true, label: "", value: "" },
-                { label: `Baseline: Tax on Income (${client.tax_rate}%)`, value: toUSD(Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100)) * (client.end_age - (incomeStartAge || 70))), highlight: "red" as const },
+                { label: `Baseline: Tax on Income (${client.tax_rate}%)`, value: toUSD(Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100)) * (client.end_age - (incomeStartAge || 70) + 1)), highlight: "red" as const },
                 { isSeparator: true, label: "", value: "" },
-                { label: "Tax Savings", value: toUSD(Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100)) * (client.end_age - (incomeStartAge || 70)) - (projection.gi_total_conversion_tax || blueConversionTax)), highlight: "green" as const, isResult: true },
+                { label: "Tax Savings", value: toUSD(Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100)) * (client.end_age - (incomeStartAge || 70) + 1) - (projection.gi_total_conversion_tax || blueConversionTax)), highlight: "green" as const, isResult: true },
               ],
               explanation: "Strategy pays conversion tax once upfront, then $0 tax on income forever. Baseline pays tax on every GI payment for life.",
             }}
