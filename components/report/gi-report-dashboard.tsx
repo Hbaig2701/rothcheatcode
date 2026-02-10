@@ -589,7 +589,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                     : "text-[rgba(255,255,255,0.5)] hover:text-white"
                 )}
               >
-                Full Details
+                Strategy
               </button>
               <button
                 onClick={() => setTableView("baseline")}
@@ -600,7 +600,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                     : "text-[rgba(255,255,255,0.5)] hover:text-white"
                 )}
               >
-                Baseline Compare
+                Baseline
               </button>
             </div>
           </div>
@@ -614,7 +614,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                   <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Age</th>
                   <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Phase</th>
 
-                  {/* Full Details columns */}
+                  {/* Strategy (Full) columns */}
                   {tableView === "full" && (
                     <>
                       <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad (BOY)</th>
@@ -625,41 +625,99 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                       <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Income Base</th>
                       <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Acct Value</th>
                       <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Rider Fee</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">GI Income</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Cumulative</th>
                     </>
                   )}
 
-                  {/* Summary & Baseline columns */}
-                  {(tableView === "summary" || tableView === "baseline") && (
+                  {/* Summary columns */}
+                  {tableView === "summary" && (
                     <>
                       <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Key Value</th>
-                    </>
-                  )}
-
-                  {/* Baseline comparison columns */}
-                  {tableView === "baseline" && (
-                    <>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium border-l border-[rgba(255,255,255,0.1)]">Strategy Net</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Baseline Net</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Advantage</th>
-                    </>
-                  )}
-
-                  {/* Common income columns */}
-                  {tableView !== "baseline" && (
-                    <>
                       <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">GI Income</th>
                       <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Taxes</th>
                       <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Cumulative</th>
                     </>
                   )}
 
-                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Cumulative</th>
+                  {/* Baseline columns - Traditional GI scenario */}
+                  {tableView === "baseline" && (
+                    <>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Income Base</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Acct Value</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">GI Income</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Tax ({client.tax_rate}%)</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net Income</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Cumulative</th>
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {giYearlyData.map((row, idx) => {
+                {/* BASELINE VIEW - Show baseline scenario data */}
+                {tableView === "baseline" && baselineGIYearlyData.map((row, idx) => {
+                  const isDeferralPhase = row.phase === "deferral";
+                  const isIncomePhase = row.phase === "income";
+                  const isAccountZero = row.accountValue <= 0;
+
+                  // Calculate cumulative net income (after-tax) for baseline
+                  let cumulative = 0;
+                  for (let i = 0; i <= idx; i++) {
+                    cumulative += baselineGIYearlyData[i].guaranteedIncomeNet || 0;
+                  }
+
+                  // Calculate tax on this year's income using flat rate
+                  const grossIncome = row.guaranteedIncomeGross || 0;
+                  const taxOnIncome = isIncomePhase ? Math.round(grossIncome * (client.tax_rate / 100)) : 0;
+                  const netIncome = grossIncome - taxOnIncome;
+
+                  // Phase display for baseline
+                  const phaseLabel = isDeferralPhase ? "Grow" : isIncomePhase ? "Income" : row.phase;
+                  const phaseColor = isDeferralPhase ? "text-[#3b82f6]" : isIncomePhase ? "text-[rgba(255,255,255,0.5)]" : "text-[rgba(255,255,255,0.5)]";
+
+                  return (
+                    <tr
+                      key={row.year}
+                      className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                    >
+                      <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
+                      <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{row.age}</td>
+                      <td className={cn("px-4 py-3 text-sm font-medium uppercase tracking-wide", phaseColor)}>
+                        {phaseLabel}
+                      </td>
+                      <td className={cn(
+                        "px-4 py-3 text-sm font-mono text-right",
+                        isDeferralPhase ? "text-gold" : "text-[rgba(255,255,255,0.5)]"
+                      )}>
+                        {row.incomeBase > 0 ? toUSD(row.incomeBase) : "—"}
+                      </td>
+                      <td className={cn(
+                        "px-4 py-3 text-sm font-mono text-right",
+                        isAccountZero ? "text-[rgba(255,255,255,0.25)]" : "text-[rgba(255,255,255,0.5)]"
+                      )}>
+                        {isAccountZero ? "$0" : toUSD(row.accountValue)}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.6)]">
+                        {grossIncome > 0 ? toUSD(grossIncome) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
+                        {taxOnIncome > 0 ? toUSD(taxOnIncome) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+                        {netIncome > 0 ? toUSD(netIncome) : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+                        {cumulative > 0 ? toUSD(cumulative) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {/* STRATEGY VIEWS (Summary & Full) - Show strategy scenario data */}
+                {tableView !== "baseline" && giYearlyData.map((row, idx) => {
                   const blueprintYear = projection.blueprint_years[idx];
-                  const baselineRow = baselineGIYearlyData[idx];
                   const isDepletionRow = depletionAge && row.age === depletionAge && row.accountValue <= 0;
                   const isAccountZero = row.accountValue <= 0;
                   const isConversionPhase = row.phase === "conversion";
@@ -678,17 +736,12 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                   const boyTraditional = prevRow ? prevRow.traditionalBalance : (isConversionPhase ? client.qualified_account_value : 0);
                   const eoyTraditional = row.traditionalBalance;
 
-                  // Key value based on phase
+                  // Key value based on phase (for summary view)
                   const keyValue = isConversionPhase
                     ? row.traditionalBalance
                     : isDeferralPhase || isIncomePhase
                       ? row.incomeBase
                       : row.accountValue;
-
-                  // Baseline comparison values
-                  const baselineNet = baselineRow?.guaranteedIncomeNet || 0;
-                  const strategyNet = row.guaranteedIncomeNet || 0;
-                  const yearAdvantage = strategyNet - baselineNet;
 
                   // Phase display
                   const phaseLabel = {
@@ -720,7 +773,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                         {phaseLabel}
                       </td>
 
-                      {/* Full Details columns */}
+                      {/* Strategy (Full) columns */}
                       {tableView === "full" && (
                         <>
                           <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
@@ -753,40 +806,27 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                           <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.4)]">
                             {row.riderFee > 0 ? toUSD(row.riderFee) : "—"}
                           </td>
-                        </>
-                      )}
-
-                      {/* Summary & Baseline key value column */}
-                      {(tableView === "summary" || tableView === "baseline") && (
-                        <td className={cn(
-                          "px-4 py-3 text-sm font-mono text-right",
-                          isIncomePhase ? "text-gold" : "text-[rgba(255,255,255,0.5)]"
-                        )}>
-                          {keyValue > 0 ? toUSD(keyValue) : "—"}
-                        </td>
-                      )}
-
-                      {/* Baseline comparison columns */}
-                      {tableView === "baseline" && (
-                        <>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[#4ade80] border-l border-[rgba(255,255,255,0.05)]">
-                            {strategyNet > 0 ? toUSD(strategyNet) : "—"}
+                          <td className="px-4 py-3 text-sm font-mono text-right text-gold">
+                            {row.guaranteedIncomeGross > 0 ? toUSD(row.guaranteedIncomeGross) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-mono text-right text-[#4ade80]">
+                            {row.guaranteedIncomeNet > 0 ? toUSD(row.guaranteedIncomeNet) : "—"}
                           </td>
                           <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
-                            {baselineNet > 0 ? toUSD(baselineNet) : "—"}
-                          </td>
-                          <td className={cn(
-                            "px-4 py-3 text-sm font-mono text-right font-medium",
-                            yearAdvantage > 0 ? "text-[#4ade80]" : yearAdvantage < 0 ? "text-[#f87171]" : "text-[rgba(255,255,255,0.4)]"
-                          )}>
-                            {isIncomePhase ? (yearAdvantage >= 0 ? "+" : "") + toUSD(yearAdvantage) : "—"}
+                            {cumulative > 0 ? toUSD(cumulative) : "—"}
                           </td>
                         </>
                       )}
 
-                      {/* Common income columns (non-baseline views) */}
-                      {tableView !== "baseline" && (
+                      {/* Summary columns */}
+                      {tableView === "summary" && (
                         <>
+                          <td className={cn(
+                            "px-4 py-3 text-sm font-mono text-right",
+                            isIncomePhase ? "text-gold" : "text-[rgba(255,255,255,0.5)]"
+                          )}>
+                            {keyValue > 0 ? toUSD(keyValue) : "—"}
+                          </td>
                           <td className="px-4 py-3 text-sm font-mono text-right text-gold">
                             {row.guaranteedIncomeGross > 0 ? toUSD(row.guaranteedIncomeGross) : "—"}
                           </td>
@@ -798,12 +838,11 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                           <td className="px-4 py-3 text-sm font-mono text-right text-[#4ade80]">
                             {row.guaranteedIncomeNet > 0 ? toUSD(row.guaranteedIncomeNet) : "—"}
                           </td>
+                          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+                            {cumulative > 0 ? toUSD(cumulative) : "—"}
+                          </td>
                         </>
                       )}
-
-                      <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
-                        {cumulative > 0 ? toUSD(cumulative) : "—"}
-                      </td>
                     </tr>
                   );
                 })}
