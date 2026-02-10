@@ -50,10 +50,12 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const giYearlyData = projection.gi_yearly_data || [];
 
   // Income Base Journey values
-  const deposit = client.qualified_account_value;
+  // Use gi_purchase_amount (Roth balance at purchase) NOT client.qualified_account_value (Traditional IRA before conversion)
+  // The bonus is applied to the Roth balance AFTER conversion, not to the original Traditional IRA
+  const purchaseAmount = projection.gi_purchase_amount ?? client.qualified_account_value;
   const bonusPercent = client.bonus_percent || 0;
-  const bonusAmount = Math.round(deposit * (bonusPercent / 100));
-  const startingIncomeBase = projection.gi_income_base_at_start || (deposit + bonusAmount);
+  const bonusAmount = Math.round(purchaseAmount * (bonusPercent / 100));
+  const startingIncomeBase = projection.gi_income_base_at_start ?? (purchaseAmount + bonusAmount);
   const finalIncomeBase = projection.gi_income_base_at_income_age || startingIncomeBase;
   const rollUpGrowth = finalIncomeBase - startingIncomeBase;
   const payoutPercent = projection.gi_payout_percent || 0;
@@ -288,10 +290,10 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
 
           {/* Journey Flow */}
           <div className="flex items-center justify-between gap-3 mb-6 overflow-x-auto pb-2">
-            {/* Step 1: Deposit */}
+            {/* Step 1: Purchase Amount (Roth balance after conversion) */}
             <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] py-4 px-5 text-center min-w-[130px]">
-              <p className="text-xl font-mono font-medium text-white">{toUSD(deposit)}</p>
-              <p className="text-sm text-[rgba(255,255,255,0.5)] mt-1">Deposit</p>
+              <p className="text-xl font-mono font-medium text-white">{toUSD(purchaseAmount)}</p>
+              <p className="text-sm text-[rgba(255,255,255,0.5)] mt-1">GI Premium</p>
             </div>
 
             <span className="text-xl text-[rgba(255,255,255,0.3)]">→</span>

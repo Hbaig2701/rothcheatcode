@@ -575,10 +575,11 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
   const flatTaxRate = taxRate / 100;
 
   // Calculate metrics
-  const deposit = client.qualified_account_value || 0;
+  // Use gi_purchase_amount (Roth balance at purchase) NOT client.qualified_account_value (Traditional IRA before conversion)
+  const purchaseAmount = projection.gi_purchase_amount || client.qualified_account_value || 0;
   const bonusPercent = client.bonus_percent || 0;
-  const bonusAmount = Math.round(deposit * (bonusPercent / 100));
-  const startingIncomeBase = projection.gi_income_base_at_start || (deposit + bonusAmount);
+  const bonusAmount = Math.round(purchaseAmount * (bonusPercent / 100));
+  const startingIncomeBase = projection.gi_income_base_at_start || (purchaseAmount + bonusAmount);
   const finalIncomeBase = projection.gi_income_base_at_income_age || startingIncomeBase;
   const rollUpGrowth = finalIncomeBase - startingIncomeBase;
   const payoutPercent = projection.gi_payout_percent || 0;
@@ -730,8 +731,8 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
     deferralYears: projection.gi_deferral_years || 0,
     rollUpGrowth: formatCurrency(rollUpGrowth),
 
-    // Income Base calculation
-    deposit: formatCurrency(deposit),
+    // Income Base calculation (deposit = GI premium = Roth balance at purchase)
+    deposit: formatCurrency(purchaseAmount),
     bonusAmount: formatCurrency(bonusAmount),
     bonusPercent,
     startingIncomeBase: formatCurrency(startingIncomeBase),
