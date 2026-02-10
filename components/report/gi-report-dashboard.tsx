@@ -441,9 +441,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
               <div className="absolute top-4 right-4">
                 <InfoTooltip
                   {...getTaxFreeWealthTooltip(
-                    giTotalNet,
-                    baselineTotalNetIncome,
-                    projection.gi_total_conversion_tax || blueConversionTax,
+                    projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0,
+                    projection.gi_baseline_annual_income_net || 0,
                     client.end_age - (incomeStartAge || 70)
                   )}
                 />

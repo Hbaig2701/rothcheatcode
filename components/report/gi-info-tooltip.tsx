@@ -159,25 +159,25 @@ export function InfoTooltip({
 
 // Pre-built tooltip content generators for GI metrics
 export function getTaxFreeWealthTooltip(
-  strategyLifetimeNet: number,
-  baselineLifetimeNet: number,
-  conversionTax: number,
+  strategyAnnualNet: number,
+  baselineAnnualNet: number,
   incomeYears: number
 ) {
-  const lifetimeAdvantage = strategyLifetimeNet - baselineLifetimeNet;
+  const annualAdvantage = strategyAnnualNet - baselineAnnualNet;
+  const lifetimeAdvantage = annualAdvantage * incomeYears;
 
   return {
     title: "TAX-FREE WEALTH CREATED",
     calculations: [
-      { label: `Your Total Net Income (${incomeYears} yrs)`, value: toUSD(strategyLifetimeNet), highlight: "green" as const },
-      { label: `− Traditional Net Income (${incomeYears} yrs)`, value: toUSD(baselineLifetimeNet), highlight: "muted" as const },
+      { label: "Your Annual Income (tax-free)", value: toUSD(strategyAnnualNet), highlight: "green" as const },
+      { label: "− Traditional Annual Income (after tax)", value: toUSD(baselineAnnualNet), highlight: "muted" as const },
       { isSeparator: true, label: "", value: "" },
-      { label: "= Lifetime Income Advantage", value: toUSD(lifetimeAdvantage), highlight: "gold" as const },
-      { label: "− Conversion Tax Paid", value: toUSD(conversionTax), highlight: "red" as const },
+      { label: "= Annual Advantage", value: toUSD(annualAdvantage), highlight: "gold" as const },
+      { label: `× ${incomeYears} years of income`, value: `× ${incomeYears}`, highlight: "muted" as const },
       { isSeparator: true, label: "", value: "" },
-      { label: "= Tax-Free Wealth Created", value: toUSD(lifetimeAdvantage - conversionTax), highlight: "green" as const, isResult: true },
+      { label: "= Tax-Free Wealth Created", value: toUSD(lifetimeAdvantage), highlight: "green" as const, isResult: true },
     ],
-    explanation: "This is how much more money you keep by converting to Roth and buying your guaranteed income inside it, compared to buying the same product in a Traditional IRA.",
+    explanation: "This is the total additional income you keep over your lifetime by having tax-free Roth income instead of taxable Traditional IRA income.",
   };
 }
 
