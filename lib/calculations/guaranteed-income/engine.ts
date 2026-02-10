@@ -1038,10 +1038,10 @@ function runGIBaselineScenario(
     // DEFERRAL PHASE: Income Base grows via roll-up
     // =======================================================================
     if (currentPhase === 'deferral') {
-      const deferralYear = age - purchaseAge; // Years since purchase
+      const deferralYear = age - purchaseAge + 1; // 1-indexed to match strategy
 
       // Roll up Income Base
-      if (productData && deferralYear > 0) {
+      if (productData) {
         const rollUpInfo = getRollUpForYear(productId, deferralYear, rollUpOption);
         if (rollUpInfo) {
           if (rollUpInfo.type === 'simple') {

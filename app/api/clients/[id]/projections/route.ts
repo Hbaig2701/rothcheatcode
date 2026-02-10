@@ -10,7 +10,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 4; // v4: Reverted - convert all remaining in last year (maximizes Roth GI)
+const PRODUCT_CONFIG_VERSION = 5; // v5: Fixed baseline deferral year calculation (was off by 1)
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
