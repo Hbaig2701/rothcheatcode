@@ -10,7 +10,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 2; // v2: American Equity updated to 8.25% simple, new payout tables
+const PRODUCT_CONFIG_VERSION = 3; // v3: Fixed GI conversion to not "convert all remaining" in last year
 
 function generateInputHash(client: Client): string {
   const relevantFields = {

@@ -321,21 +321,12 @@ function runGIStrategyScenario(
       let federalConversionTax = 0;
       let stateConversionTax = 0;
 
-      // Check if this is the LAST year of conversion phase
-      const isLastConversionYear = age === conversionEndAge;
-
       if (boyTraditional > 0) {
-        if (isLastConversionYear) {
-          // LAST YEAR: Convert ALL remaining Traditional to ensure everything goes into Roth GI
-          // This may push into higher brackets, but ensures full participation in the strategy
-          conversionAmount = boyTraditional;
-        } else {
-          // For GI products, use FIXED annual conversion amount
-          // This provides predictable conversion behavior: initial IRA / conversion years
-          // The remaining balance grows, which results in total conversion > initial IRA
-          // This matches user expectation for "Fixed Years" conversion
-          conversionAmount = Math.min(fixedAnnualConversion, boyTraditional);
-        }
+        // For GI products, use FIXED annual conversion amount every year
+        // This converts exactly (initial IRA / conversion years) each year
+        // Any remaining balance (from growth) stays in Traditional
+        // This matches the expected calculation from product specs
+        conversionAmount = Math.min(fixedAnnualConversion, boyTraditional);
 
         // Handle tax payment from IRA
         if (payTaxFromIRA && conversionAmount > 0) {
