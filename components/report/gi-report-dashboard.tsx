@@ -4,8 +4,8 @@ import { useState } from "react";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
 import type { YearlyResult } from "@/lib/calculations";
-import { WealthChart } from "@/components/results/wealth-chart";
-import { transformToGIChartData } from "@/lib/calculations/transforms";
+import { GIIncomeChart } from "@/components/results/gi-income-chart";
+import { transformToGIIncomeChartData } from "@/lib/calculations/transforms";
 import { Check, ChevronDown, ChevronUp, ArrowRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
@@ -40,11 +40,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const [tableView, setTableView] = useState<"summary" | "full" | "baseline">("summary");
   const [productDetailsOpen, setProductDetailsOpen] = useState(false);
 
-  const chartData = transformToGIChartData(projection);
+  const incomeChartData = transformToGIIncomeChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
-
-  // Calculate break-even from chart data (lifetime wealth trajectory, not raw netWorth)
-  const chartBreakEvenAge = chartData.find(d => d.formula > d.baseline)?.age ?? null;
 
   // Get product config
   const productConfig = ALL_PRODUCTS[client.blueprint_type as FormulaType];
@@ -500,25 +497,40 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
           />
         </div>
 
-        {/* Section 5: Wealth Trajectory Chart */}
+        {/* Section 5: Cumulative Income Chart */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
           <div className="flex justify-between items-center mb-6">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-medium">
-              Wealth Over Time
-            </p>
+            <div>
+              <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-medium">
+                Cumulative Income Received
+              </p>
+              <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">
+                Total net income in your pocket over time
+              </p>
+            </div>
             <div className="flex items-center gap-5 text-sm">
-              <span className="flex items-center gap-2 text-gold">
-                <span className="w-4 h-0.5 bg-gold rounded" />
-                Strategy
+              <span className="flex items-center gap-2 text-[#4ade80]">
+                <span className="w-4 h-0.5 bg-[#4ade80] rounded" />
+                Tax-Free (Strategy)
               </span>
               <span className="flex items-center gap-2 text-[rgba(255,255,255,0.5)]">
-                <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 4px, transparent 4px, transparent 6px)" }} />
-                Baseline
+                <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 4px, transparent 4px, transparent 6px)" }} />
+                After-Tax (Baseline)
               </span>
             </div>
           </div>
-          <div className="h-[240px]">
-            <WealthChart data={chartData} breakEvenAge={chartBreakEvenAge} />
+          <div className="h-[280px]">
+            <GIIncomeChart
+              data={incomeChartData}
+              breakEvenAge={projection.gi_break_even_age || null}
+              incomeStartAge={incomeStartAge || 70}
+            />
+          </div>
+          {/* Chart explanation */}
+          <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.07)]">
+            <p className="text-sm text-[rgba(255,255,255,0.4)]">
+              The gap between the lines is your <span className="text-[#4ade80] font-medium">Tax-Free Wealth Created</span> — the extra money you keep by having Roth income instead of taxable income.
+            </p>
           </div>
         </div>
 

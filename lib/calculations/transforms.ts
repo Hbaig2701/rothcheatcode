@@ -254,6 +254,61 @@ export function formatAxisValue(cents: number): string {
 }
 
 /**
+ * Data point for GI cumulative income chart
+ * Shows running total of income received over time
+ */
+export interface GIIncomeChartPoint {
+  age: number;
+  year: number;
+  strategyNet: number;        // Cumulative tax-free income (cents)
+  baselineNet: number;        // Cumulative after-tax income (cents)
+  strategyAnnual: number;     // Annual income (for tooltip)
+  baselineAnnual: number;     // Annual baseline income (for tooltip)
+  phase: 'conversion' | 'deferral' | 'income';
+}
+
+/**
+ * Transform GI projection into cumulative income chart data
+ * Shows running total of net income received: Strategy (tax-free) vs Baseline (after-tax)
+ */
+export function transformToGIIncomeChartData(projection: Projection): GIIncomeChartPoint[] {
+  const giYearlyData = projection.gi_yearly_data || [];
+  const baselineGIData = projection.gi_baseline_yearly_data || [];
+
+  let cumulativeStrategy = 0;
+  let cumulativeBaseline = 0;
+
+  // During conversion phase, strategy has "negative" progress (tax paid)
+  // We'll track this but not show negative values
+  let conversionTaxPaid = 0;
+
+  return giYearlyData.map((giYear, index) => {
+    const baselineYear = baselineGIData[index];
+
+    // Track conversion taxes paid (this is the "investment")
+    if (giYear.phase === 'conversion') {
+      conversionTaxPaid += giYear.conversionTax || 0;
+    }
+
+    // Track cumulative income during income phase
+    if (giYear.phase === 'income') {
+      cumulativeStrategy += giYear.guaranteedIncomeNet || 0;
+      cumulativeBaseline += baselineYear?.guaranteedIncomeNet || 0;
+    }
+
+    return {
+      age: giYear.age,
+      year: giYear.year,
+      strategyNet: cumulativeStrategy,
+      baselineNet: cumulativeBaseline,
+      strategyAnnual: giYear.guaranteedIncomeNet || 0,
+      baselineAnnual: baselineYear?.guaranteedIncomeNet || 0,
+      phase: giYear.phase as 'conversion' | 'deferral' | 'income',
+    };
+  });
+}
+
+/**
  * Data point for sensitivity chart
  * Has dynamic keys for each scenario
  */
