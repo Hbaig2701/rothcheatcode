@@ -206,6 +206,9 @@ export default function ResultsPage({ params }: ResultsPageProps) {
             <p className="text-sm text-[rgba(255,255,255,0.5)] mt-0.5">
               Age {client.age} · {client.filing_status === "married_filing_jointly" ? "MFJ" : client.filing_status === "single" ? "Single" : client.filing_status} · ${(client.qualified_account_value / 100000000).toFixed(1)}M · {client.product_name} · {client.carrier_name}
             </p>
+            <p className="text-[11px] text-[rgba(255,255,255,0.3)] mt-1 italic">
+              This report is for educational and illustrative purposes only. Consult a qualified professional before making any financial decisions.
+            </p>
           </div>
         </div>
 
