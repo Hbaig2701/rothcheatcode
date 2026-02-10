@@ -327,7 +327,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
               <div className="absolute top-1 right-1">
                 <InfoTooltip
                   {...getFinalIncomeBaseTooltip(
-                    projection.gi_purchase_amount || deposit,
+                    purchaseAmount,
                     bonusPercent,
                     bonusAmount,
                     startingIncomeBase,
