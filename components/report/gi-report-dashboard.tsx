@@ -749,12 +749,17 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                   const boyTraditional = prevRow ? prevRow.traditionalBalance : (isConversionPhase ? client.qualified_account_value : 0);
                   const eoyTraditional = row.traditionalBalance;
 
+                  // For purchase phase, get the Roth balance that was used (from previous row)
+                  const purchaseRothAmount = isPurchasePhase && prevRow ? prevRow.rothBalance : 0;
+
                   // Key value based on phase (for summary view)
                   const keyValue = isConversionPhase
                     ? row.traditionalBalance
-                    : isDeferralPhase || isIncomePhase
-                      ? row.incomeBase
-                      : row.accountValue;
+                    : isPurchasePhase
+                      ? row.incomeBase  // Show income base for purchase phase
+                      : isDeferralPhase || isIncomePhase
+                        ? row.incomeBase
+                        : row.accountValue;
 
                   // Phase display
                   const phaseLabel = {
@@ -801,12 +806,17 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                           <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
                             {isConversionPhase && eoyTraditional > 0 ? toUSD(eoyTraditional) : "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[#4ade80]">
-                            {row.rothBalance > 0 ? toUSD(row.rothBalance) : "—"}
+                          <td className={cn(
+                            "px-4 py-3 text-sm font-mono text-right",
+                            isPurchasePhase ? "text-[#a855f7]" : "text-[#4ade80]"
+                          )}>
+                            {isPurchasePhase && purchaseRothAmount > 0
+                              ? toUSD(purchaseRothAmount)
+                              : row.rothBalance > 0 ? toUSD(row.rothBalance) : "—"}
                           </td>
                           <td className={cn(
                             "px-4 py-3 text-sm font-mono text-right",
-                            (isDeferralPhase || isIncomePhase) ? "text-gold" : "text-[rgba(255,255,255,0.5)]"
+                            (isPurchasePhase || isDeferralPhase || isIncomePhase) ? "text-gold" : "text-[rgba(255,255,255,0.5)]"
                           )}>
                             {row.incomeBase > 0 ? toUSD(row.incomeBase) : "—"}
                           </td>
@@ -814,7 +824,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                             "px-4 py-3 text-sm font-mono text-right",
                             isAccountZero ? "text-[rgba(255,255,255,0.25)]" : "text-[rgba(255,255,255,0.5)]"
                           )}>
-                            {(isConversionPhase || isPurchasePhase) ? "—" : (isAccountZero ? "$0" : toUSD(row.accountValue))}
+                            {isConversionPhase ? "—" : (isAccountZero ? "$0" : toUSD(row.accountValue))}
                           </td>
                           <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.4)]">
                             {row.riderFee > 0 ? toUSD(row.riderFee) : "—"}
