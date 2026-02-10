@@ -270,30 +270,29 @@ export interface GIIncomeChartPoint {
 /**
  * Transform GI projection into cumulative income chart data
  * Shows running total of net income received: Strategy (tax-free) vs Baseline (after-tax)
+ *
+ * IMPORTANT: Uses flat tax rate comparison (same as hero metrics) for consistency
+ * The baseline yearly data uses progressive brackets, but for apples-to-apples comparison
+ * we use the flat rate from gi_baseline_annual_income_net
  */
 export function transformToGIIncomeChartData(projection: Projection): GIIncomeChartPoint[] {
   const giYearlyData = projection.gi_yearly_data || [];
-  const baselineGIData = projection.gi_baseline_yearly_data || [];
+
+  // Use the comparison metrics for baseline (flat rate calculation)
+  // This matches the hero section: "vs Traditional GI: $X gross → $Y after tax"
+  const baselineAnnualNet = projection.gi_baseline_annual_income_net || 0;
+  const strategyAnnualNet = projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0;
 
   let cumulativeStrategy = 0;
   let cumulativeBaseline = 0;
 
-  // During conversion phase, strategy has "negative" progress (tax paid)
-  // We'll track this but not show negative values
-  let conversionTaxPaid = 0;
-
-  return giYearlyData.map((giYear, index) => {
-    const baselineYear = baselineGIData[index];
-
-    // Track conversion taxes paid (this is the "investment")
-    if (giYear.phase === 'conversion') {
-      conversionTaxPaid += giYear.conversionTax || 0;
-    }
-
+  return giYearlyData.map((giYear) => {
     // Track cumulative income during income phase
     if (giYear.phase === 'income') {
-      cumulativeStrategy += giYear.guaranteedIncomeNet || 0;
-      cumulativeBaseline += baselineYear?.guaranteedIncomeNet || 0;
+      // Strategy: tax-free income (same as gross)
+      cumulativeStrategy += strategyAnnualNet;
+      // Baseline: after flat-rate tax (matches hero/cards)
+      cumulativeBaseline += baselineAnnualNet;
     }
 
     return {
@@ -301,8 +300,8 @@ export function transformToGIIncomeChartData(projection: Projection): GIIncomeCh
       year: giYear.year,
       strategyNet: cumulativeStrategy,
       baselineNet: cumulativeBaseline,
-      strategyAnnual: giYear.guaranteedIncomeNet || 0,
-      baselineAnnual: baselineYear?.guaranteedIncomeNet || 0,
+      strategyAnnual: giYear.phase === 'income' ? strategyAnnualNet : 0,
+      baselineAnnual: giYear.phase === 'income' ? baselineAnnualNet : 0,
       phase: giYear.phase as 'conversion' | 'deferral' | 'income',
     };
   });
