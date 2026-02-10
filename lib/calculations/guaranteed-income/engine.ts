@@ -110,7 +110,8 @@ export function runGuaranteedIncomeSimulation(
   const clientStateTaxRate = client.state_tax_rate !== undefined && client.state_tax_rate !== null
     ? client.state_tax_rate / 100
     : 0;
-  const comparison = calculateComparisonMetrics(strategyMetrics, baselineMetrics, clientTaxRate + clientStateTaxRate);
+  const endAge = client.end_age ?? 100;
+  const comparison = calculateComparisonMetrics(strategyMetrics, baselineMetrics, clientTaxRate + clientStateTaxRate, endAge);
 
   // Build GIMetrics object
   const giMetrics: GIMetrics = {
@@ -1269,7 +1270,8 @@ function runGIBaselineScenario(
 function calculateComparisonMetrics(
   strategy: GIStrategyMetrics & { incomeBaseAtStart: number },
   baseline: GIBaselineMetrics,
-  flatTaxRate: number = 0.24
+  flatTaxRate: number = 0.24,
+  endAge: number = 100
 ): GIComparisonMetrics {
   // For comparison display, use flat tax rate (user-entered) on baseline income
   // This makes the comparison clearer and matches user expectations
@@ -1281,8 +1283,8 @@ function calculateComparisonMetrics(
   const annualAdvantage = strategy.annualIncomeNet - baselineNetFlat;
 
   // Lifetime calculations using flat rate
-  // Use +1 for inclusive count: ages 70-100 = 31 years (matches simulation loop)
-  const incomeYears = 100 - baseline.incomeStartAge + 1;
+  // Use client's end_age for income years calculation
+  const incomeYears = endAge - baseline.incomeStartAge + 1;
   const lifetimeAdvantage = annualAdvantage * incomeYears;
 
   // Break-even years = Conversion Tax / Annual Advantage

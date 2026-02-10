@@ -10,7 +10,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 5; // v5: Fixed baseline deferral year calculation (was off by 1)
+const PRODUCT_CONFIG_VERSION = 6; // v6: Use client's end_age for income years (was hardcoded to 100)
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
