@@ -435,8 +435,8 @@ function runGIStrategyScenario(
         bonusAppliesTo = productData.bonusAppliesTo;
         const bonusRate = (client.bonus_percent ?? 0) / 100;
 
-        if (productData.bonusAppliesTo === 'accountValue') {
-          // American Equity: bonus goes to both account value and income base
+        if (productData.bonusAppliesTo === 'both' || productData.bonusAppliesTo === 'accountValue') {
+          // American Equity: bonus goes to BOTH account value AND income base
           accountValue = Math.round(purchaseAmount * (1 + bonusRate));
           incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
           bonusAmount = Math.round(purchaseAmount * bonusRate);
@@ -954,7 +954,8 @@ function runGIBaselineScenario(
       if (productData) {
         const bonusRate = (client.bonus_percent ?? 0) / 100;
 
-        if (productData.bonusAppliesTo === 'accountValue') {
+        if (productData.bonusAppliesTo === 'both' || productData.bonusAppliesTo === 'accountValue') {
+          // American Equity: bonus goes to BOTH account value AND income base
           accountValue = Math.round(purchaseAmount * (1 + bonusRate));
           incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
         } else if (productData.bonusAppliesTo === 'incomeBase') {

@@ -67,7 +67,7 @@ export interface RollUpConfig {
 
 export interface GIProductData {
   /** Where the bonus is applied */
-  bonusAppliesTo: 'incomeBase' | 'accountValue' | null;
+  bonusAppliesTo: 'incomeBase' | 'accountValue' | 'both' | null;
   /** Annual rider fee percentage (e.g. 1.00 = 1.00%) */
   riderFee: number;
   /** What the rider fee is calculated on */
@@ -129,38 +129,41 @@ export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData>
 
   // =========================================================================
   // American Equity IncomeShield Bonus 10
+  // Per spec: 14% bonus to BOTH Account Value AND IAV
+  // Hardcoded to Option 4: 8.25% simple interest, 10 years, 1.20% rider fee
+  // Includes Wellbeing Benefit (income doubler for health events)
   // =========================================================================
   'american-equity-incomeshield-bonus-10': {
-    bonusAppliesTo: 'accountValue',
-    riderFee: 1.20,
+    bonusAppliesTo: 'both', // 14% bonus applies to BOTH Account Value AND Income Account Value
+    riderFee: 1.20, // Rider fee calculated on IAV, deducted from Account Value
     riderFeeAppliesTo: 'incomeBase',
     rollUp: {
-      options: [
-        { id: 'simple', label: '10% Simple Interest (10 years)', type: 'simple', rate: 10, maxPeriod: 10 },
-        { id: 'compound', label: '6.5% Compound Interest (20 years)', type: 'compound', rate: 6.5, maxPeriod: 20 },
-      ],
-      defaultOption: 'simple',
-      maxPeriod: 20, // max of all options
+      type: 'simple', // Option 4: Simple interest (not compound)
+      rate: 8.25, // 8.25% per year
+      maxPeriod: 10, // Maximum 10 years of roll-up
     },
     payoutTable: {
       single: {
-        55: 5.19, 56: 5.33, 57: 5.47, 58: 5.61, 59: 5.75,
-        60: 5.89, 61: 6.03, 62: 6.17, 63: 6.31, 64: 6.45,
-        65: 6.60, 66: 6.73, 67: 6.86, 68: 6.99, 69: 7.12,
-        70: 7.25, 71: 7.37, 72: 7.49, 73: 7.61, 74: 7.73,
-        75: 7.85, 76: 7.97, 77: 8.09, 78: 8.21, 79: 8.28, 80: 8.35,
+        // Option 4 (Fee-based) payout factors - ages 50-80+
+        50: 4.54, 51: 4.66, 52: 4.79, 53: 4.93, 54: 5.06,
+        55: 5.19, 56: 5.33, 57: 5.48, 58: 5.62, 59: 5.76,
+        60: 5.90, 61: 6.04, 62: 6.18, 63: 6.32, 64: 6.46,
+        65: 6.60, 66: 6.74, 67: 6.86, 68: 7.00, 69: 7.14,
+        70: 7.25, 71: 7.37, 72: 7.48, 73: 7.61, 74: 7.72,
+        75: 7.85, 76: 7.94, 77: 8.04, 78: 8.16, 79: 8.28, 80: 8.40,
       },
       joint: {
-        55: 4.62, 56: 4.76, 57: 4.90, 58: 5.04, 59: 5.18,
-        60: 5.32, 61: 5.46, 62: 5.60, 63: 5.74, 64: 5.88,
-        65: 6.03, 66: 6.16, 67: 6.29, 68: 6.42, 69: 6.55,
-        70: 6.68, 71: 6.80, 72: 6.92, 73: 7.04, 74: 7.16,
-        75: 7.28, 76: 7.40, 77: 7.52, 78: 7.64, 79: 7.71, 80: 7.78,
+        50: 3.97, 51: 4.08, 52: 4.22, 53: 4.36, 54: 4.48,
+        55: 4.62, 56: 4.76, 57: 4.91, 58: 5.05, 59: 5.19,
+        60: 5.33, 61: 5.47, 62: 5.61, 63: 5.75, 64: 5.89,
+        65: 6.03, 66: 6.17, 67: 6.29, 68: 6.43, 69: 6.57,
+        70: 6.68, 71: 6.80, 72: 6.91, 73: 7.04, 74: 7.15,
+        75: 7.28, 76: 7.37, 77: 7.47, 78: 7.58, 79: 7.69, 80: 7.80,
       },
     },
     hasDualPayoutOption: false,
-    hasRollUpOptions: true,
-    rollUpDescription: '10% Simple (10yr) or 6.5% Compound (20yr)',
+    hasRollUpOptions: false, // Option 4 is hardcoded - no user selection
+    rollUpDescription: '8.25% Simple Interest (10yr max)',
   },
 
   // =========================================================================
@@ -276,18 +279,20 @@ export function getProductPayoutFactor(
   const product = GI_PRODUCT_DATA[productId];
   if (!product) return 0.05; // fallback
 
-  // North American supports ages 50-80, others 55-80
-  const minAge = product.hasDualPayoutOption ? 50 : 55;
-  const clampedAge = Math.min(Math.max(age, minAge), 80);
   const tableKey = payoutType === 'individual' ? 'single' : 'joint';
 
   if (product.hasDualPayoutOption) {
     const dualTable = product.payoutTable as DualPayoutTable;
     const optionTable = dualTable[payoutOption];
+    // North American supports ages 50-80
+    const clampedAge = Math.min(Math.max(age, 50), 80);
     return (optionTable[tableKey][clampedAge] ?? 5.0) / 100;
   }
 
   const standardTable = product.payoutTable as StandardPayoutTable;
+  // Check if product supports age 50 (American Equity does, others start at 55)
+  const minAge = (50 in standardTable.single) ? 50 : 55;
+  const clampedAge = Math.min(Math.max(age, minAge), 80);
   return (standardTable[tableKey][clampedAge] ?? 5.0) / 100;
 }
 
