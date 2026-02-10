@@ -466,20 +466,26 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
             }}
           />
           <ComparisonCard
-            label="Conversion Cost"
-            baseline={0}
+            label="Taxes Paid"
+            baseline={(() => {
+              // Baseline: pays tax on GI income every year
+              const incomeYears = client.end_age - (incomeStartAge || 70);
+              const annualTax = Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100));
+              return annualTax * incomeYears;
+            })()}
             strategy={projection.gi_total_conversion_tax || blueConversionTax}
             invertColor
-            showAsAbsolute
             tooltip={{
-              title: "CONVERSION TAX PAID",
+              title: "LIFETIME TAXES PAID",
               calculations: [
-                { label: "Total Amount Converted", value: toUSD(totalConverted), highlight: "muted" as const },
-                { label: `× Effective Tax Rate`, value: `≈ ${((projection.gi_total_conversion_tax || blueConversionTax) / totalConverted * 100).toFixed(1)}%`, highlight: "muted" as const },
+                { label: "Strategy: Conversion Tax", value: toUSD(projection.gi_total_conversion_tax || blueConversionTax), highlight: "red" as const },
+                { label: "Strategy: Tax on Income", value: "$0 (tax-free)", highlight: "green" as const },
                 { isSeparator: true, label: "", value: "" },
-                { label: "= Total Conversion Tax", value: toUSD(projection.gi_total_conversion_tax || blueConversionTax), highlight: "red" as const, isResult: true },
+                { label: `Baseline: Tax on Income (${client.tax_rate}%)`, value: toUSD(Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100)) * (client.end_age - (incomeStartAge || 70))), highlight: "red" as const },
+                { isSeparator: true, label: "", value: "" },
+                { label: "Tax Savings", value: toUSD(Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100)) * (client.end_age - (incomeStartAge || 70)) - (projection.gi_total_conversion_tax || blueConversionTax)), highlight: "green" as const, isResult: true },
               ],
-              explanation: "This is the upfront cost of the strategy — the taxes you paid to convert from Traditional to Roth. You pay this once, then never pay taxes on this money again.",
+              explanation: "Strategy pays conversion tax once upfront, then $0 tax on income forever. Baseline pays tax on every GI payment for life.",
             }}
           />
           <ComparisonCard
