@@ -87,10 +87,18 @@ export default function ResultsPage({ params }: ResultsPageProps) {
       ? isGuaranteedIncomeProduct(client.blueprint_type as FormulaType)
       : false;
 
+    // For GI products, use the pre-calculated percent improvement
+    // This compares Roth GI (tax-free) vs Traditional GI (taxable)
+    if (isGI) {
+      // gi_percent_improvement is stored as a percentage (e.g., 31.5 for 31.5%)
+      return (projection.gi_percent_improvement ?? 0) / 100;
+    }
+
+    // For Growth products, calculate the traditional way
     const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
       years.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
 
-    // Calculate baseline lifetime wealth
+    // Calculate baseline lifetime wealth (RMDs + legacy)
     const heirTaxRate = 0.40;
     const totalRMDs = sum(projection.baseline_years, 'rmdAmount');
     const totalBaselineTaxes = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
@@ -99,28 +107,11 @@ export default function ResultsPage({ params }: ResultsPageProps) {
     const netBaselineLegacy = projection.baseline_final_net_worth * (1 - heirTaxRate);
     const baseLifetime = netBaselineLegacy + afterTaxDistributions - totalBaselineIRMAA;
 
-    // Calculate formula/blueprint lifetime wealth
-    let blueLifetime: number;
-    if (isGI) {
-      const giYearlyData = projection.gi_yearly_data || [];
-      let conversionTaxes = 0;
-      projection.blueprint_years.forEach((year, i) => {
-        const giYear = giYearlyData[i];
-        if (giYear && giYear.phase === 'deferral') {
-          conversionTaxes += (year.federalTax + year.stateTax) || 0;
-        }
-      });
-      const totalIRMAA = sum(projection.blueprint_years, 'irmaaSurcharge');
-      const netLegacy = Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) + projection.blueprint_final_roth;
-      const giTotalNet = projection.gi_total_net_paid ?? 0;
-      blueLifetime = giTotalNet + netLegacy - conversionTaxes - totalIRMAA;
-    } else {
-      // Growth strategy: net legacy (after heir taxes) minus conversion taxes minus IRMAA
-      const totalTaxes = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
-      const totalIRMAA = sum(projection.blueprint_years, 'irmaaSurcharge');
-      const netLegacy = Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) + projection.blueprint_final_roth;
-      blueLifetime = netLegacy - totalTaxes - totalIRMAA;
-    }
+    // Growth strategy: net legacy (after heir taxes) minus conversion taxes minus IRMAA
+    const totalTaxes = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
+    const totalIRMAA = sum(projection.blueprint_years, 'irmaaSurcharge');
+    const netLegacy = Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) + projection.blueprint_final_roth;
+    const blueLifetime = netLegacy - totalTaxes - totalIRMAA;
 
     const diff = blueLifetime - baseLifetime;
     return baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;

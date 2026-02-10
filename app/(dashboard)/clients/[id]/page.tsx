@@ -1,9 +1,12 @@
 "use client";
 
-import { use } from "react";
+import { use, useMemo } from "react";
 import { useClient } from "@/lib/queries/clients";
+import { useProjection } from "@/lib/queries/projections";
 import { Button } from "@/components/ui/button";
 import { Loader2, Pencil, ArrowLeft, BarChart3 } from "lucide-react";
+import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
+import type { YearlyResult } from "@/lib/calculations";
 
 interface ClientDetailPageProps {
   params: Promise<{ id: string }>;
@@ -56,7 +59,46 @@ function DeltaBadge({ value, size = "md" }: { value: number; size?: "md" | "lg" 
 
 export default function ClientDetailPage({ params }: ClientDetailPageProps) {
   const { id } = use(params);
-  const { data: client, isLoading, isError, error } = useClient(id);
+  const { data: client, isLoading: clientLoading, isError, error } = useClient(id);
+  const { data: projectionResponse, isLoading: projectionLoading } = useProjection(id);
+
+  // Calculate percentage improvement from projection
+  const delta = useMemo(() => {
+    if (!projectionResponse?.projection || !client) return 0;
+
+    const { projection } = projectionResponse;
+    const isGI = client.blueprint_type
+      ? isGuaranteedIncomeProduct(client.blueprint_type as FormulaType)
+      : false;
+
+    // For GI products, use the pre-calculated percent improvement
+    if (isGI) {
+      return Math.round(projection.gi_percent_improvement ?? 0);
+    }
+
+    // For Growth products, calculate the traditional way
+    const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
+      years.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
+
+    const heirTaxRate = 0.40;
+    const totalRMDs = sum(projection.baseline_years, 'rmdAmount');
+    const totalBaselineTaxes = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
+    const totalBaselineIRMAA = sum(projection.baseline_years, 'irmaaSurcharge');
+    const afterTaxDistributions = totalRMDs - totalBaselineTaxes;
+    const netBaselineLegacy = projection.baseline_final_net_worth * (1 - heirTaxRate);
+    const baseLifetime = netBaselineLegacy + afterTaxDistributions - totalBaselineIRMAA;
+
+    const totalTaxes = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
+    const totalIRMAA = sum(projection.blueprint_years, 'irmaaSurcharge');
+    const netLegacy = Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) + projection.blueprint_final_roth;
+    const blueLifetime = netLegacy - totalTaxes - totalIRMAA;
+
+    const diff = blueLifetime - baseLifetime;
+    const pct = baseLifetime !== 0 ? (diff / Math.abs(baseLifetime)) * 100 : 0;
+    return Math.round(pct);
+  }, [projectionResponse, client]);
+
+  const isLoading = clientLoading || projectionLoading;
 
   if (isLoading) {
     return (
@@ -85,9 +127,6 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
       </div>
     );
   }
-
-  // Placeholder delta - would come from projections
-  const delta = Math.floor(Math.random() * 15) + 1;
 
   return (
     <div className="p-9">
