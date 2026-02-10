@@ -72,18 +72,22 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const baseFinalTraditional = projection.baseline_final_traditional;
 
   // For GI baseline, lifetime income is the key metric
+  // Use FLAT TAX RATE for consistency across all displays (chart, table, cards)
   const baselineGIYearlyData = projection.gi_baseline_yearly_data || [];
+  const flatTaxRate = client.tax_rate / 100;
   let baselineTotalNetIncome = 0;
   baselineGIYearlyData.forEach((year) => {
     if (year.phase === 'income') {
-      baselineTotalNetIncome += year.guaranteedIncomeNet;
+      const grossIncome = year.guaranteedIncomeGross || 0;
+      const taxAtFlatRate = Math.round(grossIncome * flatTaxRate);
+      baselineTotalNetIncome += grossIncome - taxAtFlatRate;
     }
   });
 
-  // Fallback: calculate from projection years if gi_baseline_yearly_data not available
-  if (baselineTotalNetIncome === 0) {
-    const incomeYears = projection.baseline_years.filter(y => y.rmdAmount > 0);
-    baselineTotalNetIncome = incomeYears.reduce((sum, y) => sum + (y.rmdAmount - y.federalTax - y.stateTax), 0);
+  // Fallback: calculate from projection comparison metrics if yearly data not available
+  if (baselineTotalNetIncome === 0 && projection.gi_baseline_annual_income_net) {
+    const incomeYears = client.end_age - (projection.gi_income_start_age || client.income_start_age || 70);
+    baselineTotalNetIncome = projection.gi_baseline_annual_income_net * incomeYears;
   }
 
   // Heir tax only applies to traditional IRA portion (the GI account value)
