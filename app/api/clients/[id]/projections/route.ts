@@ -8,8 +8,14 @@ import type { GIMetrics } from '@/lib/calculations/guaranteed-income/types';
 import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
 import crypto from 'crypto';
 
+// Increment this when product configurations change (payout tables, roll-up rates, etc.)
+// This ensures cached projections are invalidated when we update product data
+const PRODUCT_CONFIG_VERSION = 2; // v2: American Equity updated to 8.25% simple, new payout tables
+
 function generateInputHash(client: Client): string {
   const relevantFields = {
+    // Config version - bump this when product configs change
+    _configVersion: PRODUCT_CONFIG_VERSION,
     // New Formula fields
     age: client.age,
     qualified_account_value: client.qualified_account_value,
