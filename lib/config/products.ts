@@ -1,7 +1,7 @@
 // Product preset configuration for Formula Type dropdown
 // This file ONLY defines UI presets - it does NOT modify any calculation formulas
 
-export type GrowthFormulaType = 'fia' | 'lincoln-optiblend-7' | 'equitrust-marketedge-bonus';
+export type GrowthFormulaType = 'fia' | 'lincoln-optiblend-7' | 'equitrust-marketedge-bonus' | 'american-equity-assetshield-bonus-10';
 
 export type GuaranteedIncomeFormulaType =
   | 'athene-ascent-pro-10'
@@ -87,6 +87,22 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
       surrenderYears: 10,
       penaltyFreePercent: 10,
       rateOfReturn: 7,
+    },
+  },
+
+  'american-equity-assetshield-bonus-10': {
+    id: 'american-equity-assetshield-bonus-10',
+    label: 'American Equity AssetShield BONUS 10',
+    category: 'Growth',
+    description: 'American Equity AssetShield BONUS 10 - 14% vesting bonus, 100% participation rate',
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
+    defaults: {
+      carrierName: 'American Equity',
+      productName: 'AssetShield BONUS 10',
+      bonus: 14,
+      surrenderYears: 10,
+      penaltyFreePercent: 10,
+      rateOfReturn: 0,
     },
   },
 };

@@ -16,7 +16,7 @@ export interface Client {
   updated_at: string;
 
   // ===== Formula Type (Product Preset) =====
-  blueprint_type: "fia" | "lincoln-optiblend-7" | "equitrust-marketedge-bonus"
+  blueprint_type: "fia" | "lincoln-optiblend-7" | "equitrust-marketedge-bonus" | "american-equity-assetshield-bonus-10"
     | "athene-ascent-pro-10" | "american-equity-incomeshield-bonus-10"
     | "equitrust-marketearly-income-index" | "north-american-income-pay-pro";
 
