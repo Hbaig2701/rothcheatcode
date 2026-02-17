@@ -25,12 +25,16 @@ export function runGrowthFormulaScenario(
   const clientAge = client.age ?? 62;
   const growthRate = (client.rate_of_return ?? 7) / 100;
 
-  // Apply upfront bonus at issue
+  // Apply upfront premium bonus at issue
   const bonusPercent = client.bonus_percent ?? 0;
   const initialValue = client.qualified_account_value ?? 0;
   let iraBalance = Math.round(initialValue * (1 + bonusPercent / 100));
   let rothBalance = 0;
   let taxableBalance = 0; // Track taxes paid externally
+
+  // Anniversary bonus (EquiTrust MarketEdge: 4% at end of years 1, 2, 3)
+  const anniversaryBonusPercent = (client.anniversary_bonus_percent ?? 0) / 100;
+  const anniversaryBonusYears = client.anniversary_bonus_years ?? 0;
 
   // Tax rates
   const maxTaxRate = client.max_tax_rate ?? 24;
@@ -118,6 +122,14 @@ export function runGrowthFormulaScenario(
     // Update balances
     iraBalance = iraAfterConversion + iraInterest;
     rothBalance = rothAfterConversion + rothInterest;
+
+    // Step 3: Apply anniversary bonus to IRA (annuity AV) if within bonus years
+    // yearOffset is 0-indexed: yearOffset 0 = first year of policy
+    // Anniversary bonuses apply at end of years 1, 2, 3 (yearOffset 0, 1, 2)
+    if (anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears) {
+      const anniversaryBonusAmount = Math.round(iraBalance * anniversaryBonusPercent);
+      iraBalance = iraBalance + anniversaryBonusAmount;
+    }
 
     // Taxes paid from external funds (taxable account goes negative)
     const totalTax = federalTax + stateTax;

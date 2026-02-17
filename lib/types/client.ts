@@ -35,6 +35,8 @@ export interface Client {
   product_name: string;
   bonus_percent: number;     // Percentage (e.g., 10 for 10%)
   rate_of_return: number;    // Percentage (e.g., 7 for 7%)
+  anniversary_bonus_percent: number | null; // Anniversary bonus % (e.g., 4 for 4%) - EquiTrust phased bonus
+  anniversary_bonus_years: number | null;   // Number of years anniversary bonus applies (e.g., 3)
 
   // ===== Section 4: Tax Data =====
   state: string; // 2-letter state code
@@ -133,6 +135,8 @@ export interface FormulaFormData {
   product_name: string;
   bonus_percent: number;
   rate_of_return: number;
+  anniversary_bonus_percent: number | null;
+  anniversary_bonus_years: number | null;
 
   // Section 4: Tax Data
   state: string;

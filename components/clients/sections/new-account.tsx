@@ -46,6 +46,8 @@ export function NewAccountSection() {
     form.setValue("surrender_years", product.defaults.surrenderYears);
     form.setValue("penalty_free_percent", product.defaults.penaltyFreePercent);
     form.setValue("rate_of_return", product.defaults.rateOfReturn);
+    form.setValue("anniversary_bonus_percent", product.defaults.anniversaryBonus ?? null);
+    form.setValue("anniversary_bonus_years", product.defaults.anniversaryBonusYears ?? null);
 
     // Set GI-specific defaults when switching to a GI product
     const giData = GI_PRODUCT_DATA[value as GuaranteedIncomeFormulaType];
@@ -68,6 +70,9 @@ export function NewAccountSection() {
       form.setValue("roll_up_option", null);
       form.setValue("payout_option", null);
     }
+
+    // Anniversary bonus fields are already set above from product defaults
+    // (null for products without anniversary bonus, populated for EquiTrust)
   };
 
   const isCarrierLocked = isFieldLocked("carrierName", formulaType);
@@ -181,6 +186,22 @@ export function NewAccountSection() {
           </Field>
         )}
       />
+
+      {/* Anniversary Bonus - Locked display for products with phased bonus (EquiTrust MarketEdge) */}
+      {form.watch("anniversary_bonus_percent") != null && form.watch("anniversary_bonus_years") != null && (
+        <Field>
+          <FieldLabel className="flex items-center gap-1.5">
+            Anniversary Bonus
+            <Lock className="size-3 text-muted-foreground" />
+          </FieldLabel>
+          <Input
+            value={`${form.watch("anniversary_bonus_percent")}% per year for ${form.watch("anniversary_bonus_years")} years`}
+            disabled
+            className="opacity-60 cursor-not-allowed bg-muted/30"
+          />
+          <FieldDescription>Applied to account value at each anniversary (in addition to premium bonus)</FieldDescription>
+        </Field>
+      )}
 
       {/* Rider Fee - Locked display for GI products */}
       {isGI && giData && (

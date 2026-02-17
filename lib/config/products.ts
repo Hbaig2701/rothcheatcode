@@ -19,6 +19,8 @@ export interface ProductDefaults {
   penaltyFreePercent: number;
   rateOfReturn: number;
   riderFee?: number; // Annual rider fee percentage (GI products only)
+  anniversaryBonus?: number; // Anniversary bonus % applied at end of each bonus year
+  anniversaryBonusYears?: number; // Number of years anniversary bonus is applied (e.g., 3)
 }
 
 export interface ProductConfig {
@@ -78,15 +80,17 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
     id: 'equitrust-marketedge-bonus',
     label: 'EquiTrust MarketEdge Bonus',
     category: 'Growth',
-    description: 'EquiTrust MarketEdge with 11% bonus, 10-year surrender',
+    description: 'EquiTrust MarketEdge with 8% premium bonus + 4% anniversary bonus (Years 1-3), 10-year surrender',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
     defaults: {
       carrierName: 'EquiTrust',
       productName: 'MarketEdge Bonus',
-      bonus: 11,
+      bonus: 8,
       surrenderYears: 10,
       penaltyFreePercent: 10,
       rateOfReturn: 7,
+      anniversaryBonus: 4,
+      anniversaryBonusYears: 3,
     },
   },
 

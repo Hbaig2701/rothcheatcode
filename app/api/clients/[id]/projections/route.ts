@@ -10,7 +10,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 6; // v6: Use client's end_age for income years (was hardcoded to 100)
+const PRODUCT_CONFIG_VERSION = 7; // v7: EquiTrust MarketEdge phased anniversary bonus (8% premium + 4% × 3 years)
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
@@ -23,6 +23,8 @@ function generateInputHash(client: Client): string {
     product_name: client.product_name,
     bonus_percent: client.bonus_percent,
     rate_of_return: client.rate_of_return,
+    anniversary_bonus_percent: client.anniversary_bonus_percent,
+    anniversary_bonus_years: client.anniversary_bonus_years,
     constraint_type: client.constraint_type,
     tax_rate: client.tax_rate,
     max_tax_rate: client.max_tax_rate,

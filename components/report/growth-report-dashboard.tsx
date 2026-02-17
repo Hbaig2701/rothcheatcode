@@ -344,8 +344,14 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               </div>
               {client.bonus_percent > 0 && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-[rgba(255,255,255,0.5)]">Bonus</span>
+                  <span className="text-sm text-[rgba(255,255,255,0.5)]">Premium Bonus</span>
                   <span className="text-sm font-mono text-gold">{client.bonus_percent}%</span>
+                </div>
+              )}
+              {client.anniversary_bonus_percent != null && client.anniversary_bonus_years != null && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-[rgba(255,255,255,0.5)]">Anniversary Bonus</span>
+                  <span className="text-sm font-mono text-gold">{client.anniversary_bonus_percent}% × {client.anniversary_bonus_years} years</span>
                 </div>
               )}
               <div className="flex justify-between items-center">
@@ -587,6 +593,7 @@ function LifetimeWealthInfo({
   const startingBalance = client.qualified_account_value ?? 0;
   const bonusAmount = Math.round(startingBalance * (client.bonus_percent ?? 0) / 100);
   const startingWithBonus = startingBalance + bonusAmount;
+  const hasAnniversaryBonus = client.anniversary_bonus_percent != null && client.anniversary_bonus_years != null;
   const projectionYears = (client.end_age ?? 100) - (client.age ?? 62);
   const wealthDiff = blueLifetimeWealth - baseLifetimeWealth;
 
@@ -640,8 +647,9 @@ function LifetimeWealthInfo({
       <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
         <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy: Roth Conversions</p>
         <p className="text-xs text-[rgba(255,255,255,0.5)]">
-          Your {toUSD(startingBalance)} + {client.bonus_percent}% bonus ({toUSD(bonusAmount)}) = {toUSD(startingWithBonus)} starting balance,
-          converted to Roth over time:
+          Your {toUSD(startingBalance)} + {client.bonus_percent}% premium bonus ({toUSD(bonusAmount)}) = {toUSD(startingWithBonus)} starting balance
+          {hasAnniversaryBonus && <>, plus {client.anniversary_bonus_percent}% anniversary bonus applied at end of years 1-{client.anniversary_bonus_years}</>}
+          , converted to Roth over time:
         </p>
         <div className="space-y-1 font-mono text-sm border-t border-[rgba(212,175,55,0.2)] pt-3">
           <p>Total Converted to Roth: {toUSD(blueConversions)}</p>
@@ -682,7 +690,7 @@ function LifetimeWealthInfo({
         </p>
         {wealthDiff > 0 && (
           <ul className="list-disc pl-5 space-y-1 mt-2 text-sm">
-            <li><strong>{client.bonus_percent}% product bonus</strong> adding {toUSD(bonusAmount)} upfront</li>
+            <li><strong>{client.bonus_percent}% premium bonus</strong> adding {toUSD(bonusAmount)} upfront{hasAnniversaryBonus && <> + <strong>{client.anniversary_bonus_percent}% anniversary bonus</strong> for {client.anniversary_bonus_years} years</>}</li>
             <li><strong>Tax-free Roth growth</strong> at {client.rate_of_return}% for {projectionYears} years</li>
             <li><strong>No heir taxes</strong> on {toUSD(blueFinalRoth)} Roth balance (vs {heirTaxPct}% on Traditional)</li>
             <li><strong>No forced RMDs</strong> keeping money invested longer</li>

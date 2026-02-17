@@ -62,6 +62,8 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       product_name: client?.product_name ?? (ud.product_name as string) ?? "Generic Product",
       bonus_percent: client?.bonus_percent ?? (ud.bonus_percent as number) ?? 10,
       rate_of_return: client?.rate_of_return ?? (ud.rate_of_return as number) ?? 7,
+      anniversary_bonus_percent: client?.anniversary_bonus_percent ?? null,
+      anniversary_bonus_years: client?.anniversary_bonus_years ?? null,
 
       // Section 4: Tax Data
       state: client?.state ?? (ud.state as string) ?? "CA",

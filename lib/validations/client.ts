@@ -92,6 +92,8 @@ export const clientFormulaBaseSchema = z.object({
   product_name: z.string().min(1, "Product name is required").max(100).default("Generic Product"),
   bonus_percent: z.number().min(0, "Bonus must be non-negative").max(100, "Bonus cannot exceed 100%").default(10),
   rate_of_return: z.number().min(0, "Rate must be non-negative").max(30, "Rate cannot exceed 30%").default(7),
+  anniversary_bonus_percent: z.number().min(0).max(100).optional().nullable().default(null),
+  anniversary_bonus_years: z.number().int().min(0).max(10).optional().nullable().default(null),
 
   // Section 4: Tax Data
   state: z.string().length(2, "Use 2-letter state code"),
@@ -251,6 +253,8 @@ export const clientFullBaseSchema = z.object({
   product_name: z.string().default("Generic Product"),
   bonus_percent: z.number().min(0).max(100).default(10),
   rate_of_return: z.number().min(0).max(30).default(7),
+  anniversary_bonus_percent: z.number().min(0).max(100).optional().nullable().default(null),
+  anniversary_bonus_years: z.number().int().min(0).max(10).optional().nullable().default(null),
 
   // Tax Configuration
   federal_bracket: z.string().default("auto"),
@@ -355,6 +359,8 @@ export type ClientFormData = {
   product_name: string;
   bonus_percent: number;
   rate_of_return: number;
+  anniversary_bonus_percent: number | null;
+  anniversary_bonus_years: number | null;
 
   // Section 4: Tax Data
   state: string;
