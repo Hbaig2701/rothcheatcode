@@ -209,17 +209,23 @@ export async function GET(
     const simulationInput = createSimulationInput(client as Client);
     const formulaType = (client as Client).blueprint_type as FormulaType;
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
+    const isGrowth = formulaType && isGrowthProduct(formulaType);
+
+    console.log('[PROJECTION DEBUG] formulaType:', formulaType, 'isGI:', isGI, 'isGrowth:', isGrowth);
+    console.log('[PROJECTION DEBUG] anniversary_bonus_percent:', (client as Client).anniversary_bonus_percent, 'anniversary_bonus_years:', (client as Client).anniversary_bonus_years);
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {
+      console.log('[PROJECTION DEBUG] Using GI engine');
       const giResult = runGuaranteedIncomeSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, giResult, inputHash, giResult.giMetrics);
-    } else if (isGrowthProduct(formulaType)) {
-      // Growth FIA: uses growth engine with anniversary bonus support
+    } else if (isGrowth) {
+      console.log('[PROJECTION DEBUG] Using GROWTH engine');
       const result = runGrowthSimulation(simulationInput);
+      console.log('[PROJECTION DEBUG] Growth result year 1 trad:', result.formula[0]?.traditionalBalance);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     } else {
-      // Legacy: use standard simulation
+      console.log('[PROJECTION DEBUG] Using LEGACY engine');
       const result = runSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     }
