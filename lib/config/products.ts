@@ -16,6 +16,7 @@ export interface ProductDefaults {
   productName: string;
   bonus: number;
   surrenderYears: number;
+  surrenderSchedule?: number[]; // Surrender charge percentages by year (e.g., [16, 14.5, 13, ...])
   penaltyFreePercent: number;
   rateOfReturn: number;
   riderFee?: number; // Annual rider fee percentage (GI products only)
@@ -87,6 +88,7 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
       productName: 'MarketEdge Bonus',
       bonus: 8,
       surrenderYears: 10,
+      surrenderSchedule: [16, 14.5, 13, 11.5, 9.5, 8, 6.5, 5, 3, 1],
       penaltyFreePercent: 10,
       rateOfReturn: 7,
       anniversaryBonus: 4,

@@ -76,6 +76,8 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       heir_tax_rate: client?.heir_tax_rate ?? 40,
       widow_analysis: client?.widow_analysis ?? false,
       rmd_treatment: client?.rmd_treatment ?? "reinvested",
+      fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
+      surrender_schedule: client?.surrender_schedule ?? null,
       taxable_accounts: client?.taxable_accounts ?? 0,
       roth_ira: client?.roth_ira ?? 0,
     },

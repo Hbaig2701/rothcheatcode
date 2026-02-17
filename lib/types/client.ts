@@ -57,6 +57,7 @@ export interface Client {
 
   // ===== Section 6: Conversion =====
   conversion_type: "optimized_amount" | "fixed_amount" | "full_conversion" | "no_conversion";
+  fixed_conversion_amount: number | null; // Fixed dollar amount to convert per year (in cents), used when conversion_type = 'fixed_amount'
   protect_initial_premium: boolean;
 
   // ===== Section 7: Roth Withdrawals =====
@@ -75,6 +76,7 @@ export interface Client {
 
   // ===== Section 8: Advanced Data =====
   surrender_years: number;
+  surrender_schedule: number[] | null; // Array of surrender charge percentages by year (e.g., [16, 14.5, 13, ...])
   penalty_free_percent: number;     // Percentage
   baseline_comparison_rate: number; // Percentage
   post_contract_rate: number;       // Percentage
@@ -157,6 +159,7 @@ export interface FormulaFormData {
 
   // Section 6: Conversion
   conversion_type: Client["conversion_type"];
+  fixed_conversion_amount: number | null;
   protect_initial_premium: boolean;
 
   // Section 7: Withdrawals
@@ -173,6 +176,7 @@ export interface FormulaFormData {
 
   // Section 8: Advanced
   surrender_years: number;
+  surrender_schedule: number[] | null;
   penalty_free_percent: number;
   baseline_comparison_rate: number;
   post_contract_rate: number;

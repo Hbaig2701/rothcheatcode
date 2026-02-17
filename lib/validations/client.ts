@@ -119,6 +119,7 @@ export const clientFormulaBaseSchema = z.object({
 
   // Section 6: Conversion
   conversion_type: conversionTypeEnum.default("optimized_amount"),
+  fixed_conversion_amount: z.number().int().min(0).optional().nullable().default(null),
   protect_initial_premium: z.boolean().default(true),
 
   // Section 7: Roth Withdrawals
@@ -135,6 +136,7 @@ export const clientFormulaBaseSchema = z.object({
 
   // Section 8: Advanced Data
   surrender_years: z.number().int().min(0).max(20).default(7),
+  surrender_schedule: z.array(z.number().min(0).max(100)).optional().nullable().default(null),
   penalty_free_percent: z.number().min(0).max(100).default(10),
   baseline_comparison_rate: z.number().min(0).max(30).default(7),
   post_contract_rate: z.number().min(0).max(30).default(7),
@@ -280,6 +282,7 @@ export const clientFullBaseSchema = z.object({
   // Conversion Settings
   strategy: strategyEnum.default("moderate"),
   conversion_type: conversionTypeEnum.default("optimized_amount"),
+  fixed_conversion_amount: z.number().int().min(0).optional().nullable().default(null),
   protect_initial_premium: z.boolean().default(true),
   start_age: z.number().int().min(50).max(90).default(62),
   end_age: z.number().int().min(55).max(120).default(100),
@@ -297,6 +300,7 @@ export const clientFullBaseSchema = z.object({
   widow_analysis: z.boolean().default(false),
   sensitivity: z.boolean().default(false),
   surrender_years: z.number().int().min(0).max(20).default(7),
+  surrender_schedule: z.array(z.number().min(0).max(100)).optional().nullable().default(null),
   penalty_free_percent: z.number().min(0).max(100).default(10),
   baseline_comparison_rate: z.number().min(0).max(30).default(7),
   post_contract_rate: z.number().min(0).max(30).default(7),
@@ -384,6 +388,7 @@ export type ClientFormData = {
 
   // Section 6: Conversion
   conversion_type: "optimized_amount" | "fixed_amount" | "full_conversion" | "no_conversion";
+  fixed_conversion_amount: number | null;
   protect_initial_premium: boolean;
 
   // Section 7: Withdrawals
@@ -400,6 +405,7 @@ export type ClientFormData = {
 
   // Section 8: Advanced
   surrender_years: number;
+  surrender_schedule: number[] | null;
   penalty_free_percent: number;
   baseline_comparison_rate: number;
   post_contract_rate: number;

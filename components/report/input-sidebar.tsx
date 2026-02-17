@@ -61,6 +61,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
 
             non_ssi_income: client?.non_ssi_income ?? [],
             conversion_type: client?.conversion_type ?? "optimized_amount",
+            fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
             protect_initial_premium: client?.protect_initial_premium ?? true,
             withdrawal_type: client?.withdrawal_type ?? "no_withdrawals",
             payout_type: client?.payout_type ?? "individual",
@@ -76,6 +77,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             end_age: client?.end_age ?? 100,
             heir_tax_rate: client?.heir_tax_rate ?? 40,
             widow_analysis: client?.widow_analysis ?? false,
+            surrender_schedule: client?.surrender_schedule ?? null,
             taxable_accounts: client?.taxable_accounts ?? 0,
             roth_ira: client?.roth_ira ?? 0,
         },

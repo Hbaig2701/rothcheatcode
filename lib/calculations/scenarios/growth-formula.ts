@@ -11,9 +11,17 @@ import { getStateTaxRate } from '@/lib/data/states';
  *
  * Implements the Growth FIA calculation logic:
  * - Applies upfront bonus at issue (using client.bonus_percent)
- * - Strategic Roth conversions that fill up to target tax bracket
+ * - Strategic Roth conversions (optimized, fixed amount, or full)
  * - Compound growth at rate_of_return
+ * - Anniversary bonus on remaining IRA balance (years 1-3)
+ * - Surrender value calculation based on surrender schedule
  * - Tax calculation on conversions
+ *
+ * Order of operations each year:
+ * 1. Conversion (reduce IRA, increase Roth)
+ * 2. Growth (apply rate_of_return)
+ * 3. Anniversary bonus (apply to IRA if within bonus years)
+ * 4. Surrender value (apply surrender charge to IRA)
  */
 export function runGrowthFormulaScenario(
   client: Client,
@@ -36,6 +44,9 @@ export function runGrowthFormulaScenario(
   const anniversaryBonusPercent = (client.anniversary_bonus_percent ?? 0) / 100;
   const anniversaryBonusYears = client.anniversary_bonus_years ?? 0;
 
+  // Surrender schedule (array of charge percentages by year)
+  const surrenderSchedule = client.surrender_schedule ?? null;
+
   // Tax rates
   const maxTaxRate = client.max_tax_rate ?? 24;
   const stateTaxRateDecimal = client.state_tax_rate !== undefined && client.state_tax_rate !== null
@@ -44,6 +55,7 @@ export function runGrowthFormulaScenario(
 
   // Conversion parameters
   const conversionType = client.conversion_type ?? 'optimized_amount';
+  const fixedConversionAmount = client.fixed_conversion_amount ?? 0;
   const yearsToDefer = client.years_to_defer_conversion ?? 0;
   const conversionStartAge = clientAge + yearsToDefer;
   const conversionEndAge = client.end_age ?? 100;
@@ -79,10 +91,12 @@ export function runGrowthFormulaScenario(
     if (shouldConvert) {
       // Determine conversion amount based on type
       if (conversionType === 'full_conversion') {
-        // Convert everything at once
         conversionAmount = boyIRA;
+      } else if (conversionType === 'fixed_amount' && fixedConversionAmount > 0) {
+        // Fixed amount: convert specified amount per year (or remaining balance if less)
+        conversionAmount = Math.min(fixedConversionAmount, boyIRA);
       } else {
-        // For optimized_amount and fixed_amount: fill up to target bracket ceiling
+        // optimized_amount: fill up to target bracket ceiling
         conversionAmount = calculateOptimalConversion(
           boyIRA,
           existingTaxableIncome,
@@ -94,7 +108,6 @@ export function runGrowthFormulaScenario(
 
       // Calculate taxes on conversion
       if (conversionAmount > 0) {
-        // Federal tax (marginal)
         federalTax = calculateConversionFederalTax(
           conversionAmount,
           existingTaxableIncome,
@@ -102,7 +115,6 @@ export function runGrowthFormulaScenario(
           year
         );
 
-        // State tax (flat rate)
         stateTax = calculateConversionStateTax(
           conversionAmount,
           client.state,
@@ -131,6 +143,16 @@ export function runGrowthFormulaScenario(
       iraBalance = iraBalance + anniversaryBonusAmount;
     }
 
+    // Step 4: Calculate surrender value on IRA (annuity AV)
+    let surrenderChargePercent: number | undefined;
+    let surrenderValue: number | undefined;
+    if (surrenderSchedule && surrenderSchedule.length > 0) {
+      surrenderChargePercent = yearOffset < surrenderSchedule.length
+        ? surrenderSchedule[yearOffset]
+        : 0; // No charge after surrender period
+      surrenderValue = Math.round(iraBalance * (1 - surrenderChargePercent / 100));
+    }
+
     // Taxes paid from external funds (taxable account goes negative)
     const totalTax = federalTax + stateTax;
     taxableBalance = boyTaxable - totalTax;
@@ -154,7 +176,9 @@ export function runGrowthFormulaScenario(
       irmaaSurcharge: 0,
       totalTax,
       taxableSS: 0,
-      netWorth: iraBalance + rothBalance + taxableBalance
+      netWorth: iraBalance + rothBalance + taxableBalance,
+      surrenderChargePercent,
+      surrenderValue,
     });
   }
 

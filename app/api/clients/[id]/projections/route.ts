@@ -10,7 +10,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 9; // v9: Growth engine uses standard baseline with RMDs + anniversary bonus in formula
+const PRODUCT_CONFIG_VERSION = 10; // v10: Fixed amount conversion + surrender values
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
@@ -35,9 +35,11 @@ function generateInputHash(client: Client): string {
     spouse_ssi_annual_amount: client.spouse_ssi_annual_amount,
     non_ssi_income: client.non_ssi_income,
     conversion_type: client.conversion_type,
+    fixed_conversion_amount: client.fixed_conversion_amount,
     protect_initial_premium: client.protect_initial_premium,
     withdrawal_type: client.withdrawal_type,
     surrender_years: client.surrender_years,
+    surrender_schedule: client.surrender_schedule,
     penalty_free_percent: client.penalty_free_percent,
     baseline_comparison_rate: client.baseline_comparison_rate,
     post_contract_rate: client.post_contract_rate,

@@ -5,6 +5,7 @@ import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 
 const CONVERSION_TYPE_OPTIONS = [
@@ -17,6 +18,7 @@ const CONVERSION_TYPE_OPTIONS = [
 export function ConversionSection() {
   const form = useFormContext<ClientFormData>();
   const formulaType = form.watch("blueprint_type") as FormulaType;
+  const conversionType = form.watch("conversion_type");
 
   // Hide for GI products - they use gi_conversion_years and gi_conversion_bracket instead
   if (isGuaranteedIncomeProduct(formulaType)) {
@@ -51,6 +53,27 @@ export function ConversionSection() {
           </Field>
         )}
       />
+
+      {/* Fixed Conversion Amount - only show when "Fixed Amount" is selected */}
+      {conversionType === "fixed_amount" && (
+        <Controller
+          name="fixed_conversion_amount"
+          control={form.control}
+          render={({ field: { ref, value, onChange, ...field }, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="fixed_conversion_amount">Annual Conversion Amount</FieldLabel>
+              <CurrencyInput
+                {...field}
+                value={value ?? 0}
+                onChange={onChange}
+                aria-invalid={fieldState.invalid}
+              />
+              <FieldDescription>Fixed dollar amount to convert each year</FieldDescription>
+              <FieldError errors={[fieldState.error]} />
+            </Field>
+          )}
+        />
+      )}
 
       {/* Protect Initial Premium */}
       <Controller

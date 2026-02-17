@@ -167,6 +167,10 @@ export interface YearlyResult {
   // Net worth (in cents)
   netWorth: number;
 
+  // Surrender value (optional, only for Growth FIA products with surrender schedules)
+  surrenderChargePercent?: number; // e.g., 16 for 16%
+  surrenderValue?: number; // Account value after surrender charge (in cents)
+
   // Cumulative after-tax distributions (for 'spent' RMD treatment)
   // Only populated in baseline scenario when rmd_treatment = 'spent'
   cumulativeDistributions?: number;

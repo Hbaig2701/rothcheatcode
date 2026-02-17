@@ -930,6 +930,9 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
   const totalConverted = years.reduce((sum, row) => sum + row.conversionAmount, 0);
   const totalTaxes = years.reduce((sum, row) => sum + row.federalTax + row.stateTax, 0);
 
+  // Check if surrender values are present
+  const hasSurrenderValues = years.some(row => row.surrenderValue != null);
+
   // Calculate BOY (Beginning of Year) values
   // Year 1: Starting balance + bonus
   // Year N: Previous year's EOY balance
@@ -959,6 +962,9 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Converted</th>
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Taxes</th>
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad EOY</th>
+          {hasSurrenderValues && (
+            <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">SV</th>
+          )}
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Roth EOY</th>
           <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net Worth</th>
         </tr>
@@ -992,6 +998,15 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
               <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
                 {toUSD(row.traditionalBalance)}
               </td>
+              {hasSurrenderValues && (
+                <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.4)]">
+                  {row.surrenderValue != null ? (
+                    <span title={`${row.surrenderChargePercent ?? 0}% charge`}>
+                      {toUSD(row.surrenderValue)}
+                    </span>
+                  ) : "—"}
+                </td>
+              )}
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
                 row.rothBalance > 0 ? "text-[#4ade80]" : "text-[rgba(255,255,255,0.25)]"
@@ -1014,7 +1029,7 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
           <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-[#f87171]">
             {toUSD(totalTaxes)}
           </td>
-          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]" colSpan={3}>—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]" colSpan={hasSurrenderValues ? 4 : 3}>—</td>
         </tr>
       </tfoot>
     </table>

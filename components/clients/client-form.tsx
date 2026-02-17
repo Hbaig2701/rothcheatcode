@@ -82,6 +82,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
 
       // Section 6: Conversion
       conversion_type: client?.conversion_type ?? (ud.conversion_type as ClientFormData["conversion_type"]) ?? "optimized_amount",
+      fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
       protect_initial_premium: client?.protect_initial_premium ?? (ud.protect_initial_premium as boolean) ?? true,
 
       // Section 7: Withdrawals
@@ -98,6 +99,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
 
       // Section 8: Advanced
       surrender_years: client?.surrender_years ?? (ud.surrender_years as number) ?? 7,
+      surrender_schedule: client?.surrender_schedule ?? null,
       penalty_free_percent: client?.penalty_free_percent ?? (ud.penalty_free_percent as number) ?? 10,
       baseline_comparison_rate: client?.baseline_comparison_rate ?? (ud.baseline_comparison_rate as number) ?? 7,
       post_contract_rate: client?.post_contract_rate ?? (ud.post_contract_rate as number) ?? 7,

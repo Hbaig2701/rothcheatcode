@@ -48,6 +48,7 @@ export function NewAccountSection() {
     form.setValue("rate_of_return", product.defaults.rateOfReturn);
     form.setValue("anniversary_bonus_percent", product.defaults.anniversaryBonus ?? null);
     form.setValue("anniversary_bonus_years", product.defaults.anniversaryBonusYears ?? null);
+    form.setValue("surrender_schedule", product.defaults.surrenderSchedule ?? null);
 
     // Set GI-specific defaults when switching to a GI product
     const giData = GI_PRODUCT_DATA[value as GuaranteedIncomeFormulaType];
@@ -201,6 +202,44 @@ export function NewAccountSection() {
           />
           <FieldDescription>Applied to account value at each anniversary (in addition to premium bonus)</FieldDescription>
         </Field>
+      )}
+
+      {/* Surrender Schedule - Editable list of surrender charge percentages */}
+      {form.watch("surrender_schedule") != null && (
+        <Controller
+          name="surrender_schedule"
+          control={form.control}
+          render={({ field }) => {
+            const schedule = field.value as number[] | null;
+            if (!schedule || schedule.length === 0) return <></>;
+            return (
+              <Field>
+                <FieldLabel>Surrender Schedule</FieldLabel>
+                <div className="grid grid-cols-5 gap-2">
+                  {schedule.map((charge, idx) => (
+                    <div key={idx} className="flex flex-col items-center gap-1">
+                      <span className="text-[10px] text-muted-foreground">Yr {idx + 1}</span>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        value={charge}
+                        onChange={(e) => {
+                          const newSchedule = [...schedule];
+                          newSchedule[idx] = parseFloat(e.target.value) || 0;
+                          field.onChange(newSchedule);
+                        }}
+                        className="text-center text-xs h-8 px-1"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <FieldDescription>Surrender charge % for each policy year (0% = no charge)</FieldDescription>
+              </Field>
+            );
+          }}
+        />
       )}
 
       {/* Rider Fee - Locked display for GI products */}
