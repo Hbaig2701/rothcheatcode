@@ -1,6 +1,6 @@
 import type { Client } from '@/lib/types/client';
 import type { SimulationInput, SimulationResult, YearlyResult } from './types';
-import { runGrowthBaselineScenario } from './scenarios/growth-baseline';
+import { runBaselineScenario } from './scenarios/baseline';
 import { runGrowthFormulaScenario } from './scenarios/growth-formula';
 
 /**
@@ -21,14 +21,12 @@ function calculateBreakEvenAge(baseline: YearlyResult[], formula: YearlyResult[]
 }
 
 /**
- * Calculate lifetime tax savings (conversion taxes paid)
- * For Growth FIA, this is the total conversion taxes paid during the strategy
+ * Calculate lifetime tax savings (baseline taxes - formula taxes)
  */
 function calculateTaxSavings(baseline: YearlyResult[], formula: YearlyResult[]): number {
-  // Baseline has no taxes (money just grows)
-  // Formula has conversion taxes
+  const baselineTotalTax = baseline.reduce((sum, y) => sum + y.totalTax, 0);
   const formulaTotalTax = formula.reduce((sum, y) => sum + y.totalTax, 0);
-  return -formulaTotalTax; // Negative because strategy PAYS taxes, doesn't save
+  return baselineTotalTax - formulaTotalTax;
 }
 
 /**
@@ -59,15 +57,16 @@ function calculateHeirBenefit(
 /**
  * Run Growth FIA simulation comparing Baseline vs Formula (Roth conversion) scenarios
  *
- * Key differences from standard simulation:
- * - Baseline: Simple compound growth, NO RMDs (money stays in annuity)
- * - Formula: Applies FIA bonuses, strategic Roth conversions, compound growth
+ * - Baseline: Standard "do nothing" — Traditional IRA with RMDs starting at 73 (same as legacy)
+ * - Formula: Growth FIA with upfront bonus, anniversary bonuses, and strategic Roth conversions
  */
 export function runGrowthSimulation(input: SimulationInput): SimulationResult {
   const { client, startYear, endYear } = input;
   const projectionYears = endYear - startYear + 1;
 
-  const baseline = runGrowthBaselineScenario(client, startYear, projectionYears);
+  // Baseline uses the STANDARD baseline with RMDs (same as legacy engine)
+  const baseline = runBaselineScenario(client, startYear, projectionYears);
+  // Formula uses the growth formula with anniversary bonus support
   const formula = runGrowthFormulaScenario(client, startYear, projectionYears);
 
   const heirTaxRate = client.heir_tax_rate ?? DEFAULT_HEIR_TAX_RATE;

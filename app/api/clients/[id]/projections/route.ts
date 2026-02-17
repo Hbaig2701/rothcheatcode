@@ -10,7 +10,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 8; // v8: Fix Growth FIA dispatch to use growth engine (anniversary bonus support)
+const PRODUCT_CONFIG_VERSION = 9; // v9: Growth engine uses standard baseline with RMDs + anniversary bonus in formula
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
@@ -209,23 +209,15 @@ export async function GET(
     const simulationInput = createSimulationInput(client as Client);
     const formulaType = (client as Client).blueprint_type as FormulaType;
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
-    const isGrowth = formulaType && isGrowthProduct(formulaType);
-
-    console.log('[PROJECTION DEBUG] formulaType:', formulaType, 'isGI:', isGI, 'isGrowth:', isGrowth);
-    console.log('[PROJECTION DEBUG] anniversary_bonus_percent:', (client as Client).anniversary_bonus_percent, 'anniversary_bonus_years:', (client as Client).anniversary_bonus_years);
-
     let projectionInsert: ProjectionInsert;
     if (isGI) {
-      console.log('[PROJECTION DEBUG] Using GI engine');
       const giResult = runGuaranteedIncomeSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, giResult, inputHash, giResult.giMetrics);
-    } else if (isGrowth) {
-      console.log('[PROJECTION DEBUG] Using GROWTH engine');
+    } else if (isGrowthProduct(formulaType)) {
+      // Growth FIA: uses growth formula with anniversary bonus, standard baseline with RMDs
       const result = runGrowthSimulation(simulationInput);
-      console.log('[PROJECTION DEBUG] Growth result year 1 trad:', result.formula[0]?.traditionalBalance);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     } else {
-      console.log('[PROJECTION DEBUG] Using LEGACY engine');
       const result = runSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     }
