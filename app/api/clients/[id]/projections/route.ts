@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { runSimulation, createSimulationInput, runGuaranteedIncomeSimulation } from '@/lib/calculations';
+import { runSimulation, createSimulationInput, runGuaranteedIncomeSimulation, runGrowthSimulation } from '@/lib/calculations';
 import type { Client } from '@/lib/types/client';
 import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projection';
 import type { SimulationResult } from '@/lib/calculations';
 import type { GIMetrics } from '@/lib/calculations/guaranteed-income/types';
-import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
+import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/lib/config/products';
 import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 7; // v7: EquiTrust MarketEdge phased anniversary bonus (8% premium + 4% × 3 years)
+const PRODUCT_CONFIG_VERSION = 8; // v8: Fix Growth FIA dispatch to use growth engine (anniversary bonus support)
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
@@ -214,10 +214,12 @@ export async function GET(
     if (isGI) {
       const giResult = runGuaranteedIncomeSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, giResult, inputHash, giResult.giMetrics);
+    } else if (isGrowthProduct(formulaType)) {
+      // Growth FIA: uses growth engine with anniversary bonus support
+      const result = runGrowthSimulation(simulationInput);
+      projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     } else {
-      // Growth FIA and legacy: use standard simulation with RMD-based baseline
-      // Baseline = "do nothing" (traditional IRA with RMDs)
-      // Strategy = Roth conversions
+      // Legacy: use standard simulation
       const result = runSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     }
@@ -272,10 +274,12 @@ export async function POST(
     if (isGI) {
       const giResult = runGuaranteedIncomeSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, giResult, inputHash, giResult.giMetrics);
+    } else if (isGrowthProduct(formulaType)) {
+      // Growth FIA: uses growth engine with anniversary bonus support
+      const result = runGrowthSimulation(simulationInput);
+      projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     } else {
-      // Growth FIA and legacy: use standard simulation with RMD-based baseline
-      // Baseline = "do nothing" (traditional IRA with RMDs)
-      // Strategy = Roth conversions
+      // Legacy: use standard simulation
       const result = runSimulation(simulationInput);
       projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
     }
