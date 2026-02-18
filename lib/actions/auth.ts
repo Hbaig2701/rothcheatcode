@@ -14,7 +14,7 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    return { error: error.message }
+    redirect(`/login?error=${encodeURIComponent(error.message)}`)
   }
 
   revalidatePath('/', 'layout')
@@ -33,7 +33,7 @@ export async function signup(formData: FormData) {
   })
 
   if (error) {
-    return { error: error.message }
+    redirect(`/signup?error=${encodeURIComponent(error.message)}`)
   }
 
   redirect('/login?message=Check your email to confirm your account')
