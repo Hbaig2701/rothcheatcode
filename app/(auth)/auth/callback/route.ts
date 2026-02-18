@@ -8,7 +8,8 @@ export async function GET(request: Request) {
   const code = searchParams.get('code')
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type') as EmailOtpType | null
-  const next = searchParams.get('next') ?? '/dashboard'
+  const defaultNext = type === 'recovery' ? '/reset-password' : '/dashboard'
+  const next = searchParams.get('next') ?? defaultNext
 
   // Build the redirect URL, using x-forwarded-host on Vercel
   const forwardedHost = request.headers.get('x-forwarded-host')

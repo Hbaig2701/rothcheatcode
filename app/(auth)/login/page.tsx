@@ -1,4 +1,4 @@
-import { login, signInWithGoogle, signInWithMagicLink } from '@/lib/actions/auth'
+import { login, signInWithGoogle, signInWithMagicLink, forgotPassword } from '@/lib/actions/auth'
 import { SubmitButton } from '@/components/submit-button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -50,6 +50,16 @@ export default async function LoginPage({
             </div>
             <SubmitButton className="w-full" pendingText="Signing in...">
               Sign In
+            </SubmitButton>
+          </form>
+
+          <form action={forgotPassword as FormAction} className="space-y-2">
+            <div className="space-y-2">
+              <Label htmlFor="reset-email">Forgot your password?</Label>
+              <Input id="reset-email" name="email" type="email" placeholder="Enter your email" required />
+            </div>
+            <SubmitButton variant="ghost" className="w-full text-sm" pendingText="Sending...">
+              Send Reset Link
             </SubmitButton>
           </form>
 

@@ -73,6 +73,48 @@ export async function signInWithMagicLink(formData: FormData) {
   return { success: 'Check your email for the magic link' }
 }
 
+export async function forgotPassword(formData: FormData) {
+  const supabase = await createClient()
+
+  const email = formData.get('email') as string
+  if (!email) {
+    redirect('/login?error=Email is required')
+  }
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${getURL()}auth/callback?next=/reset-password`,
+  })
+
+  if (error) {
+    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+  }
+
+  redirect('/login?message=Check your email for the password reset link')
+}
+
+export async function updatePassword(formData: FormData) {
+  const supabase = await createClient()
+
+  const password = formData.get('password') as string
+  const confirmPassword = formData.get('confirmPassword') as string
+
+  if (!password || password.length < 6) {
+    redirect('/reset-password?error=Password must be at least 6 characters')
+  }
+
+  if (password !== confirmPassword) {
+    redirect('/reset-password?error=Passwords do not match')
+  }
+
+  const { error } = await supabase.auth.updateUser({ password })
+
+  if (error) {
+    redirect(`/reset-password?error=${encodeURIComponent(error.message)}`)
+  }
+
+  redirect('/login?message=Password updated successfully')
+}
+
 export async function logout() {
   const supabase = await createClient()
   await supabase.auth.signOut()
