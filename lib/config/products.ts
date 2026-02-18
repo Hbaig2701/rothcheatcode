@@ -159,6 +159,7 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeFormulaType, Pro
       productName: 'MarketEarly Income Index',
       bonus: 20,
       surrenderYears: 10,
+      surrenderSchedule: [9, 8, 7, 6.5, 5.5, 4.5, 3.5, 2.5, 1.5, 0.5],
       penaltyFreePercent: 10,
       rateOfReturn: 0,
       riderFee: 1.25,
