@@ -89,7 +89,7 @@ export default function AdminDashboard() {
       {/* Activity Chart */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)]">
+          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)]">
             Activity Over Time
           </h2>
           <div className="flex gap-2">
@@ -131,14 +131,14 @@ export default function AdminDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis
                 dataKey="date"
-                tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }}
+                tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
                 tickFormatter={(v) => {
                   const d = new Date(v)
                   return `${d.getMonth() + 1}/${d.getDate()}`
                 }}
                 interval={activityRange === '7d' ? 0 : activityRange === '30d' ? 4 : 14}
               />
-              <YAxis tick={{ fill: 'rgba(255,255,255,0.3)', fontSize: 10 }} allowDecimals={false} />
+              <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} allowDecimals={false} />
               <Tooltip
                 contentStyle={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
                 labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
@@ -153,7 +153,7 @@ export default function AdminDashboard() {
       {/* Advisors Table */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)]">
+          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)]">
             Advisors
           </h2>
           <div className="flex gap-3">
@@ -185,13 +185,13 @@ export default function AdminDashboard() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-[rgba(255,255,255,0.07)]">
-              <th className="text-left px-4 py-3 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Email</th>
-              <th className="text-left px-4 py-3 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Signup</th>
-              <th className="text-right px-4 py-3 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Clients</th>
-              <th className="text-right px-4 py-3 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Scenarios</th>
-              <th className="text-right px-4 py-3 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Exports</th>
-              <th className="text-left px-4 py-3 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Last Login</th>
-              <th className="text-left px-4 py-3 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Status</th>
+              <th className="text-left px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Email</th>
+              <th className="text-left px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Signup</th>
+              <th className="text-right px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Clients</th>
+              <th className="text-right px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Scenarios</th>
+              <th className="text-right px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Exports</th>
+              <th className="text-left px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Last Login</th>
+              <th className="text-left px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -239,7 +239,7 @@ export default function AdminDashboard() {
 function StatCard({ label, value, trend }: { label: string; value: number; trend?: number }) {
   return (
     <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-5">
-      <p className="text-[10px] uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-2">{label}</p>
+      <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-semibold mb-2">{label}</p>
       <p className="text-2xl font-semibold text-white font-mono">{value.toLocaleString()}</p>
       {trend != null && trend > 0 && (
         <p className="text-xs text-[#4ade80] mt-1">+{trend} this week</p>
