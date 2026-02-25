@@ -849,6 +849,15 @@ export async function POST(request: NextRequest) {
 
     await browser.close();
 
+    // Log export (fire-and-forget)
+    if (reportData.client.id) {
+      Promise.resolve(supabase.from('export_log').insert({
+        user_id: user.id,
+        client_id: reportData.client.id,
+        export_type: 'pdf',
+      })).catch(console.error)
+    }
+
     // Return PDF
     const clientName = reportData.client.name || 'Client';
     const sanitizedName = clientName

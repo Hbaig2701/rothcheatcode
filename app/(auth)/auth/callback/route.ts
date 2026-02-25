@@ -35,10 +35,21 @@ export async function GET(request: Request) {
     }
   )
 
+  // Log login helper (fire-and-forget, don't block redirect)
+  const logLogin = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await supabase.from('login_log').insert({ user_id: user.id })
+      }
+    } catch {}
+  }
+
   // Handle PKCE code exchange (OAuth, email with default template)
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      if (type !== 'recovery') logLogin()
       return NextResponse.redirect(`${origin}${next}`)
     }
   }
@@ -47,6 +58,7 @@ export async function GET(request: Request) {
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash })
     if (!error) {
+      if (type !== 'recovery') logLogin()
       return NextResponse.redirect(`${origin}${next}`)
     }
   }

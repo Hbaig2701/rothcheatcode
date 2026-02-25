@@ -17,6 +17,12 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`)
   }
 
+  // Log login (fire-and-forget)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    Promise.resolve(supabase.from('login_log').insert({ user_id: user.id })).catch(console.error)
+  }
+
   revalidatePath('/', 'layout')
   redirect('/dashboard')
 }

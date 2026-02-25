@@ -1,0 +1,98 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const statusFilter = searchParams.get('status') ?? 'all';
+    const search = searchParams.get('search') ?? '';
+
+    // Fetch all advisor profiles
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, email, created_at, role')
+      .eq('role', 'advisor')
+      .order('created_at', { ascending: false });
+
+    if (profilesError) throw profilesError;
+    if (!profiles || profiles.length === 0) {
+      return NextResponse.json({ advisors: [], total: 0 });
+    }
+
+    const advisorIds = profiles.map(p => p.id);
+
+    // Fetch counts in parallel
+    const [clientsRes, runsRes, exportsRes, loginsRes] = await Promise.all([
+      supabase.from('clients').select('user_id').in('user_id', advisorIds),
+      supabase.from('calculation_log').select('user_id').in('user_id', advisorIds),
+      supabase.from('export_log').select('user_id').in('user_id', advisorIds),
+      supabase.from('login_log').select('user_id, created_at').in('user_id', advisorIds).order('created_at', { ascending: false }),
+    ]);
+
+    // Build count maps
+    const clientCounts = new Map<string, number>();
+    (clientsRes.data ?? []).forEach(r => clientCounts.set(r.user_id, (clientCounts.get(r.user_id) ?? 0) + 1));
+
+    const runCounts = new Map<string, number>();
+    (runsRes.data ?? []).forEach(r => runCounts.set(r.user_id, (runCounts.get(r.user_id) ?? 0) + 1));
+
+    const exportCounts = new Map<string, number>();
+    (exportsRes.data ?? []).forEach(r => exportCounts.set(r.user_id, (exportCounts.get(r.user_id) ?? 0) + 1));
+
+    // Last login per user
+    const lastLogins = new Map<string, string>();
+    (loginsRes.data ?? []).forEach(r => {
+      if (!lastLogins.has(r.user_id)) lastLogins.set(r.user_id, r.created_at);
+    });
+
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+
+    const advisors = profiles.map(p => {
+      const lastLogin = lastLogins.get(p.id) ?? null;
+      const lastActivity = lastLogin ? new Date(lastLogin) : new Date(p.created_at);
+      const isActive = lastActivity > fourteenDaysAgo;
+
+      return {
+        id: p.id,
+        email: p.email,
+        createdAt: p.created_at,
+        clientCount: clientCounts.get(p.id) ?? 0,
+        scenarioRunCount: runCounts.get(p.id) ?? 0,
+        exportCount: exportCounts.get(p.id) ?? 0,
+        lastLogin,
+        status: isActive ? 'active' as const : 'inactive' as const,
+      };
+    });
+
+    // Apply filters
+    let filtered = advisors;
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(a => a.status === statusFilter);
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = filtered.filter(a => a.email.toLowerCase().includes(q));
+    }
+
+    return NextResponse.json({ advisors: filtered, total: filtered.length });
+  } catch (error) {
+    console.error('Admin advisors error:', error);
+    return NextResponse.json({ error: 'Failed to fetch advisors' }, { status: 500 });
+  }
+}
