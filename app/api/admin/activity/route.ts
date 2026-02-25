@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,6 +20,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Use admin client (bypasses RLS) for cross-user queries
+    const admin = createAdminClient();
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') ?? 'scenario_runs';
     const range = searchParams.get('range') ?? '30d';
@@ -35,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     const tableName = type === 'exports' ? 'export_log' : type === 'logins' ? 'login_log' : 'calculation_log';
 
-    const { data: rows, error: queryError } = await supabase
+    const { data: rows, error: queryError } = await admin
       .from(tableName)
       .select('created_at')
       .gte('created_at', startDate.toISOString())

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET() {
   try {
@@ -19,19 +20,22 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Use admin client (bypasses RLS) for cross-user queries
+    const admin = createAdminClient();
+
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
     // Run all queries in parallel
     const [advisors, clients, scenarioRuns, exports, weekAdvisors, weekClients, weekRuns, weekExports] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'advisor'),
-      supabase.from('clients').select('id', { count: 'exact', head: true }),
-      supabase.from('calculation_log').select('id', { count: 'exact', head: true }),
-      supabase.from('export_log').select('id', { count: 'exact', head: true }),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'advisor').gte('created_at', weekAgo),
-      supabase.from('clients').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
-      supabase.from('calculation_log').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
-      supabase.from('export_log').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
+      admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'advisor'),
+      admin.from('clients').select('id', { count: 'exact', head: true }),
+      admin.from('calculation_log').select('id', { count: 'exact', head: true }),
+      admin.from('export_log').select('id', { count: 'exact', head: true }),
+      admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'advisor').gte('created_at', weekAgo),
+      admin.from('clients').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
+      admin.from('calculation_log').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
+      admin.from('export_log').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
     ]);
 
     return NextResponse.json({

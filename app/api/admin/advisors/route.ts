@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,12 +20,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Use admin client (bypasses RLS) for cross-user queries
+    const admin = createAdminClient();
+
     const { searchParams } = new URL(request.url);
     const statusFilter = searchParams.get('status') ?? 'all';
     const search = searchParams.get('search') ?? '';
 
     // Fetch all advisor profiles
-    const { data: profiles, error: profilesError } = await supabase
+    const { data: profiles, error: profilesError } = await admin
       .from('profiles')
       .select('id, email, created_at, role')
       .eq('role', 'advisor')
@@ -39,10 +43,10 @@ export async function GET(request: NextRequest) {
 
     // Fetch counts in parallel
     const [clientsRes, runsRes, exportsRes, loginsRes] = await Promise.all([
-      supabase.from('clients').select('user_id').in('user_id', advisorIds),
-      supabase.from('calculation_log').select('user_id').in('user_id', advisorIds),
-      supabase.from('export_log').select('user_id').in('user_id', advisorIds),
-      supabase.from('login_log').select('user_id, created_at').in('user_id', advisorIds).order('created_at', { ascending: false }),
+      admin.from('clients').select('user_id').in('user_id', advisorIds),
+      admin.from('calculation_log').select('user_id').in('user_id', advisorIds),
+      admin.from('export_log').select('user_id').in('user_id', advisorIds),
+      admin.from('login_log').select('user_id, created_at').in('user_id', advisorIds).order('created_at', { ascending: false }),
     ]);
 
     // Build count maps

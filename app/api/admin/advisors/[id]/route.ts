@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function GET(
   request: NextRequest,
@@ -23,8 +24,11 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Use admin client (bypasses RLS) for cross-user queries
+    const admin = createAdminClient();
+
     // Fetch advisor profile
-    const { data: advisor, error: advisorError } = await supabase
+    const { data: advisor, error: advisorError } = await admin
       .from('profiles')
       .select('id, email, created_at, role')
       .eq('id', advisorId)
@@ -36,10 +40,10 @@ export async function GET(
 
     // Fetch data in parallel
     const [clientsRes, runsRes, exportsRes, loginsRes] = await Promise.all([
-      supabase.from('clients').select('id, name, created_at').eq('user_id', advisorId).order('created_at', { ascending: false }),
-      supabase.from('calculation_log').select('id, client_id, created_at, strategy').eq('user_id', advisorId).order('created_at', { ascending: false }),
-      supabase.from('export_log').select('id, client_id, export_type, created_at').eq('user_id', advisorId).order('created_at', { ascending: false }),
-      supabase.from('login_log').select('id, created_at').eq('user_id', advisorId).order('created_at', { ascending: false }),
+      admin.from('clients').select('id, name, created_at').eq('user_id', advisorId).order('created_at', { ascending: false }),
+      admin.from('calculation_log').select('id, client_id, created_at, strategy').eq('user_id', advisorId).order('created_at', { ascending: false }),
+      admin.from('export_log').select('id, client_id, export_type, created_at').eq('user_id', advisorId).order('created_at', { ascending: false }),
+      admin.from('login_log').select('id, created_at').eq('user_id', advisorId).order('created_at', { ascending: false }),
     ]);
 
     const clients = clientsRes.data ?? [];
