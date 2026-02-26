@@ -30,7 +30,11 @@ export async function updateSession(request: NextRequest) {
             request,
           });
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, {
+              ...options,
+              sameSite: "none",
+              secure: true,
+            })
           );
         },
       },
@@ -39,6 +43,13 @@ export async function updateSession(request: NextRequest) {
 
   // Refresh session if expired
   await supabase.auth.getUser();
+
+  // Allow framing from GoHighLevel
+  supabaseResponse.headers.set(
+    "Content-Security-Policy",
+    "frame-ancestors 'self' https://*.hexonasystems.com https://*.gohighlevel.com https://*.highlevel.com"
+  );
+  supabaseResponse.headers.delete("X-Frame-Options");
 
   return supabaseResponse;
 }
