@@ -27,7 +27,7 @@ export function AppSidebar({ user }: { user: User }) {
     <Sidebar collapsible="none" className="border-r border-[rgba(255,255,255,0.07)] bg-[rgba(0,0,0,0.3)]">
       <SidebarHeader className="px-4 py-7">
         <span className="font-display text-2xl font-semibold tracking-wide text-gold">
-          Roth Formula
+          Retirement Expert
         </span>
       </SidebarHeader>
 

@@ -18,7 +18,13 @@ export default async function SignupPage({
 
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <Card className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-6">
+        <div className="text-center">
+          <h1 className="font-display text-3xl font-semibold tracking-wide text-[#d4af37]">
+            Retirement Expert
+          </h1>
+        </div>
+      <Card className="w-full">
         <CardHeader>
           <CardTitle>Create Account</CardTitle>
         </CardHeader>
@@ -47,6 +53,7 @@ export default async function SignupPage({
           </p>
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

@@ -23,7 +23,7 @@ export function PDFDocument({
 
   const primaryColor = branding?.primaryColor || '#1e3a5f';
   const secondaryColor = branding?.secondaryColor || '#14b8a6';
-  const companyName = branding?.companyName || 'Roth Formula';
+  const companyName = branding?.companyName || 'Retirement Expert';
 
   const documentStyles = StyleSheet.create({
     // Portrait page

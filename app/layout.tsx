@@ -22,7 +22,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Roth Formula - Roth IRA Conversion Optimizer",
+  title: "Retirement Expert - Roth IRA Conversion Optimizer",
   description: "Optimize your Roth IRA conversions with advanced tax planning strategies",
 };
 

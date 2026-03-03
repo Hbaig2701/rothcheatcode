@@ -118,7 +118,7 @@ export function usePDFExport(
         .replace(/\s+/g, '-')
         .toLowerCase()
         .slice(0, 50);
-      link.download = `roth-analysis-${sanitizedName}.pdf`;
+      link.download = `retirement-expert-analysis-${sanitizedName}.pdf`;
 
       // Trigger download
       document.body.appendChild(link);

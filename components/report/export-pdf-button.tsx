@@ -25,7 +25,7 @@ interface ExportPdfButtonProps {
 }
 
 /**
- * Export PDF Button for the 13-page RothFormula Report
+ * Export PDF Button for the 13-page Retirement Expert Report
  *
  * Captures chart images and sends data to the PDF generation API.
  * Downloads the resulting PDF with a professional filename.
@@ -104,7 +104,7 @@ export function ExportPdfButton({
         .replace(/\s+/g, '_')
         .slice(0, 50);
       const timestamp = new Date().toISOString().split('T')[0];
-      link.download = `RothFormula_${sanitizedName}_${timestamp}.pdf`;
+      link.download = `RetirementExpert_${sanitizedName}_${timestamp}.pdf`;
 
       // Trigger download
       document.body.appendChild(link);
@@ -189,7 +189,7 @@ export function ExportPdfButtonCompact({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `RothFormula_${client.name.replace(/\s+/g, '_')}.pdf`;
+      link.download = `RetirementExpert_${client.name.replace(/\s+/g, '_')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

@@ -65,7 +65,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
         .replace(/[^a-zA-Z0-9\s-]/g, '')
         .replace(/\s+/g, '_');
       const timestamp = new Date().toISOString().split('T')[0];
-      link.download = `RothFormula_${sanitizedName}_${timestamp}.pdf`;
+      link.download = `RetirementExpert_${sanitizedName}_${timestamp}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

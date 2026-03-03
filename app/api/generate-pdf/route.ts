@@ -863,7 +863,7 @@ export async function POST(request: NextRequest) {
     const sanitizedName = clientName
       .replace(/[^a-zA-Z0-9\s-]/g, '')
       .replace(/\s+/g, '_');
-    const pdfPrefix = isGI ? 'RothFormula_GI' : 'RothFormula';
+    const pdfPrefix = isGI ? 'RetirementExpert_GI' : 'RetirementExpert';
 
     return new NextResponse(Buffer.from(pdf), {
       status: 200,
