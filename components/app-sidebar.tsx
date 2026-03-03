@@ -26,9 +26,7 @@ export function AppSidebar({ user }: { user: User }) {
   return (
     <Sidebar collapsible="none" className="border-r border-[rgba(255,255,255,0.07)] bg-[rgba(0,0,0,0.3)]">
       <SidebarHeader className="px-4 py-7">
-        <span className="font-display text-2xl font-semibold tracking-wide text-gold">
-          Retirement Expert
-        </span>
+        <img src="/logo.png" alt="Retirement Expert" className="h-8 w-auto" />
       </SidebarHeader>
 
       <SidebarContent className="px-4 pt-6">

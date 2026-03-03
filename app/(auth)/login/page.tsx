@@ -28,10 +28,8 @@ export default async function LoginPage({
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-md space-y-6">
-        <div className="text-center">
-          <h1 className="font-display text-3xl font-semibold tracking-wide text-[#d4af37]">
-            Retirement Expert
-          </h1>
+        <div className="flex justify-center">
+          <img src="/logo.png" alt="Retirement Expert" className="h-10 w-auto" />
         </div>
       <Card className="w-full">
         <CardHeader>
