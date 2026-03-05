@@ -16,11 +16,43 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
+  // Fetch profile with subscription fields
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_active, plan, subscription_status, stripe_customer_id, team_owner_id')
+    .eq('id', user.id)
+    .single()
+
   // Check if account is deactivated
-  const { data: profile } = await supabase.from('profiles').select('is_active').eq('id', user.id).single()
   if (profile?.is_active === false) {
     await supabase.auth.signOut()
     redirect('/login?error=Your account has been deactivated.')
+  }
+
+  // Subscription access control
+  if (profile?.team_owner_id) {
+    // Team member — check owner's subscription
+    const { data: owner } = await supabase
+      .from('profiles')
+      .select('plan, subscription_status, stripe_customer_id')
+      .eq('id', profile.team_owner_id)
+      .single()
+
+    const ownerGrandfathered = owner?.plan === 'pro' && !owner?.stripe_customer_id
+    const ownerActive = ['starter', 'pro'].includes(owner?.plan ?? '') && owner?.subscription_status === 'active'
+
+    if (!ownerGrandfathered && !ownerActive) {
+      redirect('/subscription-inactive')
+    }
+  } else {
+    // Owner or independent user
+    const isGrandfathered = profile?.plan === 'pro' && !profile?.stripe_customer_id
+    const hasActiveSubscription =
+      ['starter', 'pro'].includes(profile?.plan ?? '') && profile?.subscription_status === 'active'
+
+    if (!isGrandfathered && !hasActiveSubscription) {
+      redirect('/subscription-inactive')
+    }
   }
 
   const cookieStore = await cookies()

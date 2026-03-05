@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { createClient } from '@/lib/supabase/server';
 import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
+import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -769,6 +770,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Check PDF export limit
+    const usageCheck = await checkUsageLimit(user.id, 'pdf_exports');
+    if (!usageCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: 'PDF export limit reached',
+          message: `You've used ${usageCheck.current}/${usageCheck.limit} PDF exports this month. Upgrade to Pro for unlimited exports.`,
+          current: usageCheck.current,
+          limit: usageCheck.limit,
+          showUpgrade: true,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Check plan for white-label branding
+    const { plan: effectivePlan } = await getEffectivePlan(user.id);
+    const showPoweredBy = effectivePlan !== 'pro';
+
     const body = await request.json();
     const { reportData, charts } = body;
 
@@ -814,6 +834,9 @@ export async function POST(request: NextRequest) {
       ? prepareGITemplateData(reportData, branding)
       : prepareTemplateData(reportData, charts || {}, branding);
 
+    // Add white-label flag
+    (templateData as unknown as Record<string, unknown>).showPoweredBy = showPoweredBy;
+
     // Generate HTML
     const html = template(templateData);
 
@@ -857,6 +880,9 @@ export async function POST(request: NextRequest) {
         export_type: 'pdf',
       })).catch(console.error)
     }
+
+    // Increment PDF export usage (fire-and-forget)
+    incrementUsage(user.id, 'pdf_exports').catch(console.error);
 
     // Return PDF
     const clientName = reportData.client.name || 'Client';

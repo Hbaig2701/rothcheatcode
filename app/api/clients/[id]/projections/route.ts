@@ -6,6 +6,7 @@ import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projectio
 import type { SimulationResult } from '@/lib/calculations';
 import type { GIMetrics } from '@/lib/calculations/guaranteed-income/types';
 import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/lib/config/products';
+import { checkUsageLimit, incrementUsage } from '@/lib/usage';
 import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
@@ -207,6 +208,21 @@ export async function GET(
       return NextResponse.json({ projection: existingProjection, cached: true } as ProjectionResponse);
     }
 
+    // Check scenario run limit (only for non-cached runs)
+    const usageCheck = await checkUsageLimit(user.id, 'scenario_runs');
+    if (!usageCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: 'Scenario limit reached',
+          message: `You've used ${usageCheck.current}/${usageCheck.limit} scenarios this month. Upgrade to Pro for unlimited scenarios.`,
+          current: usageCheck.current,
+          limit: usageCheck.limit,
+          showUpgrade: true,
+        },
+        { status: 403 }
+      );
+    }
+
     // Run simulation - dispatch to GI or standard engine based on product type
     const simulationInput = createSimulationInput(client as Client);
     const formulaType = (client as Client).blueprint_type as FormulaType;
@@ -231,6 +247,9 @@ export async function GET(
       .single();
 
     if (insertError) throw insertError;
+
+    // Increment usage (fire-and-forget)
+    incrementUsage(user.id, 'scenario_runs').catch(console.error);
 
     return NextResponse.json({ projection: newProjection, cached: false } as ProjectionResponse);
   } catch (error) {
@@ -265,6 +284,21 @@ export async function POST(
       throw clientError;
     }
 
+    // Check scenario run limit (POST always recalculates)
+    const usageCheck = await checkUsageLimit(user.id, 'scenario_runs');
+    if (!usageCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: 'Scenario limit reached',
+          message: `You've used ${usageCheck.current}/${usageCheck.limit} scenarios this month. Upgrade to Pro for unlimited scenarios.`,
+          current: usageCheck.current,
+          limit: usageCheck.limit,
+          showUpgrade: true,
+        },
+        { status: 403 }
+      );
+    }
+
     const inputHash = generateInputHash(client as Client);
     const simulationInput = createSimulationInput(client as Client);
     const formulaType = (client as Client).blueprint_type as FormulaType;
@@ -291,6 +325,9 @@ export async function POST(
       .single();
 
     if (insertError) throw insertError;
+
+    // Increment usage (fire-and-forget)
+    incrementUsage(user.id, 'scenario_runs').catch(console.error);
 
     return NextResponse.json({ projection: newProjection, cached: false } as ProjectionResponse);
   } catch (error) {

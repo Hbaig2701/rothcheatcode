@@ -2,6 +2,11 @@ import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
+  // Skip session refresh for Stripe webhooks (no cookies)
+  if (request.nextUrl.pathname.startsWith("/api/webhooks/stripe")) {
+    return;
+  }
+
   return await updateSession(request);
 }
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -7,29 +8,254 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Rocket } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, CreditCard, Zap, Crown, Shield } from "lucide-react";
+
+interface BillingData {
+  plan: string;
+  isGrandfathered: boolean;
+  billingCycle: string | null;
+  subscriptionStatus: string | null;
+  currentPeriodEnd: string | null;
+  hasStripeSubscription: boolean;
+  isTeamMember: boolean;
+  usage: {
+    scenarioRuns: number;
+    pdfExports: number;
+    clients: number;
+  };
+  limits: {
+    scenarioRuns: number | null;
+    pdfExports: number | null;
+    clients: number | null;
+    teamMembers: number;
+  };
+}
+
+function ProgressBar({ value, max }: { value: number; max: number }) {
+  const pct = Math.min((value / max) * 100, 100);
+  const isNearLimit = pct >= 80;
+  return (
+    <div className="h-2 w-full rounded-full bg-[rgba(255,255,255,0.08)]">
+      <div
+        className={`h-full rounded-full transition-all ${
+          isNearLimit ? "bg-[#f59e0b]" : "bg-gold"
+        }`}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
+}
 
 export function BillingTab() {
+  const [data, setData] = useState<BillingData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/billing/usage")
+      .then((r) => r.json())
+      .then(setData)
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading || !data) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const planLabel =
+    data.plan === "pro" ? "Pro" : data.plan === "starter" ? "Starter" : "None";
+
+  const handleManageSubscription = async () => {
+    setPortalLoading(true);
+    // POST to billing portal — it returns a redirect
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/api/billing/portal";
+    document.body.appendChild(form);
+    form.submit();
+  };
+
+  const handleUpgrade = async () => {
+    setUpgradeLoading(true);
+    try {
+      const res = await fetch("/api/billing/upgrade");
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+    } catch {
+      setUpgradeLoading(false);
+    }
+  };
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Billing</CardTitle>
-        <CardDescription>
-          Manage your subscription and payment methods
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-muted-foreground/30 py-12">
-          <Rocket className="size-10 text-muted-foreground/50" />
-          <h3 className="text-lg font-medium">Coming Soon</h3>
-          <p className="text-sm text-muted-foreground">
-            Billing management will be available in a future update.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Current Plan: <strong>Beta Access</strong>
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      {/* Current Plan */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            {data.plan === "pro" ? (
+              <Crown className="size-5 text-gold" />
+            ) : (
+              <CreditCard className="size-5" />
+            )}
+            Current Plan
+          </CardTitle>
+          <CardDescription>
+            Manage your subscription and billing
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-semibold text-white">{planLabel}</p>
+              {data.isGrandfathered && (
+                <span className="mt-1 inline-block rounded-full bg-[rgba(212,175,55,0.15)] px-2.5 py-0.5 text-xs font-medium text-gold">
+                  Grandfathered
+                </span>
+              )}
+              {data.isTeamMember && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  <Shield className="mr-1 inline size-3.5" />
+                  Managed by team owner
+                </p>
+              )}
+              {data.billingCycle && !data.isGrandfathered && (
+                <p className="text-sm text-muted-foreground">
+                  {data.billingCycle === "annual" ? "Annual" : "Monthly"} billing
+                </p>
+              )}
+              {data.currentPeriodEnd && !data.isGrandfathered && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Renews{" "}
+                  {new Date(data.currentPeriodEnd).toLocaleDateString()}
+                </p>
+              )}
+            </div>
+
+            {data.subscriptionStatus && !data.isGrandfathered && (
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  data.subscriptionStatus === "active"
+                    ? "bg-[rgba(74,222,128,0.15)] text-[#4ade80]"
+                    : data.subscriptionStatus === "past_due"
+                      ? "bg-[rgba(245,158,11,0.15)] text-[#f59e0b]"
+                      : "bg-[rgba(239,68,68,0.15)] text-[#ef4444]"
+                }`}
+              >
+                {data.subscriptionStatus}
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Usage — Starter only */}
+      {data.plan === "starter" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Usage This Period</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {data.limits.clients !== null && (
+              <div>
+                <div className="mb-1.5 flex justify-between text-sm">
+                  <span className="text-muted-foreground">Active Clients</span>
+                  <span className="font-mono text-white">
+                    {data.usage.clients}/{data.limits.clients}
+                  </span>
+                </div>
+                <ProgressBar
+                  value={data.usage.clients}
+                  max={data.limits.clients}
+                />
+              </div>
+            )}
+            {data.limits.scenarioRuns !== null && (
+              <div>
+                <div className="mb-1.5 flex justify-between text-sm">
+                  <span className="text-muted-foreground">Scenario Runs</span>
+                  <span className="font-mono text-white">
+                    {data.usage.scenarioRuns}/{data.limits.scenarioRuns}
+                  </span>
+                </div>
+                <ProgressBar
+                  value={data.usage.scenarioRuns}
+                  max={data.limits.scenarioRuns}
+                />
+              </div>
+            )}
+            {data.limits.pdfExports !== null && (
+              <div>
+                <div className="mb-1.5 flex justify-between text-sm">
+                  <span className="text-muted-foreground">PDF Exports</span>
+                  <span className="font-mono text-white">
+                    {data.usage.pdfExports}/{data.limits.pdfExports}
+                  </span>
+                </div>
+                <ProgressBar
+                  value={data.usage.pdfExports}
+                  max={data.limits.pdfExports}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Actions */}
+      <Card>
+        <CardContent className="space-y-3 pt-6">
+          {/* Upgrade button — Starter only */}
+          {data.plan === "starter" && data.hasStripeSubscription && (
+            <Button
+              className="w-full"
+              onClick={handleUpgrade}
+              disabled={upgradeLoading}
+            >
+              {upgradeLoading && (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              )}
+              <Zap className="mr-2 size-4" />
+              Upgrade to Pro — $297/mo
+            </Button>
+          )}
+
+          {/* Manage subscription — only for paying users */}
+          {data.hasStripeSubscription && !data.isTeamMember && (
+            <>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={handleManageSubscription}
+                disabled={portalLoading}
+              >
+                {portalLoading && (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                )}
+                Manage Subscription
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">
+                Update payment method, change plan, view invoices, or cancel
+              </p>
+            </>
+          )}
+
+          {/* Grandfathered users */}
+          {data.isGrandfathered && (
+            <p className="text-center text-sm text-muted-foreground">
+              You have complimentary Pro access. No billing actions needed.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

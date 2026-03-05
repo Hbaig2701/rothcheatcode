@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { clientFullSchema } from "@/lib/validations/client";
+import { checkClientLimit } from "@/lib/usage";
 
 // GET /api/clients - List all clients for the authenticated user
 export async function GET(request: NextRequest) {
@@ -34,6 +35,21 @@ export async function POST(request: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Check client limit
+  const clientLimit = await checkClientLimit(user.id);
+  if (!clientLimit.allowed) {
+    return NextResponse.json(
+      {
+        error: "Client limit reached",
+        message: `You've reached your limit of ${clientLimit.limit} clients. Upgrade to Pro for unlimited clients.`,
+        current: clientLimit.current,
+        limit: clientLimit.limit,
+        showUpgrade: true,
+      },
+      { status: 403 }
+    );
   }
 
   let body;

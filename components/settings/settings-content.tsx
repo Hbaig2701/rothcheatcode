@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useUserSettings } from "@/lib/queries/settings";
@@ -9,6 +10,7 @@ import {
   Building2,
   SlidersHorizontal,
   CreditCard,
+  Users,
   Loader2,
 } from "lucide-react";
 import { ProfileTab } from "./tabs/profile-tab";
@@ -16,17 +18,38 @@ import { SecurityTab } from "./tabs/security-tab";
 import { BusinessTab } from "./tabs/business-tab";
 import { DefaultsTab } from "./tabs/defaults-tab";
 import { BillingTab } from "./tabs/billing-tab";
+import { TeamTab } from "./tabs/team-tab";
 
-const TABS = [
+interface TabDef {
+  value: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const BASE_TABS: TabDef[] = [
   { value: "profile", label: "Profile", icon: UserIcon },
   { value: "security", label: "Security", icon: Shield },
   { value: "business", label: "Business & Logo", icon: Building2 },
   { value: "defaults", label: "Default Values", icon: SlidersHorizontal },
-  { value: "billing", label: "Billing", icon: CreditCard, disabled: false },
-] as const;
+  { value: "billing", label: "Billing", icon: CreditCard },
+];
+
+const TEAM_TAB: TabDef = { value: "team", label: "Team", icon: Users };
 
 export function SettingsContent({ user }: { user: User }) {
   const { data: settings, isLoading, error } = useUserSettings();
+  const [plan, setPlan] = useState<string | null>(null);
+  const [isTeamMember, setIsTeamMember] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/billing/usage")
+      .then((r) => r.json())
+      .then((data) => {
+        setPlan(data.plan);
+        setIsTeamMember(data.isTeamMember);
+      })
+      .catch(() => {});
+  }, []);
 
   if (isLoading) {
     return (
@@ -46,6 +69,10 @@ export function SettingsContent({ user }: { user: User }) {
     );
   }
 
+  // Show Team tab for Pro owners (not team members)
+  const tabs =
+    plan === "pro" && !isTeamMember ? [...BASE_TABS, TEAM_TAB] : BASE_TABS;
+
   return (
     <div className="p-9 max-w-5xl">
       <h1 className="font-display text-[30px] font-normal text-white mb-9">Settings</h1>
@@ -54,7 +81,7 @@ export function SettingsContent({ user }: { user: User }) {
         {/* Left Tab Navigation */}
         <Tabs defaultValue="profile" orientation="vertical" className="flex gap-8 w-full">
           <TabsList variant="line" className="w-[200px] shrink-0 flex-col items-stretch gap-1 bg-transparent p-0 border-0">
-            {TABS.map((tab) => (
+            {tabs.map((tab) => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
@@ -83,6 +110,11 @@ export function SettingsContent({ user }: { user: User }) {
             <TabsContent value="billing" className="mt-0">
               <BillingTab />
             </TabsContent>
+            {plan === "pro" && !isTeamMember && (
+              <TabsContent value="team" className="mt-0">
+                <TeamTab />
+              </TabsContent>
+            )}
           </div>
         </Tabs>
       </div>
