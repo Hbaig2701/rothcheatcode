@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     // Fetch all advisor profiles
     const { data: profiles, error: profilesError } = await admin
       .from('profiles')
-      .select('id, email, created_at, role')
+      .select('id, email, created_at, role, is_active')
       .eq('role', 'advisor')
       .order('created_at', { ascending: false });
 
@@ -70,7 +70,8 @@ export async function GET(request: NextRequest) {
     const advisors = profiles.map(p => {
       const lastLogin = lastLogins.get(p.id) ?? null;
       const lastActivity = lastLogin ? new Date(lastLogin) : new Date(p.created_at);
-      const isActive = lastActivity > fourteenDaysAgo;
+      const isRecentlyActive = lastActivity > fourteenDaysAgo;
+      const isDeactivated = p.is_active === false;
 
       return {
         id: p.id,
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
         scenarioRunCount: runCounts.get(p.id) ?? 0,
         exportCount: exportCounts.get(p.id) ?? 0,
         lastLogin,
-        status: isActive ? 'active' as const : 'inactive' as const,
+        status: isDeactivated ? 'deactivated' as const : (isRecentlyActive ? 'active' as const : 'inactive' as const),
       };
     });
 

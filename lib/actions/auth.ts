@@ -17,9 +17,15 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`)
   }
 
-  // Log login (fire-and-forget)
+  // Check if account is deactivated
   const { data: { user } } = await supabase.auth.getUser()
   if (user) {
+    const { data: profile } = await supabase.from('profiles').select('is_active').eq('id', user.id).single()
+    if (profile?.is_active === false) {
+      await supabase.auth.signOut()
+      redirect('/login?error=Your account has been deactivated.')
+    }
+    // Log login (fire-and-forget)
     Promise.resolve(supabase.from('login_log').insert({ user_id: user.id })).catch(console.error)
   }
 

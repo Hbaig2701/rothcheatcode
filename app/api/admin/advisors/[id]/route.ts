@@ -30,7 +30,7 @@ export async function GET(
     // Fetch advisor profile
     const { data: advisor, error: advisorError } = await admin
       .from('profiles')
-      .select('id, email, created_at, role')
+      .select('id, email, created_at, role, is_active, deactivated_at')
       .eq('id', advisorId)
       .single();
 
@@ -41,7 +41,7 @@ export async function GET(
     // Fetch data in parallel
     const [clientsRes, runsRes, exportsRes, loginsRes] = await Promise.all([
       admin.from('clients').select('id, name, created_at').eq('user_id', advisorId).order('created_at', { ascending: false }),
-      admin.from('calculation_log').select('id, client_id, created_at, strategy').eq('user_id', advisorId).order('created_at', { ascending: false }),
+      admin.from('projections').select('id, client_id, created_at, strategy').eq('user_id', advisorId).order('created_at', { ascending: false }),
       admin.from('export_log').select('id, client_id, export_type, created_at').eq('user_id', advisorId).order('created_at', { ascending: false }),
       admin.from('login_log').select('id, created_at').eq('user_id', advisorId).order('created_at', { ascending: false }),
     ]);
@@ -114,12 +114,18 @@ export async function GET(
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     const lastActivity = lastLogin ? new Date(lastLogin) : new Date(advisor.created_at);
 
+    // Determine status: deactivated overrides active/inactive
+    const isDeactivated = advisor.is_active === false;
+    const status = isDeactivated ? 'deactivated' : (lastActivity > fourteenDaysAgo ? 'active' : 'inactive');
+
     return NextResponse.json({
       advisor: {
         id: advisor.id,
         email: advisor.email,
         createdAt: advisor.created_at,
-        status: lastActivity > fourteenDaysAgo ? 'active' : 'inactive',
+        isActive: advisor.is_active !== false, // treat null as true
+        deactivatedAt: advisor.deactivated_at ?? null,
+        status,
         stats: {
           clientCount: clients.length,
           scenarioRunCount: runs.length,

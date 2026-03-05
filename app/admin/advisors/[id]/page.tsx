@@ -9,7 +9,9 @@ interface AdvisorDetail {
     id: string
     email: string
     createdAt: string
-    status: 'active' | 'inactive'
+    isActive: boolean
+    deactivatedAt: string | null
+    status: 'active' | 'inactive' | 'deactivated'
     stats: {
       clientCount: number
       scenarioRunCount: number
@@ -40,13 +42,43 @@ export default function AdvisorDetailPage() {
   const id = params.id as string
   const [data, setData] = useState<AdvisorDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<'deactivate' | 'delete' | null>(null)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  useEffect(() => {
+  const fetchAdvisor = () => {
     fetch(`/api/admin/advisors/${id}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false) })
       .catch(console.error)
-  }, [id])
+  }
+
+  useEffect(() => { fetchAdvisor() }, [id])
+
+  const handleAction = async (action: string) => {
+    setActionLoading(true)
+    setFeedback(null)
+    try {
+      const res = await fetch(`/api/admin/advisors/${id}/manage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const result = await res.json()
+      if (!res.ok) throw new Error(result.error || 'Action failed')
+      setFeedback({ type: 'success', message: result.message })
+      setConfirmAction(null)
+      if (action === 'delete') {
+        setTimeout(() => window.location.href = '/admin', 1500)
+      } else {
+        fetchAdvisor()
+      }
+    } catch (err) {
+      setFeedback({ type: 'error', message: err instanceof Error ? err.message : 'Action failed' })
+    } finally {
+      setActionLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -69,6 +101,53 @@ export default function AdvisorDetailPage() {
 
   return (
     <div className="space-y-8">
+      {/* Feedback Toast */}
+      {feedback && (
+        <div className={`px-4 py-3 rounded-lg text-sm font-medium ${
+          feedback.type === 'success'
+            ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80] border border-[rgba(74,222,128,0.2)]'
+            : 'bg-[rgba(239,68,68,0.15)] text-[#ef4444] border border-[rgba(239,68,68,0.2)]'
+        }`}>
+          {feedback.message}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-xl p-6 max-w-md w-full mx-4 space-y-4">
+            <h3 className="text-lg font-semibold text-white">
+              {confirmAction === 'delete' ? 'Permanently Delete User?' : 'Deactivate User?'}
+            </h3>
+            <p className="text-sm text-[rgba(255,255,255,0.5)]">
+              {confirmAction === 'delete'
+                ? `This will permanently delete ${advisor.email} and all their data (clients, projections, exports, logs). This action cannot be undone.`
+                : `This will temporarily block ${advisor.email} from logging in. You can reactivate their account later.`}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setConfirmAction(null)}
+                disabled={actionLoading}
+                className="px-4 py-2 text-sm rounded-lg bg-[rgba(255,255,255,0.08)] text-white hover:bg-[rgba(255,255,255,0.12)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleAction(confirmAction)}
+                disabled={actionLoading}
+                className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${
+                  confirmAction === 'delete'
+                    ? 'bg-[#ef4444] text-white hover:bg-[#dc2626]'
+                    : 'bg-[#f59e0b] text-black hover:bg-[#d97706]'
+                }`}
+              >
+                {actionLoading ? 'Processing...' : (confirmAction === 'delete' ? 'Delete Permanently' : 'Deactivate')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -81,12 +160,59 @@ export default function AdvisorDetailPage() {
           </p>
         </div>
         <span className={`text-xs px-3 py-1 rounded-full font-medium ${
-          advisor.status === 'active'
-            ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80]'
-            : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)]'
+          advisor.status === 'deactivated'
+            ? 'bg-[rgba(239,68,68,0.15)] text-[#ef4444]'
+            : advisor.status === 'active'
+              ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80]'
+              : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)]'
         }`}>
           {advisor.status}
         </span>
+      </div>
+
+      {/* Admin Actions */}
+      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
+        <h3 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-4">
+          Admin Actions
+        </h3>
+        <div className="flex flex-wrap gap-3">
+          {advisor.isActive ? (
+            <button
+              onClick={() => setConfirmAction('deactivate')}
+              disabled={actionLoading}
+              className="px-4 py-2 text-sm rounded-lg bg-[rgba(245,158,11,0.15)] text-[#f59e0b] border border-[rgba(245,158,11,0.2)] hover:bg-[rgba(245,158,11,0.25)] transition-colors font-medium"
+            >
+              Deactivate Account
+            </button>
+          ) : (
+            <button
+              onClick={() => handleAction('reactivate')}
+              disabled={actionLoading}
+              className="px-4 py-2 text-sm rounded-lg bg-[rgba(74,222,128,0.15)] text-[#4ade80] border border-[rgba(74,222,128,0.2)] hover:bg-[rgba(74,222,128,0.25)] transition-colors font-medium"
+            >
+              {actionLoading ? 'Processing...' : 'Reactivate Account'}
+            </button>
+          )}
+          <button
+            onClick={() => handleAction('reset_password')}
+            disabled={actionLoading}
+            className="px-4 py-2 text-sm rounded-lg bg-[rgba(59,130,246,0.15)] text-[#3b82f6] border border-[rgba(59,130,246,0.2)] hover:bg-[rgba(59,130,246,0.25)] transition-colors font-medium"
+          >
+            {actionLoading ? 'Processing...' : 'Send Password Reset'}
+          </button>
+          <button
+            onClick={() => setConfirmAction('delete')}
+            disabled={actionLoading}
+            className="px-4 py-2 text-sm rounded-lg bg-[rgba(239,68,68,0.15)] text-[#ef4444] border border-[rgba(239,68,68,0.2)] hover:bg-[rgba(239,68,68,0.25)] transition-colors font-medium"
+          >
+            Delete User
+          </button>
+        </div>
+        {advisor.deactivatedAt && (
+          <p className="text-xs text-[rgba(255,255,255,0.3)] mt-3">
+            Deactivated on {new Date(advisor.deactivatedAt).toLocaleDateString()}
+          </p>
+        )}
       </div>
 
       {/* Quick Stats */}

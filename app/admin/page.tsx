@@ -26,7 +26,7 @@ interface Advisor {
   scenarioRunCount: number
   exportCount: number
   lastLogin: string | null
-  status: 'active' | 'inactive'
+  status: 'active' | 'inactive' | 'deactivated'
 }
 
 interface ActivityPoint {
@@ -44,7 +44,7 @@ export default function AdminDashboard() {
   const [activity, setActivity] = useState<ActivityPoint[]>([])
   const [activityType, setActivityType] = useState<'scenario_runs' | 'exports' | 'logins'>('scenario_runs')
   const [activityRange, setActivityRange] = useState<'7d' | '30d' | '90d'>('30d')
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'deactivated'>('all')
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -227,7 +227,7 @@ export default function AdminDashboard() {
               ))}
             </div>
             <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
-              {(['all', 'active', 'inactive'] as const).map(s => (
+              {(['all', 'active', 'inactive', 'deactivated'] as const).map(s => (
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
@@ -275,9 +275,11 @@ export default function AdminDashboard() {
                 </td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    a.status === 'active'
-                      ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80]'
-                      : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)]'
+                    a.status === 'deactivated'
+                      ? 'bg-[rgba(239,68,68,0.15)] text-[#ef4444]'
+                      : a.status === 'active'
+                        ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80]'
+                        : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)]'
                   }`}>
                     {a.status}
                   </span>
