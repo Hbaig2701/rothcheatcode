@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { ChevronUp, ChevronDown } from 'lucide-react'
 
 interface Stats {
   totalAdvisors: number
@@ -33,6 +34,10 @@ interface ActivityPoint {
   count: number
 }
 
+type SortKey = 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'lastLogin' | 'status'
+type SortDir = 'asc' | 'desc'
+type TimeFilter = 'all' | '1d' | '7d' | '30d'
+
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [advisors, setAdvisors] = useState<Advisor[]>([])
@@ -40,8 +45,11 @@ export default function AdminDashboard() {
   const [activityType, setActivityType] = useState<'scenario_runs' | 'exports' | 'logins'>('scenario_runs')
   const [activityRange, setActivityRange] = useState<'7d' | '30d' | '90d'>('30d')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [sortKey, setSortKey] = useState<SortKey>('createdAt')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   useEffect(() => {
     Promise.all([
@@ -61,12 +69,51 @@ export default function AdminDashboard() {
       .catch(console.error)
   }, [activityType, activityRange])
 
-  // Filter advisors client-side
-  const filtered = advisors.filter(a => {
-    if (statusFilter !== 'all' && a.status !== statusFilter) return false
-    if (search && !a.email.toLowerCase().includes(search.toLowerCase())) return false
-    return true
-  })
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('desc')
+    }
+  }
+
+  // Filter and sort advisors client-side
+  const filtered = useMemo(() => {
+    let result = advisors.filter(a => {
+      if (statusFilter !== 'all' && a.status !== statusFilter) return false
+      if (search && !a.email.toLowerCase().includes(search.toLowerCase())) return false
+      if (timeFilter !== 'all') {
+        const now = Date.now()
+        const ms = timeFilter === '1d' ? 86400000 : timeFilter === '7d' ? 604800000 : 2592000000
+        const cutoff = new Date(now - ms).toISOString()
+        const signupDate = a.createdAt
+        if (signupDate < cutoff) return false
+      }
+      return true
+    })
+
+    result.sort((a, b) => {
+      let cmp = 0
+      switch (sortKey) {
+        case 'email': cmp = a.email.localeCompare(b.email); break
+        case 'createdAt': cmp = a.createdAt.localeCompare(b.createdAt); break
+        case 'clientCount': cmp = a.clientCount - b.clientCount; break
+        case 'scenarioRunCount': cmp = a.scenarioRunCount - b.scenarioRunCount; break
+        case 'exportCount': cmp = a.exportCount - b.exportCount; break
+        case 'lastLogin': {
+          const aVal = a.lastLogin ?? ''
+          const bVal = b.lastLogin ?? ''
+          cmp = aVal.localeCompare(bVal)
+          break
+        }
+        case 'status': cmp = a.status.localeCompare(b.status); break
+      }
+      return sortDir === 'asc' ? cmp : -cmp
+    })
+
+    return result
+  }, [advisors, statusFilter, search, timeFilter, sortKey, sortDir])
 
   if (loading) {
     return (
@@ -156,7 +203,7 @@ export default function AdminDashboard() {
           <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)]">
             Advisors
           </h2>
-          <div className="flex gap-3">
+          <div className="flex gap-3 flex-wrap">
             <input
               type="text"
               placeholder="Search email..."
@@ -164,6 +211,21 @@ export default function AdminDashboard() {
               onChange={e => setSearch(e.target.value)}
               className="px-3 py-1.5 text-xs bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white placeholder:text-[rgba(255,255,255,0.3)] outline-none focus:border-[#d4af37]"
             />
+            <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
+              {([['all', 'All'], ['1d', '1 Day'], ['7d', '7 Days'], ['30d', '30 Days']] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setTimeFilter(value as TimeFilter)}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                    timeFilter === value
+                      ? 'bg-[#d4af37] text-black font-medium'
+                      : 'text-[rgba(255,255,255,0.5)] hover:text-white'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
               {(['all', 'active', 'inactive'] as const).map(s => (
                 <button
@@ -185,13 +247,13 @@ export default function AdminDashboard() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-[rgba(255,255,255,0.07)]">
-              <th className="text-left px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Email</th>
-              <th className="text-left px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Signup</th>
-              <th className="text-right px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Clients</th>
-              <th className="text-right px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Scenarios</th>
-              <th className="text-right px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Exports</th>
-              <th className="text-left px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Last Login</th>
-              <th className="text-left px-4 py-3 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] font-semibold">Status</th>
+              <SortableHeader label="Email" sortKey="email" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Signup" sortKey="createdAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Clients" sortKey="clientCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Scenarios" sortKey="scenarioRunCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Exports" sortKey="exportCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Last Login" sortKey="lastLogin" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Status" sortKey="status" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
             </tr>
           </thead>
           <tbody>
@@ -233,6 +295,32 @@ export default function AdminDashboard() {
         </table>
       </div>
     </div>
+  )
+}
+
+function SortableHeader({ label, sortKey: key, align, currentSort, currentDir, onSort }: {
+  label: string
+  sortKey: SortKey
+  align: 'left' | 'right'
+  currentSort: SortKey
+  currentDir: SortDir
+  onSort: (key: SortKey) => void
+}) {
+  const isActive = currentSort === key
+  return (
+    <th
+      className={`${align === 'right' ? 'text-right' : 'text-left'} px-4 py-3 text-xs uppercase tracking-[1px] font-semibold cursor-pointer select-none transition-colors ${
+        isActive ? 'text-[#d4af37]' : 'text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.8)]'
+      }`}
+      onClick={() => onSort(key)}
+    >
+      <span className={`inline-flex items-center gap-1 ${align === 'right' ? 'flex-row-reverse' : ''}`}>
+        {label}
+        {isActive && (
+          currentDir === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />
+        )}
+      </span>
+    </th>
   )
 }
 
