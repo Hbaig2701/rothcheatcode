@@ -5,6 +5,7 @@ import { calculateOptimalConversion, calculateConversionFederalTax } from '../mo
 import { calculateConversionStateTax } from '../modules/state-tax';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
+import { getNonSSIIncomeForYear } from '../utils/income';
 
 /**
  * Run Growth FIA Formula scenario: Roth conversions with FIA product features
@@ -60,9 +61,6 @@ export function runGrowthFormulaScenario(
   const conversionStartAge = clientAge + yearsToDefer;
   const conversionEndAge = client.end_age ?? 100;
 
-  // Other income for bracket calculations
-  const otherIncome = client.gross_taxable_non_ssi ?? 0;
-
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
     const age = getAgeAtYearOffset(clientAge, yearOffset);
@@ -71,6 +69,9 @@ export function runGrowthFormulaScenario(
     const boyIRA = iraBalance;
     const boyRoth = rothBalance;
     const boyTaxable = taxableBalance;
+
+    // Other income for bracket calculations (year-specific from income table)
+    const otherIncome = getNonSSIIncomeForYear(client, year);
 
     // Standard deduction (age-adjusted)
     const deductions = getStandardDeduction(client.filing_status, age, undefined, year);

@@ -45,6 +45,7 @@ import {
   type GIProductData,
 } from '@/lib/config/gi-product-data';
 import type { GuaranteedIncomeFormulaType } from '@/lib/config/products';
+import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 
 // ---------------------------------------------------------------------------
 // Helper Functions
@@ -227,10 +228,6 @@ function runGIStrategyScenario(
   const initialSpouseAge = useSpouseAgeBased ? client.spouse_age! : null;
   const ssiColaRate = 0.02;
 
-  // --- Other income ---
-  const grossTaxableNonSSI = client.gross_taxable_non_ssi ?? 500000;
-  const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
-
   // --- Rider fee config ---
   const riderFeeRate = productData ? productData.riderFee / 100 : 0;
   const riderFeeAppliesTo = productData?.riderFeeAppliesTo ?? 'incomeBase';
@@ -296,7 +293,8 @@ function runGIStrategyScenario(
         : 0;
     }
     const ssIncome = primarySsIncome + spouseSsIncome;
-    const otherIncome = grossTaxableNonSSI;
+    const otherIncome = getNonSSIIncomeForYear(client, year);
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
     // --- Standard deduction ---
     const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
@@ -807,10 +805,6 @@ function runGIBaselineScenario(
   const initialSpouseAge = useSpouseAgeBased ? client.spouse_age! : null;
   const ssiColaRate = 0.02;
 
-  // --- Other income ---
-  const grossTaxableNonSSI = client.gross_taxable_non_ssi ?? 500000;
-  const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
-
   // --- Rider fee config ---
   const riderFeeRate = productData ? productData.riderFee / 100 : 0;
   const riderFeeAppliesTo = productData?.riderFeeAppliesTo ?? 'incomeBase';
@@ -861,7 +855,8 @@ function runGIBaselineScenario(
         : 0;
     }
     const ssIncome = primarySsIncome + spouseSsIncome;
-    const otherIncome = grossTaxableNonSSI;
+    const otherIncome = getNonSSIIncomeForYear(client, year);
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
     // --- Standard deduction ---
     const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);

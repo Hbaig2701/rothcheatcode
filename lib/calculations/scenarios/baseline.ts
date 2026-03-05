@@ -6,6 +6,7 @@ import { calculateFederalTax, calculateTaxableIncome, determineTaxBracket } from
 import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 
 /**
  * Run Baseline scenario: no Roth conversions, just RMDs
@@ -63,13 +64,6 @@ export function runBaselineScenario(
 
   const ssiColaRate = 0.02; // 2% annual COLA per spec
 
-  // Non-SSI taxable income (annual)
-  const grossTaxableNonSSI = client.gross_taxable_non_ssi ??
-    (client.non_ssi_income?.[0]?.gross_taxable ?? client.other_income ?? 500000); // Default $5,000
-
-  // Tax-exempt income (for MAGI calculation)
-  const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
-
   // State tax rate override (convert from percentage to decimal, null if not set)
   const stateTaxRateOverride = client.state_tax_rate !== undefined && client.state_tax_rate !== null
     ? client.state_tax_rate / 100
@@ -113,8 +107,8 @@ export function runBaselineScenario(
 
     const ssIncome = primarySsIncome + spouseSsIncome;
 
-    // Other taxable income (non-SSI)
-    const otherIncome = grossTaxableNonSSI;
+    // Other taxable income (non-SSI) - year-specific from income table
+    const otherIncome = getNonSSIIncomeForYear(client, year);
 
     // Per specification: SSI is tax-exempt (simplified model)
     // Gross taxable income = RMD + non-SSI taxable income
@@ -145,6 +139,7 @@ export function runBaselineScenario(
     // AGI = Gross income - deductions (but for IRMAA we use full gross)
     // MAGI for IRMAA = AGI + Tax-Exempt Interest Income
     const agi = grossTaxableIncome;
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
     const magi = agi + taxExemptNonSSI + ssIncome; // Include SSI in MAGI for IRMAA
 
     // Store for IRMAA lookback

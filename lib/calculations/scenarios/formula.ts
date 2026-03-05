@@ -13,6 +13,7 @@ import { calculateStateTax, calculateConversionStateTax } from '../modules/state
 import { calculateIRMAAWithLookback, calculateIRMAAHeadroom } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
+import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 
 /**
  * Run Formula scenario: strategic Roth conversions
@@ -73,13 +74,6 @@ export function runFormulaScenario(
 
   const ssiColaRate = 0.02; // 2% annual COLA per spec
 
-  // Non-SSI taxable income (annual)
-  const grossTaxableNonSSI = client.gross_taxable_non_ssi ??
-    (client.non_ssi_income?.[0]?.gross_taxable ?? client.other_income ?? 500000); // Default $5,000
-
-  // Tax-exempt income (for MAGI calculation)
-  const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
-
   // Target bracket for conversions (default 24%)
   const maxTaxRate = client.max_tax_rate ?? 24;
 
@@ -128,8 +122,8 @@ export function runFormulaScenario(
 
     const ssIncome = primarySsIncome + spouseSsIncome;
 
-    // Other taxable income (non-SSI)
-    const otherIncome = grossTaxableNonSSI;
+    // Other taxable income (non-SSI) - year-specific from income table
+    const otherIncome = getNonSSIIncomeForYear(client, year);
 
     // Standard deduction (age-adjusted)
     const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
@@ -210,6 +204,7 @@ export function runFormulaScenario(
     // Calculate MAGI for IRMAA
     // Include conversion in income for IRMAA purposes
     const grossIncomeWithConversion = existingGrossIncome + conversionAmount;
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
     const magi = grossIncomeWithConversion + taxExemptNonSSI + ssIncome;
 
     // Store for IRMAA lookback
