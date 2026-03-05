@@ -263,7 +263,7 @@ const TEST_CASES = [
       age: 60,
       end_age: 85,
       qualified_account_value: 823000,
-      bonus_percent: 11, // EquiTrust MarketEdge Bonus
+      bonus_percent: 11, // Phased Bonus Growth
       baseline_comparison_rate: 7,
       rate_of_return: 7,
       conversion_type: 'optimized_amount',
@@ -271,7 +271,7 @@ const TEST_CASES = [
       tax_rate: 24,
       state_tax_rate: 0,
       heir_tax_rate: 40,
-      blueprint_type: 'equitrust-marketedge-bonus',
+      blueprint_type: 'phased-bonus-growth',
     },
     test: (client) => {
       const simulationInput = {
@@ -339,7 +339,7 @@ const TEST_CASES = [
       tax_rate: 24,
       state_tax_rate: 0,
       heir_tax_rate: 35,
-      blueprint_type: 'lincoln-optiblend-7',
+      blueprint_type: 'short-term-cap-growth',
     },
     test: (client) => {
       const simulationInput = {

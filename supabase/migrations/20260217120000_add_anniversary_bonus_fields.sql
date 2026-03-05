@@ -1,4 +1,4 @@
--- Add anniversary bonus fields for EquiTrust MarketEdge phased bonus structure
+-- Add anniversary bonus fields for Phased Bonus Growth product structure
 -- Premium bonus (bonus_percent) is applied at issue
 -- Anniversary bonus is applied at the end of each of the first N years
 

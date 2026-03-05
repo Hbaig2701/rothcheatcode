@@ -1,7 +1,7 @@
 /**
  * Guaranteed Income Product Data
  *
- * Product-specific configuration for the 4 GI products:
+ * Product-specific configuration for the GI product archetypes:
  * - Payout tables (age 55-80, single + joint)
  * - Roll-up configs (simple/compound, tiered rates)
  * - Rider fee configuration
@@ -26,7 +26,7 @@ export interface StandardPayoutTable {
   joint: PayoutByAge;
 }
 
-/** North American has level + increasing, each with single + joint */
+/** Dual payout table: level + increasing, each with single + joint */
 export interface DualPayoutTable {
   level: StandardPayoutTable;
   increasing: StandardPayoutTable;
@@ -40,7 +40,7 @@ export interface RollUpTier {
   rate: number; // Percentage (e.g. 10 = 10%)
 }
 
-/** Roll-up option the user can choose (American Equity) */
+/** Roll-up option the user can choose */
 export interface RollUpOption {
   id: string;
   label: string;
@@ -53,13 +53,13 @@ export interface RollUpOption {
 export interface RollUpConfig {
   /** 'simple' or 'compound' - used for fixed configs */
   type?: 'simple' | 'compound';
-  /** Fixed tiered rates (Athene, EquiTrust) */
+  /** Fixed tiered rates */
   rates?: RollUpTier[];
-  /** Single fixed rate (North American) */
+  /** Single fixed rate */
   rate?: number;
   /** Max deferral period for roll-up */
   maxPeriod: number;
-  /** User-selectable options (American Equity) */
+  /** User-selectable options */
   options?: RollUpOption[];
   /** Default option id when options are present */
   defaultOption?: string;
@@ -82,7 +82,7 @@ export interface GIProductData {
   hasRollUpOptions: boolean;
   /** Human-readable roll-up description */
   rollUpDescription: string;
-  /** Annual increase rate for "increasing" LPA option (North American) */
+  /** Annual increase rate for "increasing" LPA option */
   increasingLPARate?: number;
 }
 
@@ -92,59 +92,22 @@ export interface GIProductData {
 
 export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData> = {
   // =========================================================================
-  // Athene Ascent Pro 10
+  // Simple Roll-up Income
+  // 14% bonus to BOTH Account Value AND Income Account Value
+  // Hardcoded to 8.25% simple interest, 10 years, 1.20% rider fee
   // =========================================================================
-  'athene-ascent-pro-10': {
-    bonusAppliesTo: 'incomeBase',
-    riderFee: 1.00,
-    riderFeeAppliesTo: 'incomeBase',
-    rollUp: {
-      type: 'simple',
-      rates: [
-        { years: [1, 10], rate: 10 },
-        { years: [11, 20], rate: 5 },
-      ],
-      maxPeriod: 20,
-    },
-    payoutTable: {
-      single: {
-        55: 3.60, 56: 3.70, 57: 3.80, 58: 3.90, 59: 4.00,
-        60: 4.10, 61: 4.20, 62: 4.30, 63: 4.40, 64: 4.50,
-        65: 4.10, 66: 4.20, 67: 4.30, 68: 4.40, 69: 4.50,
-        70: 4.60, 71: 4.70, 72: 4.80, 73: 4.90, 74: 5.00,
-        75: 5.10, 76: 5.20, 77: 5.30, 78: 5.40, 79: 5.50, 80: 5.60,
-      },
-      joint: {
-        55: 3.10, 56: 3.20, 57: 3.30, 58: 3.40, 59: 3.50,
-        60: 3.60, 61: 3.70, 62: 3.80, 63: 3.90, 64: 4.00,
-        65: 3.60, 66: 3.70, 67: 3.80, 68: 3.90, 69: 4.00,
-        70: 4.10, 71: 4.20, 72: 4.30, 73: 4.40, 74: 4.50,
-        75: 4.60, 76: 4.70, 77: 4.80, 78: 4.90, 79: 5.00, 80: 5.10,
-      },
-    },
-    hasDualPayoutOption: false,
-    hasRollUpOptions: false,
-    rollUpDescription: '10% Simple (yrs 1-10), 5% Simple (yrs 11-20)',
-  },
-
-  // =========================================================================
-  // American Equity IncomeShield Bonus 10
-  // Per spec: 14% bonus to BOTH Account Value AND IAV
-  // Hardcoded to Option 4: 8.25% simple interest, 10 years, 1.20% rider fee
-  // Includes Wellbeing Benefit (income doubler for health events)
-  // =========================================================================
-  'american-equity-incomeshield-bonus-10': {
+  'simple-rollup-income': {
     bonusAppliesTo: 'both', // 14% bonus applies to BOTH Account Value AND Income Account Value
-    riderFee: 1.20, // Rider fee calculated on IAV, deducted from Account Value
+    riderFee: 1.20, // Rider fee calculated on income base, deducted from Account Value
     riderFeeAppliesTo: 'incomeBase',
     rollUp: {
-      type: 'simple', // Option 4: Simple interest (not compound)
+      type: 'simple', // Simple interest (not compound)
       rate: 8.25, // 8.25% per year
       maxPeriod: 10, // Maximum 10 years of roll-up
     },
     payoutTable: {
       single: {
-        // Option 4 (Fee-based) payout factors - ages 50-80+
+        // Payout factors - ages 50-80+
         50: 4.54, 51: 4.66, 52: 4.79, 53: 4.93, 54: 5.06,
         55: 5.19, 56: 5.33, 57: 5.48, 58: 5.62, 59: 5.76,
         60: 5.90, 61: 6.04, 62: 6.18, 63: 6.32, 64: 6.46,
@@ -162,14 +125,15 @@ export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData>
       },
     },
     hasDualPayoutOption: false,
-    hasRollUpOptions: false, // Option 4 is hardcoded - no user selection
+    hasRollUpOptions: false,
     rollUpDescription: '8.25% Simple Interest (10yr max)',
   },
 
   // =========================================================================
-  // EquiTrust MarketEarly Income Index
+  // Compound Roll-up Income
+  // Compound interest roll-up with tiered rates, 20% income base bonus
   // =========================================================================
-  'equitrust-marketearly-income-index': {
+  'compound-rollup-income': {
     bonusAppliesTo: 'incomeBase',
     riderFee: 1.25,
     riderFeeAppliesTo: 'accountValue',
@@ -203,10 +167,10 @@ export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData>
   },
 
   // =========================================================================
-  // North American Income Pay Pro
-  // Per spec: No bonus, 8% compound roll-up (highest in industry), 1.15% rider fee
+  // Flat-Rate Compound Income
+  // No bonus, 8% compound roll-up, 1.15% rider fee, dual payout (level/increasing)
   // =========================================================================
-  'north-american-income-pay-pro': {
+  'flat-rate-compound-income': {
     bonusAppliesTo: null,
     riderFee: 1.15,
     riderFeeAppliesTo: 'incomeBase', // Fee calculated on GLWB Value, deducted from Accumulation Value
@@ -218,7 +182,7 @@ export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData>
     payoutTable: {
       level: {
         single: {
-          // Ages 50-55 all get 5.80% per spec
+          // Ages 50-55 all get 5.80%
           50: 5.80, 51: 5.80, 52: 5.80, 53: 5.80, 54: 5.80, 55: 5.80,
           56: 5.90, 57: 6.00, 58: 6.10, 59: 6.20,
           60: 6.30, 61: 6.40, 62: 6.50, 63: 6.60, 64: 6.70,
@@ -257,7 +221,7 @@ export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData>
     hasDualPayoutOption: true,
     hasRollUpOptions: false,
     rollUpDescription: '8% Compound (10yr)',
-    // Increasing LPA annual increase rate (per spec: currently ~2%, minimum 0.25%)
+    // Increasing LPA annual increase rate (~2%, minimum 0.25%)
     increasingLPARate: 2.0,
   },
 };
@@ -284,13 +248,13 @@ export function getProductPayoutFactor(
   if (product.hasDualPayoutOption) {
     const dualTable = product.payoutTable as DualPayoutTable;
     const optionTable = dualTable[payoutOption];
-    // North American supports ages 50-80
+    // Supports ages 50-80
     const clampedAge = Math.min(Math.max(age, 50), 80);
     return (optionTable[tableKey][clampedAge] ?? 5.0) / 100;
   }
 
   const standardTable = product.payoutTable as StandardPayoutTable;
-  // Check if product supports age 50 (American Equity does, others start at 55)
+  // Check if product supports age 50 (some products do, others start at 55)
   const minAge = (50 in standardTable.single) ? 50 : 55;
   const clampedAge = Math.min(Math.max(age, minAge), 80);
   return (standardTable[tableKey][clampedAge] ?? 5.0) / 100;
@@ -323,7 +287,7 @@ export function getRollUpForYear(
 
   const config = product.rollUp;
 
-  // User-selectable options (American Equity)
+  // User-selectable options
   if (config.options) {
     const selectedId = rollUpOption ?? config.defaultOption ?? config.options[0].id;
     const selected = config.options.find(o => o.id === selectedId) ?? config.options[0];
@@ -334,14 +298,14 @@ export function getRollUpForYear(
   // Fixed config - check maxPeriod
   if (deferralYear > config.maxPeriod) return null;
 
-  // Tiered rates (Athene, EquiTrust)
+  // Tiered rates
   if (config.rates) {
     const tier = config.rates.find(r => deferralYear >= r.years[0] && deferralYear <= r.years[1]);
     if (!tier) return null;
     return { rate: tier.rate / 100, type: config.type ?? 'compound', maxPeriod: config.maxPeriod };
   }
 
-  // Single rate (North American)
+  // Single rate
   if (config.rate !== undefined) {
     return { rate: config.rate / 100, type: config.type ?? 'compound', maxPeriod: config.maxPeriod };
   }

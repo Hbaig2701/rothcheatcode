@@ -503,6 +503,14 @@ export function GIStoryMode({ client, projection, onClose }: GIStoryModeProps) {
             </p>
           </div>
 
+          {/* Disclaimer */}
+          <div className="text-center mb-10 px-4">
+            <p className="text-[rgba(255,255,255,0.35)] text-xs italic leading-relaxed">
+              The following illustration uses generic product archetypes to demonstrate potential outcomes.
+              This is not a representation of any specific carrier&apos;s product. Actual features and results will vary.
+            </p>
+          </div>
+
           {/* Story Cards */}
           <div className="relative">
             {/* Vertical connection line */}

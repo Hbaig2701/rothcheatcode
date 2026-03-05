@@ -16,9 +16,8 @@ export interface Client {
   updated_at: string;
 
   // ===== Formula Type (Product Preset) =====
-  blueprint_type: "fia" | "lincoln-optiblend-7" | "equitrust-marketedge-bonus" | "american-equity-assetshield-bonus-10"
-    | "athene-ascent-pro-10" | "american-equity-incomeshield-bonus-10"
-    | "equitrust-marketearly-income-index" | "north-american-income-pay-pro";
+  blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth"
+    | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income";
 
   // ===== Section 1: Client Data =====
   filing_status: "single" | "married_filing_jointly" | "married_filing_separately" | "head_of_household";
@@ -35,7 +34,7 @@ export interface Client {
   product_name: string;
   bonus_percent: number;     // Percentage (e.g., 10 for 10%)
   rate_of_return: number;    // Percentage (e.g., 7 for 7%)
-  anniversary_bonus_percent: number | null; // Anniversary bonus % (e.g., 4 for 4%) - EquiTrust phased bonus
+  anniversary_bonus_percent: number | null; // Anniversary bonus % (e.g., 4 for 4%) - Phased Bonus Growth
   anniversary_bonus_years: number | null;   // Number of years anniversary bonus applies (e.g., 3)
 
   // ===== Section 4: Tax Data =====

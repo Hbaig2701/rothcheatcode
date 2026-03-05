@@ -434,17 +434,17 @@ function runGIStrategyScenario(
         const bonusRate = (client.bonus_percent ?? 0) / 100;
 
         if (productData.bonusAppliesTo === 'both' || productData.bonusAppliesTo === 'accountValue') {
-          // American Equity: bonus goes to BOTH account value AND income base
+          // Simple Roll-up Income: bonus goes to BOTH account value AND income base
           accountValue = Math.round(purchaseAmount * (1 + bonusRate));
           incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
           bonusAmount = Math.round(purchaseAmount * bonusRate);
         } else if (productData.bonusAppliesTo === 'incomeBase') {
-          // Athene, EquiTrust: bonus goes to income base only
+          // Compound Roll-up Income: bonus goes to income base only
           accountValue = purchaseAmount;
           incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
           bonusAmount = Math.round(purchaseAmount * bonusRate);
         } else {
-          // North American: no bonus
+          // Flat-Rate Compound Income: no bonus
           accountValue = purchaseAmount;
           incomeBase = purchaseAmount;
         }
@@ -636,7 +636,7 @@ function runGIStrategyScenario(
       }
 
       // For "increasing" LPA option, apply annual increase after first year
-      // Per North American spec: income grows by ~2% annually (minimum 0.25%)
+      // Per Flat-Rate Compound Income spec: income grows by ~2% annually (minimum 0.25%)
       const yearsOfIncome = age - effectiveIncomeStartAge;
       let grossGI = guaranteedAnnualIncome;
       if (payoutOption === 'increasing' && yearsOfIncome > 0) {
@@ -953,7 +953,7 @@ function runGIBaselineScenario(
         const bonusRate = (client.bonus_percent ?? 0) / 100;
 
         if (productData.bonusAppliesTo === 'both' || productData.bonusAppliesTo === 'accountValue') {
-          // American Equity: bonus goes to BOTH account value AND income base
+          // Simple Roll-up Income: bonus goes to BOTH account value AND income base
           accountValue = Math.round(purchaseAmount * (1 + bonusRate));
           incomeBase = Math.round(purchaseAmount * (1 + bonusRate));
         } else if (productData.bonusAppliesTo === 'incomeBase') {

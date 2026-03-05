@@ -37,13 +37,12 @@ export const rmdTreatmentEnum = z.enum(["spent", "reinvested", "cash"]);
 
 export const formulaTypeEnum = z.enum([
   "fia",
-  "lincoln-optiblend-7",
-  "equitrust-marketedge-bonus",
-  "american-equity-assetshield-bonus-10",
-  "athene-ascent-pro-10",
-  "american-equity-incomeshield-bonus-10",
-  "equitrust-marketearly-income-index",
-  "north-american-income-pay-pro",
+  "short-term-cap-growth",
+  "phased-bonus-growth",
+  "vesting-bonus-growth",
+  "simple-rollup-income",
+  "compound-rollup-income",
+  "flat-rate-compound-income",
 ]);
 
 // Legacy strategy enum (for backwards compatibility)
@@ -344,9 +343,8 @@ export type ClientFullFormData = z.infer<typeof clientFullSchema>;
 // Explicit form type with all fields required for form defaultValues
 export type ClientFormData = {
   // Formula Type (product preset)
-  blueprint_type: "fia" | "lincoln-optiblend-7" | "equitrust-marketedge-bonus" | "american-equity-assetshield-bonus-10"
-    | "athene-ascent-pro-10" | "american-equity-incomeshield-bonus-10"
-    | "equitrust-marketearly-income-index" | "north-american-income-pay-pro";
+  blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth"
+    | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income";
 
   // Section 1: Client Data
   filing_status: "single" | "married_filing_jointly" | "married_filing_separately" | "head_of_household";

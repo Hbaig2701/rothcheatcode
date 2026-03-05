@@ -1,13 +1,12 @@
 // Product preset configuration for Formula Type dropdown
 // This file ONLY defines UI presets - it does NOT modify any calculation formulas
 
-export type GrowthFormulaType = 'fia' | 'lincoln-optiblend-7' | 'equitrust-marketedge-bonus' | 'american-equity-assetshield-bonus-10';
+export type GrowthFormulaType = 'fia' | 'short-term-cap-growth' | 'phased-bonus-growth' | 'vesting-bonus-growth';
 
 export type GuaranteedIncomeFormulaType =
-  | 'athene-ascent-pro-10'
-  | 'american-equity-incomeshield-bonus-10'
-  | 'equitrust-marketearly-income-index'
-  | 'north-american-income-pay-pro';
+  | 'simple-rollup-income'
+  | 'compound-rollup-income'
+  | 'flat-rate-compound-income';
 
 export type FormulaType = GrowthFormulaType | GuaranteedIncomeFormulaType;
 
@@ -61,15 +60,15 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
     },
   },
 
-  'lincoln-optiblend-7': {
-    id: 'lincoln-optiblend-7',
-    label: 'Lincoln Optiblend 7',
+  'short-term-cap-growth': {
+    id: 'short-term-cap-growth',
+    label: 'Short-Term Cap Growth',
     category: 'Growth',
-    description: 'Lincoln Financial OptiBlend 7-year product',
+    description: '7-year growth product with no premium bonus and 10% penalty-free withdrawals',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
     defaults: {
-      carrierName: 'Lincoln',
-      productName: 'OptiBlend',
+      carrierName: 'Insurance Carrier',
+      productName: 'Short-Term Cap Growth',
       bonus: 0,
       surrenderYears: 7,
       penaltyFreePercent: 10,
@@ -77,15 +76,15 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
     },
   },
 
-  'equitrust-marketedge-bonus': {
-    id: 'equitrust-marketedge-bonus',
-    label: 'EquiTrust MarketEdge Bonus',
+  'phased-bonus-growth': {
+    id: 'phased-bonus-growth',
+    label: 'Phased Bonus Growth',
     category: 'Growth',
-    description: 'EquiTrust MarketEdge with 8% premium bonus + 4% anniversary bonus (Years 1-3), 10-year surrender',
+    description: '8% premium bonus + 4% anniversary bonus (Years 1-3), 10-year surrender',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
     defaults: {
-      carrierName: 'EquiTrust',
-      productName: 'MarketEdge Bonus',
+      carrierName: 'Insurance Carrier',
+      productName: 'Phased Bonus Growth',
       bonus: 8,
       surrenderYears: 10,
       surrenderSchedule: [16, 14.5, 13, 11.5, 9.5, 8, 6.5, 5, 3, 1],
@@ -96,15 +95,15 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
     },
   },
 
-  'american-equity-assetshield-bonus-10': {
-    id: 'american-equity-assetshield-bonus-10',
-    label: 'American Equity AssetShield BONUS 10',
+  'vesting-bonus-growth': {
+    id: 'vesting-bonus-growth',
+    label: 'Vesting Bonus Growth',
     category: 'Growth',
-    description: 'American Equity AssetShield BONUS 10 - 14% vesting bonus, 100% participation rate',
+    description: '14% vesting bonus, 100% participation rate, 10-year surrender',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent'],
     defaults: {
-      carrierName: 'American Equity',
-      productName: 'AssetShield BONUS 10',
+      carrierName: 'Insurance Carrier',
+      productName: 'Vesting Bonus Growth',
       bonus: 14,
       surrenderYears: 10,
       penaltyFreePercent: 10,
@@ -114,32 +113,15 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
 };
 
 export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeFormulaType, ProductConfig> = {
-  'athene-ascent-pro-10': {
-    id: 'athene-ascent-pro-10',
-    label: 'Athene Ascent Pro 10',
+  'simple-rollup-income': {
+    id: 'simple-rollup-income',
+    label: 'Simple Roll-up Income',
     category: 'Guaranteed Income',
-    description: 'Athene Ascent Pro 10 - Guaranteed Income product',
+    description: 'Simple interest roll-up with 14% bonus to both account value and income base',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
     defaults: {
-      carrierName: 'Athene',
-      productName: 'Ascent Pro 10',
-      bonus: 20,
-      surrenderYears: 10,
-      penaltyFreePercent: 10,
-      rateOfReturn: 0,
-      riderFee: 1.00,
-    },
-  },
-
-  'american-equity-incomeshield-bonus-10': {
-    id: 'american-equity-incomeshield-bonus-10',
-    label: 'American Equity IncomeShield Bonus 10',
-    category: 'Guaranteed Income',
-    description: 'American Equity IncomeShield Bonus 10 - Guaranteed Income product',
-    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
-    defaults: {
-      carrierName: 'American Equity',
-      productName: 'IncomeShield Bonus 10',
+      carrierName: 'Insurance Carrier',
+      productName: 'Simple Roll-up Income',
       bonus: 14,
       surrenderYears: 10,
       penaltyFreePercent: 10,
@@ -148,15 +130,15 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeFormulaType, Pro
     },
   },
 
-  'equitrust-marketearly-income-index': {
-    id: 'equitrust-marketearly-income-index',
-    label: 'EquiTrust MarketEarly Income Index',
+  'compound-rollup-income': {
+    id: 'compound-rollup-income',
+    label: 'Compound Roll-up Income',
     category: 'Guaranteed Income',
-    description: 'EquiTrust MarketEarly Income Index - Guaranteed Income product',
+    description: 'Compound interest roll-up with 20% income base bonus, tiered growth rates',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
     defaults: {
-      carrierName: 'EquiTrust',
-      productName: 'MarketEarly Income Index',
+      carrierName: 'Insurance Carrier',
+      productName: 'Compound Roll-up Income',
       bonus: 20,
       surrenderYears: 10,
       surrenderSchedule: [9, 8, 7, 6.5, 5.5, 4.5, 3.5, 2.5, 1.5, 0.5],
@@ -166,15 +148,15 @@ export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeFormulaType, Pro
     },
   },
 
-  'north-american-income-pay-pro': {
-    id: 'north-american-income-pay-pro',
-    label: 'North American Income Pay Pro',
+  'flat-rate-compound-income': {
+    id: 'flat-rate-compound-income',
+    label: 'Flat-Rate Compound Income',
     category: 'Guaranteed Income',
-    description: 'North American Income Pay Pro - Guaranteed Income product',
+    description: 'No bonus, 8% compound roll-up, dual payout option (level/increasing)',
     lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
     defaults: {
-      carrierName: 'North American',
-      productName: 'Income Pay Pro',
+      carrierName: 'Insurance Carrier',
+      productName: 'Flat-Rate Compound Income',
       bonus: 0,
       surrenderYears: 10,
       penaltyFreePercent: 10,

@@ -40,7 +40,7 @@ export function runGrowthFormulaScenario(
   let rothBalance = 0;
   let taxableBalance = 0; // Track taxes paid externally
 
-  // Anniversary bonus (EquiTrust MarketEdge: 4% at end of years 1, 2, 3)
+  // Anniversary bonus (Phased Bonus Growth: 4% at end of years 1, 2, 3)
   const anniversaryBonusPercent = (client.anniversary_bonus_percent ?? 0) / 100;
   const anniversaryBonusYears = client.anniversary_bonus_years ?? 0;
 

@@ -60,19 +60,19 @@ const COLORS = {
 // ============================================================================
 
 const PRODUCTS = {
-  'lincoln-optiblend-7': {
-    id: 'lincoln-optiblend-7',
-    carrier: 'Lincoln Financial',
-    product: 'OptiBlend 7',
+  'short-term-cap-growth': {
+    id: 'short-term-cap-growth',
+    carrier: 'Insurance Carrier',
+    product: 'Short-Term Cap Growth',
     surrenderYears: 7,
     surrenderSchedule: [9, 8, 7, 6, 5, 4, 3],
     bonus: 0,
     bonusSchedule: null,
   },
-  'equitrust-marketedge-bonus': {
-    id: 'equitrust-marketedge-bonus',
-    carrier: 'EquiTrust',
-    product: 'MarketEdge Bonus Index',
+  'phased-bonus-growth': {
+    id: 'phased-bonus-growth',
+    carrier: 'Insurance Carrier',
+    product: 'Phased Bonus Growth',
     surrenderYears: 10,
     surrenderSchedule: [16, 14.5, 13, 11.5, 9.5, 8, 6.5, 5, 3, 1],
     bonus: 20,
@@ -92,10 +92,10 @@ const PRODUCTS = {
 const TEST_CASES = [
   {
     id: 'test-1',
-    name: 'Lincoln OptiBlend 7 - No Growth',
+    name: 'Short-Term Cap Growth - No Growth',
     description: 'Verify surrender value calculation with 0% growth',
     inputs: {
-      product: 'lincoln-optiblend-7',
+      product: 'short-term-cap-growth',
       clientAge: 60,
       qualifiedAccountValue: 100000,
       rateOfReturn: 0,
@@ -123,10 +123,10 @@ const TEST_CASES = [
   
   {
     id: 'test-2',
-    name: 'Lincoln OptiBlend 7 - 5% Growth',
+    name: 'Short-Term Cap Growth - 5% Growth',
     description: 'Verify compound growth calculation',
     inputs: {
-      product: 'lincoln-optiblend-7',
+      product: 'short-term-cap-growth',
       clientAge: 60,
       qualifiedAccountValue: 100000,
       rateOfReturn: 5,
@@ -154,10 +154,10 @@ const TEST_CASES = [
   
   {
     id: 'test-3',
-    name: 'EquiTrust MarketEdge Bonus - No Growth',
+    name: 'Phased Bonus Growth - No Growth',
     description: 'Verify bonus schedule (8% upfront + 4% x 3 anniversaries)',
     inputs: {
-      product: 'equitrust-marketedge-bonus',
+      product: 'phased-bonus-growth',
       clientAge: 60,
       qualifiedAccountValue: 100000,
       rateOfReturn: 0,
@@ -186,10 +186,10 @@ const TEST_CASES = [
   
   {
     id: 'test-4',
-    name: 'EquiTrust MarketEdge Bonus - 4% Growth',
+    name: 'Phased Bonus Growth - 4% Growth',
     description: 'Verify bonus + growth interaction',
     inputs: {
-      product: 'equitrust-marketedge-bonus',
+      product: 'phased-bonus-growth',
       clientAge: 60,
       qualifiedAccountValue: 100000,
       rateOfReturn: 4,
@@ -216,10 +216,10 @@ const TEST_CASES = [
   
   {
     id: 'test-5',
-    name: 'Lincoln with Roth Conversions',
+    name: 'Short-Term Cap Growth with Roth Conversions',
     description: 'Verify conversion deduction from IRA and Roth balance tracking',
     inputs: {
-      product: 'lincoln-optiblend-7',
+      product: 'short-term-cap-growth',
       clientAge: 62,
       qualifiedAccountValue: 500000,
       rateOfReturn: 4,
@@ -261,7 +261,7 @@ const TEST_CASES = [
     name: 'Baseline Comparison (No Conversions)',
     description: 'Verify do-nothing scenario for comparison',
     inputs: {
-      product: 'lincoln-optiblend-7',
+      product: 'short-term-cap-growth',
       clientAge: 62,
       qualifiedAccountValue: 500000,
       rateOfReturn: 4,

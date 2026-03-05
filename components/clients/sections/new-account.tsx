@@ -53,14 +53,14 @@ export function NewAccountSection() {
     // Set GI-specific defaults when switching to a GI product
     const giData = GI_PRODUCT_DATA[value as GuaranteedIncomeFormulaType];
     if (giData) {
-      // Set roll-up option default for American Equity
+      // Set roll-up option default for products with selectable options
       if (giData.hasRollUpOptions && giData.rollUp.defaultOption) {
         form.setValue("roll_up_option", giData.rollUp.defaultOption as "simple" | "compound");
       } else {
         form.setValue("roll_up_option", null);
       }
 
-      // Set payout option default for North American
+      // Set payout option default for dual-payout products
       if (giData.hasDualPayoutOption) {
         form.setValue("payout_option", "level");
       } else {
@@ -73,7 +73,7 @@ export function NewAccountSection() {
     }
 
     // Anniversary bonus fields are already set above from product defaults
-    // (null for products without anniversary bonus, populated for EquiTrust)
+    // (null for products without anniversary bonus, populated for Phased Bonus Growth)
   };
 
   const isCarrierLocked = isFieldLocked("carrierName", formulaType);
@@ -129,6 +129,9 @@ export function NewAccountSection() {
               <FieldDescription>
                 {ALL_PRODUCTS[formulaType]?.description || "Select a product template"}
               </FieldDescription>
+              <p className="text-[11px] text-muted-foreground/60 mt-2 leading-relaxed">
+                The product archetypes shown are for illustrative purposes only. They represent general categories of fixed index annuity features. Actual product features, rates, and terms vary by carrier and state. Always verify with official carrier illustrations before presenting to clients.
+              </p>
             </Field>
           );
         }}
@@ -188,7 +191,7 @@ export function NewAccountSection() {
         )}
       />
 
-      {/* Anniversary Bonus - Locked display for products with phased bonus (EquiTrust MarketEdge) */}
+      {/* Anniversary Bonus - Locked display for products with phased bonus */}
       {form.watch("anniversary_bonus_percent") != null && form.watch("anniversary_bonus_years") != null && (
         <Field>
           <FieldLabel className="flex items-center gap-1.5">
@@ -278,7 +281,7 @@ export function NewAccountSection() {
       {/* GI-specific fields - only shown for Guaranteed Income products */}
       {isGI && (
         <>
-          {/* Roll-Up Option - American Equity only */}
+          {/* Roll-Up Option - for products with selectable roll-up options */}
           {giData?.hasRollUpOptions && giData.rollUp.options && (
             <Controller
               name="roll_up_option"
@@ -309,7 +312,7 @@ export function NewAccountSection() {
             />
           )}
 
-          {/* Payout Option - North American only */}
+          {/* Payout Option - for products with dual payout option */}
           {giData?.hasDualPayoutOption && (
             <Controller
               name="payout_option"

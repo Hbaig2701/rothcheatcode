@@ -67,13 +67,12 @@ const TAX_SOURCE_OPTIONS = [
 
 const BLUEPRINT_OPTIONS = [
   { value: "fia", label: "FIA (Generic)" },
-  { value: "lincoln-optiblend-7", label: "Lincoln OptiBlend 7" },
-  { value: "equitrust-marketedge-bonus", label: "EquiTrust MarketEdge Bonus" },
-  { value: "american-equity-assetshield-bonus-10", label: "American Equity AssetShield BONUS 10" },
-  { value: "athene-ascent-pro-10", label: "Athene Ascent Pro 10" },
-  { value: "american-equity-incomeshield-bonus-10", label: "American Equity IncomeShield Bonus 10" },
-  { value: "equitrust-marketearly-income-index", label: "EquiTrust MarketEarly Income Index" },
-  { value: "north-american-income-pay-pro", label: "North American Income Pay Pro" },
+  { value: "short-term-cap-growth", label: "Short-Term Cap Growth" },
+  { value: "phased-bonus-growth", label: "Phased Bonus Growth" },
+  { value: "vesting-bonus-growth", label: "Vesting Bonus Growth" },
+  { value: "simple-rollup-income", label: "Simple Roll-up Income" },
+  { value: "compound-rollup-income", label: "Compound Roll-up Income" },
+  { value: "flat-rate-compound-income", label: "Flat-Rate Compound Income" },
 ] as const;
 
 const PROTECT_OPTIONS = [
