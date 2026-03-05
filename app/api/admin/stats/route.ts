@@ -30,11 +30,11 @@ export async function GET() {
     const [advisors, clients, scenarioRuns, exports, weekAdvisors, weekClients, weekRuns, weekExports] = await Promise.all([
       admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'advisor'),
       admin.from('clients').select('id', { count: 'exact', head: true }),
-      admin.from('calculation_log').select('id', { count: 'exact', head: true }),
+      admin.from('projections').select('id', { count: 'exact', head: true }),
       admin.from('export_log').select('id', { count: 'exact', head: true }),
       admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'advisor').gte('created_at', weekAgo),
       admin.from('clients').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
-      admin.from('calculation_log').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
+      admin.from('projections').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
       admin.from('export_log').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
     ]);
 

@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     // Fetch counts in parallel
     const [clientsRes, runsRes, exportsRes, loginsRes] = await Promise.all([
       admin.from('clients').select('user_id').in('user_id', advisorIds),
-      admin.from('calculation_log').select('user_id').in('user_id', advisorIds),
+      admin.from('projections').select('user_id').in('user_id', advisorIds),
       admin.from('export_log').select('user_id').in('user_id', advisorIds),
       admin.from('login_log').select('user_id, created_at').in('user_id', advisorIds).order('created_at', { ascending: false }),
     ]);

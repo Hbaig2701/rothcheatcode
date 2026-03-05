@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       default: startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); break;
     }
 
-    const tableName = type === 'exports' ? 'export_log' : type === 'logins' ? 'login_log' : 'calculation_log';
+    const tableName = type === 'exports' ? 'export_log' : type === 'logins' ? 'login_log' : 'projections';
 
     const { data: rows, error: queryError } = await admin
       .from(tableName)
