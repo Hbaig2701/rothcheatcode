@@ -25,22 +25,22 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
   if (data.length === 0) {
     return (
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
-        <h3 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-6">
+        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-6">
           Product Mix
         </h3>
-        <p className="text-sm text-[rgba(255,255,255,0.25)] text-center py-8">No data yet</p>
+        <p className="text-sm text-[rgba(255,255,255,0.45)] text-center py-8">No data yet</p>
       </div>
     );
   }
 
   return (
     <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
-      <h3 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-6">
+      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-6">
         Product Mix
       </h3>
 
       <div className="flex flex-col items-center">
-        <div className="w-[140px] h-[140px] mb-5">
+        <div className="w-[160px] h-[160px] mb-5">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -81,11 +81,11 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
                   className="w-2 h-2 rounded-full inline-block"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-[13px] text-[rgba(255,255,255,0.5)]">{item.name}</span>
+                <span className="text-sm text-[rgba(255,255,255,0.7)]">{item.name}</span>
               </div>
-              <span className="text-[13px] font-mono text-[rgba(255,255,255,0.5)]">
+              <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">
                 {item.value}{" "}
-                <span className="text-[rgba(255,255,255,0.25)]">
+                <span className="text-[rgba(255,255,255,0.4)]">
                   ({total > 0 ? Math.round((item.value / total) * 100) : 0}%)
                 </span>
               </span>

@@ -38,27 +38,27 @@ function DeltaBadge({ value }: { value: number }) {
 export function RecentFormulasTable({ data }: RecentFormulasTableProps) {
   return (
     <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
-      <h3 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-5">
+      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-5">
         Recent Scenarios
       </h3>
 
       {data.length === 0 ? (
-        <p className="text-sm text-[rgba(255,255,255,0.25)] text-center py-8">No scenarios yet</p>
+        <p className="text-sm text-[rgba(255,255,255,0.45)] text-center py-8">No scenarios yet</p>
       ) : (
         <>
           <table className="w-full">
             <thead>
               <tr>
-                <th className="text-left pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
+                <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.5)] border-b border-[rgba(255,255,255,0.07)]">
                   Client
                 </th>
-                <th className="text-left pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
+                <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.5)] border-b border-[rgba(255,255,255,0.07)]">
                   Product
                 </th>
-                <th className="text-right pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
+                <th className="text-right pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.5)] border-b border-[rgba(255,255,255,0.07)]">
                   Change
                 </th>
-                <th className="text-right pb-2 text-[11px] font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.25)] border-b border-[rgba(255,255,255,0.07)]">
+                <th className="text-right pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.5)] border-b border-[rgba(255,255,255,0.07)]">
                   Date
                 </th>
               </tr>
@@ -72,19 +72,19 @@ export function RecentFormulasTable({ data }: RecentFormulasTableProps) {
                   <td className="py-2.5">
                     <Link
                       href={`/clients/${item.id}`}
-                      className="text-[13px] text-[rgba(255,255,255,0.5)] hover:text-gold transition-colors"
+                      className="text-sm text-[rgba(255,255,255,0.7)] hover:text-gold transition-colors"
                     >
                       {item.clientName}
                     </Link>
                   </td>
                   <td className="py-2.5">
-                    <span className="text-[13px] text-[rgba(255,255,255,0.25)]">{item.productLabel}</span>
+                    <span className="text-sm text-[rgba(255,255,255,0.5)]">{item.productLabel}</span>
                   </td>
                   <td className="py-2.5 text-right">
                     <DeltaBadge value={item.percentChange} />
                   </td>
                   <td className="py-2.5 text-right">
-                    <span className="text-xs font-mono text-[rgba(255,255,255,0.25)]">
+                    <span className="text-[13px] font-mono text-[rgba(255,255,255,0.45)]">
                       {formatDate(item.createdAt)}
                     </span>
                   </td>

@@ -69,11 +69,11 @@ export function DashboardContent({ userName }: DashboardContentProps) {
           <h1 className="font-display text-[30px] font-normal text-white">
             Welcome back, {userName}
           </h1>
-          <p className="text-sm text-[rgba(255,255,255,0.25)] mt-1.5">
+          <p className="text-sm text-[rgba(255,255,255,0.5)] mt-1.5">
             Here&apos;s your practice overview
           </p>
         </div>
-        <span className="text-[13px] font-mono text-[rgba(255,255,255,0.25)]">
+        <span className="text-sm font-mono text-[rgba(255,255,255,0.45)]">
           {today}
         </span>
       </div>
