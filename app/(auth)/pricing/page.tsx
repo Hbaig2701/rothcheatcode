@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Check } from 'lucide-react'
 import Link from 'next/link'
@@ -128,14 +127,13 @@ export default function PricingPage() {
 
                 <a
                   href={`/api/checkout?plan=${key}&cycle=${cycle}`}
-                  className="block"
+                  className={`flex h-10 w-full cursor-pointer items-center justify-center rounded-md text-sm font-medium transition-colors ${
+                    plan.popular
+                      ? 'bg-gold text-black hover:bg-gold/90'
+                      : 'border border-[rgba(255,255,255,0.15)] text-white hover:bg-[rgba(255,255,255,0.05)]'
+                  }`}
                 >
-                  <Button
-                    className="w-full"
-                    variant={plan.popular ? 'default' : 'outline'}
-                  >
-                    Get Started
-                  </Button>
+                  Get Started
                 </a>
               </CardContent>
             </Card>
