@@ -72,7 +72,7 @@ export function BillingTab() {
   }
 
   const planLabel =
-    data.plan === "pro" ? "Pro" : data.plan === "starter" ? "Starter" : "None";
+    data.plan === "pro" ? "Premium" : data.plan === "starter" ? "Starter" : "None";
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);

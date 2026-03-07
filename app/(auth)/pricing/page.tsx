@@ -22,7 +22,7 @@ const PLANS = {
     ],
   },
   pro: {
-    name: 'Pro',
+    name: 'Premium',
     monthly: 297,
     annual: 2970,
     features: [
