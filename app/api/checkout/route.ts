@@ -14,6 +14,10 @@ export async function GET(request: NextRequest) {
   try {
     const priceId = getStripePriceId(plan, cycle);
 
+    if (!priceId) {
+      return NextResponse.json({ error: "Price not configured. Check STRIPE_PRICE env vars." }, { status: 500 });
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
@@ -26,9 +30,13 @@ export async function GET(request: NextRequest) {
       metadata: { plan, cycle },
     });
 
-    return NextResponse.redirect(session.url!);
+    if (!session.url) {
+      return NextResponse.json({ error: "Stripe did not return a checkout URL" }, { status: 500 });
+    }
+
+    return NextResponse.redirect(session.url, 303);
   } catch (error) {
     console.error("Checkout error:", error);
-    return NextResponse.redirect(new URL("/pricing?error=checkout_failed", request.url));
+    return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
