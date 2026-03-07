@@ -33,7 +33,7 @@ const PLANS = {
       'Story mode included',
       'Full white-label branding',
       'Priority support (24hr)',
-      'Up to 3 team members',
+      'Unlimited team members',
     ],
     popular: true,
   },
@@ -86,14 +86,14 @@ export default function PricingPage() {
           ([key, plan]) => (
             <Card
               key={key}
-              className={`relative ${
+              className={`relative overflow-visible ${
                 plan.popular
                   ? 'border-gold/30 shadow-[0_0_30px_rgba(212,175,55,0.1)]'
                   : ''
               }`}
             >
               {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gold px-3 py-0.5 text-xs font-semibold text-black">
+                <div className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-gold px-4 py-1 text-xs font-semibold text-black">
                   Most Popular
                 </div>
               )}
