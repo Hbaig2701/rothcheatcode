@@ -10,6 +10,7 @@ import { GIPresentationMode } from "@/components/report/gi-presentation-mode";
 import { StoryMode } from "@/components/report/story-mode";
 import { GIStoryMode } from "@/components/report/gi-story-mode";
 import { AnnotationOverlay } from "@/components/report/annotation-overlay";
+import { ExportPdfDialog } from "@/components/report/export-pdf-dialog";
 import { Loader2, ArrowLeft, Settings2, ChevronDown, Play, Copy, Pencil, BookOpen, Download } from "lucide-react";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import type { YearlyResult } from "@/lib/calculations";
@@ -29,54 +30,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
   const [presentMode, setPresentMode] = useState(false);
   const [storyMode, setStoryMode] = useState(false);
   const [annotateMode, setAnnotateMode] = useState(false);
-  const [pdfGenerating, setPdfGenerating] = useState(false);
-
-  // PDF Export handler
-  const handleExportPdf = async () => {
-    if (!client || !projectionResponse?.projection || pdfGenerating) return;
-
-    setPdfGenerating(true);
-    setActionsOpen(false);
-
-    try {
-      const response = await fetch('/api/generate-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reportData: {
-            client,
-            projection: projectionResponse.projection,
-          },
-          charts: {}, // GI products don't need chart images - data is in projection
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to generate PDF');
-      }
-
-      // Get PDF blob and trigger download
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const sanitizedName = (client.name || 'Client')
-        .replace(/[^a-zA-Z0-9\s-]/g, '')
-        .replace(/\s+/g, '_');
-      const timestamp = new Date().toISOString().split('T')[0];
-      link.download = `RetirementExpert_${sanitizedName}_${timestamp}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('PDF export error:', error);
-      alert('Failed to export PDF. Please try again.');
-    } finally {
-      setPdfGenerating(false);
-    }
-  };
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   // Calculate percentage change from projection data
   const percentChange = useMemo(() => {
@@ -252,21 +206,14 @@ export default function ResultsPage({ params }: ResultsPageProps) {
                     Present
                   </button>
                   <button
-                    onClick={handleExportPdf}
-                    disabled={pdfGenerating}
-                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left disabled:opacity-50"
+                    onClick={() => {
+                      setExportDialogOpen(true);
+                      setActionsOpen(false);
+                    }}
+                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
                   >
-                    {pdfGenerating ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="h-4 w-4" />
-                        Export as PDF
-                      </>
-                    )}
+                    <Download className="h-4 w-4" />
+                    Export as PDF
                   </button>
                   <button
                     onClick={() => setActionsOpen(false)}
@@ -321,6 +268,16 @@ export default function ResultsPage({ params }: ResultsPageProps) {
       {/* Annotation Overlay */}
       {annotateMode && (
         <AnnotationOverlay onExit={() => setAnnotateMode(false)} />
+      )}
+
+      {/* Export PDF Dialog */}
+      {client && projectionResponse?.projection && (
+        <ExportPdfDialog
+          open={exportDialogOpen}
+          onOpenChange={setExportDialogOpen}
+          client={client}
+          projection={projectionResponse.projection}
+        />
       )}
     </div>
   );

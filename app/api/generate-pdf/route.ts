@@ -942,7 +942,7 @@ export async function POST(request: NextRequest) {
     const showPoweredBy = effectivePlan !== 'pro';
 
     const body = await request.json();
-    const { reportData } = body;
+    const { reportData, brandingOverrides } = body;
 
     if (!reportData || !reportData.client || !reportData.projection) {
       return NextResponse.json(
@@ -970,6 +970,20 @@ export async function POST(request: NextRequest) {
       hasBranding: !!(settings?.company_name || settings?.logo_url),
       hasContactInfo: !!(settings?.company_phone || settings?.company_email || settings?.company_website),
     };
+
+    // Apply branding overrides from export dialog (pro plan only)
+    if (effectivePlan === 'pro' && brandingOverrides) {
+      if (brandingOverrides.companyName !== undefined) branding.companyName = brandingOverrides.companyName;
+      if (brandingOverrides.tagline !== undefined) branding.tagline = brandingOverrides.tagline;
+      if (brandingOverrides.logoUrl !== undefined) branding.logoUrl = brandingOverrides.logoUrl;
+      if (brandingOverrides.primaryColor) branding.primaryColor = brandingOverrides.primaryColor;
+      if (brandingOverrides.secondaryColor) branding.secondaryColor = brandingOverrides.secondaryColor;
+      if (brandingOverrides.phone !== undefined) branding.phone = brandingOverrides.phone;
+      if (brandingOverrides.email !== undefined) branding.email = brandingOverrides.email;
+      if (brandingOverrides.website !== undefined) branding.website = brandingOverrides.website;
+      branding.hasBranding = !!(branding.companyName || branding.logoUrl);
+      branding.hasContactInfo = !!(branding.phone || branding.email || branding.website);
+    }
 
     // Detect if this is a GI product
     const blueprintType = reportData.client.blueprint_type as FormulaType;
