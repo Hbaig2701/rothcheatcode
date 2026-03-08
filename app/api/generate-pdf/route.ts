@@ -119,8 +119,7 @@ interface TemplateData {
   lifetimeWealthAfter: string;
   wealthIncreasePercent: string;
   reportDate: string;
-  lifetimeWealthChartImage?: string;
-  conversionChartImage?: string;
+  legacyChartSVG: string;
   baseline: ScenarioData;
   formula: ScenarioData;
   diff: {
@@ -342,8 +341,141 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
   return { accountValues, taxableIncome, irmaa, netIncome };
 }
 
+/**
+ * Format cents for chart axis labels ($XK or $XM)
+ */
+function formatAxisLabel(cents: number): string {
+  const dollars = cents / 100;
+  if (Math.abs(dollars) >= 1_000_000) {
+    return `$${(dollars / 1_000_000).toFixed(1)}M`;
+  }
+  if (Math.abs(dollars) >= 1_000) {
+    return `$${(dollars / 1_000).toFixed(0)}K`;
+  }
+  return `$${dollars.toFixed(0)}`;
+}
+
+/**
+ * Generate inline SVG for "Legacy to Heirs Over Time" chart
+ * Uses same calculation as lib/calculations/transforms.ts
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string; conversion?: string }, branding: BrandingData): TemplateData {
+function generateLegacyChartSVG(projection: any, heirTaxRate: number): string {
+  const baselineYears = projection.baseline_years || [];
+  const formulaYears = projection.blueprint_years || [];
+
+  if (baselineYears.length === 0) return '<p style="color:#666;">No chart data available</p>';
+
+  // Calculate legacy to heirs for each year (same logic as transforms.ts)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const baselineData = baselineYears.map((year: any) => {
+    const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    const rothToHeirs = year.rothBalance || 0;
+    const cashToHeirs = Math.max(0, year.taxableBalance || 0);
+    return { age: year.age, value: traditionalToHeirs + rothToHeirs + cashToHeirs };
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const formulaData = formulaYears.map((year: any) => {
+    const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    const rothToHeirs = year.rothBalance || 0;
+    const cashToHeirs = Math.max(0, year.taxableBalance || 0);
+    return { age: year.age, value: traditionalToHeirs + rothToHeirs + cashToHeirs };
+  });
+
+  // Chart dimensions
+  const width = 680;
+  const height = 260;
+  const padLeft = 70;
+  const padRight = 20;
+  const padTop = 20;
+  const padBottom = 40;
+  const chartW = width - padLeft - padRight;
+  const chartH = height - padTop - padBottom;
+
+  // Determine data bounds
+  const allValues = [...baselineData.map((d: { value: number }) => d.value), ...formulaData.map((d: { value: number }) => d.value)];
+  const minVal = Math.min(...allValues);
+  const maxVal = Math.max(...allValues);
+  const valRange = maxVal - minVal || 1;
+  // Add 10% padding to y range
+  const yMin = Math.max(0, minVal - valRange * 0.1);
+  const yMax = maxVal + valRange * 0.1;
+  const yRange = yMax - yMin;
+
+  const ages = baselineData.map((d: { age: number }) => d.age);
+  const minAge = ages[0];
+  const maxAge = ages[ages.length - 1];
+  const ageRange = maxAge - minAge || 1;
+
+  // Helper to convert data to SVG coordinates
+  const toX = (age: number) => padLeft + ((age - minAge) / ageRange) * chartW;
+  const toY = (val: number) => padTop + chartH - ((val - yMin) / yRange) * chartH;
+
+  // Build polyline points
+  const baselinePoints = baselineData
+    .map((d: { age: number; value: number }) => `${toX(d.age).toFixed(1)},${toY(d.value).toFixed(1)}`)
+    .join(' ');
+  const formulaPoints = formulaData
+    .map((d: { age: number; value: number }) => `${toX(d.age).toFixed(1)},${toY(d.value).toFixed(1)}`)
+    .join(' ');
+
+  // Y-axis grid lines and labels (5 ticks)
+  let gridLines = '';
+  for (let i = 0; i <= 4; i++) {
+    const val = yMin + (yRange * i) / 4;
+    const y = toY(val);
+    gridLines += `<line x1="${padLeft}" y1="${y.toFixed(1)}" x2="${width - padRight}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="0.5"/>`;
+    gridLines += `<text x="${padLeft - 8}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="8" fill="#6b7280">${formatAxisLabel(val)}</text>`;
+  }
+
+  // X-axis labels (every ~5 years)
+  let xLabels = '';
+  const step = Math.max(1, Math.round(ageRange / 8));
+  for (let age = minAge; age <= maxAge; age += step) {
+    const x = toX(age);
+    xLabels += `<text x="${x.toFixed(1)}" y="${height - padBottom + 18}" text-anchor="middle" font-size="8" fill="#6b7280">${age}</text>`;
+  }
+  // Always include last age
+  if ((maxAge - minAge) % step !== 0) {
+    const x = toX(maxAge);
+    xLabels += `<text x="${x.toFixed(1)}" y="${height - padBottom + 18}" text-anchor="middle" font-size="8" fill="#6b7280">${maxAge}</text>`;
+  }
+
+  // X-axis label
+  const xAxisLabel = `<text x="${padLeft + chartW / 2}" y="${height - 2}" text-anchor="middle" font-size="9" fill="#6b7280">Age</text>`;
+
+  // Legend
+  const legendX = padLeft + 10;
+  const legendY = padTop + 10;
+  const legend = `
+    <rect x="${legendX}" y="${legendY}" width="200" height="36" rx="4" fill="white" stroke="#e5e7eb" stroke-width="0.5"/>
+    <line x1="${legendX + 10}" y1="${legendY + 12}" x2="${legendX + 30}" y2="${legendY + 12}" stroke="#D4AF37" stroke-width="2.5"/>
+    <text x="${legendX + 35}" y="${legendY + 15}" font-size="8" fill="#333">Strategy (Roth Conversion)</text>
+    <line x1="${legendX + 10}" y1="${legendY + 26}" x2="${legendX + 30}" y2="${legendY + 26}" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
+    <text x="${legendX + 35}" y="${legendY + 29}" font-size="8" fill="#333">Baseline (Traditional IRA)</text>
+  `;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" style="font-family: 'Helvetica Neue', Arial, sans-serif;">
+    <!-- Grid -->
+    ${gridLines}
+    <!-- Axes -->
+    <line x1="${padLeft}" y1="${padTop}" x2="${padLeft}" y2="${height - padBottom}" stroke="#d1d5db" stroke-width="1"/>
+    <line x1="${padLeft}" y1="${height - padBottom}" x2="${width - padRight}" y2="${height - padBottom}" stroke="#d1d5db" stroke-width="1"/>
+    <!-- X labels -->
+    ${xLabels}
+    ${xAxisLabel}
+    <!-- Baseline line (dashed red) -->
+    <polyline points="${baselinePoints}" fill="none" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,4"/>
+    <!-- Formula line (solid gold) -->
+    <polyline points="${formulaPoints}" fill="none" stroke="#D4AF37" stroke-width="2.5"/>
+    <!-- Legend -->
+    ${legend}
+  </svg>`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function prepareTemplateData(reportData: any, branding: BrandingData): TemplateData {
   const { client, projection } = reportData;
 
   // Calculate summary metrics
@@ -449,8 +581,7 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
       month: 'long',
       day: 'numeric',
     }),
-    lifetimeWealthChartImage: charts.lifetimeWealth,
-    conversionChartImage: charts.conversion,
+    legacyChartSVG: generateLegacyChartSVG(projection, heirTaxRate),
     baseline: {
       totalDistributions: formatCurrency(baseRMDs),
       totalConversions: formatCurrency(0),
@@ -827,7 +958,7 @@ export async function POST(request: NextRequest) {
     const showPoweredBy = effectivePlan !== 'pro';
 
     const body = await request.json();
-    const { reportData, charts } = body;
+    const { reportData } = body;
 
     if (!reportData || !reportData.client || !reportData.projection) {
       return NextResponse.json(
@@ -869,7 +1000,7 @@ export async function POST(request: NextRequest) {
     // Prepare data for the appropriate template
     const templateData = isGI
       ? prepareGITemplateData(reportData, branding)
-      : prepareTemplateData(reportData, charts || {}, branding);
+      : prepareTemplateData(reportData, branding);
 
     // Add white-label flag
     (templateData as unknown as Record<string, unknown>).showPoweredBy = showPoweredBy;

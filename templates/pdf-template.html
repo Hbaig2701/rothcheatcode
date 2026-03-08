@@ -386,14 +386,10 @@
   <!-- Page 3: Charts & Insights -->
   <div class="page">
     <div class="page-header">Charts &amp; Insights</div>
-    <h1 class="section-title">Lifetime Wealth Trajectory</h1>
+    <h1 class="section-title">Legacy to Heirs Over Time</h1>
 
-    <div class="chart-container">
-      {{#if lifetimeWealthChartImage}}
-      <img src="{{lifetimeWealthChartImage}}" alt="Lifetime Wealth Chart" />
-      {{else}}
-      <p style="color: #666;">Chart not available</p>
-      {{/if}}
+    <div style="width: 100%; margin: 20px 0; display: flex; justify-content: center;">
+      {{{legacyChartSVG}}}
     </div>
 
     <div class="summary-tables">
@@ -482,18 +478,8 @@
 
   <!-- Page 4: Conversion Details -->
   <div class="page">
-    <div class="page-header">Charts &amp; Insights</div>
-    <h1 class="section-title">Account Values during Conversion</h1>
-
-    <div class="chart-container">
-      {{#if conversionChartImage}}
-      <img src="{{conversionChartImage}}" alt="Conversion Chart" />
-      {{else}}
-      <p style="color: #666;">Chart not available</p>
-      {{/if}}
-    </div>
-
-    <h2 style="font-size: 14pt; color: {{branding.primaryColor}}; margin: 30px 0 15px;">Conversion Details</h2>
+    <div class="page-header">Conversion Details</div>
+    <h1 class="section-title">Conversion Details</h1>
     <table class="data-table">
       <tr>
         <th>Age</th>
