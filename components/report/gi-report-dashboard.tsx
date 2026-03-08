@@ -88,7 +88,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
 
   // Fallback: calculate from projection comparison metrics if yearly data not available
   if (baselineTotalNetIncome === 0 && projection.gi_baseline_annual_income_net) {
-    const incomeYears = client.end_age - (projection.gi_income_start_age || client.income_start_age || 70);
+    const incomeYears = client.end_age - (projection.gi_income_start_age || client.income_start_age || 70) + 1;
     baselineTotalNetIncome = projection.gi_baseline_annual_income_net * incomeYears;
   }
 

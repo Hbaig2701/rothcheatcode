@@ -704,10 +704,10 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
 
   // Calculate metrics
   // Use gi_purchase_amount (Roth balance at purchase) NOT client.qualified_account_value (Traditional IRA before conversion)
-  const purchaseAmount = projection.gi_purchase_amount || client.qualified_account_value || 0;
+  const purchaseAmount = projection.gi_purchase_amount ?? client.qualified_account_value ?? 0;
   const bonusPercent = client.bonus_percent || 0;
   const bonusAmount = Math.round(purchaseAmount * (bonusPercent / 100));
-  const startingIncomeBase = projection.gi_income_base_at_start || (purchaseAmount + bonusAmount);
+  const startingIncomeBase = projection.gi_income_base_at_start ?? (purchaseAmount + bonusAmount);
   const finalIncomeBase = projection.gi_income_base_at_income_age || startingIncomeBase;
   const rollUpGrowth = finalIncomeBase - startingIncomeBase;
   const payoutPercent = projection.gi_payout_percent || 0;
@@ -734,7 +734,7 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
   });
   // Fallback if yearly data not available
   if (baselineTotalNetIncome === 0 && projection.gi_baseline_annual_income_net) {
-    const incomeYears = endAge - incomeStartAge;
+    const incomeYears = endAge - incomeStartAge + 1;
     baselineTotalNetIncome = projection.gi_baseline_annual_income_net * incomeYears;
   }
 
@@ -754,7 +754,7 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
     }
   });
   if (baselineTotalTaxes === 0) {
-    const incomeYears = endAge - incomeStartAge;
+    const incomeYears = endAge - incomeStartAge + 1;
     baselineTotalTaxes = Math.round(baselineAnnualIncomeGross * flatTaxRate) * incomeYears;
   }
   const taxSavings = baselineTotalTaxes - conversionTax;
