@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { clientFullSchema } from "@/lib/validations/client";
 import { checkClientLimit } from "@/lib/usage";
+import { isGuaranteedIncomeProduct } from "@/lib/config/products";
 
 // GET /api/clients - List all clients for the authenticated user
 export async function GET(request: NextRequest) {
@@ -14,18 +15,56 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // RLS automatically filters to user's clients via user_id policy
-  const { data, error } = await supabase
-    .from("clients")
-    .select("*")
-    .order("created_at", { ascending: false });
+  // Fetch clients and latest projections in parallel
+  const [clientsResult, projectionsResult] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("*")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("projections")
+      .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, gi_tax_free_wealth_created")
+      .order("created_at", { ascending: false }),
+  ]);
 
-  if (error) {
-    console.error("Error fetching clients:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (clientsResult.error) {
+    console.error("Error fetching clients:", clientsResult.error);
+    return NextResponse.json({ error: clientsResult.error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  const clients = clientsResult.data ?? [];
+
+  // Build per-client delta map from latest projection
+  const deltaMap = new Map<string, number>();
+  if (projectionsResult.data) {
+    const seen = new Set<string>();
+    for (const p of projectionsResult.data) {
+      if (seen.has(p.client_id)) continue;
+      seen.add(p.client_id);
+
+      if (p.baseline_final_net_worth > 0) {
+        // Find the client to check product type
+        const client = clients.find(c => c.id === p.client_id);
+        if (client && isGuaranteedIncomeProduct(client.blueprint_type) && p.gi_tax_free_wealth_created != null) {
+          deltaMap.set(p.client_id, Math.round(
+            (p.gi_tax_free_wealth_created / p.baseline_final_net_worth) * 100
+          ));
+        } else {
+          deltaMap.set(p.client_id, Math.round(
+            ((p.blueprint_final_net_worth - p.baseline_final_net_worth) / p.baseline_final_net_worth) * 100
+          ));
+        }
+      }
+    }
+  }
+
+  // Attach delta to each client
+  const clientsWithDelta = clients.map(c => ({
+    ...c,
+    delta: deltaMap.get(c.id) ?? null,
+  }));
+
+  return NextResponse.json(clientsWithDelta);
 }
 
 // POST /api/clients - Create a new client

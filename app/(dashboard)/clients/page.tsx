@@ -90,7 +90,7 @@ export default function ClientsPage() {
             <ClientCard
               key={client.id}
               client={client}
-              delta={Math.floor(Math.random() * 20) - 5} // TODO: Calculate actual delta from projections
+              delta={(client as any).delta ?? 0}
             />
           ))}
         </div>
