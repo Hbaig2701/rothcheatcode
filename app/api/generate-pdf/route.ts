@@ -5,7 +5,7 @@ import Handlebars from 'handlebars';
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@/lib/supabase/server';
-import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
+import { isGuaranteedIncomeProduct, ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
 import { determineTaxBracket } from '@/lib/calculations/modules/federal-tax';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
@@ -902,7 +902,7 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
     // Product details
     carrierName: client.carrier_name || 'N/A',
     productName: client.product_name || 'N/A',
-    riderFee: (client.rider_fee || 1.00).toFixed(2),
+    riderFee: (ALL_PRODUCTS[client.blueprint_type as FormulaType]?.defaults.riderFee ?? client.rider_fee ?? 1.00).toFixed(2),
     rollUpDescription: projection.gi_roll_up_description || 'N/A',
     totalRiderFees: formatCurrency(projection.gi_total_rider_fees || 0),
 
