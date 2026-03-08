@@ -10,10 +10,17 @@ export default async function DashboardPage() {
     redirect('/login')
   }
 
-  // Extract first name from email or metadata
-  const userName = user.user_metadata?.full_name
-    ?? user.email?.split('@')[0]
-    ?? 'Agent'
+  // Extract display name from user_settings
+  const { data: userSettings } = await supabase
+    .from('user_settings')
+    .select('first_name, last_name')
+    .eq('user_id', user.id)
+    .single()
+
+  const userName = [userSettings?.first_name, userSettings?.last_name].filter(Boolean).join(' ')
+    || user.user_metadata?.full_name
+    || user.email?.split('@')[0]
+    || 'Agent'
 
   return <DashboardContent userName={userName} />
 }
