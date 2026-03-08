@@ -4,7 +4,7 @@ import type {
   DashboardMetrics,
   ProjectionSummary,
 } from "@/lib/types/dashboard";
-import { ALL_PRODUCTS } from "@/lib/config/products";
+import { ALL_PRODUCTS, isGuaranteedIncomeProduct } from "@/lib/config/products";
 import type { FormulaType } from "@/lib/config/products";
 
 const PRODUCT_COLORS = [
@@ -47,17 +47,26 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
     0
   );
 
-  // Average wealth increase: % change for clients with projections
+  // Average wealth increase: % advantage for clients with projections
+  // GI products: use gi_tax_free_wealth_created (lifetime income advantage)
+  // Growth products: use blueprint - baseline net worth difference
   const wealthChanges: number[] = [];
   for (const c of clients) {
     const p = projMap.get(c.id);
-    if (p && p.baseline_final_net_worth > 0) {
-      const pctChange =
+    if (!p || p.baseline_final_net_worth <= 0) continue;
+
+    let advantage: number;
+    if (isGuaranteedIncomeProduct(c.blueprint_type) && p.gi_tax_free_wealth_created != null) {
+      // GI: lifetime income advantage as % of baseline
+      advantage = (p.gi_tax_free_wealth_created / p.baseline_final_net_worth) * 100;
+    } else {
+      // Growth: net worth difference as % of baseline
+      advantage =
         ((p.blueprint_final_net_worth - p.baseline_final_net_worth) /
           p.baseline_final_net_worth) *
         100;
-      wealthChanges.push(pctChange);
     }
+    wealthChanges.push(advantage);
   }
   const avgWealthIncrease =
     wealthChanges.length > 0
@@ -93,14 +102,20 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
   // --- Recent Formulas (first 5, already sorted by created_at DESC) ---
   const recentFormulas = clients.slice(0, 5).map((c) => {
     const p = projMap.get(c.id);
-    const percentChange =
-      p && p.baseline_final_net_worth > 0
-        ? Math.round(
-            ((p.blueprint_final_net_worth - p.baseline_final_net_worth) /
-              p.baseline_final_net_worth) *
-              100
-          )
-        : 0;
+    let percentChange = 0;
+    if (p && p.baseline_final_net_worth > 0) {
+      if (isGuaranteedIncomeProduct(c.blueprint_type) && p.gi_tax_free_wealth_created != null) {
+        percentChange = Math.round(
+          (p.gi_tax_free_wealth_created / p.baseline_final_net_worth) * 100
+        );
+      } else {
+        percentChange = Math.round(
+          ((p.blueprint_final_net_worth - p.baseline_final_net_worth) /
+            p.baseline_final_net_worth) *
+            100
+        );
+      }
+    }
     const config = ALL_PRODUCTS[c.blueprint_type as FormulaType];
     return {
       id: c.id,

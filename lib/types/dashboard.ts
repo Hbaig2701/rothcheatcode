@@ -10,6 +10,7 @@ export interface ProjectionSummary {
   blueprint_final_roth: number;      // cents
   total_tax_savings: number;         // cents
   heir_benefit: number;              // cents
+  gi_tax_free_wealth_created: number | null; // cents - GI products only
 }
 
 /**
