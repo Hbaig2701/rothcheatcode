@@ -95,9 +95,15 @@ export function BillingTab() {
     setUpgradeLoading(true);
     try {
       const res = await fetch("/api/billing/upgrade");
-      const { url } = await res.json();
-      if (url) window.location.href = url;
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Failed to start upgrade");
+        setUpgradeLoading(false);
+      }
     } catch {
+      alert("Failed to start upgrade");
       setUpgradeLoading(false);
     }
   };
