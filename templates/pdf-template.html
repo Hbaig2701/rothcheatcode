@@ -573,6 +573,72 @@
     </table>
   </div>
 
+  <!-- Formula Account Overview -->
+  <div class="page">
+    <div class="page-header">Formula - Account Overview</div>
+    <h1 class="section-title">Formula Year-over-Year Values</h1>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>B.O.Y. (Combined)</th>
+        <th>Dist. (IRA)</th>
+        <th>Taxes (IRA)</th>
+        <th>Bracket</th>
+        <th>Converted</th>
+        <th>Dist. (Roth)</th>
+        <th>Interest</th>
+        <th>E.O.Y. (Combined)</th>
+      </tr>
+      {{#each formula.accountValues}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.boyCombined}}</td>
+        <td>{{this.distIra}}</td>
+        <td class="tax-value">{{this.taxesIra}}</td>
+        <td>{{this.bracket}}</td>
+        <td>{{this.converted}}</td>
+        <td>{{this.distRoth}}</td>
+        <td>{{this.interest}}</td>
+        <td>{{this.eoyCombined}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
+  <!-- Formula Taxable Income -->
+  <div class="page">
+    <div class="page-header">Formula - Taxable Income</div>
+    <h1 class="section-title">Formula Taxable Income</h1>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th>SSI</th>
+        <th>Taxable (Non-SSI)</th>
+        <th>Exempt (Non-SSI)</th>
+        <th>Dist. (IRA)</th>
+        <th>AGI</th>
+        <th>Deduc.</th>
+        <th>Income (Taxable)</th>
+      </tr>
+      {{#each formula.taxableIncome}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td>{{this.ssi}}</td>
+        <td>{{this.taxableNonSsi}}</td>
+        <td>{{this.exemptNonSsi}}</td>
+        <td>{{this.distIra}}</td>
+        <td>{{this.agi}}</td>
+        <td>{{this.deduction}}</td>
+        <td>{{this.taxableIncome}}</td>
+      </tr>
+      {{/each}}
+    </table>
+  </div>
+
   <!-- Disclaimer -->
   <div class="page">
     <div class="page-header">Disclaimer</div>
