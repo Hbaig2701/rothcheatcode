@@ -22,20 +22,12 @@ function isThisMonth(dateStr: string): boolean {
   return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 }
 
-function isLastMonth(dateStr: string): boolean {
-  const d = new Date(dateStr);
-  const now = new Date();
-  const lastMonth = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-  const lastMonthYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-  return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
-}
-
 /**
  * Compute all dashboard metrics from raw API data.
  * Pure function - no side effects.
  */
 export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
-  const { clients, projections, pipeline } = data;
+  const { clients, projections, pipeline, usage } = data;
 
   // Build projection lookup by client_id
   const projMap = new Map<string, ProjectionSummary>();
@@ -47,17 +39,7 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
   const totalClients = clients.length;
 
   const thisMonthClients = clients.filter((c) => isThisMonth(c.created_at));
-  const lastMonthClients = clients.filter((c) => isLastMonth(c.created_at));
   const newClientsThisMonth = thisMonthClients.length;
-  const formulasThisMonth = thisMonthClients.length;
-
-  const formulasLastMonth = lastMonthClients.length;
-  const formulasChangePercent =
-    formulasLastMonth > 0
-      ? Math.round(((formulasThisMonth - formulasLastMonth) / formulasLastMonth) * 100)
-      : formulasThisMonth > 0
-        ? 100
-        : 0;
 
   const totalAUM = clients.reduce((sum, c) => sum + (c.qualified_account_value || 0), 0);
   const aumChangeThisMonth = thisMonthClients.reduce(
@@ -179,8 +161,7 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
     totalAUM,
     aumChangeThisMonth,
     avgWealthIncrease,
-    formulasThisMonth,
-    formulasChangePercent,
+    usage,
     totalLifetimeWealth,
     totalTaxSavings,
     totalLegacyProtected,

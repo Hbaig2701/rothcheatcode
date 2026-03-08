@@ -26,6 +26,11 @@ export interface ConversionPipelineItem {
   isComplete: boolean;
 }
 
+export interface UsageMetric {
+  used: number;
+  limit: number | null; // null = unlimited
+}
+
 /**
  * Response from GET /api/dashboard
  */
@@ -33,6 +38,11 @@ export interface DashboardData {
   clients: Client[];
   projections: ProjectionSummary[];
   pipeline: ConversionPipelineItem[];
+  usage: {
+    scenarios: UsageMetric;
+    clients: UsageMetric;
+    exports: UsageMetric;
+  };
 }
 
 /**
@@ -45,8 +55,11 @@ export interface DashboardMetrics {
   totalAUM: number;            // cents
   aumChangeThisMonth: number;  // cents
   avgWealthIncrease: number;   // percentage
-  formulasThisMonth: number;
-  formulasChangePercent: number; // percentage
+  usage: {
+    scenarios: UsageMetric;
+    clients: UsageMetric;
+    exports: UsageMetric;
+  };
 
   // Value delivered
   totalLifetimeWealth: number;    // cents

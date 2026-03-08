@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import { ALL_PRODUCTS } from "@/lib/config/products";
+import { getEffectivePlan } from "@/lib/usage";
+import { getPlanLimits } from "@/lib/config/plans";
 import type { Client } from "@/lib/types/client";
 import type { ProjectionSummary, ConversionPipelineItem } from "@/lib/types/dashboard";
 import type { YearlyResult } from "@/lib/calculations/types";
@@ -28,8 +30,12 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Fetch clients and projections in parallel
-  const [clientsResult, projectionsResult] = await Promise.all([
+  // Fetch plan, usage, clients, and projections in parallel
+  const { plan } = await getEffectivePlan(user.id);
+  const limits = getPlanLimits(plan);
+  const now = new Date().toISOString();
+
+  const [clientsResult, projectionsResult, usageResult] = await Promise.all([
     supabase
       .from("clients")
       .select("*")
@@ -38,6 +44,14 @@ export async function GET() {
       .from("projections")
       .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, blueprint_final_roth, total_tax_savings, heir_benefit, blueprint_years, created_at")
       .order("created_at", { ascending: false }),
+    supabase
+      .from("usage")
+      .select("scenario_runs, pdf_exports")
+      .eq("user_id", user.id)
+      .gte("period_end", now)
+      .order("period_start", { ascending: false })
+      .limit(1)
+      .single(),
   ]);
 
   if (clientsResult.error) {
@@ -117,5 +131,11 @@ export async function GET() {
     heir_benefit: p.heir_benefit,
   }));
 
-  return NextResponse.json({ clients, projections, pipeline });
+  const usage = {
+    scenarios: { used: usageResult.data?.scenario_runs ?? 0, limit: limits.scenarioRuns },
+    clients: { used: clients.length, limit: limits.clients },
+    exports: { used: usageResult.data?.pdf_exports ?? 0, limit: limits.pdfExports },
+  };
+
+  return NextResponse.json({ clients, projections, pipeline, usage });
 }

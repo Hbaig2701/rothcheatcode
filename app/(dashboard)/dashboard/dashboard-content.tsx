@@ -6,6 +6,7 @@ import { computeDashboardMetrics } from "@/lib/calculations/dashboard-metrics";
 import { formatWholeDollars } from "@/lib/calculations/utils/money";
 
 import { MetricCard } from "@/components/dashboard/metric-card";
+import { UsageCard } from "@/components/dashboard/usage-card";
 import { ValueDeliveredPanel } from "@/components/dashboard/value-delivered-panel";
 import { ProductMixChart } from "@/components/dashboard/product-mix-chart";
 import { RecentFormulasTable } from "@/components/dashboard/recent-formulas-table";
@@ -94,16 +95,11 @@ export function DashboardContent({ userName }: DashboardContentProps) {
         />
         <MetricCard
           title="Avg Wealth Increase"
-          value={`+${metrics.avgWealthIncrease}%`}
+          value={`${metrics.avgWealthIncrease >= 0 ? "+" : ""}${metrics.avgWealthIncrease}%`}
           subtitle="Across all clients"
           icon="trending-up"
         />
-        <MetricCard
-          title="Formulas This Month"
-          value={metrics.formulasThisMonth}
-          subtitle={`${metrics.formulasChangePercent >= 0 ? "↑" : "↓"} ${Math.abs(metrics.formulasChangePercent)}% vs last month`}
-          icon="file-text"
-        />
+        <UsageCard usage={metrics.usage} />
       </div>
 
       {/* Middle Row: Value Delivered + Product Mix */}
