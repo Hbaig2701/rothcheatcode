@@ -7,6 +7,10 @@ import path from 'path';
 import { createClient } from '@/lib/supabase/server';
 import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
+import { determineTaxBracket } from '@/lib/calculations/modules/federal-tax';
+import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getBracketCeiling } from '@/lib/data/federal-brackets-2026';
+import { getTaxExemptIncomeForYear } from '@/lib/calculations/utils/income';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -146,13 +150,6 @@ function formatPercent(rate: number): string {
   return `${rate}%`;
 }
 
-function formatAge(primaryAge: number, spouseAge?: number | null): string {
-  if (spouseAge !== null && spouseAge !== undefined && spouseAge > 0) {
-    return `${primaryAge} / ${spouseAge}`;
-  }
-  return primaryAge.toString();
-}
-
 function getIRMAATier(age: number, irmaaSurcharge: number): string {
   if (age < 65) return 'Pre-IRMAA';
   if (irmaaSurcharge === 0) return 'Tier 1';
@@ -163,27 +160,6 @@ function getIRMAATier(age: number, irmaaSurcharge: number): string {
   if (annualSurcharge < 5500) return 'Tier 4';
   if (annualSurcharge < 7000) return 'Tier 5';
   return 'Tier 6';
-}
-
-function determineBracket(taxableIncome: number, filingStatus: string): number {
-  const income = taxableIncome / 100;
-  if (filingStatus === 'married_filing_jointly') {
-    if (income <= 23850) return 10;
-    if (income <= 96950) return 12;
-    if (income <= 206700) return 22;
-    if (income <= 403550) return 24;
-    if (income <= 487450) return 32;
-    if (income <= 731200) return 35;
-    return 37;
-  } else {
-    if (income <= 11925) return 10;
-    if (income <= 48475) return 12;
-    if (income <= 103350) return 22;
-    if (income <= 201775) return 24;
-    if (income <= 243725) return 32;
-    if (income <= 609350) return 35;
-    return 37;
-  }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -210,13 +186,17 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const boyCombined = boyTraditional + boyRoth;
     const eoyCombined = year.traditionalBalance + year.rothBalance;
     const distIra = scenario === 'baseline' ? year.rmdAmount : year.conversionAmount;
-    const interest = eoyCombined - boyCombined + distIra;
+    // For baseline: RMDs leave the combined balance, so add back to get true interest
+    // For formula: conversions move within combined (Traditional→Roth), don't leave it
+    const interest = scenario === 'baseline'
+      ? eoyCombined - boyCombined + distIra
+      : eoyCombined - boyCombined;
     const grossIncome = year.otherIncome + distIra;
     const agi = grossIncome;
-    const deduction = 15000 * 100; // Simplified standard deduction
+    const deduction = getStandardDeduction(client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
     const taxableIncomeVal = Math.max(0, agi - deduction);
-    const bracket = determineBracket(taxableIncomeVal, client.filing_status);
-    const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
+    const bracket = determineTaxBracket(taxableIncomeVal, client.filing_status, year.year);
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year.year, client.tax_exempt_non_ssi ?? 0);
     const magi = agi + taxExemptNonSSI + year.ssIncome;
     const netIncomeVal =
       year.otherIncome +
@@ -528,33 +508,37 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const formulaData = processYearlyData(projection.blueprint_years, client, 'formula');
 
   // Get conversion details (years with conversions)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const conversionDetails: ConversionDetail[] = projection.blueprint_years
+  // Track original indices so prevYear lookup uses the correct year from the full array
+  const conversionYearsWithIndex = projection.blueprint_years
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter((year: any) => year.conversionAmount > 0)
+    .map((year: any, originalIndex: number) => ({ year, originalIndex }))
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((year: any, index: number) => {
-      const prevYear = index > 0 ? projection.blueprint_years[index - 1] : null;
-      const boyTraditional = prevYear
-        ? prevYear.traditionalBalance
-        : Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 10) / 100));
-      const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
-      const boyCombined = boyTraditional + boyRoth;
-      const eoyCombined = year.traditionalBalance + year.rothBalance;
-      const interest = eoyCombined - boyCombined + year.conversionAmount;
+    .filter(({ year }: { year: any }) => year.conversionAmount > 0);
 
-      return {
-        age: year.age,
-        existingTaxable: formatCurrency(year.otherIncome),
-        distribution: formatCurrency(year.conversionAmount),
-        bracketCeiling: formatCurrency((client.max_tax_rate ?? 24) * 100000), // Simplified bracket ceiling
-        taxes: formatCurrency(year.totalTax),
-        conversionAmount: formatCurrency(year.conversionAmount),
-        interest: formatCurrency(interest),
-        eoyIra: formatCurrency(year.traditionalBalance),
-        eoyRoth: formatCurrency(year.rothBalance),
-      };
-    });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const conversionDetails: ConversionDetail[] = conversionYearsWithIndex.map(({ year, originalIndex }: { year: any; originalIndex: number }) => {
+    const prevYear = originalIndex > 0 ? projection.blueprint_years[originalIndex - 1] : null;
+    const boyTraditional = prevYear
+      ? prevYear.traditionalBalance
+      : Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 10) / 100));
+    const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
+    const boyCombined = boyTraditional + boyRoth;
+    const eoyCombined = year.traditionalBalance + year.rothBalance;
+    // Conversions move within combined balance (Traditional→Roth), don't leave it
+    const interest = eoyCombined - boyCombined;
+
+    return {
+      age: year.age,
+      existingTaxable: formatCurrency(year.otherIncome),
+      distribution: formatCurrency(year.conversionAmount),
+      bracketCeiling: formatCurrency(getBracketCeiling(client.filing_status, client.max_tax_rate ?? 24, year.year)),
+      taxes: formatCurrency(year.totalTax),
+      conversionAmount: formatCurrency(year.conversionAmount),
+      interest: formatCurrency(interest),
+      eoyIra: formatCurrency(year.traditionalBalance),
+      eoyRoth: formatCurrency(year.rothBalance),
+    };
+  });
 
   const filingStatusMap: Record<string, string> = {
     single: 'Single',
