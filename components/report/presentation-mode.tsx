@@ -79,13 +79,13 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
     return giTotalNet + netLegacy - conversionTaxes - totalIRMAA;
   };
 
+  const rmdTreatment = client.rmd_treatment ?? 'reinvested';
   const calculateBaselineLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
-    const totalRMDs = sum(years, "rmdAmount");
-    const totalTaxes = sum(years, "federalTax") + sum(years, "stateTax");
-    const totalIRMAA = sum(years, "irmaaSurcharge");
-    const afterTaxDistributions = totalRMDs - totalTaxes;
-    const netLegacy = finalNetWorth * (1 - heirTaxRate);
-    return netLegacy + afterTaxDistributions - totalIRMAA;
+    const baseHeirTax = Math.round(projection.baseline_final_traditional * heirTaxRate);
+    const netLegacy = finalNetWorth - baseHeirTax;
+    const lastYear = years[years.length - 1];
+    const cumulativeDistributions = lastYear?.cumulativeDistributions ?? 0;
+    return rmdTreatment === 'spent' ? netLegacy + cumulativeDistributions : netLegacy;
   };
 
   const baseLifetime = calculateBaselineLifetimeWealth(

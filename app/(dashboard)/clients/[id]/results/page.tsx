@@ -94,24 +94,22 @@ export default function ResultsPage({ params }: ResultsPageProps) {
       return (projection.gi_percent_improvement ?? 0) / 100;
     }
 
-    // For Growth products, calculate the traditional way
-    const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
-      years.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
+    // For Growth products, use same logic as growth-report-dashboard.tsx
+    const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
+    const rmdTreatment = client.rmd_treatment ?? 'reinvested';
 
-    // Calculate baseline lifetime wealth (RMDs + legacy)
-    const heirTaxRate = 0.40;
-    const totalRMDs = sum(projection.baseline_years, 'rmdAmount');
-    const totalBaselineTaxes = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
-    const totalBaselineIRMAA = sum(projection.baseline_years, 'irmaaSurcharge');
-    const afterTaxDistributions = totalRMDs - totalBaselineTaxes;
-    const netBaselineLegacy = projection.baseline_final_net_worth * (1 - heirTaxRate);
-    const baseLifetime = netBaselineLegacy + afterTaxDistributions - totalBaselineIRMAA;
+    // Baseline: heir tax only on traditional portion
+    const baseHeirTax = Math.round(projection.baseline_final_traditional * heirTaxRate);
+    const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
+    const lastBaselineYear = projection.baseline_years[projection.baseline_years.length - 1];
+    const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
+    const baseLifetime = rmdTreatment === 'spent'
+      ? baseNetLegacy + baseCumulativeDistributions
+      : baseNetLegacy;
 
-    // Growth strategy: net legacy (after heir taxes) minus conversion taxes minus IRMAA
-    const totalTaxes = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
-    const totalIRMAA = sum(projection.blueprint_years, 'irmaaSurcharge');
-    const netLegacy = Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) + projection.blueprint_final_roth;
-    const blueLifetime = netLegacy - totalTaxes - totalIRMAA;
+    // Strategy: heir tax only on remaining traditional, taxes already deducted in engine
+    const blueHeirTax = Math.round(projection.blueprint_final_traditional * heirTaxRate);
+    const blueLifetime = projection.blueprint_final_net_worth - blueHeirTax;
 
     const diff = blueLifetime - baseLifetime;
     return baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;

@@ -352,31 +352,43 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     years.reduce((acc: number, curr: any) => acc + (Number(curr[key]) || 0), 0);
 
-  const heirTaxRate = 0.40;
+  // Use client's heir tax rate (matches growth-report-dashboard.tsx)
+  const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
+  const rmdTreatment = client.rmd_treatment ?? 'reinvested';
 
-  // Baseline metrics
+  // Baseline metrics (matches growth-report-dashboard.tsx lines 48-70)
   const baseRMDs = sum(projection.baseline_years, 'rmdAmount');
   const baseTax = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
   const baseIrmaa = sum(projection.baseline_years, 'irmaaSurcharge');
-  const baseFinalBalance = projection.baseline_final_net_worth;
-  const baseAfterTaxDist = baseRMDs - baseTax;
-  const baseNetLegacy = baseFinalBalance * (1 - heirTaxRate);
-  const baseLegacyTax = baseFinalBalance * heirTaxRate;
-  const baseLifetimeWealth = baseNetLegacy + baseAfterTaxDist - baseIrmaa;
-  const baseTotalCosts = baseTax + baseIrmaa + baseLegacyTax;
+  const baseFinalTraditional = projection.baseline_final_traditional;
+  // Heir tax only applies to traditional IRA portion (Roth and taxable are already taxed)
+  const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
+  // Net legacy = final net worth (includes taxable account) minus heir taxes on traditional
+  const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
+  // Get cumulative after-tax distributions for 'spent' scenario
+  const lastBaselineYear = projection.baseline_years[projection.baseline_years.length - 1];
+  const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
+  // Lifetime wealth depends on RMD treatment
+  const baseLifetimeWealth = rmdTreatment === 'spent'
+    ? baseNetLegacy + baseCumulativeDistributions
+    : baseNetLegacy;
+  const baseTotalTaxes = baseTax + baseIrmaa + baseHeirTax;
 
-  // Formula metrics
+  // Formula metrics (matches growth-report-dashboard.tsx lines 73-84)
   const blueConversions = sum(projection.blueprint_years, 'conversionAmount');
   const blueTax = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
   const blueIrmaa = sum(projection.blueprint_years, 'irmaaSurcharge');
-  const blueFinalBalance = projection.blueprint_final_net_worth;
-  const blueNetLegacy = blueFinalBalance;
-  const blueLegacyTax = 0;
-  const blueLifetimeWealth = blueFinalBalance - blueTax - blueIrmaa;
-  const blueTotalCosts = blueTax + blueIrmaa + blueLegacyTax;
+  const blueFinalTraditional = projection.blueprint_final_traditional;
+  // Heir tax only applies to remaining traditional IRA (if any)
+  const blueHeirTax = Math.round(blueFinalTraditional * heirTaxRate);
+  // Net legacy = final net worth minus heir taxes on traditional
+  const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
+  // Lifetime wealth = net legacy (conversion taxes/IRMAA already deducted from taxable in engine)
+  const blueLifetimeWealth = blueNetLegacy;
+  const blueTotalTaxes = blueTax + blueIrmaa + blueHeirTax;
 
   const wealthIncrease = baseLifetimeWealth > 0
-    ? ((blueLifetimeWealth - baseLifetimeWealth) / baseLifetimeWealth) * 100
+    ? ((blueLifetimeWealth - baseLifetimeWealth) / Math.abs(baseLifetimeWealth)) * 100
     : 0;
 
   // Process yearly data
@@ -444,12 +456,12 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
       totalConversions: formatCurrency(0),
       taxOnDistributions: formatCurrency(baseTax),
       taxOnConversions: formatCurrency(0),
-      afterTaxDistributions: formatCurrency(baseAfterTaxDist),
-      legacyGross: formatCurrency(baseFinalBalance),
-      legacyTax: formatCurrency(baseLegacyTax),
+      afterTaxDistributions: formatCurrency(rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseTax),
+      legacyGross: formatCurrency(projection.baseline_final_net_worth),
+      legacyTax: formatCurrency(baseHeirTax),
       legacyNet: formatCurrency(baseNetLegacy),
-      totalDist: formatCurrency(baseRMDs + baseFinalBalance),
-      totalCosts: formatCurrency(baseTotalCosts),
+      totalDist: formatCurrency(baseRMDs + projection.baseline_final_net_worth),
+      totalCosts: formatCurrency(baseTotalTaxes),
       lifetimeWealth: formatCurrency(baseLifetimeWealth),
       ...baselineData,
     },
@@ -459,11 +471,11 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
       taxOnDistributions: formatCurrency(0),
       taxOnConversions: formatCurrency(blueTax),
       afterTaxDistributions: formatCurrency(0),
-      legacyGross: formatCurrency(blueFinalBalance),
-      legacyTax: formatCurrency(blueLegacyTax),
+      legacyGross: formatCurrency(projection.blueprint_final_net_worth),
+      legacyTax: formatCurrency(blueHeirTax),
       legacyNet: formatCurrency(blueNetLegacy),
-      totalDist: formatCurrency(blueFinalBalance),
-      totalCosts: formatCurrency(blueTotalCosts),
+      totalDist: formatCurrency(projection.blueprint_final_net_worth),
+      totalCosts: formatCurrency(blueTotalTaxes),
       lifetimeWealth: formatCurrency(blueLifetimeWealth),
       ...formulaData,
     },
@@ -471,12 +483,12 @@ function prepareTemplateData(reportData: any, charts: { lifetimeWealth?: string;
       // Raw values for use with formatDiff helper (cents)
       distributions: (blueConversions - baseRMDs) / 100,
       taxes: (blueTax - baseTax) / 100,
-      afterTax: (0 - baseAfterTaxDist) / 100,
-      legacyGross: (blueFinalBalance - baseFinalBalance) / 100,
-      legacyTax: (blueLegacyTax - baseLegacyTax) / 100,
+      afterTax: (0 - (rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseTax)) / 100,
+      legacyGross: (projection.blueprint_final_net_worth - projection.baseline_final_net_worth) / 100,
+      legacyTax: (blueHeirTax - baseHeirTax) / 100,
       legacyNet: (blueNetLegacy - baseNetLegacy) / 100,
-      totalDist: (blueFinalBalance - (baseRMDs + baseFinalBalance)) / 100,
-      totalCosts: (blueTotalCosts - baseTotalCosts) / 100,
+      totalDist: (projection.blueprint_final_net_worth - (baseRMDs + projection.baseline_final_net_worth)) / 100,
+      totalCosts: (blueTotalTaxes - baseTotalTaxes) / 100,
     },
     conversionDetails,
     branding,
@@ -586,25 +598,50 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
   const payoutPercent = projection.gi_payout_percent || 0;
   const calculatedIncome = Math.round(finalIncomeBase * (payoutPercent / 100));
 
-  // Income calculations
+  // Income calculations (matches gi-report-dashboard.tsx)
   const strategyAnnualIncome = projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0;
   const baselineAnnualIncomeGross = projection.gi_baseline_annual_income_gross || 0;
   const baselineAnnualIncomeNet = projection.gi_baseline_annual_income_net || 0;
-  const baselineAnnualTax = Math.round(baselineAnnualIncomeGross * flatTaxRate);
+  const baselineAnnualTax = projection.gi_baseline_annual_tax || Math.round(baselineAnnualIncomeGross * flatTaxRate);
   const annualAdvantage = strategyAnnualIncome - baselineAnnualIncomeNet;
 
   const incomeStartAge = projection.gi_income_start_age || client.income_start_age || 70;
   const endAge = client.end_age || 100;
-  const incomeYears = endAge - incomeStartAge + 1;
+
+  // Calculate baseline lifetime income from yearly data (matches gi-report-dashboard.tsx lines 80-93)
+  let baselineTotalNetIncome = 0;
+  baselineGIYearlyData.forEach((row: any) => {
+    if (row.phase === 'income') {
+      const grossIncome = row.guaranteedIncomeGross || 0;
+      const taxAtFlatRate = Math.round(grossIncome * flatTaxRate);
+      baselineTotalNetIncome += grossIncome - taxAtFlatRate;
+    }
+  });
+  // Fallback if yearly data not available
+  if (baselineTotalNetIncome === 0 && projection.gi_baseline_annual_income_net) {
+    const incomeYears = endAge - incomeStartAge;
+    baselineTotalNetIncome = projection.gi_baseline_annual_income_net * incomeYears;
+  }
 
   // Lifetime income
-  const strategyLifetimeIncome = projection.gi_total_net_paid || (strategyAnnualIncome * incomeYears);
-  const baselineLifetimeIncome = baselineAnnualIncomeNet * incomeYears;
+  const strategyLifetimeIncome = projection.gi_total_net_paid || 0;
+  const baselineLifetimeIncome = baselineTotalNetIncome;
   const lifetimeIncomeAdvantage = strategyLifetimeIncome - baselineLifetimeIncome;
 
   // Taxes
   const conversionTax = projection.gi_total_conversion_tax || 0;
-  const baselineTotalTaxes = baselineAnnualTax * incomeYears;
+  // Sum baseline taxes from yearly data for accuracy
+  let baselineTotalTaxes = 0;
+  baselineGIYearlyData.forEach((row: any) => {
+    if (row.phase === 'income') {
+      const grossIncome = row.guaranteedIncomeGross || 0;
+      baselineTotalTaxes += Math.round(grossIncome * flatTaxRate);
+    }
+  });
+  if (baselineTotalTaxes === 0) {
+    const incomeYears = endAge - incomeStartAge;
+    baselineTotalTaxes = Math.round(baselineAnnualIncomeGross * flatTaxRate) * incomeYears;
+  }
   const taxSavings = baselineTotalTaxes - conversionTax;
 
   // Tax-free wealth created
