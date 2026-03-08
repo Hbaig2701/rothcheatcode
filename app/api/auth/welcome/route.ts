@@ -3,7 +3,7 @@ import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
-  const { email, password, sessionId } = await request.json();
+  const { email, password, sessionId, firstName, lastName } = await request.json();
 
   if (!email || !password || !sessionId) {
     return NextResponse.json(
@@ -96,6 +96,15 @@ export async function POST(request: NextRequest) {
       scenario_runs: 0,
       pdf_exports: 0,
     });
+
+    // Save first/last name to user_settings
+    if (firstName || lastName) {
+      await admin.from("user_settings").upsert({
+        user_id: authData.user.id,
+        first_name: firstName || null,
+        last_name: lastName || null,
+      }, { onConflict: "user_id" });
+    }
 
     return NextResponse.json({
       success: true,

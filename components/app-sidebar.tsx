@@ -17,11 +17,7 @@ const navItems = [
   { title: 'Clients', href: '/clients', icon: Users },
 ]
 
-export function AppSidebar({ user }: { user: User }) {
-  // Extract display name from user metadata or email
-  const displayName = user.user_metadata?.full_name
-    ?? user.email?.split('@')[0]
-    ?? 'User'
+export function AppSidebar({ user, displayName }: { user: User; displayName: string }) {
 
   return (
     <Sidebar collapsible="none" className="border-r border-[rgba(255,255,255,0.07)] bg-[rgba(0,0,0,0.3)]">

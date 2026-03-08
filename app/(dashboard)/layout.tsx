@@ -55,12 +55,24 @@ export default async function DashboardLayout({
     }
   }
 
+  // Fetch user's display name from user_settings
+  const { data: userSettings } = await supabase
+    .from('user_settings')
+    .select('first_name, last_name')
+    .eq('user_id', user.id)
+    .single()
+
+  const displayName = [userSettings?.first_name, userSettings?.last_name].filter(Boolean).join(' ')
+    || user.user_metadata?.full_name
+    || user.email?.split('@')[0]
+    || 'User'
+
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get('sidebar_state')?.value !== 'false'
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
-      <AppSidebar user={user} />
+      <AppSidebar user={user} displayName={displayName} />
       <main className="flex-1 flex flex-col min-h-screen bg-[#0c0c0c]">
         <div className="flex-1">
           {children}
