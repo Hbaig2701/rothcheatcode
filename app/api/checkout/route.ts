@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
       allow_promotion_codes: true,
       billing_address_collection: "required",
-      customer_creation: "always",
       metadata: { plan, cycle },
     });
 
