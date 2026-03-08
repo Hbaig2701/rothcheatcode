@@ -277,22 +277,37 @@ export interface GIIncomeChartPoint {
  */
 export function transformToGIIncomeChartData(projection: Projection): GIIncomeChartPoint[] {
   const giYearlyData = projection.gi_yearly_data || [];
+  const baselineGIYearlyData = projection.gi_baseline_yearly_data || [];
 
-  // Use the comparison metrics for baseline (flat rate calculation)
-  // This matches the hero section: "vs Traditional GI: $X gross → $Y after tax"
-  const baselineAnnualNet = projection.gi_baseline_annual_income_net || 0;
-  const strategyAnnualNet = projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0;
+  // Flat tax rate for baseline comparison (matches hero section display)
+  const flatTaxRate = projection.gi_baseline_annual_tax && projection.gi_baseline_annual_income_gross
+    ? projection.gi_baseline_annual_tax / projection.gi_baseline_annual_income_gross
+    : 0.24; // Fallback to 24%
+
+  // Fallback fixed amounts for older projections without yearly data
+  const baselineAnnualNetFallback = projection.gi_baseline_annual_income_net || 0;
+  const strategyAnnualNetFallback = projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0;
 
   let cumulativeStrategy = 0;
   let cumulativeBaseline = 0;
 
-  return giYearlyData.map((giYear) => {
-    // Track cumulative income during income phase
+  return giYearlyData.map((giYear, i) => {
+    let strategyAnnual = 0;
+    let baselineAnnual = 0;
+
     if (giYear.phase === 'income') {
-      // Strategy: tax-free income (same as gross)
-      cumulativeStrategy += strategyAnnualNet;
-      // Baseline: after flat-rate tax (matches hero/cards)
-      cumulativeBaseline += baselineAnnualNet;
+      // Strategy: use actual yearly GI amount (tax-free, handles increasing payouts)
+      strategyAnnual = giYear.guaranteedIncomeGross || strategyAnnualNetFallback;
+      cumulativeStrategy += strategyAnnual;
+
+      // Baseline: use actual yearly baseline GI gross with flat tax rate
+      const baselineYear = baselineGIYearlyData[i];
+      if (baselineYear && baselineYear.phase === 'income' && baselineYear.guaranteedIncomeGross > 0) {
+        baselineAnnual = baselineYear.guaranteedIncomeGross - Math.round(baselineYear.guaranteedIncomeGross * flatTaxRate);
+      } else {
+        baselineAnnual = baselineAnnualNetFallback;
+      }
+      cumulativeBaseline += baselineAnnual;
     }
 
     return {
@@ -300,8 +315,8 @@ export function transformToGIIncomeChartData(projection: Projection): GIIncomeCh
       year: giYear.year,
       strategyNet: cumulativeStrategy,
       baselineNet: cumulativeBaseline,
-      strategyAnnual: giYear.phase === 'income' ? strategyAnnualNet : 0,
-      baselineAnnual: giYear.phase === 'income' ? baselineAnnualNet : 0,
+      strategyAnnual,
+      baselineAnnual,
       phase: giYear.phase as 'conversion' | 'deferral' | 'income',
     };
   });

@@ -33,7 +33,7 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
     let blueConversionTax = 0;
     projection.blueprint_years.forEach((year, i) => {
         const giYear = giYearlyData[i];
-        if (giYear && giYear.phase === 'deferral') {
+        if (giYear && giYear.phase === 'conversion') {
             blueConversionTax += (year.federalTax + year.stateTax) || 0;
         }
     });

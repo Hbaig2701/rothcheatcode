@@ -94,10 +94,10 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
 
   // Heir tax only applies to traditional IRA portion (the GI account value)
   const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
-  // Net legacy = final account value minus heir taxes
+  // Net legacy = final net worth (includes taxable where income accumulates) minus heir taxes
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
-  // Lifetime wealth = net legacy + lifetime income received
-  const baseLifetimeWealth = baseNetLegacy + baselineTotalNetIncome;
+  // Lifetime wealth = net legacy (income already accumulated in taxableBalance within net_worth)
+  const baseLifetimeWealth = baseNetLegacy;
 
   // Formula (GI) calculations - use data from the CONVERSION phase
   let blueConversionTax = 0;

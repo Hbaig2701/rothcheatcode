@@ -1277,10 +1277,13 @@ function calculateComparisonMetrics(
   // Annual advantage: Strategy (tax-free) vs Baseline (taxed at flat rate)
   const annualAdvantage = strategy.annualIncomeNet - baselineNetFlat;
 
-  // Lifetime calculations using flat rate
-  // Use client's end_age for income years calculation
+  // Lifetime calculations - use actual simulated totals for accuracy
+  // (handles increasing payouts where income grows each year)
   const incomeYears = endAge - baseline.incomeStartAge + 1;
-  const lifetimeAdvantage = annualAdvantage * incomeYears;
+  // Baseline lifetime net using flat tax rate on actual gross totals
+  const baselineLifetimeNetFlat = Math.round(baseline.lifetimeIncomeGross * (1 - flatTaxRate));
+  // Lifetime advantage = strategy net (tax-free) minus baseline net (flat-taxed)
+  const lifetimeAdvantage = strategy.lifetimeIncomeNet - baselineLifetimeNetFlat;
 
   // Break-even years = Conversion Tax / Annual Advantage
   const breakEvenYears = annualAdvantage > 0
@@ -1291,8 +1294,7 @@ function calculateComparisonMetrics(
     ? strategy.incomeStartAge + breakEvenYears
     : null;
 
-  // Use flat-rate baseline net for percentage improvement
-  const baselineLifetimeNetFlat = baselineNetFlat * incomeYears;
+  // Percentage improvement
   const percentImprovement = baselineLifetimeNetFlat > 0
     ? (lifetimeAdvantage / baselineLifetimeNetFlat) * 100
     : 0;
@@ -1309,7 +1311,7 @@ function calculateComparisonMetrics(
     // Baseline (Traditional GI) - using flat tax rate for comparison display
     baselineAnnualIncomeGross: baselineGross,
     baselineAnnualIncomeNet: baselineNetFlat,
-    baselineLifetimeIncomeGross: baselineGross * incomeYears,
+    baselineLifetimeIncomeGross: baseline.lifetimeIncomeGross,
     baselineLifetimeIncomeNet: baselineLifetimeNetFlat,
     baselineAnnualTax: baselineAnnualTaxFlat,
     baselineIncomeBase: baseline.incomeBaseAtIncomeAge,
