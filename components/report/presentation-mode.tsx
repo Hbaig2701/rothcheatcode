@@ -224,7 +224,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
             {
               label: "Net Improvement",
               value: toUSD(diff),
-              sub: `+${Math.round(percentChange * 100)}% over do-nothing`,
+              sub: `${percentChange >= 0 ? "+" : ""}${Math.round(percentChange * 100)}% over do-nothing`,
             },
             {
               label: "Legacy to Heirs",
@@ -295,7 +295,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
             </div>
           </div>
           <p className="text-4xl font-mono font-semibold text-gold">
-            +{Math.round(percentChange * 100)}%
+            {percentChange >= 0 ? "+" : ""}{Math.round(percentChange * 100)}%
           </p>
         </div>
 

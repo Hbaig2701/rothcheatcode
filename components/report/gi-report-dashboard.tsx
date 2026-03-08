@@ -436,8 +436,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
               <p className="text-sm text-[rgba(255,255,255,0.5)]">
                 Lifetime advantage over Traditional GI
                 {projection.gi_percent_improvement && (
-                  <span className="text-[#4ade80] ml-2">
-                    (+{projection.gi_percent_improvement.toFixed(1)}% improvement)
+                  <span className={`${projection.gi_percent_improvement >= 0 ? "text-[#4ade80]" : "text-[#f87171]"} ml-2`}>
+                    ({projection.gi_percent_improvement >= 0 ? "+" : ""}{projection.gi_percent_improvement.toFixed(1)}% improvement)
                   </span>
                 )}
               </p>

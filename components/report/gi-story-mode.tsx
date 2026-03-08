@@ -210,7 +210,7 @@ function generateGIStory(client: Client, projection: Projection): StoryEntry[] {
             metrics: [
               { label: "Starting Base", value: toUSD(startingIncomeBase) },
               { label: "Final Base", value: toUSD(row.incomeBase || 0) },
-              { label: "Growth", value: `+${growthPct}%` },
+              { label: "Growth", value: `${growth >= 0 ? "+" : ""}${growthPct}%` },
             ],
             runningTotals,
           });
@@ -225,7 +225,7 @@ function generateGIStory(client: Client, projection: Projection): StoryEntry[] {
             sentiment: "positive",
             metrics: [
               { label: "Income Base", value: toUSD(row.incomeBase || 0) },
-              { label: "Growth", value: `+${toUSD(growth)}` },
+              { label: "Growth", value: `${growth >= 0 ? "+" : ""}${toUSD(growth)}` },
               { label: "Years Left", value: `${deferralYears - deferralYearCount}` },
             ],
             runningTotals,
@@ -247,7 +247,7 @@ function generateGIStory(client: Client, projection: Projection): StoryEntry[] {
         metrics: [
           { label: "Your Income", value: toUSD(strategyIncome) },
           { label: "Traditional Net", value: toUSD(baselineNetIncome) },
-          { label: "Annual Advantage", value: `+${toUSD(annualAdvantage)}` },
+          { label: "Annual Advantage", value: `${annualAdvantage >= 0 ? "+" : ""}${toUSD(annualAdvantage)}` },
         ],
         comparison: `You're keeping ${toUSD(annualAdvantage)} more every year because Roth income is tax-free.`,
         runningTotals,
@@ -310,7 +310,7 @@ function generateGIStory(client: Client, projection: Projection): StoryEntry[] {
         metrics: [
           { label: "Your Total", value: toUSD(cumulativeIncome) },
           { label: "Traditional", value: toUSD(baselineCumulative) },
-          { label: "Advantage", value: `+${toUSD(advantage)}` },
+          { label: "Advantage", value: `${advantage >= 0 ? "+" : ""}${toUSD(advantage)}` },
         ],
         runningTotals,
       });
@@ -333,7 +333,7 @@ function generateGIStory(client: Client, projection: Projection): StoryEntry[] {
     metrics: [
       { label: "Your Lifetime Income", value: toUSD(cumulativeIncome) },
       { label: "Traditional Would Be", value: toUSD(baselineTotalNet) },
-      { label: "Extra Wealth", value: `+${toUSD(totalAdvantage)}` },
+      { label: "Extra Wealth", value: `${totalAdvantage >= 0 ? "+" : ""}${toUSD(totalAdvantage)}` },
     ],
     runningTotals: {
       totalConverted: toUSD(cumulativeConverted),
