@@ -25,10 +25,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: profile.stripe_customer_id,
-    return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
-  });
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: profile.stripe_customer_id,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
+    });
 
-  return NextResponse.redirect(session.url);
+    return NextResponse.json({ url: session.url });
+  } catch (error) {
+    console.error("Portal error:", error);
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
 }

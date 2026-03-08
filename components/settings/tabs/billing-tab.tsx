@@ -76,12 +76,19 @@ export function BillingTab() {
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);
-    // POST to billing portal — it returns a redirect
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = "/api/billing/portal";
-    document.body.appendChild(form);
-    form.submit();
+    try {
+      const res = await fetch("/api/billing/portal", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Failed to open billing portal");
+        setPortalLoading(false);
+      }
+    } catch {
+      alert("Failed to open billing portal");
+      setPortalLoading(false);
+    }
   };
 
   const handleUpgrade = async () => {
