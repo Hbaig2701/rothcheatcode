@@ -48,7 +48,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       blueprint_type: client?.blueprint_type ?? (ud.blueprint_type as ClientFormData["blueprint_type"]) ?? "fia",
 
       // Section 1: Client Data
-      filing_status: client?.filing_status ?? "married_filing_jointly",
+      filing_status: client?.filing_status ?? "single",
       name: client?.name ?? "",
       age: client?.age ?? 62,
       spouse_name: client?.spouse_name ?? "",
