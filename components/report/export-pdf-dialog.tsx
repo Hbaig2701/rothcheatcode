@@ -233,7 +233,7 @@ export function ExportPdfDialog({
                     try {
                       const res = await fetch("/api/billing/upgrade");
                       const data = await res.json();
-                      if (data.url) window.location.href = data.url;
+                      if (data.url) window.open(data.url, "_blank");
                     } catch { /* ignore */ }
                   }}
                 >

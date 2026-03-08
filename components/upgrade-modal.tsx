@@ -35,7 +35,8 @@ export function UpgradeModal({
       const res = await fetch("/api/billing/upgrade");
       const data = await res.json();
       if (data.url) {
-        window.location.href = data.url;
+        window.open(data.url, "_blank");
+        setLoading(false);
       }
     } catch {
       setLoading(false);

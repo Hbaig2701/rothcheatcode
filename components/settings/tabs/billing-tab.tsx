@@ -80,7 +80,8 @@ export function BillingTab() {
       const res = await fetch("/api/billing/portal", { method: "POST" });
       const data = await res.json();
       if (data.url) {
-        window.location.href = data.url;
+        window.open(data.url, "_blank");
+        setPortalLoading(false);
       } else {
         alert(data.error || "Failed to open billing portal");
         setPortalLoading(false);
@@ -97,7 +98,8 @@ export function BillingTab() {
       const res = await fetch("/api/billing/upgrade");
       const data = await res.json();
       if (data.url) {
-        window.location.href = data.url;
+        window.open(data.url, "_blank");
+        setUpgradeLoading(false);
       } else {
         alert(data.error || "Failed to start upgrade");
         setUpgradeLoading(false);
