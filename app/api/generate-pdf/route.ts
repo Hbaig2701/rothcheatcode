@@ -125,7 +125,7 @@ interface TemplateData {
   reportDate: string;
   legacyChartSVG: string;
   baseline: ScenarioData;
-  formula: ScenarioData;
+  strategy: ScenarioData;
   diff: {
     distributions: number;
     taxes: number;
@@ -580,7 +580,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       lifetimeWealth: formatCurrency(baseLifetimeWealth),
       ...baselineData,
     },
-    formula: {
+    strategy: {
       totalDistributions: formatCurrency(0),
       totalConversions: formatCurrency(blueConversions),
       taxOnDistributions: formatCurrency(0),

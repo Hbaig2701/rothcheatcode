@@ -397,25 +397,25 @@
         <tr>
           <th>Distributions</th>
           <th>Baseline Trajectory</th>
-          <th>Formula Trajectory</th>
+          <th>Strategy Trajectory</th>
           <th>Difference</th>
         </tr>
         <tr>
           <td>RMDs / Conversions</td>
           <td>{{baseline.totalDistributions}}</td>
-          <td>{{formula.totalConversions}}</td>
+          <td>{{strategy.totalConversions}}</td>
           <td>{{{formatDiff diff.distributions false}}}</td>
         </tr>
         <tr>
           <td>Tax on Distributions / Conversions</td>
           <td>{{baseline.taxOnDistributions}}</td>
-          <td>{{formula.taxOnConversions}}</td>
+          <td>{{strategy.taxOnConversions}}</td>
           <td>{{{formatDiff diff.taxes true}}}</td>
         </tr>
         <tr>
           <td>After-Tax Distributions</td>
           <td>{{baseline.afterTaxDistributions}}</td>
-          <td>{{formula.afterTaxDistributions}}</td>
+          <td>{{strategy.afterTaxDistributions}}</td>
           <td>{{{formatDiff diff.afterTax false}}}</td>
         </tr>
       </table>
@@ -424,25 +424,25 @@
         <tr>
           <th>Heirs</th>
           <th>Baseline Trajectory</th>
-          <th>Formula Trajectory</th>
+          <th>Strategy Trajectory</th>
           <th>Difference</th>
         </tr>
         <tr>
           <td>Legacy Distribution</td>
           <td>{{baseline.legacyGross}}</td>
-          <td>{{formula.legacyGross}}</td>
+          <td>{{strategy.legacyGross}}</td>
           <td>{{{formatDiff diff.legacyGross false}}}</td>
         </tr>
         <tr>
           <td>Tax on Legacy Distribution</td>
           <td>{{baseline.legacyTax}}</td>
-          <td>{{formula.legacyTax}}</td>
+          <td>{{strategy.legacyTax}}</td>
           <td>{{{formatDiff diff.legacyTax true}}}</td>
         </tr>
         <tr>
           <td>Net Legacy Distribution</td>
           <td>{{baseline.legacyNet}}</td>
-          <td>{{formula.legacyNet}}</td>
+          <td>{{strategy.legacyNet}}</td>
           <td>{{{formatDiff diff.legacyNet false}}}</td>
         </tr>
       </table>
@@ -451,25 +451,25 @@
         <tr>
           <th>Wealth</th>
           <th>Baseline Trajectory</th>
-          <th>Formula Trajectory</th>
+          <th>Strategy Trajectory</th>
           <th>Difference</th>
         </tr>
         <tr>
           <td>Total Distributions + Legacy</td>
           <td>{{baseline.totalDist}}</td>
-          <td>{{formula.totalDist}}</td>
+          <td>{{strategy.totalDist}}</td>
           <td>{{{formatDiff diff.totalDist false}}}</td>
         </tr>
         <tr>
           <td>Total Costs (Taxes + IRMAA)</td>
           <td>{{baseline.totalCosts}}</td>
-          <td>{{formula.totalCosts}}</td>
+          <td>{{strategy.totalCosts}}</td>
           <td>{{{formatDiff diff.totalCosts true}}}</td>
         </tr>
         <tr class="highlight-row">
           <td><strong>Lifetime Wealth</strong></td>
           <td><strong>{{baseline.lifetimeWealth}}</strong></td>
-          <td><strong>{{formula.lifetimeWealth}}</strong></td>
+          <td><strong>{{strategy.lifetimeWealth}}</strong></td>
           <td><strong class="diff-positive">{{wealthIncreasePercent}}%</strong></td>
         </tr>
       </table>
@@ -573,10 +573,10 @@
     </table>
   </div>
 
-  <!-- Formula Account Overview -->
+  <!-- Strategy Account Overview -->
   <div class="page">
-    <div class="page-header">Formula - Account Overview</div>
-    <h1 class="section-title">Formula Year-over-Year Values</h1>
+    <div class="page-header">Strategy - Account Overview</div>
+    <h1 class="section-title">Strategy Year-over-Year Values</h1>
     <table class="data-table">
       <tr>
         <th>Year</th>
@@ -590,7 +590,7 @@
         <th>Interest</th>
         <th>E.O.Y. (Combined)</th>
       </tr>
-      {{#each formula.accountValues}}
+      {{#each strategy.accountValues}}
       <tr>
         <td>{{this.year}}</td>
         <td>{{this.age}}</td>
@@ -607,10 +607,10 @@
     </table>
   </div>
 
-  <!-- Formula Taxable Income -->
+  <!-- Strategy Taxable Income -->
   <div class="page">
-    <div class="page-header">Formula - Taxable Income</div>
-    <h1 class="section-title">Formula Taxable Income</h1>
+    <div class="page-header">Strategy - Taxable Income</div>
+    <h1 class="section-title">Strategy Taxable Income</h1>
     <table class="data-table">
       <tr>
         <th>Year</th>
@@ -623,7 +623,7 @@
         <th>Deduc.</th>
         <th>Income (Taxable)</th>
       </tr>
-      {{#each formula.taxableIncome}}
+      {{#each strategy.taxableIncome}}
       <tr>
         <td>{{this.year}}</td>
         <td>{{this.age}}</td>
@@ -667,12 +667,11 @@
       </div>
       {{/if}}
     </div>
+    {{#if showPoweredBy}}
+    <div style="text-align: center; padding: 1.5rem 0; margin-top: 2rem; border-top: 1px solid #e5e7eb; page-break-inside: avoid;">
+      <p style="font-size: 0.75rem; color: #9ca3af; margin: 0;">Powered by <strong>Retirement Expert</strong></p>
+    </div>
+    {{/if}}
   </div>
-
-  {{#if showPoweredBy}}
-  <div style="text-align: center; padding: 1.5rem 0; margin-top: 2rem; border-top: 1px solid #e5e7eb; page-break-inside: avoid;">
-    <p style="font-size: 0.75rem; color: #9ca3af; margin: 0;">Powered by <strong>Retirement Expert</strong></p>
-  </div>
-  {{/if}}
 </body>
 </html>
