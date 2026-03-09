@@ -26,7 +26,7 @@ export default function SubscriptionInactivePage() {
               </Button>
             </form>
 
-            <a href="/pricing">
+            <a href="/plans">
               <Button variant="outline" className="w-full">
                 View Plans
               </Button>

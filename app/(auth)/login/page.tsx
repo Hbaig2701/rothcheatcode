@@ -94,7 +94,7 @@ export default async function LoginPage({
 
           <p className="text-center text-sm">
             Don&apos;t have an account?{' '}
-            <Link href="/pricing" className="underline">View pricing</Link>
+            <Link href="/plans" className="underline">View plans</Link>
           </p>
         </CardContent>
       </Card>

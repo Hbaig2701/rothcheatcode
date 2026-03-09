@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const cycle = searchParams.get("cycle") as "monthly" | "annual";
 
   if (!plan || !cycle || !["starter", "pro"].includes(plan) || !["monthly", "annual"].includes(cycle)) {
-    return NextResponse.redirect(new URL("/pricing", request.url));
+    return NextResponse.redirect(new URL("/plans", request.url));
   }
 
   try {
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/welcome?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
       allow_promotion_codes: true,
       billing_address_collection: "required",
       metadata: { plan, cycle },
