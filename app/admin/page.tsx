@@ -1,9 +1,12 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { ChevronUp, ChevronDown } from 'lucide-react'
+import { BulkActionsBar } from './_components/bulk-actions-bar'
+import { AnalyticsSection } from './_components/analytics-section'
+import { CostsSection } from './_components/costs-section'
 
 interface Stats {
   totalAdvisors: number
@@ -50,6 +53,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [sortKey, setSortKey] = useState<SortKey>('createdAt')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
 
   useEffect(() => {
     Promise.all([
@@ -68,6 +73,46 @@ export default function AdminDashboard() {
       .then(d => setActivity(d.data ?? []))
       .catch(console.error)
   }, [activityType, activityRange])
+
+  const refetchAdvisors = useCallback(() => {
+    fetch('/api/admin/advisors').then(r => r.json()).then(a => setAdvisors(a.advisors ?? [])).catch(console.error)
+    fetch('/api/admin/stats').then(r => r.json()).then(s => setStats(s)).catch(console.error)
+  }, [])
+
+  const advisorEmails = useMemo(() => {
+    const map = new Map<string, string>()
+    advisors.forEach(a => map.set(a.id, a.email))
+    return map
+  }, [advisors])
+
+  const handleBulkAction = useCallback(async (action: 'delete' | 'deactivate') => {
+    setBulkLoading(true)
+    try {
+      const res = await fetch('/api/admin/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, advisorIds: Array.from(selectedIds) }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSelectedIds(new Set())
+        refetchAdvisors()
+      }
+    } catch (err) {
+      console.error('Bulk action failed:', err)
+    } finally {
+      setBulkLoading(false)
+    }
+  }, [selectedIds, refetchAdvisors])
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -114,6 +159,14 @@ export default function AdminDashboard() {
 
     return result
   }, [advisors, statusFilter, search, timeFilter, sortKey, sortDir])
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filtered.map(a => a.id)))
+    }
+  }, [filtered, selectedIds.size])
 
   if (loading) {
     return (
@@ -197,6 +250,12 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Analytics */}
+      <AnalyticsSection />
+
+      {/* Usage & Costs */}
+      <CostsSection />
+
       {/* Advisors Table */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
         <div className="flex items-center justify-between mb-6">
@@ -244,9 +303,25 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        <BulkActionsBar
+          selectedIds={selectedIds}
+          advisorEmails={advisorEmails}
+          onClear={() => setSelectedIds(new Set())}
+          onBulkAction={handleBulkAction}
+          loading={bulkLoading}
+        />
+
         <table className="w-full">
           <thead>
             <tr className="border-b border-[rgba(255,255,255,0.07)]">
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={filtered.length > 0 && selectedIds.size === filtered.length}
+                  onChange={toggleSelectAll}
+                  className="rounded border-[rgba(255,255,255,0.2)] bg-transparent accent-[#d4af37]"
+                />
+              </th>
               <SortableHeader label="Email" sortKey="email" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Signup" sortKey="createdAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Clients" sortKey="clientCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
@@ -260,9 +335,19 @@ export default function AdminDashboard() {
             {filtered.map(a => (
               <tr
                 key={a.id}
-                className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer"
+                className={`border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer ${
+                  selectedIds.has(a.id) ? 'bg-[rgba(212,175,55,0.05)]' : ''
+                }`}
                 onClick={() => window.location.href = `/admin/advisors/${a.id}`}
               >
+                <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(a.id)}
+                    onChange={() => toggleSelect(a.id)}
+                    className="rounded border-[rgba(255,255,255,0.2)] bg-transparent accent-[#d4af37]"
+                  />
+                </td>
                 <td className="px-4 py-3 text-sm text-white">{a.email}</td>
                 <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">
                   {new Date(a.createdAt).toLocaleDateString()}
@@ -288,7 +373,7 @@ export default function AdminDashboard() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.3)]">
+                <td colSpan={8} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.3)]">
                   No advisors found
                 </td>
               </tr>
