@@ -78,9 +78,11 @@ export async function PUT(request: NextRequest) {
   const { id, user_id, created_at, updated_at, ...updates } = body;
 
   // Validate against allowed fields only
+  // Supports both flat fields (profile/business tabs) and nested default_values (defaults tab)
   const allowedSchema = profileSchema
     .merge(businessSchema.partial())
     .merge(defaultValuesSchema.partial())
+    .merge(z.object({ default_values: defaultValuesSchema.partial().optional() }))
     .partial();
   const parsed = allowedSchema.safeParse(updates);
   if (!parsed.success) {
