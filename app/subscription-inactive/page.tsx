@@ -7,12 +7,19 @@ import { AlertCircle } from 'lucide-react'
 
 export default function SubscriptionInactivePage() {
   const [isTeamMember, setIsTeamMember] = useState<boolean | null>(null)
+  const [hasStripeSubscription, setHasStripeSubscription] = useState(false)
 
   useEffect(() => {
     fetch('/api/billing/usage')
       .then((res) => res.json())
-      .then((data) => setIsTeamMember(data.isTeamMember ?? false))
-      .catch(() => setIsTeamMember(false))
+      .then((data) => {
+        setIsTeamMember(data.isTeamMember ?? false)
+        setHasStripeSubscription(data.hasStripeSubscription ?? false)
+      })
+      .catch(() => {
+        setIsTeamMember(false)
+        setHasStripeSubscription(false)
+      })
   }, [])
 
   return (
@@ -32,7 +39,7 @@ export default function SubscriptionInactivePage() {
               </p>
               <div className="flex flex-col gap-2">
                 <a href="/plans">
-                  <Button variant="outline" className="w-full">
+                  <Button className="w-full">
                     Get Your Own Subscription
                   </Button>
                 </a>
@@ -41,23 +48,27 @@ export default function SubscriptionInactivePage() {
           ) : (
             <>
               <p className="text-sm text-muted-foreground">
-                Your subscription is no longer active. Please update your payment method or subscribe to continue using the platform.
+                Your subscription is no longer active. {hasStripeSubscription
+                  ? 'Please update your payment method to continue using the platform.'
+                  : 'Please subscribe to continue using the platform.'}
               </p>
               <div className="flex flex-col gap-2">
-                <Button
-                  className="w-full"
-                  onClick={async () => {
-                    const res = await fetch('/api/billing/portal', { method: 'POST' })
-                    const data = await res.json()
-                    if (data.url) window.location.href = data.url
-                  }}
-                >
-                  Update Payment Method
-                </Button>
+                {hasStripeSubscription && (
+                  <Button
+                    className="w-full"
+                    onClick={async () => {
+                      const res = await fetch('/api/billing/portal', { method: 'POST' })
+                      const data = await res.json()
+                      if (data.url) window.location.href = data.url
+                    }}
+                  >
+                    Update Payment Method
+                  </Button>
+                )}
 
                 <a href="/plans">
-                  <Button variant="outline" className="w-full">
-                    View Plans
+                  <Button variant={hasStripeSubscription ? "outline" : "default"} className="w-full">
+                    {hasStripeSubscription ? 'View Plans' : 'Subscribe Now'}
                   </Button>
                 </a>
               </div>
