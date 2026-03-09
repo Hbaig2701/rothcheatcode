@@ -58,6 +58,9 @@ export async function GET(request: NextRequest) {
     const metadata: Record<string, string> = { plan, cycle };
     if (userId) metadata.user_id = userId;
 
+    // Auto-apply 50% off first month coupon for Pro monthly only
+    const isProMonthly = plan === "pro" && cycle === "monthly";
+
     const sessionParams: Record<string, unknown> = {
       mode: "subscription",
       payment_method_types: ["card"],
@@ -66,9 +69,11 @@ export async function GET(request: NextRequest) {
         ? `${process.env.NEXT_PUBLIC_APP_URL}/settings?upgraded=true`
         : `${process.env.NEXT_PUBLIC_APP_URL}/welcome?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
-      allow_promotion_codes: true,
       billing_address_collection: "required",
       metadata,
+      ...(isProMonthly
+        ? { discounts: [{ coupon: "pro-50-off" }] }
+        : { allow_promotion_codes: true }),
     };
 
     // Reuse existing customer if found, otherwise prefill email
