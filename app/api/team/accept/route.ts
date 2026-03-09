@@ -11,9 +11,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (password.length < 6) {
+  if (password.length < 8) {
     return NextResponse.json(
-      { error: "Password must be at least 6 characters" },
+      { error: "Password must be at least 8 characters" },
+      { status: 400 }
+    );
+  }
+  if (!/[0-9]/.test(password)) {
+    return NextResponse.json(
+      { error: "Password must contain at least 1 number" },
+      { status: 400 }
+    );
+  }
+  if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+    return NextResponse.json(
+      { error: "Password must contain at least 1 special character" },
       { status: 400 }
     );
   }
@@ -32,6 +44,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Invalid or expired invite" },
       { status: 404 }
+    );
+  }
+
+  // Check invite TTL (30 days)
+  const INVITE_TTL_DAYS = 30;
+  const invitedAt = new Date(invite.invited_at);
+  const expiresAt = new Date(invitedAt.getTime() + INVITE_TTL_DAYS * 86400000);
+  if (new Date() > expiresAt) {
+    return NextResponse.json(
+      { error: "This invite has expired. Please ask the team owner to send a new one." },
+      { status: 410 }
     );
   }
 

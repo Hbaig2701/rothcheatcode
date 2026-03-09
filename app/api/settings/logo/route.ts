@@ -43,7 +43,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const ext = file.name.split(".").pop() || "png";
+  const mimeToExt: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+  const ext = mimeToExt[file.type] || "png";
   const path = `${user.id}/logo.${ext}`;
 
   // Upload to storage (upsert to replace existing)

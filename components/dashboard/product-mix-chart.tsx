@@ -50,6 +50,7 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
                 innerRadius={45}
                 outerRadius={65}
                 dataKey="value"
+                nameKey="name"
                 stroke="none"
               >
                 {coloredData.map((entry, index) => (
@@ -64,6 +65,7 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
                   color: "#fff",
                   fontSize: "13px",
                 }}
+                itemStyle={{ color: "rgba(255,255,255,0.85)" }}
                 formatter={(value: number | undefined, name: string | undefined) => [
                   `${value ?? 0} (${total > 0 && value ? Math.round((value / total) * 100) : 0}%)`,
                   name ?? "",

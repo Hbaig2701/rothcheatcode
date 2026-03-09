@@ -92,25 +92,64 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const { data: invite, error } = await admin
+  // Check for existing record (handles re-invite of removed members)
+  const { data: existingMember } = await admin
     .from("team_members")
-    .insert({
-      team_owner_id: teamOwnerId,
-      email: email.toLowerCase(),
-      role: role || "user",
-      status: "pending",
-    })
-    .select()
+    .select("id, status")
+    .eq("team_owner_id", teamOwnerId)
+    .eq("email", email.toLowerCase())
     .single();
 
-  if (error) {
-    if (error.code === "23505") {
+  let invite;
+
+  if (existingMember) {
+    if (existingMember.status === "pending" || existingMember.status === "active") {
       return NextResponse.json(
         { error: "This email has already been invited" },
         { status: 400 }
       );
     }
-    return NextResponse.json({ error: error.message }, { status: 400 });
+
+    // Re-invite removed member: reset to pending with fresh timestamp
+    const { data: updatedInvite, error: updateError } = await admin
+      .from("team_members")
+      .update({
+        status: "pending",
+        role: role || "user",
+        member_user_id: null,
+        accepted_at: null,
+        invited_at: new Date().toISOString(),
+      })
+      .eq("id", existingMember.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      return NextResponse.json({ error: updateError.message }, { status: 400 });
+    }
+    invite = updatedInvite;
+  } else {
+    const { data: newInvite, error: insertError } = await admin
+      .from("team_members")
+      .insert({
+        team_owner_id: teamOwnerId,
+        email: email.toLowerCase(),
+        role: role || "user",
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      if (insertError.code === "23505") {
+        return NextResponse.json(
+          { error: "This email has already been invited" },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json({ error: insertError.message }, { status: 400 });
+    }
+    invite = newInvite;
   }
 
   // Send invite email via Supabase magic link

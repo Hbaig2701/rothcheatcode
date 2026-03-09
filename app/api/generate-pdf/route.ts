@@ -1042,65 +1042,71 @@ export async function POST(request: NextRequest) {
     // Configure Chromium for serverless environment
     const executablePath = await chromium.executablePath();
 
-    // Launch Puppeteer
-    const browser = await puppeteer.launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath,
-      headless: chromium.headless,
-    });
+    // Launch Puppeteer with guaranteed cleanup
+    let browser;
+    try {
+      browser = await puppeteer.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath,
+        headless: chromium.headless,
+      });
 
-    const page = await browser.newPage();
+      const page = await browser.newPage();
 
-    // Set content
-    await page.setContent(html, {
-      waitUntil: 'networkidle0',
-    });
+      await page.setContent(html, {
+        waitUntil: 'networkidle0',
+      });
 
-    // Generate PDF
-    const pdf = await page.pdf({
-      format: 'Letter',
-      printBackground: true,
-      margin: {
-        top: '0.5in',
-        right: '0.5in',
-        bottom: '0.5in',
-        left: '0.5in',
-      },
-    });
+      const pdf = await page.pdf({
+        format: 'Letter',
+        printBackground: true,
+        margin: {
+          top: '0.5in',
+          right: '0.5in',
+          bottom: '0.5in',
+          left: '0.5in',
+        },
+      });
 
-    await browser.close();
+      await browser.close();
+      browser = null;
 
-    // Log export (fire-and-forget)
-    if (reportData.client.id) {
-      Promise.resolve(supabase.from('export_log').insert({
-        user_id: user.id,
-        client_id: reportData.client.id,
-        export_type: 'pdf',
-      })).catch(console.error)
+      // Log export (fire-and-forget)
+      if (reportData.client.id) {
+        Promise.resolve(supabase.from('export_log').insert({
+          user_id: user.id,
+          client_id: reportData.client.id,
+          export_type: 'pdf',
+        })).catch(console.error)
+      }
+
+      // Increment PDF export usage (fire-and-forget)
+      incrementUsage(user.id, 'pdf_exports').catch(console.error);
+
+      // Return PDF
+      const clientName = reportData.client.name || 'Client';
+      const sanitizedName = clientName
+        .replace(/[^a-zA-Z0-9\s-]/g, '')
+        .replace(/\s+/g, '_');
+      const pdfPrefix = isGI ? 'RetirementExpert_GI' : 'RetirementExpert';
+
+      return new NextResponse(Buffer.from(pdf), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${pdfPrefix}_${sanitizedName}.pdf"`,
+        },
+      });
+    } finally {
+      if (browser) {
+        await browser.close().catch(console.error);
+      }
     }
-
-    // Increment PDF export usage (fire-and-forget)
-    incrementUsage(user.id, 'pdf_exports').catch(console.error);
-
-    // Return PDF
-    const clientName = reportData.client.name || 'Client';
-    const sanitizedName = clientName
-      .replace(/[^a-zA-Z0-9\s-]/g, '')
-      .replace(/\s+/g, '_');
-    const pdfPrefix = isGI ? 'RetirementExpert_GI' : 'RetirementExpert';
-
-    return new NextResponse(Buffer.from(pdf), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${pdfPrefix}_${sanitizedName}.pdf"`,
-      },
-    });
   } catch (error) {
     console.error('PDF generation error:', error);
     return NextResponse.json(
-      { error: 'Failed to generate PDF', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to generate PDF' },
       { status: 500 }
     );
   }
