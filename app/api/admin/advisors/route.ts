@@ -59,10 +59,12 @@ export async function GET(request: NextRequest) {
     const exportCounts = new Map<string, number>();
     (exportsRes.data ?? []).forEach(r => exportCounts.set(r.user_id, (exportCounts.get(r.user_id) ?? 0) + 1));
 
-    // Last login per user
+    // Last login and session count per user
     const lastLogins = new Map<string, string>();
+    const sessionCounts = new Map<string, number>();
     (loginsRes.data ?? []).forEach(r => {
       if (!lastLogins.has(r.user_id)) lastLogins.set(r.user_id, r.created_at);
+      sessionCounts.set(r.user_id, (sessionCounts.get(r.user_id) ?? 0) + 1);
     });
 
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
@@ -80,6 +82,7 @@ export async function GET(request: NextRequest) {
         clientCount: clientCounts.get(p.id) ?? 0,
         scenarioRunCount: runCounts.get(p.id) ?? 0,
         exportCount: exportCounts.get(p.id) ?? 0,
+        sessionCount: sessionCounts.get(p.id) ?? 0,
         lastLogin,
         status: isDeactivated ? 'deactivated' as const : (isRecentlyActive ? 'active' as const : 'inactive' as const),
       };

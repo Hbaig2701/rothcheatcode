@@ -28,6 +28,7 @@ interface Advisor {
   clientCount: number
   scenarioRunCount: number
   exportCount: number
+  sessionCount: number
   lastLogin: string | null
   status: 'active' | 'inactive' | 'deactivated'
 }
@@ -37,7 +38,7 @@ interface ActivityPoint {
   count: number
 }
 
-type SortKey = 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'lastLogin' | 'status'
+type SortKey = 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status'
 type SortDir = 'asc' | 'desc'
 type TimeFilter = 'all' | '1d' | '7d' | '30d'
 
@@ -146,6 +147,7 @@ export default function AdminDashboard() {
         case 'clientCount': cmp = a.clientCount - b.clientCount; break
         case 'scenarioRunCount': cmp = a.scenarioRunCount - b.scenarioRunCount; break
         case 'exportCount': cmp = a.exportCount - b.exportCount; break
+        case 'sessionCount': cmp = a.sessionCount - b.sessionCount; break
         case 'lastLogin': {
           const aVal = a.lastLogin ?? ''
           const bVal = b.lastLogin ?? ''
@@ -327,7 +329,8 @@ export default function AdminDashboard() {
               <SortableHeader label="Clients" sortKey="clientCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Scenarios" sortKey="scenarioRunCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Exports" sortKey="exportCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-              <SortableHeader label="Last Login" sortKey="lastLogin" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Sessions" sortKey="sessionCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Last Session" sortKey="lastLogin" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Status" sortKey="status" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
             </tr>
           </thead>
@@ -355,6 +358,7 @@ export default function AdminDashboard() {
                 <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.clientCount}</td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.scenarioRunCount}</td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.exportCount}</td>
+                <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.sessionCount}</td>
                 <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">
                   {a.lastLogin ? new Date(a.lastLogin).toLocaleDateString() : 'Never'}
                 </td>
@@ -373,7 +377,7 @@ export default function AdminDashboard() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.3)]">
+                <td colSpan={9} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.3)]">
                   No advisors found
                 </td>
               </tr>

@@ -38,8 +38,8 @@ export async function GET() {
       admin.from("user_settings").select("user_id, company_name, logo_url, primary_color"),
       // Team members
       admin.from("team_members").select("team_owner_id, status"),
-      // Clients for product/geo data
-      admin.from("clients").select("carrier_name, product_name, state, user_id"),
+      // Clients for engagement stats
+      admin.from("clients").select("user_id"),
       // Advisor profiles
       admin
         .from("profiles")
@@ -71,33 +71,6 @@ export async function GET() {
     const ownersWithTeam = new Set(teams.map((t) => t.team_owner_id)).size;
     const totalTeamMembers = teams.length;
     const acceptedTeamMembers = teams.filter((t) => t.status === "accepted").length;
-
-    // Product usage — top carriers
-    const carrierCounts = new Map<string, number>();
-    clients.forEach((c) => {
-      if (c.carrier_name) {
-        carrierCounts.set(
-          c.carrier_name,
-          (carrierCounts.get(c.carrier_name) ?? 0) + 1
-        );
-      }
-    });
-    const carriers = Array.from(carrierCounts.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
-
-    // Geography — top states
-    const stateCounts = new Map<string, number>();
-    clients.forEach((c) => {
-      if (c.state) {
-        stateCounts.set(c.state, (stateCounts.get(c.state) ?? 0) + 1);
-      }
-    });
-    const states = Array.from(stateCounts.entries())
-      .map(([state, count]) => ({ state, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 15);
 
     // Subscriptions
     const planCounts = new Map<string, number>();
@@ -171,8 +144,6 @@ export async function GET() {
         totalTeamMembers,
         acceptedTeamMembers,
       },
-      productUsage: { carriers },
-      geography: { states },
       subscriptions: { plans, statuses, cycles },
       engagement: { avgClientsPerAdvisor, avgScenariosPerAdvisor },
     });

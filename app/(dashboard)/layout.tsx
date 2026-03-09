@@ -69,6 +69,22 @@ export default async function DashboardLayout({
     || user.email?.split('@')[0]
     || 'User'
 
+  // Log app visit (throttled: max once per hour per user)
+  const oneHourAgo = new Date(Date.now() - 3600000).toISOString()
+  const visitLogger = createAdminClient()
+  Promise.resolve(
+    visitLogger
+      .from('login_log')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', oneHourAgo)
+      .then(({ count }) => {
+        if ((count ?? 0) === 0) {
+          visitLogger.from('login_log').insert({ user_id: user.id }).then(() => {})
+        }
+      })
+  ).catch(() => {})
+
   const cookieStore = await cookies()
   const defaultOpen = cookieStore.get('sidebar_state')?.value !== 'false'
 

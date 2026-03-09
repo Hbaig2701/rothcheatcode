@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from 'recharts'
-
 interface AnalyticsData {
   featureAdoption: {
     totalAdvisors: number
@@ -12,12 +10,6 @@ interface AnalyticsData {
     withTeamInvites: number
     totalTeamMembers: number
     acceptedTeamMembers: number
-  }
-  productUsage: {
-    carriers: { name: string; count: number }[]
-  }
-  geography: {
-    states: { state: string; count: number }[]
   }
   subscriptions: {
     plans: { plan: string; count: number }[]
@@ -74,68 +66,6 @@ export function AnalyticsSection() {
               {data.engagement.avgScenariosPerAdvisor} avg scenarios
             </p>
           </div>
-        </div>
-      </div>
-
-      {/* Product & Geography */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Carriers */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-4">
-            Top Carriers
-          </h2>
-          {data.productUsage.carriers.length > 0 ? (
-            <div className="h-[250px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.productUsage.carriers} layout="vertical" margin={{ left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis type="number" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} allowDecimals={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 11 }}
-                    width={120}
-                  />
-                  <Tooltip
-                    contentStyle={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
-                    itemStyle={{ color: '#d4af37' }}
-                  />
-                  <Bar dataKey="count" fill="#d4af37" radius={[0, 3, 3, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : (
-            <p className="text-sm text-[rgba(255,255,255,0.3)]">No carrier data yet</p>
-          )}
-        </div>
-
-        {/* Top States */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-4">
-            Top States
-          </h2>
-          {data.geography.states.length > 0 ? (
-            <div className="space-y-2 max-h-[250px] overflow-y-auto">
-              {data.geography.states.map((s, i) => (
-                <div key={s.state} className="flex items-center gap-3">
-                  <span className="text-xs text-[rgba(255,255,255,0.4)] w-5 text-right font-mono">{i + 1}</span>
-                  <div className="flex-1 flex items-center gap-2">
-                    <span className="text-sm text-[rgba(255,255,255,0.7)]">{s.state}</span>
-                    <div className="flex-1 h-1.5 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-[#d4af37] rounded-full"
-                        style={{ width: `${(s.count / (data.geography.states[0]?.count || 1)) * 100}%` }}
-                      />
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono text-[rgba(255,255,255,0.5)] w-8 text-right">{s.count}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-[rgba(255,255,255,0.3)]">No state data yet</p>
-          )}
         </div>
       </div>
 
