@@ -37,7 +37,7 @@ export function CostsSection() {
   if (loading) {
     return (
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <div className="text-sm text-[rgba(255,255,255,0.4)]">Loading costs...</div>
+        <div className="text-sm text-[rgba(255,255,255,0.55)]">Loading costs...</div>
       </div>
     )
   }
@@ -55,7 +55,7 @@ export function CostsSection() {
 
   return (
     <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6 space-y-6">
-      <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)]">
+      <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">
         Usage & Costs
       </h2>
 
@@ -108,9 +108,9 @@ export function CostsSection() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[rgba(255,255,255,0.03)]">
-              <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)]">Category</th>
-              <th className="text-right px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)]">Units</th>
-              <th className="text-right px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)]">Est. Cost</th>
+              <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.65)]">Category</th>
+              <th className="text-right px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.65)]">Units</th>
+              <th className="text-right px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.65)]">Est. Cost</th>
             </tr>
           </thead>
           <tbody>
@@ -164,14 +164,14 @@ function MiniStat({ label, value, subtext, trend }: {
 }) {
   return (
     <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
-      <p className="text-xs text-[rgba(255,255,255,0.5)] mb-1">{label}</p>
+      <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">{label}</p>
       <p className="text-xl font-semibold text-white font-mono">
         {typeof value === 'number' ? value.toLocaleString() : value}
       </p>
       <div className="flex items-center gap-1 mt-1">
-        <span className="text-[10px] text-[rgba(255,255,255,0.4)]">{subtext}</span>
+        <span className="text-xs text-[rgba(255,255,255,0.55)]">{subtext}</span>
         {trend != null && trend !== 0 && (
-          <span className={`flex items-center gap-0.5 text-[10px] ${trend > 0 ? 'text-[#4ade80]' : 'text-[#ef4444]'}`}>
+          <span className={`flex items-center gap-0.5 text-xs ${trend > 0 ? 'text-[#4ade80]' : 'text-[#ef4444]'}`}>
             {trend > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
             {trend > 0 ? '+' : ''}{trend}%
           </span>

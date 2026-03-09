@@ -321,7 +321,7 @@ export function ExportPdfDialog({
                         )}
                         {uploading ? "Uploading..." : "Upload Logo"}
                       </Button>
-                      <p className="text-[10px] text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1">
                         Saved to your account
                       </p>
                     </div>

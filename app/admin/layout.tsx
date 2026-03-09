@@ -32,7 +32,7 @@ export default async function AdminLayout({
               </Link>
             </nav>
           </div>
-          <Link href="/dashboard" className="text-sm text-[rgba(255,255,255,0.4)] hover:text-white transition-colors">
+          <Link href="/dashboard" className="text-sm text-[rgba(255,255,255,0.55)] hover:text-white transition-colors">
             Back to App
           </Link>
         </div>

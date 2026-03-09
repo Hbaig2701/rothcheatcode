@@ -436,7 +436,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
             className={cn(
               "p-2 rounded-lg transition-colors",
               historyIndex <= 0
-                ? "text-[rgba(255,255,255,0.2)] cursor-not-allowed"
+                ? "text-[rgba(255,255,255,0.5)] cursor-not-allowed"
                 : "text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.08)]"
             )}
             title="Undo"
@@ -449,7 +449,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
             className={cn(
               "p-2 rounded-lg transition-colors",
               historyIndex >= history.length - 1
-                ? "text-[rgba(255,255,255,0.2)] cursor-not-allowed"
+                ? "text-[rgba(255,255,255,0.5)] cursor-not-allowed"
                 : "text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.08)]"
             )}
             title="Redo"

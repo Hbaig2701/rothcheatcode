@@ -117,7 +117,7 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
                 {rows.map((row, i) => {
                     if (row.type === "header") {
                         return (
-                            <div key={i} className="p-2 bg-[#1A1A1A]/50 text-[#6B6B6B] font-bold uppercase tracking-wider text-[10px] mt-2">
+                            <div key={i} className="p-2 bg-[#1A1A1A]/50 text-[#6B6B6B] font-bold uppercase tracking-wider text-xs mt-2">
                                 {row.label}
                             </div>
                         );
@@ -130,7 +130,7 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
 
                         return (
                             <div key={i} className="grid grid-cols-4 p-2 items-center bg-[#F5B800]/10 border-t border-[#F5B800]/20">
-                                <div className="text-[#F5B800] font-bold uppercase tracking-wider text-[11px]">{row.label}</div>
+                                <div className="text-[#F5B800] font-bold uppercase tracking-wider text-xs">{row.label}</div>
                                 <div className="text-right font-mono text-[#6B6B6B]">-</div>
                                 <div className="text-right font-mono text-[#6B6B6B]">-</div>
                                 <div className="text-right font-mono text-[#F5B800] font-bold text-sm">

@@ -45,7 +45,7 @@ function DeltaBadge({ value }: { value: number }) {
   const isPositive = value >= 0;
   return (
     <span
-      className={`inline-block px-3 py-1 rounded-[20px] text-[13px] font-mono font-medium ${
+      className={`inline-block px-3 py-1 rounded-[20px] text-sm font-mono font-medium ${
         isPositive
           ? "bg-[rgba(74,222,128,0.08)] text-[#4ade80]"
           : "bg-[rgba(248,113,113,0.08)] text-[#f87171]"
@@ -103,13 +103,13 @@ export function ClientCard({ client, delta = 0 }: ClientCardProps) {
       {/* Stats Row */}
       <div className="flex gap-8 mb-3">
         <div>
-          <p className="text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] mb-1">Balance</p>
+          <p className="text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.65)] mb-1">Balance</p>
           <p className="text-base font-mono text-[rgba(255,255,255,0.8)]">
             {formatCompactCurrency(client.qualified_account_value)}
           </p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.5)] mb-1">Product</p>
+          <p className="text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.65)] mb-1">Product</p>
           <p className="text-base font-mono text-[rgba(255,255,255,0.8)] truncate max-w-[140px]">
             {client.carrier_name}
           </p>
@@ -120,7 +120,7 @@ export function ClientCard({ client, delta = 0 }: ClientCardProps) {
       <Sparkline delta={delta} />
 
       {/* Footer */}
-      <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">
+      <p className="text-sm text-[rgba(255,255,255,0.65)] mt-2">
         Created {formatDate(client.created_at)}
       </p>
     </Link>

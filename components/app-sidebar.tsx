@@ -60,7 +60,7 @@ export function AppSidebar({ user, displayName }: { user: User; displayName: str
           <p className="text-sm text-[rgba(255,255,255,0.7)] truncate">
             {displayName}
           </p>
-          <p className="text-xs text-[rgba(255,255,255,0.45)] truncate">
+          <p className="text-xs text-[rgba(255,255,255,0.6)] truncate">
             {user.email}
           </p>
         </div>

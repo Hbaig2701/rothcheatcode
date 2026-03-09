@@ -56,9 +56,9 @@
   --color-green-bg: rgba(74, 222, 128, 0.08);
   --color-red: #f87171;
   --color-red-bg: rgba(248, 113, 113, 0.08);
-  --color-text-muted: rgba(255, 255, 255, 0.5);
-  --color-text-dim: rgba(255, 255, 255, 0.25);
-  --color-text-dimmer: rgba(255, 255, 255, 0.15);
+  --color-text-muted: rgba(255, 255, 255, 0.65);
+  --color-text-dim: rgba(255, 255, 255, 0.5);
+  --color-text-dimmer: rgba(255, 255, 255, 0.35);
   --color-bg-card: rgba(255, 255, 255, 0.025);
   --color-bg-card-hover: rgba(255, 255, 255, 0.045);
   --color-bg-input: rgba(255, 255, 255, 0.04);
@@ -111,9 +111,9 @@
   --primary: #d4af37;
   --primary-foreground: #0c0c0c;
   --secondary: rgba(255, 255, 255, 0.04);
-  --secondary-foreground: rgba(255, 255, 255, 0.5);
+  --secondary-foreground: rgba(255, 255, 255, 0.65);
   --muted: rgba(255, 255, 255, 0.04);
-  --muted-foreground: rgba(255, 255, 255, 0.5);
+  --muted-foreground: rgba(255, 255, 255, 0.65);
   --accent: rgba(212, 175, 55, 0.08);
   --accent-foreground: #d4af37;
   --destructive: #f87171;

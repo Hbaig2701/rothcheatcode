@@ -43,7 +43,7 @@ export function BulkActionsBar({ selectedIds, advisorEmails, onClear, onBulkActi
         <button
           onClick={onClear}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-[rgba(255,255,255,0.5)] hover:text-white transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-[rgba(255,255,255,0.65)] hover:text-white transition-colors disabled:opacity-50"
         >
           <X className="h-3.5 w-3.5" />
           Clear
@@ -57,7 +57,7 @@ export function BulkActionsBar({ selectedIds, advisorEmails, onClear, onBulkActi
             <h3 className="text-lg font-semibold text-white mb-2">
               {confirmAction === 'delete' ? 'Delete' : 'Deactivate'} {count} Advisor{count > 1 ? 's' : ''}?
             </h3>
-            <p className="text-sm text-[rgba(255,255,255,0.5)] mb-4">
+            <p className="text-sm text-[rgba(255,255,255,0.65)] mb-4">
               {confirmAction === 'delete'
                 ? 'This will permanently delete all data for these advisors including their clients, scenarios, and exports. This cannot be undone.'
                 : 'These advisors will no longer be able to access the platform. You can reactivate them later.'}

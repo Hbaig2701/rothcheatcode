@@ -10,7 +10,7 @@ export function ClientsEmptyState() {
           <Users className="h-6 w-6 text-gold" />
         </div>
         <h3 className="font-display text-lg font-normal text-white mb-2">No clients yet</h3>
-        <p className="text-sm text-[rgba(255,255,255,0.5)] mb-6 max-w-sm">
+        <p className="text-sm text-[rgba(255,255,255,0.65)] mb-6 max-w-sm">
           Get started by adding your first client to begin planning their Roth conversions.
         </p>
         <a

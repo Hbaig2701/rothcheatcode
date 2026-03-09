@@ -129,7 +129,7 @@ export function NewAccountSection() {
               <FieldDescription>
                 {ALL_PRODUCTS[formulaType]?.description || "Select a product template"}
               </FieldDescription>
-              <p className="text-[11px] text-muted-foreground/60 mt-2 leading-relaxed">
+              <p className="text-xs text-muted-foreground/60 mt-2 leading-relaxed">
                 The product archetypes shown are for illustrative purposes only. They represent general categories of fixed index annuity features. Actual product features, rates, and terms vary by carrier and state. Always verify with official carrier illustrations before presenting to clients.
               </p>
             </Field>
@@ -221,7 +221,7 @@ export function NewAccountSection() {
                 <div className="grid grid-cols-5 gap-2">
                   {schedule.map((charge, idx) => (
                     <div key={idx} className="flex flex-col items-center gap-1">
-                      <span className="text-[10px] text-muted-foreground">Yr {idx + 1}</span>
+                      <span className="text-xs text-muted-foreground">Yr {idx + 1}</span>
                       <Input
                         type="number"
                         step="0.1"

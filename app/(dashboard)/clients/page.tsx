@@ -15,7 +15,7 @@ export default function ClientsPage() {
     return (
       <div className="p-9">
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-[rgba(255,255,255,0.25)]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[rgba(255,255,255,0.55)]" />
         </div>
       </div>
     );
@@ -28,7 +28,7 @@ export default function ClientsPage() {
           <h2 className="text-lg font-semibold text-[#f87171] mb-2">
             Failed to load clients
           </h2>
-          <p className="text-[rgba(255,255,255,0.5)] mb-4">
+          <p className="text-[rgba(255,255,255,0.65)] mb-4">
             {error?.message || "An unexpected error occurred"}
           </p>
           <Button variant="outline" onClick={() => window.location.reload()}>
@@ -72,13 +72,13 @@ export default function ClientsPage() {
       {/* Search */}
       {hasClients && (
         <div className="relative mb-6 max-w-sm">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[rgba(255,255,255,0.4)]" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[rgba(255,255,255,0.55)]" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search clients..."
-            className="w-full pl-11 pr-4 py-3 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.1)] rounded-[10px] text-base text-white placeholder:text-[rgba(255,255,255,0.4)] focus:outline-none focus:border-[rgba(212,175,55,0.3)] transition-colors"
+            className="w-full pl-11 pr-4 py-3 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.1)] rounded-[10px] text-base text-white placeholder:text-[rgba(255,255,255,0.5)] focus:outline-none focus:border-[rgba(212,175,55,0.3)] transition-colors"
           />
         </div>
       )}
@@ -101,7 +101,7 @@ export default function ClientsPage() {
       {/* No results message */}
       {hasClients && filteredClients.length === 0 && search && (
         <div className="text-center py-16">
-          <p className="text-[rgba(255,255,255,0.5)]">
+          <p className="text-[rgba(255,255,255,0.65)]">
             No clients found matching &quot;{search}&quot;
           </p>
         </div>

@@ -26,7 +26,7 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
     if (!client || !projectionResponse?.projection) {
         return (
-            <div className="p-9 h-full text-[rgba(255,255,255,0.5)]">
+            <div className="p-9 h-full text-[rgba(255,255,255,0.65)]">
                 No data available. Please recalculate.
             </div>
         );

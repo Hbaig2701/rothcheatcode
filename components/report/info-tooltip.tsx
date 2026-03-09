@@ -27,7 +27,7 @@ export function InfoTooltip({ text }: InfoTooltipProps) {
           >
             <TooltipPrimitive.Popup
               role="tooltip"
-              className="data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-[side=top]:slide-in-from-bottom-2 data-[side=bottom]:slide-in-from-top-2 origin-(--transform-origin) bg-[#1a2332] border border-[#3d4f6f] rounded-lg px-4 py-3 max-w-[300px] min-w-[200px] text-white text-[13px] leading-relaxed text-left shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
+              className="data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 data-[side=top]:slide-in-from-bottom-2 data-[side=bottom]:slide-in-from-top-2 origin-(--transform-origin) bg-[#1a2332] border border-[#3d4f6f] rounded-lg px-4 py-3 max-w-[300px] min-w-[200px] text-white text-sm leading-relaxed text-left shadow-[0_4px_12px_rgba(0,0,0,0.3)]"
             >
               {text}
               <TooltipPrimitive.Arrow className="size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px] bg-[#1a2332] fill-[#1a2332] z-50 data-[side=top]:-bottom-2.5 data-[side=bottom]:top-1" />

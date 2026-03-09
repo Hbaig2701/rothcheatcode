@@ -68,14 +68,14 @@ export function StoryMode({ client, projection, onExit }: StoryModeProps) {
             <h1 className="text-3xl font-semibold text-white mb-2">
               {client.name}
             </h1>
-            <p className="text-[rgba(255,255,255,0.5)] text-lg">
+            <p className="text-[rgba(255,255,255,0.65)] text-lg">
               Age {startAge} → Age {endAge}
             </p>
           </div>
 
           {/* Disclaimer */}
           <div className="text-center mb-10 px-4">
-            <p className="text-[rgba(255,255,255,0.35)] text-xs italic leading-relaxed">
+            <p className="text-[rgba(255,255,255,0.55)] text-xs italic leading-relaxed">
               The following illustration uses generic product archetypes to demonstrate potential outcomes.
               This is not a representation of any specific carrier&apos;s product. Actual features and results will vary.
             </p>
@@ -176,7 +176,7 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
                 key={idx}
                 className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.08)] rounded-xl px-4 py-3"
               >
-                <p className="text-[11px] uppercase tracking-wider text-[rgba(255,255,255,0.4)] mb-1">
+                <p className="text-xs uppercase tracking-wider text-[rgba(255,255,255,0.55)] mb-1">
                   {metric.label}
                 </p>
                 <p className={cn(
@@ -195,7 +195,7 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
         {/* Comparison Callout */}
         {entry.comparison && (
           <div className="bg-[rgba(212,175,55,0.05)] border-l-[3px] border-gold rounded-r-lg px-4 py-3 mt-4">
-            <p className="text-sm text-[rgba(255,255,255,0.5)] italic">
+            <p className="text-sm text-[rgba(255,255,255,0.65)] italic">
               {entry.comparison}
             </p>
           </div>
@@ -203,7 +203,7 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
 
         {/* Running Totals Footer */}
         <div className="border-t border-[rgba(255,255,255,0.07)] pt-4 mt-5">
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs font-mono text-[rgba(255,255,255,0.4)]">
+          <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs font-mono text-[rgba(255,255,255,0.55)]">
             <span>Converted: <span className="text-[rgba(255,255,255,0.6)]">{entry.runningTotals.totalConverted}</span></span>
             <span>Tax Paid: <span className="text-[rgba(255,255,255,0.6)]">{entry.runningTotals.totalTaxPaid}</span></span>
             <span>Roth: <span className="text-[#4ade80]">{entry.runningTotals.rothBalance}</span></span>
@@ -214,7 +214,7 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
 
       {/* Connection arrow to next card */}
       {!isLast && (
-        <div className="absolute left-[31px] -bottom-1 text-[rgba(255,255,255,0.2)]">
+        <div className="absolute left-[31px] -bottom-1 text-[rgba(255,255,255,0.5)]">
           <svg width="10" height="12" viewBox="0 0 10 12" fill="none">
             <path d="M5 0V10M5 10L1 6M5 10L9 6" stroke="currentColor" strokeWidth="1.5" />
           </svg>

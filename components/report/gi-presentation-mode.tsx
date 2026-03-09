@@ -37,7 +37,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
   if (isLoading || !projectionResponse?.projection) {
     return (
       <div className="fixed inset-0 bg-[#0c0c0c] z-50 flex items-center justify-center">
-        <div className="text-[rgba(255,255,255,0.5)]">Loading presentation...</div>
+        <div className="text-[rgba(255,255,255,0.65)]">Loading presentation...</div>
       </div>
     );
   }
@@ -162,12 +162,12 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
         <div className="flex items-center gap-4">
           <button
             onClick={onExit}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-[rgba(255,255,255,0.5)] border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-[rgba(255,255,255,0.65)] border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Exit
           </button>
-          <span className="text-sm text-[rgba(255,255,255,0.4)]">
+          <span className="text-sm text-[rgba(255,255,255,0.55)]">
             Presenting: {client.name}
           </span>
         </div>
@@ -182,7 +182,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
             className={`inline-flex items-center gap-2 px-4 py-2 text-sm rounded-[10px] transition-colors ${
               annotation.isActive
                 ? "text-gold border border-gold bg-[rgba(212,175,55,0.08)]"
-                : "text-[rgba(255,255,255,0.5)] border border-[rgba(255,255,255,0.07)] hover:bg-[rgba(255,255,255,0.04)]"
+                : "text-[rgba(255,255,255,0.65)] border border-[rgba(255,255,255,0.07)] hover:bg-[rgba(255,255,255,0.04)]"
             }`}
           >
             <Pencil className="h-4 w-4" />
@@ -191,7 +191,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
           {annotation.isActive && annotation.annotations.length > 0 && (
             <button
               onClick={annotation.clearAll}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-[rgba(255,255,255,0.5)] border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-[rgba(255,255,255,0.65)] border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
             >
               Clear
             </button>
@@ -204,11 +204,11 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
         {/* 1. Title Block */}
         <div className="text-center mb-14">
           <div className="w-[60px] h-[3px] bg-gold rounded mx-auto mb-6" />
-          <p className="text-sm uppercase tracking-[3px] text-[rgba(255,255,255,0.4)] mb-3">
+          <p className="text-sm uppercase tracking-[3px] text-[rgba(255,255,255,0.55)] mb-3">
             Guaranteed Income Analysis
           </p>
           <h1 className="font-display text-[44px] font-normal mb-3">{client.name}</h1>
-          <p className="text-base text-[rgba(255,255,255,0.5)]">
+          <p className="text-base text-[rgba(255,255,255,0.65)]">
             Age {client.age}
             {client.spouse_name && ` & ${client.spouse_name}, ${client.spouse_age}`} ·{" "}
             {formatFilingStatus(client.filing_status)} ·{" "}
@@ -247,31 +247,31 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
 
         {/* 3. Income Base Journey */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-8 mb-12">
-          <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-6 font-medium">
+          <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-6 font-medium">
             How Your Income Is Calculated
           </p>
 
           <div className="flex items-center justify-between gap-3 mb-6 overflow-x-auto pb-2">
             <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] py-4 px-5 text-center min-w-[120px]">
               <p className="text-xl font-mono font-medium text-white">{toUSD(purchaseAmount)}</p>
-              <p className="text-sm text-[rgba(255,255,255,0.5)] mt-1">GI Premium</p>
+              <p className="text-sm text-[rgba(255,255,255,0.65)] mt-1">GI Premium</p>
             </div>
-            <span className="text-xl text-[rgba(255,255,255,0.3)]">→</span>
+            <span className="text-xl text-[rgba(255,255,255,0.65)]">→</span>
             <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] py-4 px-5 text-center min-w-[120px]">
               <p className="text-xl font-mono font-medium text-gold">+{toUSD(bonusAmount)}</p>
-              <p className="text-sm text-[rgba(255,255,255,0.5)] mt-1">{bonusPercent}% Bonus</p>
+              <p className="text-sm text-[rgba(255,255,255,0.65)] mt-1">{bonusPercent}% Bonus</p>
             </div>
-            <span className="text-xl text-[rgba(255,255,255,0.3)]">→</span>
+            <span className="text-xl text-[rgba(255,255,255,0.65)]">→</span>
             <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] py-4 px-5 text-center min-w-[120px]">
               <p className="text-xl font-mono font-medium text-white">{toUSD(startingIncomeBase)}</p>
-              <p className="text-sm text-[rgba(255,255,255,0.5)] mt-1">Starting Base</p>
+              <p className="text-sm text-[rgba(255,255,255,0.65)] mt-1">Starting Base</p>
             </div>
-            <span className="text-xl text-[rgba(255,255,255,0.3)]">→</span>
+            <span className="text-xl text-[rgba(255,255,255,0.65)]">→</span>
             <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] py-4 px-5 text-center min-w-[120px]">
               <p className="text-xl font-mono font-medium text-gold">+{toUSD(rollUpGrowth)}</p>
-              <p className="text-sm text-[rgba(255,255,255,0.5)] mt-1">Roll-Up</p>
+              <p className="text-sm text-[rgba(255,255,255,0.65)] mt-1">Roll-Up</p>
             </div>
-            <span className="text-xl text-[rgba(255,255,255,0.3)]">→</span>
+            <span className="text-xl text-[rgba(255,255,255,0.65)]">→</span>
             <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[10px] py-4 px-5 text-center min-w-[120px]">
               <p className="text-xl font-mono font-semibold text-gold">{toUSD(finalIncomeBase)}</p>
               <p className="text-sm text-[rgba(212,175,55,0.7)] mt-1">Final Base</p>
@@ -292,30 +292,30 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
               Tax-Free Wealth Created
             </p>
             <p className="text-[26px] font-mono font-semibold text-[#4ade80]">+{toUSD(taxFreeWealthCreated)}</p>
-            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">Lifetime advantage</p>
+            <p className="text-sm text-[rgba(255,255,255,0.65)] mt-2">Lifetime advantage</p>
           </div>
           <div className="text-center py-8 px-5 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]">
-            <p className="text-xs uppercase tracking-[2px] text-[rgba(255,255,255,0.5)] mb-4">
+            <p className="text-xs uppercase tracking-[2px] text-[rgba(255,255,255,0.65)] mb-4">
               Lifetime Income
             </p>
             <p className="text-[26px] font-mono font-medium text-gold">{toUSD(strategyLifetimeNet)}</p>
-            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">Tax-free ({incomeYears} years)</p>
+            <p className="text-sm text-[rgba(255,255,255,0.65)] mt-2">Tax-free ({incomeYears} years)</p>
           </div>
           <div className="text-center py-8 px-5 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]">
-            <p className="text-xs uppercase tracking-[2px] text-[rgba(255,255,255,0.5)] mb-4">
+            <p className="text-xs uppercase tracking-[2px] text-[rgba(255,255,255,0.65)] mb-4">
               Taxes Paid
             </p>
             <p className="text-[26px] font-mono font-medium text-white">{toUSD(totalConversionTax)}</p>
-            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">vs. {toUSD(baselineLifetimeTax)} baseline</p>
+            <p className="text-sm text-[rgba(255,255,255,0.65)] mt-2">vs. {toUSD(baselineLifetimeTax)} baseline</p>
           </div>
           <div className="text-center py-8 px-5 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]">
-            <p className="text-xs uppercase tracking-[2px] text-[rgba(255,255,255,0.5)] mb-4">
+            <p className="text-xs uppercase tracking-[2px] text-[rgba(255,255,255,0.65)] mb-4">
               Break-Even
             </p>
             <p className="text-[26px] font-mono font-medium text-gold">
               {projection.gi_break_even_years ? `${projection.gi_break_even_years} years` : "—"}
             </p>
-            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">
+            <p className="text-sm text-[rgba(255,255,255,0.65)] mt-2">
               {projection.gi_break_even_age ? `Age ${projection.gi_break_even_age}` : ""}
             </p>
           </div>
@@ -326,7 +326,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
           <div className="flex justify-between items-center mb-6">
             <div>
               <h2 className="text-xl font-medium mb-1">Cumulative Income Received</h2>
-              <p className="text-sm text-[rgba(255,255,255,0.5)]">
+              <p className="text-sm text-[rgba(255,255,255,0.65)]">
                 Total net income in your pocket over time
               </p>
             </div>
@@ -335,7 +335,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
                 <span className="w-4 h-0.5 bg-[#4ade80] rounded" />
                 Tax-Free (Strategy)
               </span>
-              <span className="flex items-center gap-2 text-[rgba(255,255,255,0.5)]">
+              <span className="flex items-center gap-2 text-[rgba(255,255,255,0.65)]">
                 <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 4px, transparent 4px, transparent 6px)" }} />
                 After-Tax (Baseline)
               </span>
@@ -349,7 +349,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
             />
           </div>
           <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.07)]">
-            <p className="text-sm text-[rgba(255,255,255,0.4)]">
+            <p className="text-sm text-[rgba(255,255,255,0.55)]">
               The gap between the lines is your <span className="text-[#4ade80] font-medium">Tax-Free Wealth Created</span> — the extra money you keep by having Roth income instead of taxable income.
             </p>
           </div>
@@ -357,7 +357,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
 
         {/* 6. The Protection Promise */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-8 mb-12">
-          <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-5 font-medium">
+          <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-5 font-medium">
             The Guarantee
           </p>
 
@@ -400,7 +400,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
         {/* 7. Year-by-Year Table (Income View only for presentation) */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] overflow-hidden mb-12">
           <div className="px-6 py-5 border-b border-[rgba(255,255,255,0.07)]">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-medium">
+            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
               Year-by-Year Projection
             </p>
           </div>
@@ -409,12 +409,12 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
             <table className="w-full">
               <thead>
                 <tr className="bg-[rgba(255,255,255,0.02)]">
-                  <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Year</th>
-                  <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Age</th>
-                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Guaranteed Income</th>
-                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net Income</th>
-                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Cumulative</th>
-                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Account Value</th>
+                  <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Year</th>
+                  <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Age</th>
+                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Guaranteed Income</th>
+                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Net Income</th>
+                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Cumulative</th>
+                  <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Account Value</th>
                 </tr>
               </thead>
               <tbody>
@@ -436,19 +436,19 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
                       )}
                     >
                       <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
-                      <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{row.age}</td>
+                      <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{row.age}</td>
                       <td className="px-4 py-3 text-sm font-mono text-right text-gold">
                         {row.guaranteedIncomeGross > 0 ? toUSD(row.guaranteedIncomeGross) : "—"}
                       </td>
                       <td className="px-4 py-3 text-sm font-mono text-right text-[#4ade80]">
                         {row.guaranteedIncomeNet > 0 ? toUSD(row.guaranteedIncomeNet) : "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+                      <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
                         {cumulative > 0 ? toUSD(cumulative) : "—"}
                       </td>
                       <td className={cn(
                         "px-4 py-3 text-sm font-mono text-right",
-                        isAccountZero ? "text-[rgba(255,255,255,0.25)]" : "text-[rgba(255,255,255,0.5)]"
+                        isAccountZero ? "text-[rgba(255,255,255,0.55)]" : "text-[rgba(255,255,255,0.65)]"
                       )}>
                         {isAccountZero ? "—" : toUSD(row.accountValue)}
                       </td>
@@ -461,7 +461,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
 
           {giYearlyData.length > 20 && (
             <div className="px-6 py-3 border-t border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.02)]">
-              <p className="text-sm text-[rgba(255,255,255,0.4)] italic text-center">
+              <p className="text-sm text-[rgba(255,255,255,0.55)] italic text-center">
                 Showing first 20 years · Full projection available in report view
               </p>
             </div>
@@ -477,7 +477,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
         </div>
 
         {/* 8. Disclaimer */}
-        <p className="text-sm text-[rgba(255,255,255,0.4)] italic text-center max-w-[800px] mx-auto py-8">
+        <p className="text-sm text-[rgba(255,255,255,0.55)] italic text-center max-w-[800px] mx-auto py-8">
           This optimized plan is for educational purposes only. Before making a Roth conversion or purchasing an annuity, discuss your final plan with a tax professional and licensed insurance agent.
         </p>
       </div>

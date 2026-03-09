@@ -188,7 +188,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
         <span className="text-base font-medium">Scenario Inputs</span>
         <button
           onClick={onClose}
-          className="text-[rgba(255,255,255,0.25)] hover:text-white transition-colors"
+          className="text-[rgba(255,255,255,0.55)] hover:text-white transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
@@ -196,7 +196,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
 
       {/* Formula Type Selector */}
       <div className="px-7 py-4 border-b border-[rgba(255,255,255,0.07)] shrink-0">
-        <label className="block text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-2">
+        <label className="block text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-2">
           Formula Type
         </label>
         <select
@@ -239,8 +239,8 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
               "[&_button[role=combobox]]:bg-[rgba(255,255,255,0.04)] [&_button[role=combobox]]:border-[rgba(255,255,255,0.1)] [&_button[role=combobox]]:h-10 [&_button[role=combobox]]:text-sm [&_button[role=combobox]]:text-white [&_button[role=combobox]]:rounded-lg [&_button[role=combobox]]:px-3.5",
               "[&_[data-slot=select-trigger]]:bg-[rgba(255,255,255,0.04)] [&_[data-slot=select-trigger]]:border-[rgba(255,255,255,0.1)] [&_[data-slot=select-trigger]]:h-10 [&_[data-slot=select-trigger]]:text-sm [&_[data-slot=select-trigger]]:text-white [&_[data-slot=select-trigger]]:w-full",
               // Section headers - improved readability
-              "[&_h3]:text-xs [&_h3]:font-medium [&_h3]:uppercase [&_h3]:tracking-[1.5px] [&_h3]:text-[rgba(255,255,255,0.5)] [&_h3]:border-b [&_h3]:border-[rgba(255,255,255,0.1)] [&_h3]:pb-2 [&_h3]:mb-4",
-              "[&_p]:text-xs [&_p]:text-[rgba(255,255,255,0.4)]"
+              "[&_h3]:text-xs [&_h3]:font-medium [&_h3]:uppercase [&_h3]:tracking-[1.5px] [&_h3]:text-[rgba(255,255,255,0.65)] [&_h3]:border-b [&_h3]:border-[rgba(255,255,255,0.1)] [&_h3]:pb-2 [&_h3]:mb-4",
+              "[&_p]:text-xs [&_p]:text-[rgba(255,255,255,0.55)]"
             )}
           >
             <ClientDataSection />

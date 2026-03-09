@@ -44,7 +44,7 @@ export function UsageCard({ usage }: UsageCardProps) {
       <div className="w-9 h-9 rounded-[10px] flex items-center justify-center mb-4 bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)]">
         <Activity className="w-[18px] h-[18px] text-gold" />
       </div>
-      <p className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-3">
+      <p className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-3">
         Plan Usage
       </p>
       <div className="space-y-2.5">

@@ -173,7 +173,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-[rgba(255,255,255,0.4)]">Loading dashboard...</div>
+        <div className="text-[rgba(255,255,255,0.55)]">Loading dashboard...</div>
       </div>
     )
   }
@@ -191,7 +191,7 @@ export default function AdminDashboard() {
       {/* Activity Chart */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)]">
+          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">
             Activity Over Time
           </h2>
           <div className="flex gap-2">
@@ -203,7 +203,7 @@ export default function AdminDashboard() {
                   className={`px-3 py-1 text-xs rounded-md transition-colors ${
                     activityType === t
                       ? 'bg-[#d4af37] text-black font-medium'
-                      : 'text-[rgba(255,255,255,0.5)] hover:text-white'
+                      : 'text-[rgba(255,255,255,0.65)] hover:text-white'
                   }`}
                 >
                   {t === 'scenario_runs' ? 'Scenarios' : t === 'exports' ? 'Exports' : 'Logins'}
@@ -218,7 +218,7 @@ export default function AdminDashboard() {
                   className={`px-3 py-1 text-xs rounded-md transition-colors ${
                     activityRange === r
                       ? 'bg-[rgba(255,255,255,0.15)] text-white font-medium'
-                      : 'text-[rgba(255,255,255,0.5)] hover:text-white'
+                      : 'text-[rgba(255,255,255,0.65)] hover:text-white'
                   }`}
                 >
                   {r}
@@ -261,7 +261,7 @@ export default function AdminDashboard() {
       {/* Advisors Table */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)]">
+          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">
             Advisors
           </h2>
           <div className="flex gap-3 flex-wrap">
@@ -270,7 +270,7 @@ export default function AdminDashboard() {
               placeholder="Search email..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="px-3 py-1.5 text-xs bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white placeholder:text-[rgba(255,255,255,0.3)] outline-none focus:border-[#d4af37]"
+              className="px-3 py-1.5 text-xs bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white placeholder:text-[rgba(255,255,255,0.65)] outline-none focus:border-[#d4af37]"
             />
             <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
               {([['all', 'All'], ['1d', '1 Day'], ['7d', '7 Days'], ['30d', '30 Days']] as const).map(([value, label]) => (
@@ -280,7 +280,7 @@ export default function AdminDashboard() {
                   className={`px-3 py-1 text-xs rounded-md transition-colors ${
                     timeFilter === value
                       ? 'bg-[#d4af37] text-black font-medium'
-                      : 'text-[rgba(255,255,255,0.5)] hover:text-white'
+                      : 'text-[rgba(255,255,255,0.65)] hover:text-white'
                   }`}
                 >
                   {label}
@@ -295,7 +295,7 @@ export default function AdminDashboard() {
                   className={`px-3 py-1 text-xs rounded-md transition-colors capitalize ${
                     statusFilter === s
                       ? 'bg-[rgba(255,255,255,0.15)] text-white font-medium'
-                      : 'text-[rgba(255,255,255,0.5)] hover:text-white'
+                      : 'text-[rgba(255,255,255,0.65)] hover:text-white'
                   }`}
                 >
                   {s}
@@ -352,14 +352,14 @@ export default function AdminDashboard() {
                   />
                 </td>
                 <td className="px-4 py-3 text-sm text-white">{a.email}</td>
-                <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">
+                <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">
                   {new Date(a.createdAt).toLocaleDateString()}
                 </td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.clientCount}</td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.scenarioRunCount}</td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.exportCount}</td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.sessionCount}</td>
-                <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">
+                <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">
                   {a.lastLogin ? new Date(a.lastLogin).toLocaleDateString() : 'Never'}
                 </td>
                 <td className="px-4 py-3">
@@ -368,7 +368,7 @@ export default function AdminDashboard() {
                       ? 'bg-[rgba(239,68,68,0.15)] text-[#ef4444]'
                       : a.status === 'active'
                         ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80]'
-                        : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)]'
+                        : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.55)]'
                   }`}>
                     {a.status}
                   </span>
@@ -377,7 +377,7 @@ export default function AdminDashboard() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.3)]">
+                <td colSpan={9} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.65)]">
                   No advisors found
                 </td>
               </tr>
@@ -401,7 +401,7 @@ function SortableHeader({ label, sortKey: key, align, currentSort, currentDir, o
   return (
     <th
       className={`${align === 'right' ? 'text-right' : 'text-left'} px-4 py-3 text-xs uppercase tracking-[1px] font-semibold cursor-pointer select-none transition-colors ${
-        isActive ? 'text-[#d4af37]' : 'text-[rgba(255,255,255,0.5)] hover:text-[rgba(255,255,255,0.8)]'
+        isActive ? 'text-[#d4af37]' : 'text-[rgba(255,255,255,0.65)] hover:text-[rgba(255,255,255,0.8)]'
       }`}
       onClick={() => onSort(key)}
     >
@@ -418,7 +418,7 @@ function SortableHeader({ label, sortKey: key, align, currentSort, currentDir, o
 function StatCard({ label, value, trend }: { label: string; value: number; trend?: number }) {
   return (
     <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-5">
-      <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-semibold mb-2">{label}</p>
+      <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-semibold mb-2">{label}</p>
       <p className="text-2xl font-semibold text-white font-mono">{value.toLocaleString()}</p>
       {trend != null && trend > 0 && (
         <p className="text-xs text-[#4ade80] mt-1">+{trend} this week</p>

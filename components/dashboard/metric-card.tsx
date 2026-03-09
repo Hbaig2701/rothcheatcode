@@ -24,11 +24,11 @@ export function MetricCard({ title, value, subtitle, icon }: MetricCardProps) {
       <div className="w-9 h-9 rounded-[10px] flex items-center justify-center mb-4 bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)]">
         <Icon className="w-[18px] h-[18px] text-gold" />
       </div>
-      <p className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-2">
+      <p className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-2">
         {title}
       </p>
       <p className="text-[28px] font-mono font-medium text-white mb-1">{value}</p>
-      <p className="text-[13px] text-[rgba(255,255,255,0.45)]">{subtitle}</p>
+      <p className="text-sm text-[rgba(255,255,255,0.6)]">{subtitle}</p>
     </div>
   );
 }

@@ -25,17 +25,17 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
   if (data.length === 0) {
     return (
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
-        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-6">
+        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-6">
           Product Mix
         </h3>
-        <p className="text-sm text-[rgba(255,255,255,0.45)] text-center py-8">No data yet</p>
+        <p className="text-sm text-[rgba(255,255,255,0.6)] text-center py-8">No data yet</p>
       </div>
     );
   }
 
   return (
     <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
-      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-6">
+      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-6">
         Product Mix
       </h3>
 
@@ -85,7 +85,7 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
               </div>
               <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">
                 {item.value}{" "}
-                <span className="text-[rgba(255,255,255,0.4)]">
+                <span className="text-[rgba(255,255,255,0.55)]">
                   ({total > 0 ? Math.round((item.value / total) * 100) : 0}%)
                 </span>
               </span>

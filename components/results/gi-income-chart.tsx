@@ -55,11 +55,11 @@ function CustomTooltip({ active, payload, label }: any) {
         <>
           <div className="space-y-2 mb-3">
             <div className="flex justify-between gap-6">
-              <span className="text-sm text-[rgba(255,255,255,0.5)]">Strategy (tax-free)</span>
+              <span className="text-sm text-[rgba(255,255,255,0.65)]">Strategy (tax-free)</span>
               <span className="text-sm font-mono text-[#4ade80]">{toUSD(data.strategyNet)}</span>
             </div>
             <div className="flex justify-between gap-6">
-              <span className="text-sm text-[rgba(255,255,255,0.5)]">Baseline (after-tax)</span>
+              <span className="text-sm text-[rgba(255,255,255,0.65)]">Baseline (after-tax)</span>
               <span className="text-sm font-mono text-[rgba(255,255,255,0.6)]">{toUSD(data.baselineNet)}</span>
             </div>
           </div>
@@ -71,7 +71,7 @@ function CustomTooltip({ active, payload, label }: any) {
           </div>
         </>
       ) : (
-        <p className="text-sm text-[rgba(255,255,255,0.5)]">
+        <p className="text-sm text-[rgba(255,255,255,0.65)]">
           {data.phase === 'conversion' ? 'Converting to Roth...' : 'Income Base growing...'}
         </p>
       )}

@@ -83,7 +83,7 @@ export default function AdvisorDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-[rgba(255,255,255,0.4)]">Loading advisor...</div>
+        <div className="text-[rgba(255,255,255,0.55)]">Loading advisor...</div>
       </div>
     )
   }
@@ -91,7 +91,7 @@ export default function AdvisorDetailPage() {
   if (!data?.advisor) {
     return (
       <div className="text-center py-20">
-        <p className="text-[rgba(255,255,255,0.4)]">Advisor not found</p>
+        <p className="text-[rgba(255,255,255,0.55)]">Advisor not found</p>
         <Link href="/admin" className="text-[#d4af37] text-sm mt-2 inline-block">Back to Dashboard</Link>
       </div>
     )
@@ -119,7 +119,7 @@ export default function AdvisorDetailPage() {
             <h3 className="text-lg font-semibold text-white">
               {confirmAction === 'delete' ? 'Permanently Delete User?' : 'Deactivate User?'}
             </h3>
-            <p className="text-sm text-[rgba(255,255,255,0.5)]">
+            <p className="text-sm text-[rgba(255,255,255,0.65)]">
               {confirmAction === 'delete'
                 ? `This will permanently delete ${advisor.email} and all their data (clients, projections, exports, logs). This action cannot be undone.`
                 : `This will temporarily block ${advisor.email} from logging in. You can reactivate their account later.`}
@@ -151,11 +151,11 @@ export default function AdvisorDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <Link href="/admin" className="text-xs text-[rgba(255,255,255,0.4)] hover:text-white transition-colors mb-2 inline-block">
+          <Link href="/admin" className="text-xs text-[rgba(255,255,255,0.55)] hover:text-white transition-colors mb-2 inline-block">
             &larr; Back to Dashboard
           </Link>
           <h2 className="text-xl font-semibold text-white">{advisor.email}</h2>
-          <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">
+          <p className="text-sm text-[rgba(255,255,255,0.55)] mt-1">
             Signed up {new Date(advisor.createdAt).toLocaleDateString()}
           </p>
         </div>
@@ -164,7 +164,7 @@ export default function AdvisorDetailPage() {
             ? 'bg-[rgba(239,68,68,0.15)] text-[#ef4444]'
             : advisor.status === 'active'
               ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80]'
-              : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)]'
+              : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.55)]'
         }`}>
           {advisor.status}
         </span>
@@ -172,7 +172,7 @@ export default function AdvisorDetailPage() {
 
       {/* Admin Actions */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h3 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-4">
+        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.55)] mb-4">
           Admin Actions
         </h3>
         <div className="flex flex-wrap gap-3">
@@ -209,7 +209,7 @@ export default function AdvisorDetailPage() {
           </button>
         </div>
         {advisor.deactivatedAt && (
-          <p className="text-xs text-[rgba(255,255,255,0.3)] mt-3">
+          <p className="text-xs text-[rgba(255,255,255,0.65)] mt-3">
             Deactivated on {new Date(advisor.deactivatedAt).toLocaleDateString()}
           </p>
         )}
@@ -227,26 +227,26 @@ export default function AdvisorDetailPage() {
 
       {/* Client List */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h3 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-4">
+        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.55)] mb-4">
           Clients ({clients.length})
         </h3>
         {clients.length > 0 ? (
           <table className="w-full">
             <thead>
               <tr className="border-b border-[rgba(255,255,255,0.07)]">
-                <th className="text-left px-4 py-2 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Name</th>
-                <th className="text-left px-4 py-2 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Created</th>
-                <th className="text-left px-4 py-2 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Last Activity</th>
-                <th className="text-right px-4 py-2 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Scenarios</th>
-                <th className="text-right px-4 py-2 text-[10px] uppercase tracking-[1px] text-[rgba(255,255,255,0.35)] font-medium">Exports</th>
+                <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] font-medium">Name</th>
+                <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] font-medium">Created</th>
+                <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] font-medium">Last Activity</th>
+                <th className="text-right px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] font-medium">Scenarios</th>
+                <th className="text-right px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] font-medium">Exports</th>
               </tr>
             </thead>
             <tbody>
               {clients.map(c => (
                 <tr key={c.id} className="border-b border-[rgba(255,255,255,0.03)]">
                   <td className="px-4 py-3 text-sm text-white">{c.name}</td>
-                  <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{new Date(c.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{new Date(c.lastActivity).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{new Date(c.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{new Date(c.lastActivity).toLocaleDateString()}</td>
                   <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{c.scenarioRuns}</td>
                   <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{c.exports}</td>
                 </tr>
@@ -254,13 +254,13 @@ export default function AdvisorDetailPage() {
             </tbody>
           </table>
         ) : (
-          <p className="text-sm text-[rgba(255,255,255,0.3)] text-center py-4">No clients yet</p>
+          <p className="text-sm text-[rgba(255,255,255,0.65)] text-center py-4">No clients yet</p>
         )}
       </div>
 
       {/* Recent Activity */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h3 className="text-[11px] font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.25)] mb-4">
+        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.55)] mb-4">
           Recent Activity
         </h3>
         {recentActivity.length > 0 ? (
@@ -279,14 +279,14 @@ export default function AdvisorDetailPage() {
                     {item.type === 'export' && `Exported PDF${item.clientName ? ` for ${item.clientName}` : ''}`}
                   </span>
                 </div>
-                <span className="text-xs text-[rgba(255,255,255,0.3)]">
+                <span className="text-xs text-[rgba(255,255,255,0.65)]">
                   {formatTimeAgo(item.timestamp)}
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[rgba(255,255,255,0.3)] text-center py-4">No activity yet</p>
+          <p className="text-sm text-[rgba(255,255,255,0.65)] text-center py-4">No activity yet</p>
         )}
       </div>
     </div>
@@ -296,7 +296,7 @@ export default function AdvisorDetailPage() {
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
     <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-lg p-3">
-      <p className="text-[9px] uppercase tracking-[1px] text-[rgba(255,255,255,0.25)] mb-1">{label}</p>
+      <p className="text-[9px] uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] mb-1">{label}</p>
       <p className="text-lg font-semibold text-white font-mono">{value}</p>
     </div>
   )

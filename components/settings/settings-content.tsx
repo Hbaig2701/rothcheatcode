@@ -56,7 +56,7 @@ export function SettingsContent({ user }: { user: User }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-8 animate-spin text-[rgba(255,255,255,0.25)]" />
+        <Loader2 className="size-8 animate-spin text-[rgba(255,255,255,0.55)]" />
       </div>
     );
   }
@@ -87,7 +87,7 @@ export function SettingsContent({ user }: { user: User }) {
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="justify-start gap-2.5 h-11 px-3.5 rounded-lg text-sm font-normal text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] data-[state=active]:bg-[rgba(212,175,55,0.08)] data-[state=active]:text-gold data-[state=active]:border data-[state=active]:border-[rgba(212,175,55,0.2)] border border-transparent transition-all"
+                className="justify-start gap-2.5 h-11 px-3.5 rounded-lg text-sm font-normal text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] data-[state=active]:bg-[rgba(212,175,55,0.08)] data-[state=active]:text-gold data-[state=active]:border data-[state=active]:border-[rgba(212,175,55,0.2)] border border-transparent transition-all"
               >
                 <tab.icon className="size-4 opacity-70" />
                 {tab.label}

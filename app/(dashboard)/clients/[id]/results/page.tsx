@@ -74,7 +74,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-[#0c0c0c]">
-        <Loader2 className="h-8 w-8 animate-spin text-[rgba(255,255,255,0.25)]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[rgba(255,255,255,0.55)]" />
       </div>
     );
   }
@@ -82,7 +82,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
   if (!client) {
     return (
       <div className="p-9 text-white">
-        <p className="text-[rgba(255,255,255,0.5)]">Client not found</p>
+        <p className="text-[rgba(255,255,255,0.65)]">Client not found</p>
       </div>
     );
   }
@@ -138,7 +138,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
         <div className="flex items-center gap-3.5">
           <a
             href={`/clients/${client.id}`}
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-[rgba(255,255,255,0.07)] text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-lg border border-[rgba(255,255,255,0.07)] text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
           </a>
@@ -146,7 +146,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
             <div className="flex items-center gap-2.5">
               <span className="text-base font-medium text-white">{client.name}</span>
               <span
-                className={`inline-block px-3 py-0.5 rounded-[20px] text-[13px] font-mono font-medium ${
+                className={`inline-block px-3 py-0.5 rounded-[20px] text-sm font-mono font-medium ${
                   delta >= 0
                     ? "bg-[rgba(74,222,128,0.08)] text-[#4ade80]"
                     : "bg-[rgba(248,113,113,0.08)] text-[#f87171]"
@@ -155,10 +155,10 @@ export default function ResultsPage({ params }: ResultsPageProps) {
                 {delta >= 0 ? "+" : ""}{delta}%
               </span>
             </div>
-            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-0.5">
+            <p className="text-sm text-[rgba(255,255,255,0.65)] mt-0.5">
               Age {client.age} · {client.filing_status === "married_filing_jointly" ? "MFJ" : client.filing_status === "single" ? "Single" : client.filing_status} · ${(client.qualified_account_value / 100000000).toFixed(1)}M · {client.product_name} · {client.carrier_name}
             </p>
-            <p className="text-[11px] text-[rgba(255,255,255,0.3)] mt-1 italic">
+            <p className="text-xs text-[rgba(255,255,255,0.65)] mt-1 italic">
               This report is for educational and illustrative purposes only. Consult a qualified professional before making any financial decisions.
             </p>
           </div>
@@ -200,7 +200,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
                       setPresentMode(true);
                       setActionsOpen(false);
                     }}
-                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
+                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
                   >
                     <Play className="h-4 w-4" />
                     Present
@@ -210,14 +210,14 @@ export default function ResultsPage({ params }: ResultsPageProps) {
                       setExportDialogOpen(true);
                       setActionsOpen(false);
                     }}
-                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
+                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
                   >
                     <Download className="h-4 w-4" />
                     Export as PDF
                   </button>
                   <button
                     onClick={() => setActionsOpen(false)}
-                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
+                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
                   >
                     <Copy className="h-4 w-4" />
                     Duplicate
@@ -227,7 +227,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
                       setAnnotateMode(true);
                       setActionsOpen(false);
                     }}
-                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
+                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
                   >
                     <Pencil className="h-4 w-4" />
                     Annotate
@@ -238,7 +238,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
                       setStoryMode(true);
                       setActionsOpen(false);
                     }}
-                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
+                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] rounded-lg transition-colors text-left"
                   >
                     <BookOpen className="h-4 w-4" />
                     Story Mode

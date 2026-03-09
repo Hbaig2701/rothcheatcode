@@ -24,7 +24,7 @@ export function DashboardEmptyState() {
         </div>
 
         <h2 className="font-display text-xl font-normal text-white mb-2">No Scenarios Yet</h2>
-        <p className="text-sm text-[rgba(255,255,255,0.5)] mb-8">
+        <p className="text-sm text-[rgba(255,255,255,0.65)] mb-8">
           Create your first client scenario to see your dashboard analytics and track your
           impact.
         </p>

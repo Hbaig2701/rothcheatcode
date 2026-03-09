@@ -21,10 +21,10 @@ export function ConversionPipeline({
 
   return (
     <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
-      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-2">
+      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-2">
         Conversion Pipeline
       </h3>
-      <p className="text-[13px] text-[rgba(255,255,255,0.45)] mb-5">
+      <p className="text-sm text-[rgba(255,255,255,0.6)] mb-5">
         Clients currently in active Roth conversion
       </p>
 
@@ -46,19 +46,19 @@ export function ConversionPipeline({
       <table className="w-full">
         <thead>
           <tr>
-            <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.5)] border-b border-[rgba(255,255,255,0.07)]">
+            <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.65)] border-b border-[rgba(255,255,255,0.07)]">
               Client
             </th>
-            <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.5)] border-b border-[rgba(255,255,255,0.07)]">
+            <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.65)] border-b border-[rgba(255,255,255,0.07)]">
               Product
             </th>
-            <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.5)] border-b border-[rgba(255,255,255,0.07)]">
+            <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.65)] border-b border-[rgba(255,255,255,0.07)]">
               Progress
             </th>
-            <th className="text-right pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.5)] border-b border-[rgba(255,255,255,0.07)]">
+            <th className="text-right pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.65)] border-b border-[rgba(255,255,255,0.07)]">
               Remaining
             </th>
-            <th className="pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.5)] border-b border-[rgba(255,255,255,0.07)] w-40 text-center">
+            <th className="pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.65)] border-b border-[rgba(255,255,255,0.07)] w-40 text-center">
               Status
             </th>
           </tr>
@@ -72,7 +72,7 @@ export function ConversionPipeline({
               <td className="py-2.5 text-sm text-[rgba(255,255,255,0.7)]">
                 {item.clientName}
               </td>
-              <td className="py-2.5 text-sm text-[rgba(255,255,255,0.5)]">
+              <td className="py-2.5 text-sm text-[rgba(255,255,255,0.65)]">
                 {item.productLabel}
               </td>
               <td className="py-2.5 text-sm font-mono text-[rgba(255,255,255,0.7)]">

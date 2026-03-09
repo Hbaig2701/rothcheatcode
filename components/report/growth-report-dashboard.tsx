@@ -106,7 +106,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
       <div className="p-9 space-y-6">
         {/* Section 1: Strategy Summary (Hero) */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] py-8 px-10">
-          <p className="text-sm uppercase tracking-[3px] text-[rgba(255,255,255,0.4)] mb-6 font-medium">
+          <p className="text-sm uppercase tracking-[3px] text-[rgba(255,255,255,0.55)] mb-6 font-medium">
             Your Roth Conversion Strategy
           </p>
 
@@ -118,7 +118,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               )}>
                 {lifetimeWealthDiff >= 0 ? "+" : ""}{toUSD(lifetimeWealthDiff)}
               </p>
-              <p className="text-base text-[rgba(255,255,255,0.5)] mt-1">Additional Lifetime Wealth</p>
+              <p className="text-base text-[rgba(255,255,255,0.65)] mt-1">Additional Lifetime Wealth</p>
             </div>
             <div className="border-l border-[rgba(255,255,255,0.1)] pl-8">
               <p className={cn(
@@ -127,15 +127,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               )}>
                 {baseLifetimeWealth > 0 ? `${lifetimeWealthDiff >= 0 ? "+" : ""}${((lifetimeWealthDiff / baseLifetimeWealth) * 100).toFixed(1)}%` : "N/A"}
               </p>
-              <p className="text-base text-[rgba(255,255,255,0.5)] mt-1">vs Doing Nothing</p>
+              <p className="text-base text-[rgba(255,255,255,0.65)] mt-1">vs Doing Nothing</p>
             </div>
           </div>
 
           <div className="pt-5 border-t border-[rgba(255,255,255,0.07)]">
-            <p className="text-base text-[rgba(255,255,255,0.5)]">
+            <p className="text-base text-[rgba(255,255,255,0.65)]">
               Convert {toUSD(blueConversions)} over {conversionYears.length} years · Stay in the {getTargetBracket()} bracket
             </p>
-            <p className="text-sm text-[rgba(255,255,255,0.4)] mt-1">
+            <p className="text-sm text-[rgba(255,255,255,0.55)] mt-1">
               Projected final Roth balance: {toUSD(blueFinalRoth)} (tax-free)
             </p>
           </div>
@@ -231,7 +231,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         {/* Section 3: Conversion Strategy Breakdown */}
         {conversionYears.length > 0 && (
           <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-6 font-medium">
+            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-6 font-medium">
               Conversion Strategy
             </p>
 
@@ -243,15 +243,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[10px] py-4 px-5 text-center min-w-[110px] shrink-0"
                 >
                   <p className="text-sm font-mono text-[rgba(255,255,255,0.6)]">{year.year}</p>
-                  <p className="text-xs text-[rgba(255,255,255,0.4)] mb-2">Age {year.age}</p>
+                  <p className="text-xs text-[rgba(255,255,255,0.55)] mb-2">Age {year.age}</p>
                   <p className="text-lg font-mono font-medium text-gold">{toUSD(year.conversionAmount)}</p>
-                  <p className="text-[10px] text-[rgba(255,255,255,0.4)] mt-1">Convert</p>
+                  <p className="text-xs text-[rgba(255,255,255,0.55)] mt-1">Convert</p>
                   <p className="text-sm font-mono text-white mt-2">{client.tax_rate || 24}%</p>
-                  <p className="text-[10px] text-[rgba(255,255,255,0.4)]">Bracket</p>
+                  <p className="text-xs text-[rgba(255,255,255,0.55)]">Bracket</p>
                 </div>
               ))}
               {conversionYears.length > 8 && (
-                <div className="flex items-center justify-center min-w-[80px] text-[rgba(255,255,255,0.4)] text-sm">
+                <div className="flex items-center justify-center min-w-[80px] text-[rgba(255,255,255,0.55)] text-sm">
                   +{conversionYears.length - 8} more
                 </div>
               )}
@@ -259,7 +259,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
             {/* Summary Row */}
             <div className="pt-5 border-t border-[rgba(255,255,255,0.07)]">
-              <p className="text-sm text-[rgba(255,255,255,0.5)]">
+              <p className="text-sm text-[rgba(255,255,255,0.65)]">
                 Total Converted: <span className="font-mono text-white">{toUSD(blueConversions)}</span>
                 {" · "}
                 Total Conversion Taxes: <span className="font-mono text-white">{toUSD(blueTax)}</span>
@@ -273,7 +273,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         {/* Section 4: Legacy to Heirs Chart */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
           <div className="flex justify-between items-center mb-6">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-medium">
+            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
               Legacy to Heirs Over Time
             </p>
             <div className="flex items-center gap-5 text-sm">
@@ -281,7 +281,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 <span className="w-4 h-0.5 bg-gold rounded" />
                 Strategy (Roth)
               </span>
-              <span className="flex items-center gap-2 text-[rgba(255,255,255,0.5)]">
+              <span className="flex items-center gap-2 text-[rgba(255,255,255,0.65)]">
                 <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 4px, transparent 4px, transparent 6px)" }} />
                 Baseline (Traditional)
               </span>
@@ -291,7 +291,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             <WealthChart data={chartData} breakEvenAge={chartBreakEvenAge} />
           </div>
           {chartBreakEvenAge && (
-            <p className="text-sm text-[rgba(255,255,255,0.4)] text-center mt-4">
+            <p className="text-sm text-[rgba(255,255,255,0.55)] text-center mt-4">
               Strategy surpasses baseline at age {chartBreakEvenAge}
             </p>
           )}
@@ -301,20 +301,20 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Account Summary */}
           <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-5 font-medium">
+            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-5 font-medium">
               Account Summary
             </p>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.5)]">Starting Balance</span>
+                <span className="text-sm text-[rgba(255,255,255,0.65)]">Starting Balance</span>
                 <span className="text-base font-mono text-white">{toUSD(client.qualified_account_value)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.5)]">Final Traditional IRA</span>
+                <span className="text-sm text-[rgba(255,255,255,0.65)]">Final Traditional IRA</span>
                 <span className="text-base font-mono text-[rgba(255,255,255,0.6)]">{toUSD(blueFinalTraditional)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.5)]">Final Roth IRA</span>
+                <span className="text-sm text-[rgba(255,255,255,0.65)]">Final Roth IRA</span>
                 <span className="text-base font-mono text-[#4ade80]">{toUSD(blueFinalRoth)}</span>
               </div>
               <div className="pt-3 border-t border-[rgba(255,255,255,0.07)] flex justify-between items-center">
@@ -326,40 +326,40 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
           {/* Product Details */}
           <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] mb-5 font-medium">
+            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-5 font-medium">
               Product Details
             </p>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.5)]">Carrier</span>
+                <span className="text-sm text-[rgba(255,255,255,0.65)]">Carrier</span>
                 <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">{client.carrier_name}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.5)]">Product</span>
+                <span className="text-sm text-[rgba(255,255,255,0.65)]">Product</span>
                 <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">{client.product_name}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.5)]">Assumed Return</span>
+                <span className="text-sm text-[rgba(255,255,255,0.65)]">Assumed Return</span>
                 <span className="text-sm font-mono text-gold">{client.rate_of_return}%</span>
               </div>
               {client.bonus_percent > 0 && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-[rgba(255,255,255,0.5)]">Premium Bonus</span>
+                  <span className="text-sm text-[rgba(255,255,255,0.65)]">Premium Bonus</span>
                   <span className="text-sm font-mono text-gold">{client.bonus_percent}%</span>
                 </div>
               )}
               {client.anniversary_bonus_percent != null && client.anniversary_bonus_years != null && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-[rgba(255,255,255,0.5)]">Anniversary Bonus</span>
+                  <span className="text-sm text-[rgba(255,255,255,0.65)]">Anniversary Bonus</span>
                   <span className="text-sm font-mono text-gold">{client.anniversary_bonus_percent}% × {client.anniversary_bonus_years} years</span>
                 </div>
               )}
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.5)]">Surrender Period</span>
+                <span className="text-sm text-[rgba(255,255,255,0.65)]">Surrender Period</span>
                 <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">{client.surrender_years} years</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.5)]">Free Withdrawal</span>
+                <span className="text-sm text-[rgba(255,255,255,0.65)]">Free Withdrawal</span>
                 <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">{client.penalty_free_percent}% annually</span>
               </div>
             </div>
@@ -370,7 +370,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] overflow-hidden">
           {/* Table Header */}
           <div className="flex justify-between items-center px-6 py-5 border-b border-[rgba(255,255,255,0.07)]">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-medium">
+            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
               Year-by-Year Projection
             </p>
             <div className="flex bg-[rgba(255,255,255,0.04)] rounded-lg p-1">
@@ -380,7 +380,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   "px-4 py-1.5 text-sm rounded-md transition-colors",
                   tableView === "strategy"
                     ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.5)] hover:text-white"
+                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
                 )}
               >
                 Strategy
@@ -391,7 +391,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   "px-4 py-1.5 text-sm rounded-md transition-colors",
                   tableView === "baseline"
                     ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.5)] hover:text-white"
+                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
                 )}
               >
                 Baseline
@@ -402,7 +402,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   "px-4 py-1.5 text-sm rounded-md transition-colors",
                   tableView === "comparison"
                     ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.5)] hover:text-white"
+                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
                 )}
               >
                 Comparison
@@ -429,7 +429,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         </div>
 
         {/* Section 7: Disclaimer */}
-        <p className="text-sm text-[rgba(255,255,255,0.4)] italic text-center max-w-[900px] mx-auto py-6">
+        <p className="text-sm text-[rgba(255,255,255,0.55)] italic text-center max-w-[900px] mx-auto py-6">
           Projections use an assumed average annual return of {client.rate_of_return}% and do not represent guaranteed performance.
           Actual index-linked interest will vary based on market conditions and is subject to caps, participation rates, or spreads
           as declared by the carrier. The 0% floor protects against market losses but does not guarantee positive returns.
@@ -471,7 +471,7 @@ function InfoModal({
             onClick={onClose}
             className="p-1 rounded-lg hover:bg-[rgba(255,255,255,0.05)] transition-colors"
           >
-            <X className="h-5 w-5 text-[rgba(255,255,255,0.5)]" />
+            <X className="h-5 w-5 text-[rgba(255,255,255,0.65)]" />
           </button>
         </div>
         {/* Content */}
@@ -506,7 +506,7 @@ function ComparisonCard({
     <>
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[12px] p-5">
         <div className="flex items-center gap-1.5 mb-4">
-          <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-medium">
+          <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
             {label}
           </p>
           {infoContent && (
@@ -515,17 +515,17 @@ function ComparisonCard({
               className="p-0.5 rounded hover:bg-[rgba(255,255,255,0.1)] transition-colors"
               title="Learn how this is calculated"
             >
-              <Info className="h-3.5 w-3.5 text-[rgba(255,255,255,0.4)] hover:text-gold" />
+              <Info className="h-3.5 w-3.5 text-[rgba(255,255,255,0.55)] hover:text-gold" />
             </button>
           )}
         </div>
         <div className="flex justify-between mb-2">
           <div>
-            <p className="text-[10px] uppercase text-[rgba(255,255,255,0.35)] mb-1">Baseline</p>
+            <p className="text-xs uppercase text-[rgba(255,255,255,0.55)] mb-1">Baseline</p>
             <p className="text-lg font-mono text-[rgba(255,255,255,0.6)]">{toUSD(baseline)}</p>
           </div>
           <div className="text-right">
-            <p className="text-[10px] uppercase text-[rgba(255,255,255,0.35)] mb-1">Strategy</p>
+            <p className="text-xs uppercase text-[rgba(255,255,255,0.55)] mb-1">Strategy</p>
             <p className="text-lg font-mono font-medium text-white">{toUSD(strategy)}</p>
           </div>
         </div>
@@ -618,27 +618,27 @@ function LifetimeWealthInfo({
       {/* Baseline Calculation */}
       <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-3">
         <p className="text-white font-medium text-xs uppercase tracking-wider">Baseline: Keep Traditional IRA</p>
-        <p className="text-xs text-[rgba(255,255,255,0.5)]">
+        <p className="text-xs text-[rgba(255,255,255,0.65)]">
           Your {toUSD(startingBalance)} stays in a Traditional IRA, growing at {client.rate_of_return}% with RMDs starting at 73:
         </p>
         <div className="space-y-1 font-mono text-sm border-t border-[rgba(255,255,255,0.1)] pt-3">
           <p>Final Traditional IRA: {toUSD(baseFinalTraditional)}</p>
           <p>Final Roth IRA: {toUSD(baseFinalRoth)}</p>
           <p>Final Taxable Account: {toUSD(Math.max(0, projection.baseline_final_taxable))}</p>
-          <p className="text-[rgba(255,255,255,0.5)]">─────────────────────</p>
+          <p className="text-[rgba(255,255,255,0.65)]">─────────────────────</p>
           <p>Gross Estate: {toUSD(projection.baseline_final_net_worth)}</p>
           <p className="text-[#f87171]">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
           <p className="text-white font-medium">= Net Legacy to Heirs: {toUSD(baseNetLegacy)}</p>
           {rmdTreatment === 'spent' && (
             <>
-              <p className="text-[rgba(255,255,255,0.5)] mt-2">Plus distributions you received:</p>
+              <p className="text-[rgba(255,255,255,0.65)] mt-2">Plus distributions you received:</p>
               <p>+ After-Tax RMDs Spent: {toUSD(baseCumulativeDistributions)}</p>
             </>
           )}
-          <p className="text-[rgba(255,255,255,0.5)]">─────────────────────</p>
+          <p className="text-[rgba(255,255,255,0.65)]">─────────────────────</p>
           <p className="text-white font-semibold text-base">Baseline Lifetime Wealth: {toUSD(baseLifetimeWealth)}</p>
         </div>
-        <p className="text-xs text-[rgba(255,255,255,0.4)] mt-2">
+        <p className="text-xs text-[rgba(255,255,255,0.55)] mt-2">
           Over {projectionYears} years, you'd take {toUSD(baseRMDs)} in RMDs and pay {toUSD(baseTax)} in income taxes on them.
         </p>
       </div>
@@ -646,7 +646,7 @@ function LifetimeWealthInfo({
       {/* Strategy Calculation */}
       <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
         <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy: Roth Conversions</p>
-        <p className="text-xs text-[rgba(255,255,255,0.5)]">
+        <p className="text-xs text-[rgba(255,255,255,0.65)]">
           Your {toUSD(startingBalance)} + {client.bonus_percent}% premium bonus ({toUSD(bonusAmount)}) = {toUSD(startingWithBonus)} starting balance
           {hasAnniversaryBonus && <>, plus {client.anniversary_bonus_percent}% anniversary bonus applied at end of years 1-{client.anniversary_bonus_years}</>}
           , converted to Roth over time:
@@ -654,16 +654,16 @@ function LifetimeWealthInfo({
         <div className="space-y-1 font-mono text-sm border-t border-[rgba(212,175,55,0.2)] pt-3">
           <p>Total Converted to Roth: {toUSD(blueConversions)}</p>
           <p>Conversion Taxes Paid: {toUSD(blueTax)}</p>
-          <p className="text-[rgba(255,255,255,0.5)]">─────────────────────</p>
+          <p className="text-[rgba(255,255,255,0.65)]">─────────────────────</p>
           <p>Final Traditional IRA: {toUSD(blueFinalTraditional)}</p>
           <p className="text-[#4ade80]">Final Roth IRA: {toUSD(blueFinalRoth)}</p>
           <p>Final Taxable Account: {toUSD(Math.max(0, projection.blueprint_final_taxable))}</p>
-          <p className="text-[rgba(255,255,255,0.5)]">─────────────────────</p>
+          <p className="text-[rgba(255,255,255,0.65)]">─────────────────────</p>
           <p>Gross Estate: {toUSD(projection.blueprint_final_net_worth)}</p>
           <p className="text-[#f87171]">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
           <p className="text-gold font-semibold text-base">Strategy Lifetime Wealth: {toUSD(blueLifetimeWealth)}</p>
         </div>
-        <p className="text-xs text-[rgba(255,255,255,0.4)] mt-2">
+        <p className="text-xs text-[rgba(255,255,255,0.55)] mt-2">
           No RMDs required from Roth. Your heirs inherit {toUSD(blueFinalRoth)} completely tax-free.
         </p>
       </div>
@@ -740,7 +740,7 @@ function LegacyToHeirsInfo({
 
       <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-3">
         <p className="text-white font-medium text-xs uppercase tracking-wider">Baseline Inheritance</p>
-        <p className="text-xs text-[rgba(255,255,255,0.5)]">Your heirs receive:</p>
+        <p className="text-xs text-[rgba(255,255,255,0.65)]">Your heirs receive:</p>
         <div className="space-y-1 font-mono text-sm">
           <p>Traditional IRA Balance: {toUSD(baseFinalTraditional)}</p>
           <p className="text-[#f87171]">− Heir's Income Tax ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
@@ -754,7 +754,7 @@ function LegacyToHeirsInfo({
 
       <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
         <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy Inheritance</p>
-        <p className="text-xs text-[rgba(255,255,255,0.5)]">Your heirs receive:</p>
+        <p className="text-xs text-[rgba(255,255,255,0.65)]">Your heirs receive:</p>
         <div className="space-y-1 font-mono text-sm">
           <p>Traditional IRA Balance: {toUSD(blueFinalTraditional)}</p>
           <p className="text-[#f87171]">− Heir's Income Tax ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
@@ -766,7 +766,7 @@ function LegacyToHeirsInfo({
         </div>
       </div>
 
-      <p className="text-[rgba(255,255,255,0.5)] text-xs">
+      <p className="text-[rgba(255,255,255,0.65)] text-xs">
         Note: We assume your heirs will be in the {heirTaxPct}% tax bracket when they inherit.
         Under current law, non-spouse beneficiaries must withdraw inherited IRAs within 10 years.
       </p>
@@ -826,7 +826,7 @@ function TotalTaxesInfo({
         <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy Taxes</p>
         <div className="space-y-1 font-mono text-sm">
           <p>Income Tax on Conversions: {toUSD(blueTax)}</p>
-          <p className="text-xs text-[rgba(255,255,255,0.5)]">
+          <p className="text-xs text-[rgba(255,255,255,0.65)]">
             (Converted {toUSD(blueConversions)} staying in {client.max_tax_rate}% bracket)
           </p>
           <p>Medicare IRMAA Surcharges: {toUSD(blueIrmaa)}</p>
@@ -887,7 +887,7 @@ function DistributionsInfo({
             <p className="font-mono text-sm">Gross RMDs Taken: {toUSD(baseRMDs)}</p>
             <p className="font-mono text-sm">After Taxes: {toUSD(baseCumulativeDistributions)}</p>
           </div>
-          <p className="text-[rgba(255,255,255,0.5)] text-xs">
+          <p className="text-[rgba(255,255,255,0.65)] text-xs">
             Since you selected "Spent on Living Expenses" for RMD treatment, these distributions
             are added to your Lifetime Wealth calculation (money you received and used).
           </p>
@@ -900,7 +900,7 @@ function DistributionsInfo({
           </p>
           <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-2">
             <p className="font-mono text-sm">Total Gross RMDs: {toUSD(baseRMDs)}</p>
-            <p className="text-xs text-[rgba(255,255,255,0.5)]">
+            <p className="text-xs text-[rgba(255,255,255,0.65)]">
               (These are taxed as ordinary income each year)
             </p>
           </div>
@@ -956,17 +956,17 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
     <table className="w-full">
       <thead>
         <tr className="bg-[rgba(255,255,255,0.02)]">
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Year</th>
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Age</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad BOY</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Converted</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Taxes</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad EOY</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Year</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Age</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Trad BOY</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Converted</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Taxes</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Trad EOY</th>
           {hasSurrenderValues && (
-            <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">SV</th>
+            <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">SV</th>
           )}
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Roth EOY</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net Worth</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Roth EOY</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Net Worth</th>
         </tr>
       </thead>
       <tbody>
@@ -982,24 +982,24 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
               )}
             >
               <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
-              <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{row.age}</td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+              <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{row.age}</td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
                 {toUSD(tradBOY)}
               </td>
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
-                hasConversion ? "text-gold" : "text-[rgba(255,255,255,0.25)]"
+                hasConversion ? "text-gold" : "text-[rgba(255,255,255,0.55)]"
               )}>
                 {hasConversion ? toUSD(row.conversionAmount) : "—"}
               </td>
               <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
                 {toUSD(row.federalTax + row.stateTax)}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
                 {toUSD(row.traditionalBalance)}
               </td>
               {hasSurrenderValues && (
-                <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.4)]">
+                <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.55)]">
                   {row.surrenderValue != null ? (
                     <span title={`${row.surrenderChargePercent ?? 0}% charge`}>
                       {toUSD(row.surrenderValue)}
@@ -1009,7 +1009,7 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
               )}
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
-                row.rothBalance > 0 ? "text-[#4ade80]" : "text-[rgba(255,255,255,0.25)]"
+                row.rothBalance > 0 ? "text-[#4ade80]" : "text-[rgba(255,255,255,0.55)]"
               )}>
                 {row.rothBalance > 0 ? toUSD(row.rothBalance) : "—"}
               </td>
@@ -1029,7 +1029,7 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
           <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-[#f87171]">
             {toUSD(totalTaxes)}
           </td>
-          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]" colSpan={hasSurrenderValues ? 4 : 3}>—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]" colSpan={hasSurrenderValues ? 4 : 3}>—</td>
         </tr>
       </tfoot>
     </table>
@@ -1057,13 +1057,13 @@ function BaselineTable({ years, client }: { years: YearlyResult[]; client: Clien
     <table className="w-full">
       <thead>
         <tr className="bg-[rgba(255,255,255,0.02)]">
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Year</th>
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Age</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad BOY</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">RMD</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Taxes</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Trad EOY</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Net Worth</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Year</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Age</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Trad BOY</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">RMD</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Taxes</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Trad EOY</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Net Worth</th>
         </tr>
       </thead>
       <tbody>
@@ -1075,20 +1075,20 @@ function BaselineTable({ years, client }: { years: YearlyResult[]; client: Clien
               className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors"
             >
               <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
-              <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{row.age}</td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+              <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{row.age}</td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
                 {toUSD(tradBOY)}
               </td>
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
-                row.rmdAmount > 0 ? "text-[rgba(255,255,255,0.6)]" : "text-[rgba(255,255,255,0.25)]"
+                row.rmdAmount > 0 ? "text-[rgba(255,255,255,0.6)]" : "text-[rgba(255,255,255,0.55)]"
               )}>
                 {row.rmdAmount > 0 ? toUSD(row.rmdAmount) : "—"}
               </td>
               <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
                 {toUSD(row.federalTax + row.stateTax)}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
                 {toUSD(row.traditionalBalance)}
               </td>
               <td className="px-4 py-3 text-sm font-mono text-right text-white">
@@ -1107,7 +1107,7 @@ function BaselineTable({ years, client }: { years: YearlyResult[]; client: Clien
           <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-[#f87171]">
             {toUSD(totalTaxes)}
           </td>
-          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]" colSpan={2}>—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]" colSpan={2}>—</td>
         </tr>
       </tfoot>
     </table>
@@ -1128,13 +1128,13 @@ function ComparisonTable({
     <table className="w-full">
       <thead>
         <tr className="bg-[rgba(255,255,255,0.02)]">
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Year</th>
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Age</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Baseline</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Strategy</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Roth</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Total</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.5)] tracking-[1px] font-medium">Difference</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Year</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Age</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Baseline</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Strategy</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Roth</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Total</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Difference</th>
         </tr>
       </thead>
       <tbody>
@@ -1151,16 +1151,16 @@ function ComparisonTable({
               className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors"
             >
               <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{stratRow.year}</td>
-              <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.5)]">{stratRow.age}</td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.4)]">
+              <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{stratRow.age}</td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.55)]">
                 {toUSD(baseRow.traditionalBalance)}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.5)]">
+              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
                 {toUSD(stratRow.traditionalBalance)}
               </td>
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
-                stratRow.rothBalance > 0 ? "text-[#4ade80]" : "text-[rgba(255,255,255,0.25)]"
+                stratRow.rothBalance > 0 ? "text-[#4ade80]" : "text-[rgba(255,255,255,0.55)]"
               )}>
                 {stratRow.rothBalance > 0 ? toUSD(stratRow.rothBalance) : "—"}
               </td>

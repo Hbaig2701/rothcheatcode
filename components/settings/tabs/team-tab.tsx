@@ -133,7 +133,7 @@ export function TeamTab({ plan, isTeamAdmin = false }: TeamTabProps) {
         <Card>
           <CardContent className="py-12 text-center">
             <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(255,255,255,0.05)]">
-              <Lock className="h-6 w-6 text-[rgba(255,255,255,0.3)]" />
+              <Lock className="h-6 w-6 text-[rgba(255,255,255,0.65)]" />
             </div>
             <h3 className="text-lg font-semibold text-white mb-2">
               Team Members
@@ -240,10 +240,10 @@ export function TeamTab({ plan, isTeamAdmin = false }: TeamTabProps) {
                     <p className="text-sm text-white">{member.email}</p>
                     <div className="mt-1 flex items-center gap-2">
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                           member.status === "active"
                             ? "bg-[rgba(74,222,128,0.15)] text-[#4ade80]"
-                            : "bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)]"
+                            : "bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.55)]"
                         }`}
                       >
                         {member.status.charAt(0).toUpperCase() + member.status.slice(1)}

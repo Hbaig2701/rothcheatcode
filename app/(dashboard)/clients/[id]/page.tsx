@@ -42,7 +42,7 @@ function DeltaBadge({ value, size = "md" }: { value: number; size?: "md" | "lg" 
   const isPositive = value >= 0;
   const sizeStyles = size === "lg"
     ? "px-[18px] py-2 text-[18px]"
-    : "px-3 py-1 text-[13px]";
+    : "px-3 py-1 text-[14px]";
   return (
     <span
       className={`inline-block rounded-[20px] font-mono font-medium ${sizeStyles} ${
@@ -104,7 +104,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
     return (
       <div className="p-9">
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-[rgba(255,255,255,0.25)]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[rgba(255,255,255,0.55)]" />
         </div>
       </div>
     );
@@ -117,7 +117,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
           <h2 className="text-lg font-semibold text-[#f87171] mb-2">
             Failed to load client
           </h2>
-          <p className="text-[rgba(255,255,255,0.5)] mb-4">
+          <p className="text-[rgba(255,255,255,0.65)] mb-4">
             {error?.message || "Client not found"}
           </p>
           <Button variant="outline" render={<a href="/clients" />}>
@@ -134,20 +134,20 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
       <div className="flex items-center gap-4 mb-9">
         <a
           href="/clients"
-          className="flex items-center justify-center w-10 h-10 rounded-lg border border-[rgba(255,255,255,0.07)] text-[rgba(255,255,255,0.5)] hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)] transition-all"
+          className="flex items-center justify-center w-10 h-10 rounded-lg border border-[rgba(255,255,255,0.07)] text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)] transition-all"
         >
           <ArrowLeft className="h-4 w-4" />
         </a>
         <div className="flex-1">
           <h1 className="font-display text-[28px] font-normal text-white">{client.name}</h1>
-          <p className="text-[13px] text-[rgba(255,255,255,0.25)] mt-1">
+          <p className="text-sm text-[rgba(255,255,255,0.55)] mt-1">
             Client since {formatDate(client.created_at)}
           </p>
         </div>
         <div className="flex gap-2">
           <a
             href={`/clients/${client.id}/edit`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[rgba(255,255,255,0.5)] bg-transparent border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)] transition-all"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[rgba(255,255,255,0.7)] bg-transparent border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)] transition-all"
           >
             <Pencil className="h-4 w-4" />
             Edit
@@ -166,7 +166,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
       <div className="grid gap-5 md:grid-cols-2">
         {/* Basic Information */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-7">
-          <h2 className="text-[15px] font-medium text-white mb-6">Basic Information</h2>
+          <h2 className="text-base font-medium text-white mb-6">Basic Information</h2>
           <div className="space-y-0">
             {[
               { label: "Age", value: `${client.age} years old` },
@@ -181,8 +181,8 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                 key={item.label}
                 className="flex justify-between py-2.5 border-b border-[rgba(255,255,255,0.07)] last:border-b-0"
               >
-                <span className="text-[13px] text-[rgba(255,255,255,0.25)]">{item.label}</span>
-                <span className="text-[13px] font-mono text-[rgba(255,255,255,0.5)]">{item.value}</span>
+                <span className="text-sm text-[rgba(255,255,255,0.55)]">{item.label}</span>
+                <span className="text-sm font-mono text-[rgba(255,255,255,0.8)]">{item.value}</span>
               </div>
             ))}
           </div>
@@ -190,8 +190,8 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
 
         {/* Roth Conversion Scenarios */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-7">
-          <h2 className="text-[15px] font-medium text-white mb-3">Roth Conversion Scenarios</h2>
-          <p className="text-[13px] text-[rgba(255,255,255,0.25)] mb-7">
+          <h2 className="text-base font-medium text-white mb-3">Roth Conversion Scenarios</h2>
+          <p className="text-sm text-[rgba(255,255,255,0.55)] mb-7">
             Compare strategies and find the optimal approach for this client.
           </p>
 
@@ -205,7 +205,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                 <p className="text-[14px] font-medium text-white mb-1">
                   {client.product_name} · {client.carrier_name}
                 </p>
-                <p className="text-xs text-[rgba(255,255,255,0.25)]">
+                <p className="text-sm text-[rgba(255,255,255,0.55)]">
                   Optimized conversion · Max {client.max_tax_rate}% bracket
                 </p>
               </div>
@@ -213,7 +213,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             </div>
           </a>
 
-          <button className="w-full py-2.5 px-4 text-sm font-medium text-[rgba(255,255,255,0.5)] bg-transparent border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)] transition-all">
+          <button className="w-full py-2.5 px-4 text-sm font-medium text-[rgba(255,255,255,0.7)] bg-transparent border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)] transition-all">
             + New Scenario
           </button>
         </div>

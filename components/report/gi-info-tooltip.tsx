@@ -74,7 +74,7 @@ export function InfoTooltip({
       <button
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-4 h-4 rounded-full flex items-center justify-center text-[rgba(255,255,255,0.3)] hover:text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+        className="w-4 h-4 rounded-full flex items-center justify-center text-[rgba(255,255,255,0.65)] hover:text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
         aria-label={`Info about ${title}`}
       >
         <Info className="w-3 h-3" />
@@ -87,12 +87,12 @@ export function InfoTooltip({
         >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
-            <p className="text-[11px] uppercase tracking-[1.5px] text-[rgba(255,255,255,0.5)] font-medium">
+            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
               How This Is Calculated
             </p>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-[rgba(255,255,255,0.4)] hover:text-white transition-colors"
+              className="text-[rgba(255,255,255,0.55)] hover:text-white transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -105,7 +105,7 @@ export function InfoTooltip({
 
             {/* Calculation breakdown */}
             {calculations && calculations.length > 0 && (
-              <div className="font-mono text-[13px] space-y-1.5">
+              <div className="font-mono text-sm space-y-1.5">
                 {calculations.map((line, idx) => {
                   if (line.isSeparator) {
                     return (
@@ -120,7 +120,7 @@ export function InfoTooltip({
                     gold: "text-gold",
                     green: "text-[#4ade80]",
                     red: "text-[#f87171]",
-                    muted: "text-[rgba(255,255,255,0.5)]",
+                    muted: "text-[rgba(255,255,255,0.65)]",
                   }[line.highlight || "muted"];
 
                   return (
@@ -131,7 +131,7 @@ export function InfoTooltip({
                         line.isResult && "font-semibold pt-1"
                       )}
                     >
-                      <span className="text-[rgba(255,255,255,0.5)]">
+                      <span className="text-[rgba(255,255,255,0.65)]">
                         {line.label}
                       </span>
                       <span className={valueColor}>{line.value}</span>
@@ -146,7 +146,7 @@ export function InfoTooltip({
 
             {/* Explanation */}
             {explanation && (
-              <p className="text-[13px] text-[rgba(255,255,255,0.5)] leading-relaxed pt-2 border-t border-[rgba(255,255,255,0.07)]">
+              <p className="text-sm text-[rgba(255,255,255,0.65)] leading-relaxed pt-2 border-t border-[rgba(255,255,255,0.07)]">
                 {explanation}
               </p>
             )}
