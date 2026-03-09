@@ -985,6 +985,46 @@ export async function POST(request: NextRequest) {
       branding.hasContactInfo = !!(branding.phone || branding.email || branding.website);
     }
 
+    // Build PDF header/footer templates from branding
+    const hasPageBranding = branding.hasBranding || branding.hasContactInfo;
+    let pdfHeaderTemplate = '<div></div>';
+    let pdfFooterTemplate = '<div></div>';
+
+    if (hasPageBranding) {
+      // Header: logo or company name (top-left of every page)
+      let headerContent = '';
+      if (branding.logoUrl) {
+        try {
+          const logoRes = await fetch(branding.logoUrl);
+          const logoBuffer = await logoRes.arrayBuffer();
+          const base64Logo = Buffer.from(logoBuffer).toString('base64');
+          const logoContentType = logoRes.headers.get('content-type') || 'image/png';
+          headerContent = `<img src="data:${logoContentType};base64,${base64Logo}" style="max-height:24px;max-width:120px;" />`;
+        } catch {
+          if (branding.companyName) {
+            headerContent = `<span>${branding.companyName}</span>`;
+          }
+        }
+      } else if (branding.companyName) {
+        headerContent = `<span>${branding.companyName}</span>`;
+      }
+
+      if (headerContent) {
+        pdfHeaderTemplate = `<div style="width:100%;padding:0 0.5in;font-size:9px;font-weight:600;color:${branding.primaryColor};-webkit-print-color-adjust:exact;">${headerContent}</div>`;
+      }
+
+      // Footer: company · phone · email · website
+      const footerParts: string[] = [];
+      if (branding.companyName) footerParts.push(branding.companyName);
+      if (branding.phone) footerParts.push(branding.phone);
+      if (branding.email) footerParts.push(branding.email);
+      if (branding.website) footerParts.push(branding.website);
+
+      if (footerParts.length > 0) {
+        pdfFooterTemplate = `<div style="width:100%;text-align:center;font-size:7px;color:#999;padding:0 0.5in;-webkit-print-color-adjust:exact;">${footerParts.join(' &middot; ')}</div>`;
+      }
+    }
+
     // Detect if this is a GI product
     const blueprintType = reportData.client.blueprint_type as FormulaType;
     const isGI = blueprintType && isGuaranteedIncomeProduct(blueprintType);
@@ -1028,10 +1068,12 @@ export async function POST(request: NextRequest) {
     const pdf = await page.pdf({
       format: 'Letter',
       printBackground: true,
+      displayHeaderFooter: hasPageBranding,
+      ...(hasPageBranding && { headerTemplate: pdfHeaderTemplate, footerTemplate: pdfFooterTemplate }),
       margin: {
-        top: '0.5in',
+        top: hasPageBranding ? '0.8in' : '0.5in',
         right: '0.5in',
-        bottom: '0.5in',
+        bottom: hasPageBranding ? '0.7in' : '0.5in',
         left: '0.5in',
       },
     });

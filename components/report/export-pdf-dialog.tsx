@@ -103,7 +103,7 @@ export function ExportPdfDialog({
     setUploading(true);
     try {
       const formData = new FormData();
-      formData.append("logo", file);
+      formData.append("file", file);
 
       const res = await fetch("/api/settings/logo", {
         method: "POST",
@@ -185,6 +185,23 @@ export function ExportPdfDialog({
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+
+      // Save branding to settings for next time
+      if (isPro) {
+        fetch("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            company_name: form.companyName,
+            tagline: form.tagline,
+            primary_color: form.primaryColor,
+            secondary_color: form.secondaryColor,
+            company_phone: form.phone,
+            company_email: form.email,
+            company_website: form.website,
+          }),
+        }).catch(console.error);
+      }
 
       onOpenChange(false);
     } catch (err) {
