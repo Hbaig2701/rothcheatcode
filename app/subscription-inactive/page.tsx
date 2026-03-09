@@ -41,7 +41,11 @@ export default function SubscriptionInactivePage() {
           <button
             type="button"
             onClick={async () => {
-              await fetch('/api/auth/signout', { method: 'POST' })
+              try {
+                await fetch('/api/auth/signout', { method: 'POST' })
+              } catch {
+                // Sign out failed, redirect anyway to clear client state
+              }
               window.location.href = '/login'
             }}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors"

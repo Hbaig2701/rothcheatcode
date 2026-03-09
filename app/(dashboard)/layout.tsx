@@ -41,7 +41,7 @@ export default async function DashboardLayout({
       .single()
 
     const ownerGrandfathered = owner?.plan === 'pro' && !owner?.stripe_customer_id
-    const ownerActive = ['starter', 'pro'].includes(owner?.plan ?? '') && owner?.subscription_status === 'active'
+    const ownerActive = ['starter', 'pro'].includes(owner?.plan ?? '') && ['active', 'trialing'].includes(owner?.subscription_status ?? '')
 
     if (!ownerGrandfathered && !ownerActive) {
       redirect('/subscription-inactive')
@@ -50,7 +50,7 @@ export default async function DashboardLayout({
     // Owner or independent user
     const isGrandfathered = profile?.plan === 'pro' && !profile?.stripe_customer_id
     const hasActiveSubscription =
-      ['starter', 'pro'].includes(profile?.plan ?? '') && profile?.subscription_status === 'active'
+      ['starter', 'pro'].includes(profile?.plan ?? '') && ['active', 'trialing'].includes(profile?.subscription_status ?? '')
 
     if (!isGrandfathered && !hasActiveSubscription) {
       redirect('/subscription-inactive')

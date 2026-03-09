@@ -1,4 +1,3 @@
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlanLimits, type PlanId } from "@/lib/config/plans";
 
@@ -89,13 +88,15 @@ export async function checkUsageLimit(
     return { allowed: true, current: 0, limit: null, plan };
   }
 
-  const supabase = await createClient();
+  // Team members' usage counts toward owner's limits
+  const ownerId = await getEffectiveOwnerId(userId);
+  const admin = createAdminClient();
   const now = new Date().toISOString();
 
-  const { data: usage } = await supabase
+  const { data: usage } = await admin
     .from("usage")
     .select("*")
-    .eq("user_id", userId)
+    .eq("user_id", ownerId)
     .gte("period_end", now)
     .order("period_start", { ascending: false })
     .limit(1)
@@ -149,6 +150,8 @@ export async function incrementUsage(
   userId: string,
   type: "scenario_runs" | "pdf_exports"
 ): Promise<void> {
+  // Team members' usage counts toward owner's record
+  const ownerId = await getEffectiveOwnerId(userId);
   const admin = createAdminClient();
   const now = new Date();
   const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -158,7 +161,7 @@ export async function incrementUsage(
   const { data: existing } = await admin
     .from("usage")
     .select("id, scenario_runs, pdf_exports")
-    .eq("user_id", userId)
+    .eq("user_id", ownerId)
     .gte("period_end", now.toISOString())
     .order("period_start", { ascending: false })
     .limit(1)
@@ -175,7 +178,7 @@ export async function incrementUsage(
   } else {
     // Create new usage record
     await admin.from("usage").insert({
-      user_id: userId,
+      user_id: ownerId,
       period_start: periodStart.toISOString().split("T")[0],
       period_end: periodEnd.toISOString().split("T")[0],
       [type]: 1,

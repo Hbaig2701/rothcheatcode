@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
-  const { inviteId, email, password, firstName, lastName } =
-    await request.json();
+  const { inviteId, password, firstName, lastName } = await request.json();
 
   if (!inviteId || !password) {
     return NextResponse.json(
       { error: "Missing required fields" },
+      { status: 400 }
+    );
+  }
+
+  if (password.length < 6) {
+    return NextResponse.json(
+      { error: "Password must be at least 6 characters" },
       { status: 400 }
     );
   }
@@ -30,7 +36,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Check if user already exists
+    // Check if user already exists by invite email (not client-provided email)
     const { data: existingUsers } = await admin.auth.admin.listUsers({
       perPage: 1000,
       page: 1,
@@ -73,6 +79,7 @@ export async function POST(request: NextRequest) {
 
     if (updateInviteError) {
       console.error("Failed to update invite:", updateInviteError);
+      throw new Error("Failed to update invite status");
     }
 
     // Ensure profile exists and set team_owner_id
@@ -83,7 +90,7 @@ export async function POST(request: NextRequest) {
         team_owner_id: invite.team_owner_id,
       })
       .eq("id", userId)
-      .select("id")
+      .select("id, team_owner_id")
       .single();
 
     if (!updatedProfile) {
@@ -97,13 +104,33 @@ export async function POST(request: NextRequest) {
       });
 
       if (insertError) {
-        console.error("Failed to create profile:", insertError);
-        // One more attempt — profile trigger may have just fired
-        await admin
-          .from("profiles")
-          .update({ team_owner_id: invite.team_owner_id })
-          .eq("id", userId);
+        // Duplicate key = trigger just fired, retry update
+        if (insertError.code === "23505") {
+          await admin
+            .from("profiles")
+            .update({ team_owner_id: invite.team_owner_id })
+            .eq("id", userId);
+        } else {
+          console.error("Failed to create profile:", insertError);
+          throw new Error("Failed to set up team member profile");
+        }
       }
+    }
+
+    // Verify team_owner_id was actually set
+    const { data: verifiedProfile } = await admin
+      .from("profiles")
+      .select("team_owner_id")
+      .eq("id", userId)
+      .single();
+
+    if (!verifiedProfile?.team_owner_id) {
+      console.error("team_owner_id verification failed for user:", userId);
+      // Last resort: force it
+      await admin
+        .from("profiles")
+        .update({ team_owner_id: invite.team_owner_id })
+        .eq("id", userId);
     }
 
     // Save first/last name to user_settings if provided

@@ -6,9 +6,10 @@ export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -16,6 +17,29 @@ export async function POST(request: NextRequest) {
 
   if (!email) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
+  }
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return NextResponse.json(
+      { error: "Invalid email format" },
+      { status: 400 }
+    );
+  }
+
+  // Prevent self-invite
+  if (email.toLowerCase() === user.email?.toLowerCase()) {
+    return NextResponse.json(
+      { error: "You cannot invite yourself" },
+      { status: 400 }
+    );
+  }
+
+  // Validate role
+  const validRoles = ["user", "admin"];
+  if (role && !validRoles.includes(role)) {
+    return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
   // Verify Pro plan
@@ -32,7 +56,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Check team size
+  // Check team size (pending + active, excluding removed)
   const { count } = await supabase
     .from("team_members")
     .select("*", { count: "exact", head: true })
@@ -79,12 +103,15 @@ export async function POST(request: NextRequest) {
 
   if (emailError) {
     console.error("Invite email error:", emailError);
-    // Don't fail — the invite record is created, owner can share link manually
   }
 
   return NextResponse.json({
     success: true,
     invite,
     inviteUrl: `${process.env.NEXT_PUBLIC_APP_URL}/invite/${invite.id}`,
+    ...(emailError && {
+      warning:
+        "Email could not be sent. Please share the invite link manually.",
+    }),
   });
 }
