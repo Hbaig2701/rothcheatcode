@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getEffectivePlan, getEffectiveOwnerId } from "@/lib/usage";
+import { getEffectivePlan, getEffectiveOwnerId, getTeamAdminContext } from "@/lib/usage";
 import { getPlanLimits } from "@/lib/config/plans";
 
 export async function GET() {
@@ -54,6 +54,9 @@ export async function GET() {
     currentPeriodEnd: profile?.current_period_end,
     hasStripeSubscription: !!profile?.stripe_customer_id,
     isTeamMember: !!profile?.team_owner_id,
+    teamMemberRole: profile?.team_owner_id
+      ? (await getTeamAdminContext(user.id))?.role ?? "user"
+      : null,
     usage: {
       scenarioRuns: usage?.scenario_runs ?? 0,
       pdfExports: usage?.pdf_exports ?? 0,

@@ -30,9 +30,10 @@ interface TeamMember {
 
 interface TeamTabProps {
   plan: string;
+  isTeamAdmin?: boolean;
 }
 
-export function TeamTab({ plan }: TeamTabProps) {
+export function TeamTab({ plan, isTeamAdmin = false }: TeamTabProps) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -125,7 +126,8 @@ export function TeamTab({ plan }: TeamTabProps) {
     (m) => m.status !== "removed"
   ).length;
 
-  if (plan !== "pro") {
+  // Show upgrade gate only for plan owners on non-pro plans (not admin team members)
+  if (plan !== "pro" && !isTeamAdmin) {
     return (
       <div className="space-y-6">
         <Card>
@@ -167,8 +169,10 @@ export function TeamTab({ plan }: TeamTabProps) {
             Invite Team Member
           </CardTitle>
           <CardDescription>
-            {activeCount} active {activeCount === 1 ? 'member' : 'members'}. Invite team members to share your
-            clients and workspace.
+            {activeCount} active {activeCount === 1 ? 'member' : 'members'}.
+            {isTeamAdmin
+              ? " You're managing this team as an admin."
+              : " Invite team members to share your clients and workspace."}
           </CardDescription>
         </CardHeader>
         <CardContent>

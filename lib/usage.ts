@@ -71,6 +71,39 @@ export interface UsageCheckResult {
 }
 
 /**
+ * For admin team members, returns their team_owner_id and role.
+ * Returns null if the user is not a team member or not an admin.
+ */
+export async function getTeamAdminContext(userId: string): Promise<{
+  teamOwnerId: string;
+  role: string;
+} | null> {
+  const admin = createAdminClient();
+
+  // Check if user is a team member
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("team_owner_id")
+    .eq("id", userId)
+    .single();
+
+  if (!profile?.team_owner_id) return null;
+
+  // Check their role in team_members
+  const { data: membership } = await admin
+    .from("team_members")
+    .select("role")
+    .eq("team_owner_id", profile.team_owner_id)
+    .eq("member_user_id", userId)
+    .eq("status", "active")
+    .single();
+
+  if (!membership || membership.role !== "admin") return null;
+
+  return { teamOwnerId: profile.team_owner_id, role: membership.role };
+}
+
+/**
  * Check if a user can perform more of a given action this period.
  */
 export async function checkUsageLimit(

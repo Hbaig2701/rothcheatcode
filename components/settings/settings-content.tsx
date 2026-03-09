@@ -40,6 +40,7 @@ export function SettingsContent({ user }: { user: User }) {
   const { data: settings, isLoading, error } = useUserSettings();
   const [plan, setPlan] = useState<string | null>(null);
   const [isTeamMember, setIsTeamMember] = useState(false);
+  const [teamMemberRole, setTeamMemberRole] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/billing/usage")
@@ -47,6 +48,7 @@ export function SettingsContent({ user }: { user: User }) {
       .then((data) => {
         setPlan(data.plan);
         setIsTeamMember(data.isTeamMember);
+        setTeamMemberRole(data.teamMemberRole);
       })
       .catch(() => {});
   }, []);
@@ -69,9 +71,9 @@ export function SettingsContent({ user }: { user: User }) {
     );
   }
 
-  // Show Team tab for plan owners (not team members)
-  const tabs =
-    plan && !isTeamMember ? [...BASE_TABS, TEAM_TAB] : BASE_TABS;
+  // Show Team tab for plan owners and admin team members
+  const showTeamTab = plan && (!isTeamMember || teamMemberRole === "admin");
+  const tabs = showTeamTab ? [...BASE_TABS, TEAM_TAB] : BASE_TABS;
 
   return (
     <div className="p-9 max-w-5xl">
@@ -110,9 +112,9 @@ export function SettingsContent({ user }: { user: User }) {
             <TabsContent value="billing" className="mt-0">
               <BillingTab />
             </TabsContent>
-            {plan && !isTeamMember && (
+            {showTeamTab && (
               <TabsContent value="team" className="mt-0">
-                <TeamTab plan={plan} />
+                <TeamTab plan={plan!} isTeamAdmin={isTeamMember && teamMemberRole === "admin"} />
               </TabsContent>
             )}
           </div>
