@@ -27,7 +27,7 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     clients: null,
     scenarioRuns: null,
     pdfExports: null,
-    teamMembers: 3,
+    teamMembers: Infinity,
     whiteLabel: true,
   },
 };

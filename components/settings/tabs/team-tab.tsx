@@ -131,7 +131,7 @@ export function TeamTab() {
             Invite Team Member
           </CardTitle>
           <CardDescription>
-            {activeCount}/3 seats used. Invite team members to share your
+            {activeCount} active {activeCount === 1 ? 'member' : 'members'}. Invite team members to share your
             clients and workspace.
           </CardDescription>
         </CardHeader>
@@ -152,7 +152,6 @@ export function TeamTab() {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               required
-              disabled={activeCount >= 3}
               className="flex-1"
             />
             <Select value={inviteRole} onValueChange={(val) => val && setInviteRole(val)}>
@@ -164,17 +163,12 @@ export function TeamTab() {
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
-            <Button type="submit" disabled={inviting || activeCount >= 3}>
+            <Button type="submit" disabled={inviting}>
               {inviting && <Loader2 className="mr-2 size-4 animate-spin" />}
               Invite
             </Button>
           </form>
 
-          {activeCount >= 3 && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Maximum team size reached (3 members).
-            </p>
-          )}
         </CardContent>
       </Card>
 
@@ -209,7 +203,7 @@ export function TeamTab() {
                             : "bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)]"
                         }`}
                       >
-                        {member.status}
+                        {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
                       </span>
                     </div>
                   </div>

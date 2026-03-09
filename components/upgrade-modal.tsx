@@ -69,7 +69,7 @@ export function UpgradeModal({
               "Unlimited scenario runs",
               "Unlimited PDF exports",
               "White-label reports",
-              "Team members (up to 3)",
+              "Unlimited team members",
               "Priority support",
             ].map((item) => (
               <li

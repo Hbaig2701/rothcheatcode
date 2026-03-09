@@ -56,20 +56,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Check team size (pending + active, excluding removed)
-  const { count } = await supabase
-    .from("team_members")
-    .select("*", { count: "exact", head: true })
-    .eq("team_owner_id", user.id)
-    .neq("status", "removed");
-
-  if ((count ?? 0) >= 3) {
-    return NextResponse.json(
-      { error: "Team limit reached (3 members)" },
-      { status: 400 }
-    );
-  }
-
   // Create invite
   const admin = createAdminClient();
   const { data: invite, error } = await admin
