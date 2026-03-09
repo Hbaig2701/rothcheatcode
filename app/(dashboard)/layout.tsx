@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
@@ -31,8 +32,9 @@ export default async function DashboardLayout({
 
   // Subscription access control
   if (profile?.team_owner_id) {
-    // Team member — check owner's subscription
-    const { data: owner } = await supabase
+    // Team member — check owner's subscription (use admin client to bypass RLS)
+    const adminClient = createAdminClient()
+    const { data: owner } = await adminClient
       .from('profiles')
       .select('plan, subscription_status, stripe_customer_id')
       .eq('id', profile.team_owner_id)
