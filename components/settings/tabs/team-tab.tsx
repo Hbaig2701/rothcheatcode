@@ -169,6 +169,9 @@ export function TeamTab() {
             </Button>
           </form>
 
+          <p className="mt-3 text-xs text-muted-foreground">
+            <strong>User</strong> — can view and manage clients. <strong>Admin</strong> — can also manage team members and account settings.
+          </p>
         </CardContent>
       </Card>
 
