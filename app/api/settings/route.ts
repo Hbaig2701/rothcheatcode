@@ -1,5 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import {
+  profileSchema,
+  businessSchema,
+  defaultValuesSchema,
+} from "@/lib/validations/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -71,9 +77,22 @@ export async function PUT(request: NextRequest) {
   // Remove fields that shouldn't be updated directly
   const { id, user_id, created_at, updated_at, ...updates } = body;
 
+  // Validate against allowed fields only
+  const allowedSchema = profileSchema
+    .merge(businessSchema.partial())
+    .merge(defaultValuesSchema.partial())
+    .partial();
+  const parsed = allowedSchema.safeParse(updates);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Validation failed", details: parsed.error.flatten() },
+      { status: 400 }
+    );
+  }
+
   const { data, error } = await supabase
     .from("user_settings")
-    .update(updates)
+    .update(parsed.data)
     .eq("user_id", user.id)
     .select()
     .single();

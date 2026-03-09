@@ -83,6 +83,22 @@ export async function POST(
         await admin.from('calculation_log').delete().eq('user_id', advisorId);
         // 4. Delete login_log
         await admin.from('login_log').delete().eq('user_id', advisorId);
+        // 4b. Delete usage records
+        await admin.from('usage').delete().eq('user_id', advisorId);
+        // 4c. Clear team members (as owner) and member profiles
+        const { data: teamMembers } = await admin
+          .from('team_members')
+          .select('member_user_id')
+          .eq('team_owner_id', advisorId);
+        if (teamMembers && teamMembers.length > 0) {
+          const memberIds = teamMembers.map(m => m.member_user_id).filter(Boolean) as string[];
+          if (memberIds.length > 0) {
+            await admin.from('profiles').update({ team_owner_id: null }).in('id', memberIds);
+          }
+        }
+        await admin.from('team_members').delete().eq('team_owner_id', advisorId);
+        // 4d. Remove as team member if they were on someone else's team
+        await admin.from('team_members').delete().eq('member_user_id', advisorId);
         // 5. Delete clients
         await admin.from('clients').delete().eq('user_id', advisorId);
         // 6. Delete user_settings

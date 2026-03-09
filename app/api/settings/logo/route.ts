@@ -8,7 +8,6 @@ const ALLOWED_TYPES = [
   "image/jpeg",
   "image/png",
   "image/webp",
-  "image/svg+xml",
 ];
 
 // POST /api/settings/logo - Upload logo
@@ -32,7 +31,7 @@ export async function POST(request: NextRequest) {
 
   if (!ALLOWED_TYPES.includes(file.type)) {
     return NextResponse.json(
-      { error: "File must be JPG, PNG, WebP, or SVG" },
+      { error: "File must be JPG, PNG, or WebP" },
       { status: 400 }
     );
   }

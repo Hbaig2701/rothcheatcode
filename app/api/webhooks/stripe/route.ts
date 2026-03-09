@@ -100,14 +100,19 @@ export async function POST(request: NextRequest) {
             profile = data;
           }
 
-          // Fall back to email lookup
+          // Fall back to email lookup (only if profile has no existing Stripe customer)
           if (!profile && customerEmail) {
             const { data } = await supabase
               .from("profiles")
               .select("id, stripe_customer_id")
               .ilike("email", customerEmail)
               .single();
-            profile = data;
+            // Don't overwrite an existing stripe_customer_id with a different one
+            if (data && (!data.stripe_customer_id || data.stripe_customer_id === customerId)) {
+              profile = data;
+            } else if (data) {
+              console.warn(`[Stripe Webhook] Email fallback skipped: profile ${data.id} already has stripe_customer_id=${data.stripe_customer_id}`);
+            }
           }
 
           if (profile) {

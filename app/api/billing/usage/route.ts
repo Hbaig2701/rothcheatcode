@@ -40,8 +40,8 @@ export async function GET() {
     .limit(1)
     .single();
 
-  // Get client count
-  const { count: clientCount } = await supabase
+  // Get client count (use admin client since team members can't read owner's clients via RLS)
+  const { count: clientCount } = await admin
     .from("clients")
     .select("*", { count: "exact", head: true })
     .eq("user_id", ownerId);

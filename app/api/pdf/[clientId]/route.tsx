@@ -4,6 +4,7 @@ import type { PDFDataProps, ChartImages, SummaryMetrics, PDFBranding } from '@/l
 import { runMultiStrategySimulation } from '@/lib/calculations/multi-strategy';
 import type { Client } from '@/lib/types/client';
 import type { MultiStrategyResult, YearlyResult } from '@/lib/calculations/types';
+import { checkUsageLimit, incrementUsage } from '@/lib/usage';
 
 // Route segment config
 export const dynamic = 'force-dynamic';
@@ -112,6 +113,21 @@ export async function POST(request: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check PDF export limit
+    const usageCheck = await checkUsageLimit(user.id, 'pdf_exports');
+    if (!usageCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: 'PDF export limit reached',
+          message: `You've used ${usageCheck.current}/${usageCheck.limit} PDF exports this month.`,
+          current: usageCheck.current,
+          limit: usageCheck.limit,
+          showUpgrade: true,
+        },
+        { status: 403 }
+      );
+    }
+
     // Parse request body for chart images
     let chartImages: ChartImages | undefined;
     try {
@@ -179,6 +195,14 @@ export async function POST(request: Request, context: RouteContext) {
       chartImages,
       branding
     );
+
+    // Log export and increment usage (fire-and-forget)
+    supabase.from('export_log').insert({
+      user_id: user.id,
+      client_id: clientId,
+      export_type: 'pdf',
+    }).then(() => {});
+    incrementUsage(user.id, 'pdf_exports').catch(console.error);
 
     // Prepare filename
     const sanitizedName = sanitizeFilename(client.name);
