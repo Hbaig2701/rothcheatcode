@@ -70,6 +70,14 @@ export function getPlanFromPriceId(priceId: string): {
     return { plan: "pro", cycle: "monthly" };
   if (priceId === process.env.STRIPE_PRICE_PRO_ANNUAL)
     return { plan: "pro", cycle: "annual" };
+  console.warn(
+    `[getPlanFromPriceId] Unknown priceId: ${priceId}. ` +
+    `Expected one of: starter_monthly=${process.env.STRIPE_PRICE_STARTER_MONTHLY}, ` +
+    `starter_annual=${process.env.STRIPE_PRICE_STARTER_ANNUAL}, ` +
+    `pro_monthly=${process.env.STRIPE_PRICE_PRO_MONTHLY}, ` +
+    `pro_annual=${process.env.STRIPE_PRICE_PRO_ANNUAL}. ` +
+    `Falling back to starter.`
+  );
   return { plan: "starter", cycle: "monthly" }; // fallback
 }
 

@@ -27,6 +27,8 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient();
 
+  console.log(`[Stripe Webhook] Received event: ${event.type} (${event.id})`);
+
   try {
     switch (event.type) {
       case "customer.subscription.updated":
@@ -36,10 +38,13 @@ export async function POST(request: NextRequest) {
         const items = subscription.items as { data: Array<{ price: { id: string } }> };
         const priceId = items?.data[0]?.price.id;
 
+        console.log(`[Stripe Webhook] ${event.type}: customer=${customerId}, priceId=${priceId}, status=${subscription.status}`);
+
         if (priceId) {
           const { plan, cycle } = getPlanFromPriceId(priceId);
+          console.log(`[Stripe Webhook] Mapped priceId=${priceId} → plan=${plan}, cycle=${cycle}`);
 
-          await supabase
+          const { error: updateError } = await supabase
             .from("profiles")
             .update({
               plan,
@@ -51,6 +56,14 @@ export async function POST(request: NextRequest) {
               ).toISOString(),
             })
             .eq("stripe_customer_id", customerId);
+
+          if (updateError) {
+            console.error(`[Stripe Webhook] Failed to update profile for customer ${customerId}:`, updateError);
+          } else {
+            console.log(`[Stripe Webhook] Successfully updated profile: customer=${customerId}, plan=${plan}`);
+          }
+        } else {
+          console.warn(`[Stripe Webhook] No priceId found in subscription items`);
         }
         break;
       }
