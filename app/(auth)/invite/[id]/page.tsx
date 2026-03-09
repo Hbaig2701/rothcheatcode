@@ -34,8 +34,8 @@ export default function InvitePage() {
       .then((r) => r.json())
       .then((data) => {
         if (data.error) {
-          // Check if this is because invite was already accepted
-          if (data.error === 'Invalid or expired invite') {
+          // Check if invite was already accepted or expired
+          if (data.error === 'Invalid or expired invite' || data.error.includes('expired')) {
             setAlreadyAccepted(true)
           }
           setError(data.error)
@@ -59,8 +59,16 @@ export default function InvitePage() {
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters')
+      return
+    }
+    if (!/[0-9]/.test(password)) {
+      setError('Password must contain at least 1 number')
+      return
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      setError('Password must contain at least 1 special character')
       return
     }
 
@@ -220,8 +228,11 @@ export default function InvitePage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Min 8 characters, 1 number, 1 special character
+                </p>
               </div>
 
               <div className="space-y-2">
@@ -232,7 +243,7 @@ export default function InvitePage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
 
