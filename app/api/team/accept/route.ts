@@ -30,13 +30,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Check if user already exists (targeted lookup, not listUsers)
+    // Check if user already exists
     const { data: existingUsers } = await admin.auth.admin.listUsers({
-      filter: invite.email,
-      perPage: 1,
+      perPage: 1000,
       page: 1,
     });
-    const existingUser = existingUsers?.users?.[0];
+    const existingUser = existingUsers?.users?.find(
+      (u) => u.email === invite.email
+    );
 
     let userId: string;
 
