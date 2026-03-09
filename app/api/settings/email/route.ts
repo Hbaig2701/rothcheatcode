@@ -1,12 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { stripe } from "@/lib/stripe";
 import { NextRequest, NextResponse } from "next/server";
 import { changeEmailSchema } from "@/lib/validations/settings";
 
 export const dynamic = "force-dynamic";
 
 // PUT /api/settings/email - Change email (sends verification)
+// Note: profiles.email and Stripe customer email are synced in the auth callback
+// after the user confirms their new email, not here (to avoid premature updates).
 export async function PUT(request: NextRequest) {
   const supabase = await createClient();
   const {
@@ -33,11 +33,9 @@ export async function PUT(request: NextRequest) {
     );
   }
 
-  const newEmail = parsed.data.new_email;
-
   // Supabase will send a confirmation email to the new address
   const { error: updateError } = await supabase.auth.updateUser({
-    email: newEmail,
+    email: parsed.data.new_email,
   });
 
   if (updateError) {
@@ -46,33 +44,6 @@ export async function PUT(request: NextRequest) {
       { error: updateError.message },
       { status: 500 }
     );
-  }
-
-  // Bug 7 fix: Also update profiles table and Stripe customer email
-  const admin = createAdminClient();
-
-  // Update profiles table
-  await admin
-    .from("profiles")
-    .update({ email: newEmail })
-    .eq("id", user.id);
-
-  // Update Stripe customer email if they have one
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("stripe_customer_id")
-    .eq("id", user.id)
-    .single();
-
-  if (profile?.stripe_customer_id) {
-    try {
-      await stripe.customers.update(profile.stripe_customer_id, {
-        email: newEmail,
-      });
-    } catch (stripeErr) {
-      console.error("Failed to update Stripe customer email:", stripeErr);
-      // Don't fail the request — auth email was already updated
-    }
   }
 
   return NextResponse.json({

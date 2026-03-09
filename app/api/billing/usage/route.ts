@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getEffectivePlan, getEffectiveOwnerId } from "@/lib/usage";
 import { getPlanLimits } from "@/lib/config/plans";
 
@@ -27,8 +28,10 @@ export async function GET() {
     .single();
 
   // Bug 14 fix: Use ownerId for usage lookup (team members share owner's usage)
+  // Must use admin client to bypass RLS (team members can't read owner's usage rows)
+  const admin = createAdminClient();
   const now = new Date().toISOString();
-  const { data: usage } = await supabase
+  const { data: usage } = await admin
     .from("usage")
     .select("scenario_runs, pdf_exports")
     .eq("user_id", ownerId)

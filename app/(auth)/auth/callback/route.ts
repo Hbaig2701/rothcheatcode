@@ -1,7 +1,48 @@
 import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { type EmailOtpType } from '@supabase/supabase-js'
+import { type EmailOtpType, type SupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { stripe } from '@/lib/stripe'
+
+/**
+ * After an email change is confirmed, sync the new email to
+ * profiles table and Stripe customer.
+ */
+async function syncEmailChange(supabase: SupabaseClient) {
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user?.email) return
+
+    const adminClient = createAdminClient()
+
+    // Check if profiles.email is already up to date
+    const { data: profile } = await adminClient
+      .from('profiles')
+      .select('email, stripe_customer_id')
+      .eq('id', user.id)
+      .single()
+
+    if (!profile || profile.email === user.email) return
+
+    // Update profiles table
+    await adminClient
+      .from('profiles')
+      .update({ email: user.email })
+      .eq('id', user.id)
+
+    // Update Stripe customer email
+    if (profile.stripe_customer_id) {
+      await stripe.customers.update(profile.stripe_customer_id, {
+        email: user.email,
+      }).catch((err: unknown) => console.error('Failed to update Stripe email:', err))
+    }
+
+    console.log(`[Auth Callback] Synced email change for user ${user.id}: ${user.email}`)
+  } catch (err) {
+    console.error('Email sync after confirmation failed:', err)
+  }
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -56,6 +97,10 @@ export async function GET(request: Request) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // If this was an email change confirmation, sync to profiles/Stripe
+      if (type === 'email_change') {
+        await syncEmailChange(supabase)
+      }
       if (type !== 'recovery') {
         const allowed = await handlePostAuth()
         if (!allowed) return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent('Your account has been deactivated.')}`)
@@ -68,6 +113,10 @@ export async function GET(request: Request) {
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ type, token_hash })
     if (!error) {
+      // If this was an email change confirmation, sync to profiles/Stripe
+      if (type === 'email_change') {
+        await syncEmailChange(supabase)
+      }
       if (type !== 'recovery') {
         const allowed = await handlePostAuth()
         if (!allowed) return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent('Your account has been deactivated.')}`)

@@ -181,6 +181,18 @@ export async function POST(request: NextRequest) {
                   .ilike("email", customer.email);
                 if (emailCount && emailCount > 0) {
                   console.log(`[Stripe Webhook] Linked via email fallback: ${customer.email}`);
+                  // Also check for team member cleanup after email fallback link
+                  const fallbackPlanLimits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.none;
+                  if (fallbackPlanLimits.teamMembers === 0) {
+                    const { data: fallbackProfile } = await supabase
+                      .from("profiles")
+                      .select("id")
+                      .eq("stripe_customer_id", customerId)
+                      .single();
+                    if (fallbackProfile) {
+                      await removeTeamMembers(supabase, fallbackProfile.id);
+                    }
+                  }
                 } else {
                   console.warn(`[Stripe Webhook] Email fallback also failed for ${customer.email}`);
                 }
