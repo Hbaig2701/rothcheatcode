@@ -59,11 +59,13 @@ export async function GET() {
     const projections = projectionsResult.data ?? [];
 
     const totalAdvisors = profiles.length;
+    const advisorIds = new Set(profiles.map((p) => p.id));
 
-    // Feature adoption
-    const withCompanyName = settings.filter((s) => s.company_name?.trim()).length;
-    const withLogo = settings.filter((s) => s.logo_url).length;
-    const withBranding = settings.filter((s) => s.primary_color && s.primary_color !== "#d4af37").length;
+    // Feature adoption — only count settings belonging to advisors
+    const advisorSettings = settings.filter((s) => advisorIds.has(s.user_id));
+    const withCompanyName = advisorSettings.filter((s) => s.company_name?.trim()).length;
+    const withLogo = advisorSettings.filter((s) => s.logo_url).length;
+    const withBranding = advisorSettings.filter((s) => s.primary_color && s.primary_color !== "#d4af37").length;
 
     // Team adoption
     const ownersWithTeam = new Set(teams.map((t) => t.team_owner_id)).size;
