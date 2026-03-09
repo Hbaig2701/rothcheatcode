@@ -20,11 +20,16 @@ export default function SubscriptionInactivePage() {
           </p>
 
           <div className="flex flex-col gap-2">
-            <form action="/api/billing/portal" method="POST">
-              <Button type="submit" className="w-full">
-                Update Payment Method
-              </Button>
-            </form>
+            <Button
+              className="w-full"
+              onClick={async () => {
+                const res = await fetch('/api/billing/portal', { method: 'POST' })
+                const data = await res.json()
+                if (data.url) window.location.href = data.url
+              }}
+            >
+              Update Payment Method
+            </Button>
 
             <a href="/plans">
               <Button variant="outline" className="w-full">
@@ -33,18 +38,16 @@ export default function SubscriptionInactivePage() {
             </a>
           </div>
 
-          <form action="/api/settings/account" method="DELETE">
-            <button
-              type="button"
-              onClick={async () => {
-                const res = await fetch('/api/settings/account', { method: 'DELETE' })
-                if (res.ok) window.location.href = '/login'
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Or sign out
-            </button>
-          </form>
+          <button
+            type="button"
+            onClick={async () => {
+              await fetch('/api/auth/signout', { method: 'POST' })
+              window.location.href = '/login'
+            }}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Or sign out
+          </button>
         </CardContent>
       </Card>
     </div>
