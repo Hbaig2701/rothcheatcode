@@ -69,9 +69,9 @@ export function SettingsContent({ user }: { user: User }) {
     );
   }
 
-  // Show Team tab for Pro owners (not team members)
+  // Show Team tab for plan owners (not team members)
   const tabs =
-    plan === "pro" && !isTeamMember ? [...BASE_TABS, TEAM_TAB] : BASE_TABS;
+    plan && !isTeamMember ? [...BASE_TABS, TEAM_TAB] : BASE_TABS;
 
   return (
     <div className="p-9 max-w-5xl">
@@ -110,9 +110,9 @@ export function SettingsContent({ user }: { user: User }) {
             <TabsContent value="billing" className="mt-0">
               <BillingTab />
             </TabsContent>
-            {plan === "pro" && !isTeamMember && (
+            {plan && !isTeamMember && (
               <TabsContent value="team" className="mt-0">
-                <TeamTab />
+                <TeamTab plan={plan} />
               </TabsContent>
             )}
           </div>

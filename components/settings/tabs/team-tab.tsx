@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, UserPlus, Trash2, Copy, CheckCircle } from "lucide-react";
+import { Loader2, UserPlus, Trash2, Copy, CheckCircle, Lock } from "lucide-react";
 
 interface TeamMember {
   id: string;
@@ -28,7 +28,11 @@ interface TeamMember {
   accepted_at: string | null;
 }
 
-export function TeamTab() {
+interface TeamTabProps {
+  plan: string;
+}
+
+export function TeamTab({ plan }: TeamTabProps) {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -120,6 +124,38 @@ export function TeamTab() {
   const activeCount = members.filter(
     (m) => m.status !== "removed"
   ).length;
+
+  if (plan !== "pro") {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(255,255,255,0.05)]">
+              <Lock className="h-6 w-6 text-[rgba(255,255,255,0.3)]" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">
+              Team Members
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
+              Adding additional seats and team members is only available on the
+              Premium plan. Upgrade to invite your team and collaborate.
+            </p>
+            <Button
+              onClick={async () => {
+                const res = await fetch("/api/billing/portal", {
+                  method: "POST",
+                });
+                const data = await res.json();
+                if (data.url) window.location.href = data.url;
+              }}
+            >
+              Upgrade to Premium
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
