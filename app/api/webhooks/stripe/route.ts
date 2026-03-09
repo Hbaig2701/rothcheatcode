@@ -5,6 +5,21 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlanFromPriceId } from "@/lib/config/plans";
 import { PLAN_LIMITS } from "@/lib/config/plans";
 
+/** Send a notification to Slack via incoming webhook. Fails silently. */
+async function notifySlack(text: string) {
+  const url = process.env.SLACK_WEBHOOK_URL;
+  if (!url) return;
+  try {
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+  } catch (err) {
+    console.error("[Slack] Failed to send notification:", err);
+  }
+}
+
 /**
  * Remove all team members for a given owner (used on downgrade/cancellation).
  * Sets team_members status to "removed" and clears team_owner_id on member profiles.
@@ -85,7 +100,22 @@ export async function POST(request: NextRequest) {
         const cycle = metadata?.cycle;
         const userId = metadata?.user_id;
 
+        const customerName = (session.customer_details as Record<string, unknown>)?.name as string | undefined;
+        const amountTotal = session.amount_total as number | undefined;
+
         console.log(`[Stripe Webhook] checkout.session.completed: customer=${customerId}, email=${customerEmail}, plan=${plan}, cycle=${cycle}, user_id=${userId}`);
+
+        // Notify Slack of new signup
+        const amount = amountTotal != null ? `$${(amountTotal / 100).toFixed(2)}` : "N/A";
+        const planLabel = plan ? `${plan.charAt(0).toUpperCase() + plan.slice(1)}` : "Unknown";
+        const cycleLabel = cycle ? `${cycle.charAt(0).toUpperCase() + cycle.slice(1)}` : "";
+        await notifySlack(
+          `:tada: *New Customer Signup!*\n` +
+          `*Name:* ${customerName || "N/A"}\n` +
+          `*Email:* ${customerEmail || "N/A"}\n` +
+          `*Plan:* ${planLabel} — ${cycleLabel}\n` +
+          `*Amount:* ${amount}`
+        );
 
         if (customerId) {
           let profile: { id: string; stripe_customer_id: string | null } | null = null;
