@@ -70,10 +70,11 @@ export async function POST(request: NextRequest) {
   }
 
   // Send invite email via Supabase magic link
+  // Redirect through auth callback so session tokens are properly exchanged
   const { error: emailError } = await admin.auth.admin.inviteUserByEmail(
     email.toLowerCase(),
     {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/invite/${invite.id}`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/invite/${invite.id}`,
     }
   );
 

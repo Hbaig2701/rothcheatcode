@@ -20,17 +20,24 @@ export default function InvitePage() {
   const inviteId = params.id as string
 
   const [invite, setInvite] = useState<InviteData | null>(null)
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [alreadyAccepted, setAlreadyAccepted] = useState(false)
 
   useEffect(() => {
     fetch(`/api/team/invite/${inviteId}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) {
+          // Check if this is because invite was already accepted
+          if (data.error === 'Invalid or expired invite') {
+            setAlreadyAccepted(true)
+          }
           setError(data.error)
         } else {
           setInvite(data)
@@ -67,6 +74,8 @@ export default function InvitePage() {
           inviteId,
           email: invite?.invite.email,
           password,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
         }),
       })
 
@@ -105,6 +114,25 @@ export default function InvitePage() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (alreadyAccepted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6 text-center space-y-4">
+            <p className="text-sm text-muted-foreground">
+              This invite has already been accepted or has expired.
+            </p>
+            <a href="/login">
+              <Button variant="outline" className="w-full">
+                Go to Login
+              </Button>
+            </a>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -159,6 +187,29 @@ export default function InvitePage() {
                   disabled
                   className="opacity-70"
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
