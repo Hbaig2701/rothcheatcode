@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
 
     const sessionParams: Record<string, unknown> = {
       mode: "subscription",
+      locale: "en",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: user
