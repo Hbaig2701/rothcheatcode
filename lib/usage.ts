@@ -16,7 +16,7 @@ export async function getEffectivePlan(userId: string): Promise<PlanInfo> {
 
   const { data: profile } = await admin
     .from("profiles")
-    .select("plan, stripe_customer_id, team_owner_id")
+    .select("plan, stripe_customer_id, team_owner_id, subscription_status")
     .eq("id", userId)
     .single();
 
@@ -26,21 +26,27 @@ export async function getEffectivePlan(userId: string): Promise<PlanInfo> {
   if (profile.team_owner_id) {
     const { data: owner } = await admin
       .from("profiles")
-      .select("plan, stripe_customer_id")
+      .select("plan, stripe_customer_id, subscription_status")
       .eq("id", profile.team_owner_id)
       .single();
 
     if (!owner) return { plan: "none", isGrandfathered: false };
-    return {
-      plan: (owner.plan as PlanId) ?? "none",
-      isGrandfathered: owner.plan === "pro" && !owner.stripe_customer_id,
-    };
+    const ownerPlan = (owner.plan as PlanId) ?? "none";
+    // If subscription is not active/trialing, deny access (unless grandfathered)
+    const ownerGrandfathered = ownerPlan === "pro" && !owner.stripe_customer_id;
+    if (!ownerGrandfathered && owner.subscription_status && !["active", "trialing"].includes(owner.subscription_status)) {
+      return { plan: "none", isGrandfathered: false };
+    }
+    return { plan: ownerPlan, isGrandfathered: ownerGrandfathered };
   }
 
-  return {
-    plan: (profile.plan as PlanId) ?? "none",
-    isGrandfathered: profile.plan === "pro" && !profile.stripe_customer_id,
-  };
+  const userPlan = (profile.plan as PlanId) ?? "none";
+  const isGrandfathered = userPlan === "pro" && !profile.stripe_customer_id;
+  // If subscription is not active/trialing, deny access (unless grandfathered)
+  if (!isGrandfathered && profile.subscription_status && !["active", "trialing"].includes(profile.subscription_status)) {
+    return { plan: "none", isGrandfathered: false };
+  }
+  return { plan: userPlan, isGrandfathered };
 }
 
 /**

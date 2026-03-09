@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { stripe, getSubscriptionPeriodEnd } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function POST(request: NextRequest) {
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update their profile with Stripe info
+    const periodEndIso = getSubscriptionPeriodEnd(subscription);
     await admin
       .from("profiles")
       .update({
@@ -77,16 +78,14 @@ export async function POST(request: NextRequest) {
         plan,
         billing_cycle: cycle,
         subscription_status: "active",
-        current_period_end: subscription?.current_period_end
-          ? new Date((subscription.current_period_end as number) * 1000).toISOString()
-          : null,
+        current_period_end: periodEndIso,
       })
       .eq("id", authData.user.id);
 
     // Initialize usage tracking
     const now = new Date();
-    const periodEnd = subscription?.current_period_end
-      ? new Date((subscription.current_period_end as number) * 1000)
+    const periodEnd = periodEndIso
+      ? new Date(periodEndIso)
       : new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     await admin.from("usage").insert({

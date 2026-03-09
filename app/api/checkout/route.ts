@@ -18,7 +18,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Price not configured. Check STRIPE_PRICE env vars." }, { status: 500 });
     }
 
-    const session = await stripe.checkout.sessions.create({
+    // Check for existing Stripe customer by email to prevent duplicates
+    const email = searchParams.get("email");
+    let customerId: string | undefined;
+    if (email) {
+      const existingCustomers = await stripe.customers.list({ email, limit: 1 });
+      if (existingCustomers.data.length > 0) {
+        customerId = existingCustomers.data[0].id;
+      }
+    }
+
+    const sessionParams: Record<string, unknown> = {
       mode: "subscription",
       payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
@@ -27,7 +37,17 @@ export async function GET(request: NextRequest) {
       allow_promotion_codes: true,
       billing_address_collection: "required",
       metadata: { plan, cycle },
-    });
+    };
+    // Reuse existing customer if found, otherwise let Stripe create one
+    if (customerId) {
+      sessionParams.customer = customerId;
+    } else if (email) {
+      sessionParams.customer_email = email;
+    }
+
+    const session = await stripe.checkout.sessions.create(
+      sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
+    );
 
     if (!session.url) {
       return NextResponse.json({ error: "Stripe did not return a checkout URL" }, { status: 500 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { stripe, getSubscriptionPeriodEnd } from "@/lib/stripe";
 
 export async function GET(request: NextRequest) {
   const sessionId = request.nextUrl.searchParams.get("session_id");
@@ -25,9 +25,7 @@ export async function GET(request: NextRequest) {
       subscriptionId: subscription?.id,
       plan: session.metadata?.plan,
       cycle: session.metadata?.cycle,
-      currentPeriodEnd: subscription?.current_period_end
-        ? new Date((subscription.current_period_end as number) * 1000).toISOString()
-        : null,
+      currentPeriodEnd: getSubscriptionPeriodEnd(subscription),
     });
   } catch (error) {
     console.error("Session retrieval error:", error);
