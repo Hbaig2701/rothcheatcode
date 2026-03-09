@@ -101,20 +101,17 @@ export async function POST(request: NextRequest) {
         const userId = metadata?.user_id;
 
         const customerName = (session.customer_details as Record<string, unknown>)?.name as string | undefined;
-        const amountTotal = session.amount_total as number | undefined;
 
         console.log(`[Stripe Webhook] checkout.session.completed: customer=${customerId}, email=${customerEmail}, plan=${plan}, cycle=${cycle}, user_id=${userId}`);
 
         // Notify Slack of new signup
-        const amount = amountTotal != null ? `$${(amountTotal / 100).toFixed(2)}` : "N/A";
         const planLabel = plan ? `${plan.charAt(0).toUpperCase() + plan.slice(1)}` : "Unknown";
         const cycleLabel = cycle ? `${cycle.charAt(0).toUpperCase() + cycle.slice(1)}` : "";
         await notifySlack(
           `:tada: *New Customer Signup!*\n` +
           `*Name:* ${customerName || "N/A"}\n` +
           `*Email:* ${customerEmail || "N/A"}\n` +
-          `*Plan:* ${planLabel} — ${cycleLabel}\n` +
-          `*Amount:* ${amount}`
+          `*Plan:* ${planLabel} — ${cycleLabel}`
         );
 
         if (customerId) {
