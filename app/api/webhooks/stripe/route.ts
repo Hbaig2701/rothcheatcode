@@ -46,20 +46,37 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as unknown as Record<string, unknown>;
         const customerId = session.customer as string;
         const customerEmail = (session.customer_details as Record<string, unknown>)?.email as string | undefined;
-        const plan = (session.metadata as Record<string, string>)?.plan;
-        const cycle = (session.metadata as Record<string, string>)?.cycle;
+        const metadata = session.metadata as Record<string, string> | undefined;
+        const plan = metadata?.plan;
+        const cycle = metadata?.cycle;
+        const userId = metadata?.user_id;
 
-        console.log(`[Stripe Webhook] checkout.session.completed: customer=${customerId}, email=${customerEmail}, plan=${plan}, cycle=${cycle}`);
+        console.log(`[Stripe Webhook] checkout.session.completed: customer=${customerId}, email=${customerEmail}, plan=${plan}, cycle=${cycle}, user_id=${userId}`);
 
-        if (customerEmail && customerId) {
-          // Try to find a profile with this email that doesn't yet have a stripe_customer_id
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("id, stripe_customer_id")
-            .ilike("email", customerEmail)
-            .single();
+        if (customerId) {
+          let profile: { id: string; stripe_customer_id: string | null } | null = null;
 
-          if (profile && !profile.stripe_customer_id) {
+          // First try to find profile by user_id from metadata (most reliable)
+          if (userId) {
+            const { data } = await supabase
+              .from("profiles")
+              .select("id, stripe_customer_id")
+              .eq("id", userId)
+              .single();
+            profile = data;
+          }
+
+          // Fall back to email lookup
+          if (!profile && customerEmail) {
+            const { data } = await supabase
+              .from("profiles")
+              .select("id, stripe_customer_id")
+              .ilike("email", customerEmail)
+              .single();
+            profile = data;
+          }
+
+          if (profile) {
             const updateData: Record<string, unknown> = { stripe_customer_id: customerId };
             if (plan) updateData.plan = plan;
             if (cycle) updateData.billing_cycle = cycle;
@@ -71,12 +88,10 @@ export async function POST(request: NextRequest) {
               .eq("id", profile.id);
 
             console.log(`[Stripe Webhook] Linked customer ${customerId} to profile ${profile.id}`);
-          } else if (profile?.stripe_customer_id) {
-            console.log(`[Stripe Webhook] Profile already has stripe_customer_id, skipping`);
           } else {
             // Profile doesn't exist yet (user hasn't completed welcome form)
             // The welcome route will handle linking when it creates the user
-            console.log(`[Stripe Webhook] No profile found for ${customerEmail}, welcome route will handle linking`);
+            console.log(`[Stripe Webhook] No profile found for user_id=${userId} or email=${customerEmail}, welcome route will handle linking`);
           }
         }
         break;
