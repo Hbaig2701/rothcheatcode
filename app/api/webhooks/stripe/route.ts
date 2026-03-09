@@ -35,26 +35,32 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.created": {
         const subscription = event.data.object as unknown as Record<string, unknown>;
         const customerId = subscription.customer as string;
-        const items = subscription.items as { data: Array<{ price: { id: string } }> };
+        const items = subscription.items as { data: Array<{ price: { id: string }; current_period_end?: number }> };
         const priceId = items?.data[0]?.price.id;
 
-        console.log(`[Stripe Webhook] ${event.type}: customer=${customerId}, priceId=${priceId}, status=${subscription.status}`);
+        // current_period_end may be at root (older API) or on item (2026+ API)
+        const periodEndTs = (subscription.current_period_end as number | undefined)
+          ?? items?.data[0]?.current_period_end;
+
+        console.log(`[Stripe Webhook] ${event.type}: customer=${customerId}, priceId=${priceId}, status=${subscription.status}, periodEnd=${periodEndTs}`);
 
         if (priceId) {
           const { plan, cycle } = getPlanFromPriceId(priceId);
           console.log(`[Stripe Webhook] Mapped priceId=${priceId} → plan=${plan}, cycle=${cycle}`);
 
+          const updateData: Record<string, unknown> = {
+            plan,
+            billing_cycle: cycle,
+            subscription_status: subscription.status as string,
+            stripe_subscription_id: subscription.id as string,
+          };
+          if (periodEndTs) {
+            updateData.current_period_end = new Date(periodEndTs * 1000).toISOString();
+          }
+
           const { error: updateError } = await supabase
             .from("profiles")
-            .update({
-              plan,
-              billing_cycle: cycle,
-              subscription_status: subscription.status as string,
-              stripe_subscription_id: subscription.id as string,
-              current_period_end: new Date(
-                (subscription.current_period_end as number) * 1000
-              ).toISOString(),
-            })
+            .update(updateData)
             .eq("stripe_customer_id", customerId);
 
           if (updateError) {
