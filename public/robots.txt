@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /clients
+Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+Disallow: /auth/
+Disallow: /invite/
+Disallow: /plans
+Disallow: /reset-password
+
+Sitemap: https://retirementexpert.ai/sitemap.xml
