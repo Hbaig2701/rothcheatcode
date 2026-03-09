@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import { User } from "@supabase/supabase-js";
 import {
   changePasswordSchema,
@@ -14,7 +13,6 @@ import {
 import {
   useChangePassword,
   useChangeEmail,
-  useDeleteAccount,
 } from "@/lib/queries/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,18 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
-import {
-  AlertDialog,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from "@/components/ui/alert-dialog";
-import { Loader2, CheckCircle, Eye, EyeOff, AlertTriangle } from "lucide-react";
+import { Loader2, CheckCircle, Eye, EyeOff } from "lucide-react";
 
 interface SecurityTabProps {
   user: User;
@@ -49,7 +36,6 @@ export function SecurityTab({ user }: SecurityTabProps) {
     <div className="flex flex-col gap-6">
       <ChangePasswordCard />
       <ChangeEmailCard user={user} />
-      <DeleteAccountCard />
     </div>
   );
 }
@@ -273,96 +259,3 @@ function ChangeEmailCard({ user }: { user: User }) {
   );
 }
 
-// ============================================================================
-// Delete Account
-// ============================================================================
-
-function DeleteAccountCard() {
-  const deleteAccount = useDeleteAccount();
-  const router = useRouter();
-  const [confirmText, setConfirmText] = useState("");
-  const [open, setOpen] = useState(false);
-
-  const handleDelete = async () => {
-    if (confirmText !== "DELETE") return;
-    try {
-      await deleteAccount.mutateAsync();
-      router.push("/login");
-    } catch {
-      // Error handled by mutation
-    }
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-destructive">Danger Zone</CardTitle>
-        <CardDescription>
-          Irreversible actions that affect your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="mt-0.5 size-5 shrink-0 text-destructive" />
-            <div className="flex-1">
-              <h4 className="font-medium text-destructive">Delete Account</h4>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Permanently delete your account and all associated data. This
-                action cannot be undone.
-              </p>
-              <AlertDialog open={open} onOpenChange={setOpen}>
-                <AlertDialogTrigger
-                  render={
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="mt-3"
-                    />
-                  }
-                >
-                  Delete Account
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete your account, all your
-                      formulas, and all associated data. This action cannot be
-                      undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <div className="px-0">
-                    <label className="mb-2 block text-sm font-medium">
-                      Type <strong>DELETE</strong> to confirm:
-                    </label>
-                    <Input
-                      value={confirmText}
-                      onChange={(e) => setConfirmText(e.target.value)}
-                      placeholder="DELETE"
-                    />
-                  </div>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel onClick={() => setConfirmText("")}>
-                      Cancel
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      variant="destructive"
-                      onClick={handleDelete}
-                      disabled={confirmText !== "DELETE" || deleteAccount.isPending}
-                    >
-                      {deleteAccount.isPending && (
-                        <Loader2 className="size-4 animate-spin" />
-                      )}
-                      Delete Account
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}

@@ -26,12 +26,12 @@ export async function GET() {
     .eq("id", user.id)
     .single();
 
-  // Get current usage
+  // Bug 14 fix: Use ownerId for usage lookup (team members share owner's usage)
   const now = new Date().toISOString();
   const { data: usage } = await supabase
     .from("usage")
     .select("scenario_runs, pdf_exports")
-    .eq("user_id", user.id)
+    .eq("user_id", ownerId)
     .gte("period_end", now)
     .order("period_start", { ascending: false })
     .limit(1)

@@ -15,9 +15,16 @@ export async function GET(request: NextRequest) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("stripe_customer_id")
+    .select("stripe_customer_id, team_owner_id")
     .eq("id", user.id)
     .single();
+
+  if (profile?.team_owner_id) {
+    return NextResponse.json(
+      { error: "Billing is managed by your team owner." },
+      { status: 403 }
+    );
+  }
 
   if (!profile?.stripe_customer_id) {
     return NextResponse.json(

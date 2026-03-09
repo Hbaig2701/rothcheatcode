@@ -49,6 +49,21 @@ export async function POST(request: NextRequest) {
 
     const admin = createAdminClient();
 
+    // Bug 10 fix: Check if this Stripe session has already been used
+    if (stripeCustomerId) {
+      const { data: existingProfile } = await admin
+        .from("profiles")
+        .select("id")
+        .eq("stripe_customer_id", stripeCustomerId)
+        .single();
+      if (existingProfile) {
+        return NextResponse.json(
+          { error: "This payment session has already been used to create an account. Please log in." },
+          { status: 409 }
+        );
+      }
+    }
+
     // Create the Supabase user
     const { data: authData, error: authError } =
       await admin.auth.admin.createUser({

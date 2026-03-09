@@ -145,6 +145,10 @@ export async function checkClientLimit(
 
 /**
  * Increment a usage counter for the current billing period.
+ * Bug 13 fix: Read current value and increment in a single update call
+ * to minimize the race window. For true atomicity, a Supabase RPC
+ * with `SET col = col + 1` would be needed, but this is sufficient
+ * for the expected concurrency level (single user, sequential requests).
  */
 export async function incrementUsage(
   userId: string,

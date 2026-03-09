@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getPlanLimits, type PlanId } from "@/lib/config/plans";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -42,22 +43,38 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid role" }, { status: 400 });
   }
 
-  // Verify Pro plan
+  // Bug 18 fix: Use plan limits config instead of hardcoded plan check
   const { data: profile } = await supabase
     .from("profiles")
     .select("plan")
     .eq("id", user.id)
     .single();
 
-  if (profile?.plan !== "pro") {
+  const planLimits = getPlanLimits((profile?.plan as PlanId) ?? "none");
+  if (planLimits.teamMembers === 0) {
     return NextResponse.json(
-      { error: "Pro plan required for team members" },
+      { error: "Your current plan does not include team members. Please upgrade to Pro." },
       { status: 403 }
     );
   }
 
-  // Create invite
   const admin = createAdminClient();
+
+  // Check current team member count against limit
+  if (planLimits.teamMembers !== Infinity) {
+    const { count: currentCount } = await admin
+      .from("team_members")
+      .select("*", { count: "exact", head: true })
+      .eq("team_owner_id", user.id)
+      .neq("status", "removed");
+
+    if ((currentCount ?? 0) >= planLimits.teamMembers) {
+      return NextResponse.json(
+        { error: `You have reached the maximum number of team members (${planLimits.teamMembers}) for your plan.` },
+        { status: 403 }
+      );
+    }
+  }
   const { data: invite, error } = await admin
     .from("team_members")
     .insert({

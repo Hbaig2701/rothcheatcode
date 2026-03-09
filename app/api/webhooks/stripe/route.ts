@@ -3,6 +3,43 @@ import Stripe from "stripe";
 import { stripe, getSubscriptionPeriodEnd } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlanFromPriceId } from "@/lib/config/plans";
+import { PLAN_LIMITS } from "@/lib/config/plans";
+
+/**
+ * Remove all team members for a given owner (used on downgrade/cancellation).
+ * Sets team_members status to "removed" and clears team_owner_id on member profiles.
+ */
+async function removeTeamMembers(supabase: ReturnType<typeof createAdminClient>, ownerId: string) {
+  // Get all active team members
+  const { data: members } = await supabase
+    .from("team_members")
+    .select("id, member_user_id")
+    .eq("team_owner_id", ownerId)
+    .neq("status", "removed");
+
+  if (!members || members.length === 0) return;
+
+  // Mark all as removed
+  await supabase
+    .from("team_members")
+    .update({ status: "removed" })
+    .eq("team_owner_id", ownerId)
+    .neq("status", "removed");
+
+  // Clear team_owner_id on member profiles
+  const memberUserIds = members
+    .map((m) => m.member_user_id)
+    .filter(Boolean) as string[];
+
+  if (memberUserIds.length > 0) {
+    await supabase
+      .from("profiles")
+      .update({ team_owner_id: null })
+      .in("id", memberUserIds);
+  }
+
+  console.log(`[Stripe Webhook] Removed ${members.length} team members for owner ${ownerId}`);
+}
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -38,9 +75,6 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       // =================================================================
       // CHECKOUT COMPLETED — Links Stripe customer to Supabase profile
-      // This fires BEFORE the user completes the welcome form, so it acts
-      // as a safety net. The welcome route also writes stripe_customer_id,
-      // but if the user never completes welcome, this ensures the link exists.
       // =================================================================
       case "checkout.session.completed": {
         const session = event.data.object as unknown as Record<string, unknown>;
@@ -89,8 +123,6 @@ export async function POST(request: NextRequest) {
 
             console.log(`[Stripe Webhook] Linked customer ${customerId} to profile ${profile.id}`);
           } else {
-            // Profile doesn't exist yet (user hasn't completed welcome form)
-            // The welcome route will handle linking when it creates the user
             console.log(`[Stripe Webhook] No profile found for user_id=${userId} or email=${customerEmail}, welcome route will handle linking`);
           }
         }
@@ -129,6 +161,7 @@ export async function POST(request: NextRequest) {
             updateData.current_period_end = periodEndIso;
           }
 
+          // Try primary lookup by stripe_customer_id
           const { error: updateError, count } = await supabase
             .from("profiles")
             .update(updateData)
@@ -137,9 +170,40 @@ export async function POST(request: NextRequest) {
           if (updateError) {
             console.error(`[Stripe Webhook] Failed to update profile for customer ${customerId}:`, updateError);
           } else if (count === 0) {
-            console.warn(`[Stripe Webhook] No profile found with stripe_customer_id=${customerId}. User may not have completed onboarding yet.`);
+            // Bug 4 fix: Fallback — fetch customer email from Stripe and try email-based lookup
+            console.warn(`[Stripe Webhook] No profile found with stripe_customer_id=${customerId}, trying email fallback`);
+            try {
+              const customer = await stripe.customers.retrieve(customerId);
+              if (!('deleted' in customer && customer.deleted) && customer.email) {
+                const { count: emailCount } = await supabase
+                  .from("profiles")
+                  .update({ ...updateData, stripe_customer_id: customerId })
+                  .ilike("email", customer.email);
+                if (emailCount && emailCount > 0) {
+                  console.log(`[Stripe Webhook] Linked via email fallback: ${customer.email}`);
+                } else {
+                  console.warn(`[Stripe Webhook] Email fallback also failed for ${customer.email}`);
+                }
+              }
+            } catch (fallbackErr) {
+              console.error(`[Stripe Webhook] Email fallback error:`, fallbackErr);
+            }
           } else {
             console.log(`[Stripe Webhook] Successfully updated profile: customer=${customerId}, plan=${plan}`);
+
+            // Bug 3 fix: If downgraded to a plan with 0 team members, remove all team members
+            const newPlanLimits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.none;
+            if (newPlanLimits.teamMembers === 0) {
+              // Find the owner profile
+              const { data: ownerProfile } = await supabase
+                .from("profiles")
+                .select("id")
+                .eq("stripe_customer_id", customerId)
+                .single();
+              if (ownerProfile) {
+                await removeTeamMembers(supabase, ownerProfile.id);
+              }
+            }
           }
         } else {
           console.warn(`[Stripe Webhook] No priceId found in subscription items`);
@@ -155,6 +219,13 @@ export async function POST(request: NextRequest) {
         const customerId = subscription.customer as string;
 
         console.log(`[Stripe Webhook] subscription.deleted: customer=${customerId}`);
+
+        // Find owner before updating so we can clean up team members
+        const { data: ownerProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("stripe_customer_id", customerId)
+          .single();
 
         const { error: deleteError, count } = await supabase
           .from("profiles")
@@ -173,6 +244,11 @@ export async function POST(request: NextRequest) {
           console.warn(`[Stripe Webhook] No profile found with stripe_customer_id=${customerId} for cancellation`);
         } else {
           console.log(`[Stripe Webhook] Canceled subscription for customer=${customerId}`);
+        }
+
+        // Bug 17 fix: Clean up team members on cancellation
+        if (ownerProfile) {
+          await removeTeamMembers(supabase, ownerProfile.id);
         }
         break;
       }
@@ -226,10 +302,14 @@ export async function POST(request: NextRequest) {
           .single();
 
         if (profile) {
-          // Try to get period end from invoice lines
-          const lines = invoice.lines as unknown as { data?: Array<{ period?: { end?: number } }> };
+          // Bug 8 fix: Use actual invoice period dates instead of 'now'
+          const lines = invoice.lines as unknown as { data?: Array<{ period?: { start?: number; end?: number } }> };
+          const periodStart = lines?.data?.[0]?.period?.start;
           const periodEnd = lines?.data?.[0]?.period?.end;
           const now = new Date();
+          const start = periodStart
+            ? new Date(periodStart * 1000)
+            : new Date(now.getFullYear(), now.getMonth(), 1);
           const end = periodEnd
             ? new Date(periodEnd * 1000)
             : new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -237,7 +317,7 @@ export async function POST(request: NextRequest) {
           await supabase.from("usage").upsert(
             {
               user_id: profile.id,
-              period_start: now.toISOString().split("T")[0],
+              period_start: start.toISOString().split("T")[0],
               period_end: end.toISOString().split("T")[0],
               scenario_runs: 0,
               pdf_exports: 0,

@@ -36,19 +36,43 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Check if user already exists by invite email (not client-provided email)
-    const { data: existingUsers } = await admin.auth.admin.listUsers({
-      perPage: 1000,
-      page: 1,
-    });
-    const existingUser = existingUsers?.users?.find(
-      (u) => u.email === invite.email
-    );
+    // Check if user already exists by invite email (direct lookup, not paginated)
+    let existingUser: { id: string; email?: string } | null = null;
+    try {
+      // First check profiles table (faster, no pagination issue)
+      const { data: existingProfile } = await admin
+        .from("profiles")
+        .select("id")
+        .ilike("email", invite.email)
+        .single();
+      if (existingProfile) {
+        existingUser = existingProfile;
+      } else {
+        // Fallback: check auth users by listing with small page
+        const { data: users } = await admin.auth.admin.listUsers({ perPage: 50, page: 1 });
+        existingUser = users?.users?.find((u) => u.email === invite.email) ?? null;
+      }
+    } catch {
+      // User doesn't exist, that's fine
+    }
 
     let userId: string;
 
     if (existingUser) {
       userId = existingUser.id;
+
+      // Bug 6 fix: Check if user is deactivated before allowing invite acceptance
+      const { data: memberProfile } = await admin
+        .from("profiles")
+        .select("is_active")
+        .eq("id", userId)
+        .single();
+      if (memberProfile?.is_active === false) {
+        return NextResponse.json(
+          { error: "This account has been deactivated" },
+          { status: 403 }
+        );
+      }
       // Update password for existing user (may have been created by inviteUserByEmail)
       await admin.auth.admin.updateUserById(userId, {
         password,
