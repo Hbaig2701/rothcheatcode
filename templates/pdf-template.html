@@ -57,6 +57,7 @@
       max-width: 320px;
       max-height: 100px;
       margin-bottom: 100px;
+      mix-blend-mode: multiply;
     }
 
     .cover-page .company-name {
@@ -96,6 +97,44 @@
       margin-bottom: 20px;
       padding-bottom: 10px;
       border-bottom: 1px solid #ddd;
+    }
+
+    /* Page Header with branding */
+    .page-branding-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .page-branding-header .header-logo {
+      max-height: 40px;
+      max-width: 160px;
+      object-fit: contain;
+    }
+
+    .page-branding-header .header-company {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .page-branding-header .header-title {
+      font-size: 8pt;
+      color: #666;
+    }
+
+    /* Page Footer with branding */
+    .page-branding-footer {
+      text-align: center;
+      font-size: 8pt;
+      color: #888;
+      padding-top: 10px;
+      border-top: 1px solid #e5e7eb;
+      margin-top: 30px;
+      letter-spacing: 0.3px;
     }
 
     .section-title {
@@ -153,7 +192,7 @@
     }
 
     .metric-value.highlight {
-      color: {{branding.secondaryColor}};
+      color: #16a34a;
       font-size: 14pt;
     }
 
@@ -313,7 +352,7 @@
 
   <!-- Page 2: Performance Report -->
   <div class="page">
-    <div class="page-header">Performance Report</div>
+    {{{pageHeader "Performance Report"}}}
     <h1 class="section-title">Performance Report</h1>
 
     <div class="metrics-grid">
@@ -381,11 +420,12 @@
         </div>
       </div>
     </div>
+    {{{brandingFooter}}}
   </div>
 
   <!-- Page 3: Charts & Insights -->
   <div class="page">
-    <div class="page-header">Charts &amp; Insights</div>
+    {{{pageHeader "Charts &amp; Insights"}}}
     <h1 class="section-title">Legacy to Heirs Over Time</h1>
 
     <div style="width: 100%; margin: 20px 0; display: flex; justify-content: center;">
@@ -474,11 +514,12 @@
         </tr>
       </table>
     </div>
+    {{{brandingFooter}}}
   </div>
 
   <!-- Page 4: Conversion Details -->
   <div class="page">
-    <div class="page-header">Conversion Details</div>
+    {{{pageHeader "Conversion Details"}}}
     <h1 class="section-title">Conversion Details</h1>
     <table class="data-table">
       <tr>
@@ -506,11 +547,12 @@
       </tr>
       {{/each}}
     </table>
+    {{{brandingFooter}}}
   </div>
 
   <!-- Pages 5-8: Baseline Tables -->
   <div class="page">
-    <div class="page-header">Baseline - Account Overview</div>
+    {{{pageHeader "Baseline - Account Overview"}}}
     <h1 class="section-title">Baseline Year-over-Year Values</h1>
     <table class="data-table">
       <tr>
@@ -540,10 +582,11 @@
       </tr>
       {{/each}}
     </table>
+    {{{brandingFooter}}}
   </div>
 
   <div class="page">
-    <div class="page-header">Baseline - Taxable Income</div>
+    {{{pageHeader "Baseline - Taxable Income"}}}
     <h1 class="section-title">Baseline Taxable Income</h1>
     <table class="data-table">
       <tr>
@@ -571,11 +614,12 @@
       </tr>
       {{/each}}
     </table>
+    {{{brandingFooter}}}
   </div>
 
   <!-- Strategy Account Overview -->
   <div class="page">
-    <div class="page-header">Strategy - Account Overview</div>
+    {{{pageHeader "Strategy - Account Overview"}}}
     <h1 class="section-title">Strategy Year-over-Year Values</h1>
     <table class="data-table">
       <tr>
@@ -605,11 +649,12 @@
       </tr>
       {{/each}}
     </table>
+    {{{brandingFooter}}}
   </div>
 
   <!-- Strategy Taxable Income -->
   <div class="page">
-    <div class="page-header">Strategy - Taxable Income</div>
+    {{{pageHeader "Strategy - Taxable Income"}}}
     <h1 class="section-title">Strategy Taxable Income</h1>
     <table class="data-table">
       <tr>
@@ -637,11 +682,12 @@
       </tr>
       {{/each}}
     </table>
+    {{{brandingFooter}}}
   </div>
 
   <!-- Disclaimer -->
   <div class="page">
-    <div class="page-header">Disclaimer</div>
+    {{{pageHeader "Disclaimer"}}}
     <h1 class="section-title">Disclaimer</h1>
     <div class="disclaimer">
       <p>
@@ -672,6 +718,7 @@
       <p style="font-size: 0.75rem; color: #9ca3af; margin: 0;">Powered by <strong>Retirement Expert</strong></p>
     </div>
     {{/if}}
+    {{{brandingFooter}}}
   </div>
 </body>
 </html>

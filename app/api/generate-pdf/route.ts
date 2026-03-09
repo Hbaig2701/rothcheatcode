@@ -22,6 +22,39 @@ Handlebars.registerHelper('formatCurrency', (value: number) => {
   return '$' + new Intl.NumberFormat('en-US').format(Math.round(value));
 });
 
+// Helper to generate page header with branding logo/company name
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+Handlebars.registerHelper('pageHeader', function(this: any, title: string) {
+  const branding = this.branding;
+  let leftHtml = '';
+  if (branding?.logoUrl) {
+    leftHtml = `<img class="header-logo" src="${Handlebars.Utils.escapeExpression(branding.logoUrl)}" alt="" />`;
+  } else if (branding?.companyName) {
+    leftHtml = `<span class="header-company">${Handlebars.Utils.escapeExpression(branding.companyName)}</span>`;
+  } else {
+    leftHtml = '<span></span>';
+  }
+  return new Handlebars.SafeString(
+    `<div class="page-branding-header">${leftHtml}<span class="header-title">${Handlebars.Utils.escapeExpression(title)}</span></div>`
+  );
+});
+
+// Helper to generate page footer with branding contact info
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+Handlebars.registerHelper('brandingFooter', function(this: any) {
+  const branding = this.branding;
+  if (!branding) return '';
+  const parts: string[] = [];
+  if (branding.companyName) parts.push(Handlebars.Utils.escapeExpression(branding.companyName));
+  if (branding.phone) parts.push(Handlebars.Utils.escapeExpression(branding.phone));
+  if (branding.email) parts.push(Handlebars.Utils.escapeExpression(branding.email));
+  if (branding.website) parts.push(Handlebars.Utils.escapeExpression(branding.website));
+  if (parts.length === 0) return '';
+  return new Handlebars.SafeString(
+    `<div class="page-branding-footer">${parts.join(' &middot; ')}</div>`
+  );
+});
+
 // Helper to format difference values with color class (no +/- signs)
 Handlebars.registerHelper('formatDiff', function(value: number, invertColor: boolean = false) {
   if (value === 0) return new Handlebars.SafeString('<span class="diff-neutral">$0</span>');
@@ -985,46 +1018,6 @@ export async function POST(request: NextRequest) {
       branding.hasContactInfo = !!(branding.phone || branding.email || branding.website);
     }
 
-    // Build PDF header/footer templates from branding
-    const hasPageBranding = branding.hasBranding || branding.hasContactInfo;
-    let pdfHeaderTemplate = '<div></div>';
-    let pdfFooterTemplate = '<div></div>';
-
-    if (hasPageBranding) {
-      // Header: logo or company name (top-left of every page)
-      let headerContent = '';
-      if (branding.logoUrl) {
-        try {
-          const logoRes = await fetch(branding.logoUrl);
-          const logoBuffer = await logoRes.arrayBuffer();
-          const base64Logo = Buffer.from(logoBuffer).toString('base64');
-          const logoContentType = logoRes.headers.get('content-type') || 'image/png';
-          headerContent = `<img src="data:${logoContentType};base64,${base64Logo}" style="max-height:24px;max-width:120px;" />`;
-        } catch {
-          if (branding.companyName) {
-            headerContent = `<span>${branding.companyName}</span>`;
-          }
-        }
-      } else if (branding.companyName) {
-        headerContent = `<span>${branding.companyName}</span>`;
-      }
-
-      if (headerContent) {
-        pdfHeaderTemplate = `<div style="width:100%;padding:0 0.5in;font-size:9px;font-weight:600;color:${branding.primaryColor};-webkit-print-color-adjust:exact;">${headerContent}</div>`;
-      }
-
-      // Footer: company · phone · email · website
-      const footerParts: string[] = [];
-      if (branding.companyName) footerParts.push(branding.companyName);
-      if (branding.phone) footerParts.push(branding.phone);
-      if (branding.email) footerParts.push(branding.email);
-      if (branding.website) footerParts.push(branding.website);
-
-      if (footerParts.length > 0) {
-        pdfFooterTemplate = `<div style="width:100%;text-align:center;font-size:7px;color:#999;padding:0 0.5in;-webkit-print-color-adjust:exact;">${footerParts.join(' &middot; ')}</div>`;
-      }
-    }
-
     // Detect if this is a GI product
     const blueprintType = reportData.client.blueprint_type as FormulaType;
     const isGI = blueprintType && isGuaranteedIncomeProduct(blueprintType);
@@ -1068,12 +1061,10 @@ export async function POST(request: NextRequest) {
     const pdf = await page.pdf({
       format: 'Letter',
       printBackground: true,
-      displayHeaderFooter: hasPageBranding,
-      ...(hasPageBranding && { headerTemplate: pdfHeaderTemplate, footerTemplate: pdfFooterTemplate }),
       margin: {
-        top: hasPageBranding ? '0.8in' : '0.5in',
+        top: '0.5in',
         right: '0.5in',
-        bottom: hasPageBranding ? '0.7in' : '0.5in',
+        bottom: '0.5in',
         left: '0.5in',
       },
     });

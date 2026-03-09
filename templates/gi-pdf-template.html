@@ -47,6 +47,7 @@
       max-width: 320px;
       max-height: 100px;
       margin-bottom: 80px;
+      mix-blend-mode: multiply;
     }
 
     .cover-page .company-name {
@@ -102,6 +103,44 @@
       margin-bottom: 20px;
       padding-bottom: 10px;
       border-bottom: 1px solid #ddd;
+    }
+
+    /* Page Header with branding */
+    .page-branding-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .page-branding-header .header-logo {
+      max-height: 40px;
+      max-width: 160px;
+      object-fit: contain;
+    }
+
+    .page-branding-header .header-company {
+      font-size: 10pt;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .page-branding-header .header-title {
+      font-size: 8pt;
+      color: #666;
+    }
+
+    /* Page Footer with branding */
+    .page-branding-footer {
+      text-align: center;
+      font-size: 8pt;
+      color: #888;
+      padding-top: 10px;
+      border-top: 1px solid #e5e7eb;
+      margin-top: 30px;
+      letter-spacing: 0.3px;
     }
 
     .section-title {
@@ -625,7 +664,7 @@
 
   <!-- Page 2: Executive Summary -->
   <div class="page">
-    <div class="page-header">Executive Summary</div>
+    {{{pageHeader "Executive Summary"}}}
     <h1 class="section-title">Your Tax-Free Guaranteed Income</h1>
 
     <!-- Hero: Annual Income -->
@@ -710,12 +749,13 @@
         </div>
       </div>
     </div>
+    {{{brandingFooter}}}
   </div>
 
   <!-- Page 3: 4-Phase Journey -->
   {{#if showConversionPhase}}
   <div class="page">
-    <div class="page-header">Strategy Overview</div>
+    {{{pageHeader "Strategy Overview"}}}
     <h1 class="section-title">Your Tax-Free Income Journey</h1>
 
     <!-- 4-Phase Timeline -->
@@ -802,12 +842,13 @@
     <div class="income-formula">
       {{finalIncomeBase}} × {{payoutPercent}}% = <strong>{{calculatedIncome}}/year guaranteed</strong>
     </div>
+    {{{brandingFooter}}}
   </div>
   {{/if}}
 
   <!-- Page 4: The Guarantee -->
   <div class="page">
-    <div class="page-header">The Guarantee</div>
+    {{{pageHeader "The Guarantee"}}}
     <h1 class="section-title">Your Lifetime Protection</h1>
 
     <div class="guarantee-box">
@@ -921,11 +962,12 @@
         <span class="product-detail-value">{{totalRiderFees}}</span>
       </div>
     </div>
+    {{{brandingFooter}}}
   </div>
 
   <!-- Page 5+: Year-by-Year Projection -->
   <div class="page">
-    <div class="page-header">Year-by-Year Projection</div>
+    {{{pageHeader "Year-by-Year Projection"}}}
     <h1 class="section-title">Strategy: Roth GI Projection</h1>
 
     <table class="data-table">
@@ -962,11 +1004,12 @@
       </span>
     </div>
     {{/if}}
+    {{{brandingFooter}}}
   </div>
 
   <!-- Page 6: Baseline Comparison Table -->
   <div class="page">
-    <div class="page-header">Year-by-Year Projection</div>
+    {{{pageHeader "Year-by-Year Projection"}}}
     <h1 class="section-title">Baseline: Traditional GI Projection</h1>
 
     <p style="color: #666; font-size: 10pt; margin-bottom: 15px;">
@@ -999,11 +1042,12 @@
       </tr>
       {{/each}}
     </table>
+    {{{brandingFooter}}}
   </div>
 
   <!-- Page 7: Disclaimer -->
   <div class="page">
-    <div class="page-header">Disclaimer</div>
+    {{{pageHeader "Disclaimer"}}}
     <h1 class="section-title">Important Information</h1>
     <div class="disclaimer">
       <p>
@@ -1040,6 +1084,7 @@
       <p style="font-size: 0.75rem; color: #9ca3af; margin: 0;">Powered by <strong>Retirement Expert</strong></p>
     </div>
     {{/if}}
+    {{{brandingFooter}}}
   </div>
 </body>
 </html>
