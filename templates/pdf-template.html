@@ -25,6 +25,8 @@
       page-break-after: always;
       min-height: 100vh;
       padding: 20px;
+      display: flex;
+      flex-direction: column;
     }
 
     .page:last-child {
@@ -57,7 +59,7 @@
       max-width: 320px;
       max-height: 100px;
       margin-bottom: 100px;
-      mix-blend-mode: multiply;
+      border-radius: 12px;
     }
 
     .cover-page .company-name {
@@ -110,8 +112,8 @@
     }
 
     .page-branding-header .header-logo {
-      max-height: 56px;
-      max-width: 200px;
+      max-height: 72px;
+      max-width: 240px;
       object-fit: contain;
     }
 
@@ -133,7 +135,7 @@
       color: #888;
       padding-top: 10px;
       border-top: 1px solid #e5e7eb;
-      margin-top: 30px;
+      margin-top: auto;
       letter-spacing: 0.3px;
     }
 
@@ -718,7 +720,6 @@
       <p style="font-size: 0.75rem; color: #9ca3af; margin: 0;">Powered by <strong>Retirement Expert</strong></p>
     </div>
     {{/if}}
-    {{{brandingFooter}}}
   </div>
 </body>
 </html>
