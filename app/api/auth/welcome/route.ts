@@ -19,6 +19,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
+
   try {
     // Verify the Stripe session
     const session = await stripe.checkout.sessions.retrieve(sessionId, {

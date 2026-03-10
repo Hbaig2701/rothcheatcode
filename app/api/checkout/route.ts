@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { getStripePriceId } from "@/lib/config/plans";
 import { createClient } from "@/lib/supabase/server";
+import { isEmailBlocked } from "@/lib/config/blocked-emails";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -53,6 +54,15 @@ export async function GET(request: NextRequest) {
           customerId = existingCustomers.data[0].id;
         }
       }
+    }
+
+    // Check if email is blocked
+    const checkoutEmail = emailParam || userEmail;
+    if (checkoutEmail && isEmailBlocked(checkoutEmail)) {
+      return NextResponse.json(
+        { error: "Authentication error. Please try again later." },
+        { status: 403 }
+      );
     }
 
     const metadata: Record<string, string> = { plan, cycle };

@@ -4,12 +4,18 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { getURL } from '@/lib/utils'
+import { isEmailBlocked } from '@/lib/config/blocked-emails'
 
 export async function login(formData: FormData) {
   const supabase = await createClient()
+  const email = formData.get('email') as string
+
+  if (isEmailBlocked(email)) {
+    redirect('/login?error=Authentication error. Please try again later.')
+  }
 
   const { error } = await supabase.auth.signInWithPassword({
-    email: formData.get('email') as string,
+    email,
     password: formData.get('password') as string,
   })
 
@@ -35,9 +41,14 @@ export async function login(formData: FormData) {
 
 export async function signup(formData: FormData) {
   const supabase = await createClient()
+  const email = formData.get('email') as string
+
+  if (isEmailBlocked(email)) {
+    redirect('/signup?error=Authentication error. Please try again later.')
+  }
 
   const { error } = await supabase.auth.signUp({
-    email: formData.get('email') as string,
+    email,
     password: formData.get('password') as string,
     options: {
       emailRedirectTo: `${getURL()}auth/callback`,
@@ -70,9 +81,14 @@ export async function signInWithGoogle() {
 
 export async function signInWithMagicLink(formData: FormData) {
   const supabase = await createClient()
+  const email = formData.get('email') as string
+
+  if (isEmailBlocked(email)) {
+    return { error: 'Authentication error. Please try again later.' }
+  }
 
   const { error } = await supabase.auth.signInWithOtp({
-    email: formData.get('email') as string,
+    email,
     options: {
       emailRedirectTo: `${getURL()}auth/callback`,
     },
