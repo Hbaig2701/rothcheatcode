@@ -23,6 +23,7 @@ interface Stats {
 
 interface Advisor {
   id: string
+  name: string | null
   email: string
   createdAt: string
   clientCount: number
@@ -38,7 +39,7 @@ interface ActivityPoint {
   count: number
 }
 
-type SortKey = 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status'
+type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status'
 type SortDir = 'asc' | 'desc'
 type TimeFilter = 'all' | '1d' | '7d' | '30d'
 
@@ -128,7 +129,10 @@ export default function AdminDashboard() {
   const filtered = useMemo(() => {
     let result = advisors.filter(a => {
       if (statusFilter !== 'all' && a.status !== statusFilter) return false
-      if (search && !a.email.toLowerCase().includes(search.toLowerCase())) return false
+      if (search) {
+        const q = search.toLowerCase()
+        if (!a.email.toLowerCase().includes(q) && !(a.name && a.name.toLowerCase().includes(q))) return false
+      }
       if (timeFilter !== 'all') {
         const now = Date.now()
         const ms = timeFilter === '1d' ? 86400000 : timeFilter === '7d' ? 604800000 : 2592000000
@@ -142,6 +146,7 @@ export default function AdminDashboard() {
     result.sort((a, b) => {
       let cmp = 0
       switch (sortKey) {
+        case 'name': cmp = (a.name ?? '').localeCompare(b.name ?? ''); break
         case 'email': cmp = a.email.localeCompare(b.email); break
         case 'createdAt': cmp = a.createdAt.localeCompare(b.createdAt); break
         case 'clientCount': cmp = a.clientCount - b.clientCount; break
@@ -267,7 +272,7 @@ export default function AdminDashboard() {
           <div className="flex gap-3 flex-wrap">
             <input
               type="text"
-              placeholder="Search email..."
+              placeholder="Search name or email..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="px-3 py-1.5 text-xs bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white placeholder:text-[rgba(255,255,255,0.65)] outline-none focus:border-[#d4af37]"
@@ -324,6 +329,7 @@ export default function AdminDashboard() {
                   className="rounded border-[rgba(255,255,255,0.2)] bg-transparent accent-[#d4af37]"
                 />
               </th>
+              <SortableHeader label="Name" sortKey="name" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Email" sortKey="email" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Signup" sortKey="createdAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Clients" sortKey="clientCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
@@ -351,6 +357,7 @@ export default function AdminDashboard() {
                     className="rounded border-[rgba(255,255,255,0.2)] bg-transparent accent-[#d4af37]"
                   />
                 </td>
+                <td className="px-4 py-3 text-sm text-white">{a.name ?? <span className="text-[rgba(255,255,255,0.35)]">—</span>}</td>
                 <td className="px-4 py-3 text-sm text-white">{a.email}</td>
                 <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">
                   {new Date(a.createdAt).toLocaleDateString()}
@@ -377,7 +384,7 @@ export default function AdminDashboard() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.65)]">
+                <td colSpan={10} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.65)]">
                   No advisors found
                 </td>
               </tr>

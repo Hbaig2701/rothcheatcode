@@ -41,12 +41,13 @@ export async function GET(request: NextRequest) {
 
     const advisorIds = profiles.map(p => p.id);
 
-    // Fetch counts in parallel
-    const [clientsRes, runsRes, exportsRes, loginsRes] = await Promise.all([
+    // Fetch counts and names in parallel
+    const [clientsRes, runsRes, exportsRes, loginsRes, settingsRes] = await Promise.all([
       admin.from('clients').select('user_id').in('user_id', advisorIds),
       admin.from('projections').select('user_id').in('user_id', advisorIds),
       admin.from('export_log').select('user_id').in('user_id', advisorIds),
       admin.from('login_log').select('user_id, created_at').in('user_id', advisorIds).order('created_at', { ascending: false }),
+      admin.from('user_settings').select('user_id, first_name, last_name').in('user_id', advisorIds),
     ]);
 
     // Build count maps
@@ -58,6 +59,13 @@ export async function GET(request: NextRequest) {
 
     const exportCounts = new Map<string, number>();
     (exportsRes.data ?? []).forEach(r => exportCounts.set(r.user_id, (exportCounts.get(r.user_id) ?? 0) + 1));
+
+    // Names
+    const nameMap = new Map<string, string>();
+    (settingsRes.data ?? []).forEach(r => {
+      const parts = [r.first_name, r.last_name].filter(Boolean);
+      if (parts.length > 0) nameMap.set(r.user_id, parts.join(' '));
+    });
 
     // Last login and session count per user
     const lastLogins = new Map<string, string>();
@@ -77,6 +85,7 @@ export async function GET(request: NextRequest) {
 
       return {
         id: p.id,
+        name: nameMap.get(p.id) ?? null,
         email: p.email,
         createdAt: p.created_at,
         clientCount: clientCounts.get(p.id) ?? 0,
@@ -95,7 +104,7 @@ export async function GET(request: NextRequest) {
     }
     if (search) {
       const q = search.toLowerCase();
-      filtered = filtered.filter(a => a.email.toLowerCase().includes(q));
+      filtered = filtered.filter(a => a.email.toLowerCase().includes(q) || (a.name && a.name.toLowerCase().includes(q)));
     }
 
     return NextResponse.json({ advisors: filtered, total: filtered.length });
