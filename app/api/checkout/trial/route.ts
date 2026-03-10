@@ -27,26 +27,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const sessionParams: Parameters<typeof stripe.checkout.sessions.create>[0] =
-      {
-        mode: "subscription",
-        locale: "en",
-        payment_method_types: ["card"],
-        line_items: [
-          { price: priceId, quantity: 1 },
-          { price: trialSetupPriceId, quantity: 1 },
-        ],
-        subscription_data: {
-          trial_period_days: 7,
-          metadata: { plan: "pro", cycle: "monthly" },
-        },
+    const sessionParams: Record<string, unknown> = {
+      mode: "subscription",
+      locale: "en",
+      payment_method_types: ["card"],
+      line_items: [
+        { price: priceId, quantity: 1 },
+        { price: trialSetupPriceId, quantity: 1 },
+      ],
+      subscription_data: {
+        trial_period_days: 7,
         metadata: { plan: "pro", cycle: "monthly" },
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/welcome?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
-        billing_address_collection: "required",
-      };
+      },
+      metadata: { plan: "pro", cycle: "monthly" },
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/welcome?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
+      billing_address_collection: "required",
+    };
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    const session = await stripe.checkout.sessions.create(
+      sessionParams as Parameters<typeof stripe.checkout.sessions.create>[0]
+    );
 
     if (!session.url) {
       return NextResponse.json(
