@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, CreditCard, Zap, Crown, Shield } from "lucide-react";
+import { Loader2, CreditCard, Zap, Crown, Shield, Clock } from "lucide-react";
 
 interface BillingData {
   plan: string;
@@ -17,6 +17,7 @@ interface BillingData {
   billingCycle: string | null;
   subscriptionStatus: string | null;
   currentPeriodEnd: string | null;
+  trialEnd: string | null;
   hasStripeSubscription: boolean;
   isTeamMember: boolean;
   usage: {
@@ -71,8 +72,18 @@ export function BillingTab() {
     );
   }
 
+  const isTrial = data.subscriptionStatus === "trialing";
+  const trialDaysLeft = data.trialEnd
+    ? Math.max(0, Math.ceil((new Date(data.trialEnd).getTime() - Date.now()) / 86400000))
+    : null;
   const planLabel =
-    data.plan === "pro" ? "Premium" : data.plan === "starter" ? "Starter" : "None";
+    data.plan === "pro"
+      ? isTrial
+        ? "Premium Trial"
+        : "Premium"
+      : data.plan === "starter"
+        ? "Starter"
+        : "None";
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);
@@ -142,12 +153,20 @@ export function BillingTab() {
                   Managed by team owner
                 </p>
               )}
-              {data.billingCycle && !data.isGrandfathered && (
+              {isTrial && trialDaysLeft !== null && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-sm text-[#60a5fa]">
+                  <Clock className="size-3.5" />
+                  <span>
+                    {trialDaysLeft} day{trialDaysLeft !== 1 ? "s" : ""} remaining
+                  </span>
+                </div>
+              )}
+              {data.billingCycle && !data.isGrandfathered && !isTrial && (
                 <p className="text-sm text-muted-foreground">
                   {data.billingCycle === "annual" ? "Annual" : "Monthly"} billing
                 </p>
               )}
-              {data.currentPeriodEnd && !data.isGrandfathered && (
+              {data.currentPeriodEnd && !data.isGrandfathered && !isTrial && (
                 <p className="text-xs text-muted-foreground mt-1">
                   Renews{" "}
                   {new Date(data.currentPeriodEnd).toLocaleDateString()}
@@ -160,12 +179,14 @@ export function BillingTab() {
                 className={`rounded-full px-3 py-1 text-xs font-medium ${
                   data.subscriptionStatus === "active"
                     ? "bg-[rgba(74,222,128,0.15)] text-[#4ade80]"
-                    : data.subscriptionStatus === "past_due"
-                      ? "bg-[rgba(245,158,11,0.15)] text-[#f59e0b]"
-                      : "bg-[rgba(239,68,68,0.15)] text-[#ef4444]"
+                    : data.subscriptionStatus === "trialing"
+                      ? "bg-[rgba(96,165,250,0.15)] text-[#60a5fa]"
+                      : data.subscriptionStatus === "past_due"
+                        ? "bg-[rgba(245,158,11,0.15)] text-[#f59e0b]"
+                        : "bg-[rgba(239,68,68,0.15)] text-[#ef4444]"
                 }`}
               >
-                {data.subscriptionStatus}
+                {data.subscriptionStatus === "trialing" ? "trial" : data.subscriptionStatus}
               </span>
             )}
           </div>
