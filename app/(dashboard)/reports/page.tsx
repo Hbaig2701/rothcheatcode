@@ -19,7 +19,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
 
 interface Report {
   id: string;
@@ -45,7 +44,6 @@ export default function ReportsPage() {
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const { toast } = useToast();
 
   // Fetch reports
   useEffect(() => {
@@ -84,11 +82,7 @@ export default function ReportsPage() {
       setReports(data.reports || []);
     } catch (error) {
       console.error('Error fetching reports:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load reports. Please refresh the page.',
-        variant: 'destructive',
-      });
+      console.error('Failed to load reports');
     } finally {
       setLoading(false);
     }
@@ -110,17 +104,10 @@ export default function ReportsPage() {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
 
-      toast({
-        title: 'Success',
-        description: 'Report downloaded successfully',
-      });
+      // Success - no notification needed
     } catch (error) {
       console.error('Download error:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to download report. Please try again.',
-        variant: 'destructive',
-      });
+      alert('Failed to download report. Please try again.');
     } finally {
       setDownloadingId(null);
     }
@@ -139,11 +126,7 @@ export default function ReportsPage() {
       setPreviewUrl(url);
     } catch (error) {
       console.error('Preview error:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load preview. Try downloading instead.',
-        variant: 'destructive',
-      });
+      alert('Failed to load preview. Try downloading instead.');
       setPreviewDialogOpen(false);
     } finally {
       setPreviewLoading(false);
@@ -173,17 +156,10 @@ export default function ReportsPage() {
       setDeleteDialogOpen(false);
       setReportToDelete(null);
 
-      toast({
-        title: 'Success',
-        description: 'Report deleted successfully',
-      });
+      // Success - no notification needed
     } catch (error) {
       console.error('Delete error:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete report. Please try again.',
-        variant: 'destructive',
-      });
+      alert('Failed to delete report. Please try again.');
     } finally {
       setDeleting(false);
     }
