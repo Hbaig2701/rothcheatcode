@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FileText, Download, Trash2, Search, Filter, X } from 'lucide-react';
+import { FileText, Download, Trash2, Search, Filter, X, Loader2, RefreshCw, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface Report {
   id: string;
@@ -42,6 +43,9 @@ export default function ReportsPage() {
   const [deleting, setDeleting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Fetch reports
   useEffect(() => {
@@ -80,12 +84,18 @@ export default function ReportsPage() {
       setReports(data.reports || []);
     } catch (error) {
       console.error('Error fetching reports:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load reports. Please refresh the page.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   }
 
   async function handleDownload(report: Report) {
+    setDownloadingId(report.id);
     try {
       const response = await fetch(`/api/reports/${report.id}/download`);
       if (!response.ok) throw new Error('Download failed');
@@ -99,13 +109,27 @@ export default function ReportsPage() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Success',
+        description: 'Report downloaded successfully',
+      });
     } catch (error) {
       console.error('Download error:', error);
-      alert('Failed to download report');
+      toast({
+        title: 'Error',
+        description: 'Failed to download report. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setDownloadingId(null);
     }
   }
 
   async function handlePreview(report: Report) {
+    setPreviewLoading(true);
+    setPreviewDialogOpen(true);
+
     try {
       const response = await fetch(`/api/reports/${report.id}/download`);
       if (!response.ok) throw new Error('Failed to load preview');
@@ -113,10 +137,16 @@ export default function ReportsPage() {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       setPreviewUrl(url);
-      setPreviewDialogOpen(true);
     } catch (error) {
       console.error('Preview error:', error);
-      alert('Failed to load preview');
+      toast({
+        title: 'Error',
+        description: 'Failed to load preview. Try downloading instead.',
+        variant: 'destructive',
+      });
+      setPreviewDialogOpen(false);
+    } finally {
+      setPreviewLoading(false);
     }
   }
 
@@ -142,9 +172,18 @@ export default function ReportsPage() {
       setReports((prev) => prev.filter((r) => r.id !== reportToDelete.id));
       setDeleteDialogOpen(false);
       setReportToDelete(null);
+
+      toast({
+        title: 'Success',
+        description: 'Report deleted successfully',
+      });
     } catch (error) {
       console.error('Delete error:', error);
-      alert('Failed to delete report');
+      toast({
+        title: 'Error',
+        description: 'Failed to delete report. Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setDeleting(false);
     }
@@ -181,11 +220,22 @@ export default function ReportsPage() {
     <div className="min-h-screen bg-[#0c0c0c] text-white">
       <div className="container mx-auto px-6 py-8 max-w-7xl">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Report History</h1>
-          <p className="text-gray-400">
-            View and download all your generated reports
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white mb-2">Report History</h1>
+            <p className="text-gray-400">
+              View and manage all your generated reports
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={fetchReports}
+            disabled={loading}
+            className="border-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.05)]"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
         {/* Filters */}
@@ -236,7 +286,7 @@ export default function ReportsPage() {
         {/* Reports List */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-gold border-r-transparent"></div>
+            <Loader2 className="inline-block h-8 w-8 animate-spin text-gold" />
             <p className="mt-4 text-gray-400">Loading reports...</p>
           </div>
         ) : filteredReports.length === 0 ? (
@@ -247,11 +297,19 @@ export default function ReportsPage() {
                 ? 'No reports yet'
                 : 'No reports match your filters'}
             </p>
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-500 text-sm mb-4">
               {reports.length === 0
                 ? 'Generate your first report to see it here'
                 : 'Try adjusting your search or filters'}
             </p>
+            {reports.length === 0 && (
+              <Button
+                onClick={() => window.location.href = '/clients'}
+                className="bg-gold hover:bg-gold/90 text-black"
+              >
+                Go to Clients
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-3">
@@ -263,7 +321,7 @@ export default function ReportsPage() {
                 <div className="flex items-start justify-between gap-4">
                   {/* Report Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <FileText className="h-5 w-5 text-gold flex-shrink-0" />
                       <h3 className="text-white font-medium truncate">
                         {report.client_name || 'Unknown Client'}
@@ -278,29 +336,32 @@ export default function ReportsPage() {
                       <span>{formatDate(report.created_at)}</span>
                       <span>•</span>
                       <span>{formatFileSize(report.file_size)}</span>
-                      <span>•</span>
-                      <span className="truncate">{report.file_name}</span>
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handlePreview(report)}
                       className="text-gray-400 hover:text-white hover:bg-[rgba(255,255,255,0.1)]"
                     >
-                      <FileText className="h-4 w-4 mr-2" />
+                      <Eye className="h-4 w-4 mr-2" />
                       Preview
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => handleDownload(report)}
+                      disabled={downloadingId === report.id}
                       className="text-gold hover:text-gold/80 hover:bg-[rgba(212,175,55,0.1)]"
                     >
-                      <Download className="h-4 w-4 mr-2" />
+                      {downloadingId === report.id ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4 mr-2" />
+                      )}
                       Download
                     </Button>
                     <Button
@@ -329,12 +390,12 @@ export default function ReportsPage() {
             </DialogDescription>
           </DialogHeader>
           {reportToDelete && (
-            <div className="py-4">
-              <p className="text-sm text-gray-300">
+            <div className="py-4 bg-[rgba(255,255,255,0.03)] rounded-lg px-4">
+              <p className="text-sm text-gray-300 mb-1">
                 <strong>{reportToDelete.client_name}</strong>
               </p>
-              <p className="text-xs text-gray-500 mt-1">
-                {reportToDelete.file_name}
+              <p className="text-xs text-gray-500">
+                {formatDate(reportToDelete.created_at)} • {formatFileSize(reportToDelete.file_size)}
               </p>
             </div>
           )}
@@ -353,7 +414,14 @@ export default function ReportsPage() {
               disabled={deleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {deleting ? 'Deleting...' : 'Delete'}
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -367,17 +435,25 @@ export default function ReportsPage() {
           setPreviewUrl(null);
         }
       }}>
-        <DialogContent className="bg-[#1a1a1a] border-[rgba(255,255,255,0.1)] text-white max-w-5xl h-[90vh]">
+        <DialogContent className="bg-[#1a1a1a] border-[rgba(255,255,255,0.1)] text-white max-w-6xl h-[85vh]">
           <DialogHeader>
             <DialogTitle>PDF Preview</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden rounded-lg">
-            {previewUrl && (
+          <div className="flex-1 overflow-hidden rounded-lg bg-gray-900">
+            {previewLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-gold" />
+              </div>
+            ) : previewUrl ? (
               <iframe
-                src={previewUrl}
-                className="w-full h-full"
+                src={`${previewUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+                className="w-full h-full border-0"
                 title="PDF Preview"
               />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-400">
+                Failed to load preview
+              </div>
             )}
           </div>
         </DialogContent>
