@@ -213,7 +213,7 @@ export default function ReportsPage() {
 
             {/* Type Filter */}
             <div className="sm:w-64">
-              <Select value={reportTypeFilter} onValueChange={setReportTypeFilter}>
+              <Select value={reportTypeFilter} onValueChange={(value) => setReportTypeFilter(value || 'all')}>
                 <SelectTrigger className="bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.1)] text-white">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="All Types" />
