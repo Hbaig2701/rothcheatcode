@@ -5,6 +5,7 @@ import Handlebars from 'handlebars';
 import fs from 'fs';
 import path from 'path';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { isGuaranteedIncomeProduct, ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
 import { determineTaxBracket } from '@/lib/calculations/modules/federal-tax';
@@ -1085,7 +1086,7 @@ export async function POST(request: NextRequest) {
       // Save PDF to Supabase Storage (fire-and-forget, don't block download)
       Promise.resolve((async () => {
         try {
-          // Upload to storage
+          // Upload to storage (uses user client for RLS)
           const { error: uploadError } = await supabase.storage
             .from('reports')
             .upload(filePath, pdf, {
@@ -1094,12 +1095,13 @@ export async function POST(request: NextRequest) {
             });
 
           if (uploadError) {
-            console.error('Storage upload error:', uploadError);
+            console.error('[Report History] Storage upload error:', uploadError);
             return;
           }
 
-          // Save metadata to database
-          const { error: dbError } = await supabase
+          // Save metadata to database (use admin client to bypass RLS)
+          const adminClient = createAdminClient();
+          const { error: dbError } = await adminClient
             .from('report_history')
             .insert({
               user_id: user.id,
@@ -1112,12 +1114,14 @@ export async function POST(request: NextRequest) {
             });
 
           if (dbError) {
-            console.error('Database insert error:', dbError);
+            console.error('[Report History] Database insert error:', dbError);
+          } else {
+            console.log('[Report History] Successfully saved:', fileName);
           }
         } catch (err) {
-          console.error('Report history save error:', err);
+          console.error('[Report History] Save error:', err);
         }
-      })()).catch(console.error);
+      })()).catch((err) => console.error('[Report History] Promise error:', err));
 
       // Log export (fire-and-forget)
       if (reportData.client.id) {
