@@ -1083,22 +1083,19 @@ export async function POST(request: NextRequest) {
       const fileName = `${pdfPrefix}_${sanitizedName}_${timestamp}.pdf`;
       const filePath = `${user.id}/${fileName}`;
 
-      // Save PDF to Supabase Storage (fire-and-forget, don't block download)
-      Promise.resolve((async () => {
-        try {
-          // Upload to storage (uses user client for RLS)
-          const { error: uploadError } = await supabase.storage
-            .from('reports')
-            .upload(filePath, pdf, {
-              contentType: 'application/pdf',
-              upsert: false,
-            });
+      // Save PDF to Supabase Storage and Database (SYNCHRONOUS - wait for it)
+      try {
+        // Upload to storage (uses user client for RLS)
+        const { error: uploadError } = await supabase.storage
+          .from('reports')
+          .upload(filePath, pdf, {
+            contentType: 'application/pdf',
+            upsert: false,
+          });
 
-          if (uploadError) {
-            console.error('[Report History] Storage upload error:', uploadError);
-            return;
-          }
-
+        if (uploadError) {
+          console.error('[Report History] Storage upload error:', uploadError);
+        } else {
           // Save metadata to database (use admin client to bypass RLS)
           const adminClient = createAdminClient();
           const { error: dbError } = await adminClient
@@ -1114,14 +1111,14 @@ export async function POST(request: NextRequest) {
             });
 
           if (dbError) {
-            console.error('[Report History] Database insert error:', dbError);
+            console.error('[Report History] Database insert error:', JSON.stringify(dbError));
           } else {
             console.log('[Report History] Successfully saved:', fileName);
           }
-        } catch (err) {
-          console.error('[Report History] Save error:', err);
         }
-      })()).catch((err) => console.error('[Report History] Promise error:', err));
+      } catch (err) {
+        console.error('[Report History] Save error:', err);
+      }
 
       // Log export (fire-and-forget)
       if (reportData.client.id) {
