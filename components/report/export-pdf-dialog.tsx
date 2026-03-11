@@ -54,6 +54,7 @@ export function ExportPdfDialog({
   const [plan, setPlan] = useState<string | null>(null);
   const [savedBranding, setSavedBranding] = useState<BrandingForm>(DEFAULT_BRANDING);
   const [form, setForm] = useState<BrandingForm>(DEFAULT_BRANDING);
+  const [title, setTitle] = useState("");
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -160,6 +161,7 @@ export function ExportPdfDialog({
         body: JSON.stringify({
           reportData: { client, projection },
           brandingOverrides,
+          title: title.trim() || undefined,
         }),
       });
 
@@ -203,6 +205,7 @@ export function ExportPdfDialog({
         }).catch(console.error);
       }
 
+      setTitle(""); // Clear title after successful export
       onOpenChange(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : "PDF generation failed";
@@ -232,6 +235,26 @@ export function ExportPdfDialog({
           </div>
         ) : (
           <div className="relative">
+            {/* Report Title - Available to all users */}
+            <div className="mb-6 space-y-1.5">
+              <label className="text-sm font-medium">
+                Report Title <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g., Initial Consultation, Q1 2026 Review, Final Proposal"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !generating) {
+                    handleExport();
+                  }
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Helps identify this report in your history
+              </p>
+            </div>
+
             {/* Starter overlay */}
             {!isPro && (
               <div className="mb-4 rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-4">
