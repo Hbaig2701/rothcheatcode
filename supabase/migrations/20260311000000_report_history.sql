@@ -13,10 +13,7 @@ CREATE TABLE IF NOT EXISTS report_history (
   report_type TEXT NOT NULL, -- 'growth' or 'guaranteed_income'
   client_name TEXT, -- Denormalized for easy filtering
 
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-
-  -- Index for fast lookups
-  CONSTRAINT report_history_user_id_idx PRIMARY KEY (id)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Create index on user_id for fast user queries
