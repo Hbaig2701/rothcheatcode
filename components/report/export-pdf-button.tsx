@@ -2,10 +2,19 @@
 
 import { useState, RefObject } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Download, Loader2, AlertCircle, FileText } from 'lucide-react';
 import { captureChartAsBase64 } from '@/lib/utils/captureChart';
 import { Client } from '@/lib/types/client';
 import { Projection } from '@/lib/types/projection';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 /**
  * Chart refs for capturing chart images
@@ -40,10 +49,13 @@ export function ExportPdfButton({
 }: ExportPdfButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
+  const [title, setTitle] = useState('');
 
   const handleExport = async () => {
     setIsGenerating(true);
     setError(null);
+    setShowDialog(false);
 
     try {
       // Capture charts as base64 images (sequentially to avoid memory issues)
@@ -82,6 +94,7 @@ export function ExportPdfButton({
             lifetimeWealth: lifetimeWealthChart,
             conversion: conversionChart,
           },
+          title: title.trim() || undefined, // Include optional title
         }),
       });
 
@@ -113,6 +126,7 @@ export function ExportPdfButton({
       // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+      setTitle(''); // Clear title after successful export
     } catch (err) {
       const message = err instanceof Error ? err.message : 'PDF generation failed';
       setError(message);
@@ -123,35 +137,85 @@ export function ExportPdfButton({
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <Button
-        onClick={handleExport}
-        disabled={isGenerating}
-        variant={variant}
-        size={size}
-        className={className}
-      >
-        {isGenerating ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Generating PDF...
-          </>
-        ) : (
-          <>
-            <FileText className="mr-2 h-4 w-4" />
-            Export Full Report
-          </>
-        )}
-      </Button>
+    <>
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={() => setShowDialog(true)}
+          disabled={isGenerating}
+          variant={variant}
+          size={size}
+          className={className}
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Generating PDF...
+            </>
+          ) : (
+            <>
+              <FileText className="mr-2 h-4 w-4" />
+              Export Full Report
+            </>
+          )}
+        </Button>
 
-      {/* Inline error display */}
-      {error && (
-        <div className="flex items-center gap-1 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4" />
-          <span>{error}</span>
-        </div>
-      )}
-    </div>
+        {/* Inline error display */}
+        {error && (
+          <div className="flex items-center gap-1 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <span>{error}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Title input dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export Report</DialogTitle>
+            <DialogDescription>
+              Add an optional title to help identify this report later. You can leave it blank if you prefer.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4">
+            <Input
+              placeholder="e.g., Initial consultation, Q1 review, etc."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !isGenerating) {
+                  handleExport();
+                }
+              }}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDialog(false)}
+              disabled={isGenerating}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExport}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                'Generate PDF'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

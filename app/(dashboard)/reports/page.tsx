@@ -28,6 +28,7 @@ interface Report {
   file_size: number;
   report_type: 'growth' | 'guaranteed_income';
   client_name: string | null;
+  title: string | null;
   created_at: string;
 }
 
@@ -60,6 +61,7 @@ export default function ReportsPage() {
       filtered = filtered.filter(
         (report) =>
           report.client_name?.toLowerCase().includes(query) ||
+          report.title?.toLowerCase().includes(query) ||
           report.file_name.toLowerCase().includes(query)
       );
     }
@@ -222,7 +224,7 @@ export default function ReportsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search by client name or file name..."
+                placeholder="Search by title, client name, or file name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.1)] text-white placeholder:text-gray-500"
@@ -299,14 +301,23 @@ export default function ReportsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <FileText className="h-5 w-5 text-gold flex-shrink-0" />
-                      <h3 className="text-white font-medium truncate">
-                        {report.client_name || 'Unknown Client'}
-                      </h3>
-                      <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getReportTypeBadgeClass(report.report_type)}`}
-                      >
-                        {getReportTypeLabel(report.report_type)}
-                      </span>
+                      <div className="flex-1 min-w-0">
+                        {report.title && (
+                          <h3 className="text-white font-semibold truncate mb-0.5">
+                            {report.title}
+                          </h3>
+                        )}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-sm ${report.title ? 'text-gray-400' : 'text-white font-medium'}`}>
+                            {report.client_name || 'Unknown Client'}
+                          </span>
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getReportTypeBadgeClass(report.report_type)}`}
+                          >
+                            {getReportTypeLabel(report.report_type)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-400">
                       <span>{formatDate(report.created_at)}</span>
@@ -367,6 +378,11 @@ export default function ReportsPage() {
           </DialogHeader>
           {reportToDelete && (
             <div className="py-4 bg-[rgba(255,255,255,0.03)] rounded-lg px-4">
+              {reportToDelete.title && (
+                <p className="text-sm text-white font-semibold mb-1">
+                  {reportToDelete.title}
+                </p>
+              )}
               <p className="text-sm text-gray-300 mb-1">
                 <strong>{reportToDelete.client_name}</strong>
               </p>

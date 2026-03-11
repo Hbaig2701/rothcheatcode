@@ -976,7 +976,7 @@ export async function POST(request: NextRequest) {
     const showPoweredBy = effectivePlan !== 'pro';
 
     const body = await request.json();
-    const { reportData, brandingOverrides } = body;
+    const { reportData, brandingOverrides, title } = body;
 
     if (!reportData || !reportData.client || !reportData.projection) {
       return NextResponse.json(
@@ -1108,6 +1108,7 @@ export async function POST(request: NextRequest) {
               file_size: pdf.length,
               report_type: isGI ? 'guaranteed_income' : 'growth',
               client_name: clientName,
+              title: title && title.trim() ? title.trim() : null, // Save optional title
             });
 
           if (dbError) {
