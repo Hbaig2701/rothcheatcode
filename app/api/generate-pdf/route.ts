@@ -1072,6 +1072,53 @@ export async function POST(request: NextRequest) {
       await browser.close();
       browser = null;
 
+      // Prepare file metadata
+      const clientName = reportData.client.name || 'Client';
+      const sanitizedName = clientName
+        .replace(/[^a-zA-Z0-9\s-]/g, '')
+        .replace(/\s+/g, '_');
+      const pdfPrefix = isGI ? 'RetirementExpert_GI' : 'RetirementExpert';
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5); // 2026-03-11T10-30-45
+      const fileName = `${pdfPrefix}_${sanitizedName}_${timestamp}.pdf`;
+      const filePath = `${user.id}/${fileName}`;
+
+      // Save PDF to Supabase Storage (fire-and-forget, don't block download)
+      Promise.resolve((async () => {
+        try {
+          // Upload to storage
+          const { error: uploadError } = await supabase.storage
+            .from('reports')
+            .upload(filePath, pdf, {
+              contentType: 'application/pdf',
+              upsert: false,
+            });
+
+          if (uploadError) {
+            console.error('Storage upload error:', uploadError);
+            return;
+          }
+
+          // Save metadata to database
+          const { error: dbError } = await supabase
+            .from('report_history')
+            .insert({
+              user_id: user.id,
+              client_id: reportData.client.id || null,
+              file_name: fileName,
+              file_path: filePath,
+              file_size: pdf.length,
+              report_type: isGI ? 'guaranteed_income' : 'growth',
+              client_name: clientName,
+            });
+
+          if (dbError) {
+            console.error('Database insert error:', dbError);
+          }
+        } catch (err) {
+          console.error('Report history save error:', err);
+        }
+      })()).catch(console.error);
+
       // Log export (fire-and-forget)
       if (reportData.client.id) {
         Promise.resolve(supabase.from('export_log').insert({
@@ -1084,18 +1131,12 @@ export async function POST(request: NextRequest) {
       // Increment PDF export usage (fire-and-forget)
       incrementUsage(user.id, 'pdf_exports').catch(console.error);
 
-      // Return PDF
-      const clientName = reportData.client.name || 'Client';
-      const sanitizedName = clientName
-        .replace(/[^a-zA-Z0-9\s-]/g, '')
-        .replace(/\s+/g, '_');
-      const pdfPrefix = isGI ? 'RetirementExpert_GI' : 'RetirementExpert';
-
+      // Return PDF for immediate download
       return new NextResponse(Buffer.from(pdf), {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${pdfPrefix}_${sanitizedName}.pdf"`,
+          'Content-Disposition': `attachment; filename="${fileName}"`,
         },
       });
     } finally {
