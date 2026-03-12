@@ -427,26 +427,28 @@ export default function ReportsPage() {
           setPreviewUrl(null);
         }
       }}>
-        <DialogContent className="bg-[#1a1a1a] border-[rgba(255,255,255,0.1)] text-white max-w-6xl h-[85vh]">
-          <DialogHeader>
+        <DialogContent className="bg-[#1a1a1a] border-[rgba(255,255,255,0.1)] text-white max-w-6xl h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
             <DialogTitle>PDF Preview</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden rounded-lg bg-gray-900">
-            {previewLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-gold" />
-              </div>
-            ) : previewUrl ? (
-              <iframe
-                src={`${previewUrl}#toolbar=1&navpanes=0&scrollbar=1`}
-                className="w-full h-full border-0"
-                title="PDF Preview"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-400">
-                Failed to load preview
-              </div>
-            )}
+          <div className="flex-1 px-6 pb-6 min-h-0">
+            <div className="h-full overflow-hidden rounded-lg bg-gray-900">
+              {previewLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="h-8 w-8 animate-spin text-gold" />
+                </div>
+              ) : previewUrl ? (
+                <iframe
+                  src={`${previewUrl}#view=FitH&toolbar=1&navpanes=0&scrollbar=1&zoom=page-fit`}
+                  className="w-full h-full border-0"
+                  title="PDF Preview"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  Failed to load preview
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
