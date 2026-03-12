@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     // Fetch all advisor profiles
     const { data: profiles, error: profilesError } = await admin
       .from('profiles')
-      .select('id, email, created_at, role, is_active')
+      .select('id, email, created_at, role, is_active, plan, subscription_status')
       .eq('role', 'advisor')
       .order('created_at', { ascending: false });
 
@@ -94,6 +94,8 @@ export async function GET(request: NextRequest) {
         sessionCount: sessionCounts.get(p.id) ?? 0,
         lastLogin,
         status: isDeactivated ? 'deactivated' as const : (isRecentlyActive ? 'active' as const : 'inactive' as const),
+        plan: p.plan ?? 'none',
+        subscriptionStatus: p.subscription_status ?? null,
       };
     });
 

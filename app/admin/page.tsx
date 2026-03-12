@@ -3,10 +3,11 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { ChevronUp, ChevronDown } from 'lucide-react'
+import { ChevronUp, ChevronDown, Download } from 'lucide-react'
 import { BulkActionsBar } from './_components/bulk-actions-bar'
 import { AnalyticsSection } from './_components/analytics-section'
 import { CostsSection } from './_components/costs-section'
+import { RevenueSection } from './_components/revenue-section'
 
 interface Stats {
   totalAdvisors: number
@@ -32,6 +33,8 @@ interface Advisor {
   sessionCount: number
   lastLogin: string | null
   status: 'active' | 'inactive' | 'deactivated'
+  plan: string
+  subscriptionStatus: string | null
 }
 
 interface ActivityPoint {
@@ -39,9 +42,10 @@ interface ActivityPoint {
   count: number
 }
 
-type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status'
+type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status' | 'plan'
 type SortDir = 'asc' | 'desc'
 type TimeFilter = 'all' | '1d' | '7d' | '30d'
+type PlanFilter = 'all' | 'standard' | 'pro' | 'starter' | 'none'
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
@@ -50,6 +54,7 @@ export default function AdminDashboard() {
   const [activityType, setActivityType] = useState<'scenario_runs' | 'exports' | 'logins'>('scenario_runs')
   const [activityRange, setActivityRange] = useState<'7d' | '30d' | '90d'>('30d')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'deactivated'>('all')
+  const [planFilter, setPlanFilter] = useState<PlanFilter>('all')
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -129,6 +134,7 @@ export default function AdminDashboard() {
   const filtered = useMemo(() => {
     let result = advisors.filter(a => {
       if (statusFilter !== 'all' && a.status !== statusFilter) return false
+      if (planFilter !== 'all' && a.plan !== planFilter) return false
       if (search) {
         const q = search.toLowerCase()
         if (!a.email.toLowerCase().includes(q) && !(a.name && a.name.toLowerCase().includes(q))) return false
@@ -160,12 +166,13 @@ export default function AdminDashboard() {
           break
         }
         case 'status': cmp = a.status.localeCompare(b.status); break
+        case 'plan': cmp = (a.plan ?? '').localeCompare(b.plan ?? ''); break
       }
       return sortDir === 'asc' ? cmp : -cmp
     })
 
     return result
-  }, [advisors, statusFilter, search, timeFilter, sortKey, sortDir])
+  }, [advisors, statusFilter, planFilter, search, timeFilter, sortKey, sortDir])
 
   const toggleSelectAll = useCallback(() => {
     if (selectedIds.size === filtered.length) {
@@ -174,6 +181,37 @@ export default function AdminDashboard() {
       setSelectedIds(new Set(filtered.map(a => a.id)))
     }
   }, [filtered, selectedIds.size])
+
+  const exportToCSV = useCallback(() => {
+    const headers = ['Email', 'Name', 'Plan', 'Status', 'Signup Date', 'Clients', 'Scenarios', 'Exports', 'Sessions', 'Last Login']
+    const rows = filtered.map(a => [
+      a.email,
+      a.name ?? '',
+      a.plan ?? 'none',
+      a.status,
+      new Date(a.createdAt).toLocaleDateString(),
+      a.clientCount,
+      a.scenarioRunCount,
+      a.exportCount,
+      a.sessionCount,
+      a.lastLogin ? new Date(a.lastLogin).toLocaleDateString() : 'Never'
+    ])
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `advisors-${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
+  }, [filtered])
 
   if (loading) {
     return (
@@ -192,6 +230,9 @@ export default function AdminDashboard() {
         <StatCard label="Scenario Runs" value={stats?.totalScenarioRuns ?? 0} trend={stats?.trendsThisWeek.scenarioRuns} />
         <StatCard label="PDF Exports" value={stats?.totalExports ?? 0} trend={stats?.trendsThisWeek.exports} />
       </div>
+
+      {/* Revenue Section */}
+      <RevenueSection />
 
       {/* Activity Chart */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
@@ -265,7 +306,7 @@ export default function AdminDashboard() {
 
       {/* Advisors Table */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">
             Advisors
           </h2>
@@ -307,6 +348,28 @@ export default function AdminDashboard() {
                 </button>
               ))}
             </div>
+            <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
+              {(['all', 'standard', 'pro', 'starter', 'none'] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPlanFilter(p)}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors capitalize ${
+                    planFilter === p
+                      ? 'bg-[#d4af37] text-black font-medium'
+                      : 'text-[rgba(255,255,255,0.65)] hover:text-white'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={exportToCSV}
+              className="px-3 py-1.5 text-xs bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white hover:bg-[rgba(255,255,255,0.08)] transition-colors flex items-center gap-1.5"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export CSV
+            </button>
           </div>
         </div>
 
@@ -331,6 +394,7 @@ export default function AdminDashboard() {
               </th>
               <SortableHeader label="Name" sortKey="name" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Email" sortKey="email" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Plan" sortKey="plan" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Signup" sortKey="createdAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Clients" sortKey="clientCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Scenarios" sortKey="scenarioRunCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
@@ -338,6 +402,7 @@ export default function AdminDashboard() {
               <SortableHeader label="Sessions" sortKey="sessionCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Last Session" sortKey="lastLogin" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Status" sortKey="status" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <th className="px-4 py-3 text-xs uppercase tracking-[1px] font-semibold text-[rgba(255,255,255,0.65)]">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -359,6 +424,18 @@ export default function AdminDashboard() {
                 </td>
                 <td className="px-4 py-3 text-sm text-white">{a.name ?? <span className="text-[rgba(255,255,255,0.35)]">—</span>}</td>
                 <td className="px-4 py-3 text-sm text-white">{a.email}</td>
+                <td className="px-4 py-3">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
+                    a.plan === 'standard' || a.plan === 'pro'
+                      ? 'bg-[rgba(212,175,55,0.15)] text-[#d4af37]'
+                      : a.plan === 'starter'
+                        ? 'bg-[rgba(59,130,246,0.15)] text-[#3b82f6]'
+                        : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.55)]'
+                  }`}>
+                    {a.plan || 'none'}
+                    {a.subscriptionStatus === 'trialing' && <span className="ml-1 text-[10px] opacity-75">(trial)</span>}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">
                   {new Date(a.createdAt).toLocaleDateString()}
                 </td>
@@ -380,11 +457,19 @@ export default function AdminDashboard() {
                     {a.status}
                   </span>
                 </td>
+                <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                  <Link
+                    href={`/admin/advisors/${a.id}`}
+                    className="text-xs px-2 py-1 rounded-md bg-[rgba(59,130,246,0.15)] text-[#3b82f6] hover:bg-[rgba(59,130,246,0.25)] transition-colors inline-flex items-center gap-1"
+                  >
+                    View
+                  </Link>
+                </td>
               </tr>
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.65)]">
+                <td colSpan={12} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.65)]">
                   No advisors found
                 </td>
               </tr>
