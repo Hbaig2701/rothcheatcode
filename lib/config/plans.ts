@@ -106,3 +106,29 @@ export function getPlanFromPriceId(priceId: string): {
 export function getPlanLimits(plan: PlanId): PlanLimits {
   return PLAN_LIMITS[plan] ?? PLAN_LIMITS.none;
 }
+
+/**
+ * Check if a plan has unlimited/premium features
+ * (standard and pro plans both have full feature access)
+ */
+export function hasFullAccess(plan: PlanId): boolean {
+  const limits = getPlanLimits(plan);
+  return limits.whiteLabel === true && limits.teamMembers === Infinity;
+}
+
+/**
+ * Check if a plan has access to a specific feature
+ */
+export function hasFeature(plan: PlanId, feature: keyof PlanLimits): boolean {
+  const limits = getPlanLimits(plan);
+  const value = limits[feature];
+
+  // For boolean features, check if true
+  if (typeof value === 'boolean') return value;
+
+  // For numeric features, check if unlimited (null) or Infinity
+  if (value === null || value === Infinity) return true;
+
+  // Otherwise, check if greater than 0
+  return value > 0;
+}

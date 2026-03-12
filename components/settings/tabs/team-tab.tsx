@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, UserPlus, Trash2, Copy, CheckCircle, Lock } from "lucide-react";
+import { hasFeature, type PlanId } from "@/lib/config/plans";
 
 interface TeamMember {
   id: string;
@@ -127,7 +128,8 @@ export function TeamTab({ plan, isTeamAdmin = false }: TeamTabProps) {
   ).length;
 
   // Show upgrade gate only for plan owners without team access (not admin team members)
-  if (plan !== "standard" && plan !== "pro" && !isTeamAdmin) {
+  const hasTeamAccess = hasFeature(plan as PlanId, 'teamMembers');
+  if (!hasTeamAccess && !isTeamAdmin) {
     return (
       <div className="space-y-6">
         <Card>

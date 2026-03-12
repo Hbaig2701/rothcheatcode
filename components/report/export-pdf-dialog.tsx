@@ -15,6 +15,7 @@ import { ColorPicker } from "@/components/settings/color-picker";
 import { Loader2, Lock, Zap, Upload, ImageIcon, X } from "lucide-react";
 import type { Client } from "@/lib/types/client";
 import type { Projection } from "@/lib/types/projection";
+import { hasFullAccess, type PlanId } from "@/lib/config/plans";
 
 interface ExportPdfDialogProps {
   open: boolean;
@@ -61,7 +62,7 @@ export function ExportPdfDialog({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isPro = plan === "pro" || plan === "standard"; // Both have full features
+  const isPro = plan ? hasFullAccess(plan as PlanId) : false;
 
   // Fetch settings and plan on open
   useEffect(() => {
