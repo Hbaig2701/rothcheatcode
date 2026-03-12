@@ -5,10 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const plan = searchParams.get("plan") as "starter" | "pro";
+  const plan = searchParams.get("plan") as "standard" | "starter" | "pro";
   const cycle = searchParams.get("cycle") as "monthly" | "annual";
 
-  if (!plan || !cycle || !["starter", "pro"].includes(plan) || !["monthly", "annual"].includes(cycle)) {
+  if (!plan || !cycle || !["standard", "starter", "pro"].includes(plan) || !["monthly", "annual"].includes(cycle)) {
     return NextResponse.redirect(new URL("/plans", request.url));
   }
 
@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
     const metadata: Record<string, string> = { plan, cycle };
     if (userId) metadata.user_id = userId;
 
-    // Auto-apply 50% off first month coupon for Pro monthly only
-    const isProMonthly = plan === "pro" && cycle === "monthly";
+    // Auto-apply 50% off first month coupon for Standard monthly only
+    const isStandardMonthly = plan === "standard" && cycle === "monthly";
 
     const sessionParams: Record<string, unknown> = {
       mode: "subscription",
@@ -72,8 +72,8 @@ export async function GET(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
       billing_address_collection: "required",
       metadata,
-      ...(isProMonthly
-        ? { discounts: [{ coupon: "pro-50-off" }] }
+      ...(isStandardMonthly
+        ? { discounts: [{ coupon: "standard-50-off" }] }
         : { allow_promotion_codes: true }),
     };
 

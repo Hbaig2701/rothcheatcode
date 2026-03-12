@@ -128,7 +128,7 @@ function WelcomeContent() {
             <CardTitle>Payment Successful!</CardTitle>
             {sessionData && (
               <p className="text-sm text-muted-foreground">
-                {sessionData.plan === 'pro' ? 'Premium' : 'Starter'} Plan —{' '}
+                {sessionData.plan === 'standard' ? 'Full Access' : sessionData.plan === 'pro' ? 'Premium' : 'Starter'} —{' '}
                 {sessionData.cycle === 'annual' ? 'Annual' : 'Monthly'}
               </p>
             )}

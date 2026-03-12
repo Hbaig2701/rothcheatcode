@@ -6,24 +6,10 @@ import { Check } from 'lucide-react'
 import Link from 'next/link'
 
 const PLANS = {
-  starter: {
-    name: 'Starter',
-    monthly: 97,
-    annual: 970,
-    features: [
-      '10 active clients',
-      '50 scenario runs / month',
-      '20 PDF exports / month',
-      'All product archetypes',
-      'Story mode included',
-      'Platform branding on reports',
-      'Email support (48hr)',
-    ],
-  },
-  pro: {
-    name: 'Premium',
-    monthly: 297,
-    annual: 2970,
+  standard: {
+    name: 'Full Access',
+    monthly: 197,
+    annual: 1970,
     features: [
       'Unlimited clients',
       'Unlimited scenario runs',
@@ -34,8 +20,28 @@ const PLANS = {
       'Priority support (24hr)',
       'Unlimited team members',
     ],
-    popular: true,
   },
+  // ARCHIVED: Legacy plans — can be re-enabled if needed
+  // starter: {
+  //   name: 'Starter',
+  //   monthly: 97,
+  //   annual: 970,
+  //   features: [
+  //     '10 active clients',
+  //     '50 scenario runs / month',
+  //     '20 PDF exports / month',
+  //     'All product archetypes',
+  //     'Story mode included',
+  //     'Platform branding on reports',
+  //     'Email support (48hr)',
+  //   ],
+  // },
+  // pro: {
+  //   name: 'Premium',
+  //   monthly: 297,
+  //   annual: 2970,
+  //   features: [...],
+  // },
 }
 
 export default function PricingPage() {
@@ -79,23 +85,14 @@ export default function PricingPage() {
         </button>
       </div>
 
-      {/* Plan Cards */}
-      <div className="grid w-full max-w-3xl grid-cols-1 gap-6 md:grid-cols-2">
-        {(Object.entries(PLANS) as [string, typeof PLANS.starter & { popular?: boolean }][]).map(
+      {/* Plan Card */}
+      <div className="flex w-full max-w-md justify-center">
+        {(Object.entries(PLANS) as [string, typeof PLANS.standard][]).map(
           ([key, plan]) => (
             <Card
               key={key}
-              className={`relative overflow-visible ${
-                plan.popular
-                  ? 'border-gold/30 shadow-[0_0_30px_rgba(212,175,55,0.1)]'
-                  : ''
-              }`}
+              className="relative w-full overflow-visible border-gold/30 shadow-[0_0_30px_rgba(212,175,55,0.1)]"
             >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-gold px-4 py-1 text-xs font-semibold text-black">
-                  Most Popular
-                </div>
-              )}
               <CardHeader className="text-center">
                 <CardTitle className="text-xl">{plan.name}</CardTitle>
                 <div className="mt-2">
@@ -127,11 +124,7 @@ export default function PricingPage() {
 
                 <a
                   href={`/api/checkout?plan=${key}&cycle=${cycle}`}
-                  className={`flex h-10 w-full cursor-pointer items-center justify-center rounded-md text-sm font-medium transition-colors ${
-                    plan.popular
-                      ? 'bg-gold text-black hover:bg-gold/90'
-                      : 'border border-[rgba(255,255,255,0.15)] text-white hover:bg-[rgba(255,255,255,0.05)]'
-                  }`}
+                  className="flex h-10 w-full cursor-pointer items-center justify-center rounded-md bg-gold text-sm font-medium text-black transition-colors hover:bg-gold/90"
                 >
                   Get Started
                 </a>

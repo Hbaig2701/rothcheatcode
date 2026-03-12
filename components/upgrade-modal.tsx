@@ -49,19 +49,18 @@ export function UpgradeModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Zap className="size-5 text-gold" />
-            Upgrade to Pro
+            Get Full Access
           </DialogTitle>
           {feature && limit !== undefined && current !== undefined && (
             <DialogDescription>
-              You&apos;ve reached your limit of {limit} {feature} on the Starter
-              plan ({current}/{limit} used).
+              You&apos;ve reached your limit of {limit} {feature} ({current}/{limit} used).
             </DialogDescription>
           )}
         </DialogHeader>
 
         <div className="space-y-2 py-2">
           <p className="text-sm text-muted-foreground">
-            Upgrade to Pro for:
+            Full access includes:
           </p>
           <ul className="space-y-1.5">
             {[
@@ -89,7 +88,7 @@ export function UpgradeModal({
           </Button>
           <Button onClick={handleUpgrade} disabled={loading}>
             {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Upgrade to Pro — $297/mo
+            Subscribe Now — $197/mo
           </Button>
         </DialogFooter>
       </DialogContent>

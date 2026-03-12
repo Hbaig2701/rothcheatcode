@@ -41,17 +41,17 @@ export default async function DashboardLayout({
       .eq('id', profile.team_owner_id)
       .single()
 
-    const ownerGrandfathered = owner?.plan === 'pro' && !owner?.stripe_customer_id
-    const ownerActive = ['starter', 'pro'].includes(owner?.plan ?? '') && ['active', 'trialing'].includes(owner?.subscription_status ?? '')
+    const ownerGrandfathered = (owner?.plan === 'pro' || owner?.plan === 'standard') && !owner?.stripe_customer_id
+    const ownerActive = ['standard', 'starter', 'pro'].includes(owner?.plan ?? '') && ['active', 'trialing'].includes(owner?.subscription_status ?? '')
 
     if (!ownerGrandfathered && !ownerActive) {
       redirect('/subscription-inactive')
     }
   } else {
     // Owner or independent user
-    const isGrandfathered = profile?.plan === 'pro' && !profile?.stripe_customer_id
+    const isGrandfathered = (profile?.plan === 'pro' || profile?.plan === 'standard') && !profile?.stripe_customer_id
     const hasActiveSubscription =
-      ['starter', 'pro'].includes(profile?.plan ?? '') && ['active', 'trialing'].includes(profile?.subscription_status ?? '')
+      ['standard', 'starter', 'pro'].includes(profile?.plan ?? '') && ['active', 'trialing'].includes(profile?.subscription_status ?? '')
 
     if (!isGrandfathered && !hasActiveSubscription) {
       redirect('/subscription-inactive')

@@ -77,13 +77,17 @@ export function BillingTab() {
     ? Math.max(0, Math.ceil((new Date(data.trialEnd).getTime() - Date.now()) / 86400000))
     : null;
   const planLabel =
-    data.plan === "pro"
+    data.plan === "standard"
       ? isTrial
-        ? "Premium Trial"
-        : "Premium"
-      : data.plan === "starter"
-        ? "Starter"
-        : "None";
+        ? "Subscription Trial"
+        : "Active Subscription"
+      : data.plan === "pro"
+        ? isTrial
+          ? "Premium Trial"
+          : "Premium"
+        : data.plan === "starter"
+          ? "Starter"
+          : "None";
 
   const handleManageSubscription = async () => {
     setPortalLoading(true);
@@ -127,7 +131,7 @@ export function BillingTab() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            {data.plan === "pro" ? (
+            {data.plan === "standard" || data.plan === "pro" ? (
               <Crown className="size-5 text-gold" />
             ) : (
               <CreditCard className="size-5" />
@@ -249,8 +253,8 @@ export function BillingTab() {
       {/* Actions */}
       <Card>
         <CardContent className="space-y-3 pt-6">
-          {/* Upgrade button — Starter only */}
-          {data.plan === "starter" && data.hasStripeSubscription && (
+          {/* ARCHIVED: Upgrade button — was for Starter plan users only */}
+          {/* {data.plan === "starter" && data.hasStripeSubscription && (
             <Button
               className="w-full"
               onClick={handleUpgrade}
@@ -260,9 +264,9 @@ export function BillingTab() {
                 <Loader2 className="mr-2 size-4 animate-spin" />
               )}
               <Zap className="mr-2 size-4" />
-              Upgrade to Pro — $297/mo
+              Upgrade to Pro — $197/mo
             </Button>
-          )}
+          )} */}
 
           {/* Manage subscription — only for paying users */}
           {data.hasStripeSubscription && !data.isTeamMember && (

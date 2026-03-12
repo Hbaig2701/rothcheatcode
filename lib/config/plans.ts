@@ -1,4 +1,4 @@
-export type PlanId = "none" | "starter" | "pro";
+export type PlanId = "none" | "standard" | "starter" | "pro"; // starter & pro archived, standard is active
 
 export interface PlanLimits {
   clients: number | null; // null = unlimited
@@ -16,6 +16,14 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
     teamMembers: 0,
     whiteLabel: false,
   },
+  standard: {
+    clients: null,
+    scenarioRuns: null,
+    pdfExports: null,
+    teamMembers: Infinity,
+    whiteLabel: true,
+  },
+  // ARCHIVED: Legacy plan limits (can be re-enabled)
   starter: {
     clients: 10,
     scenarioRuns: 50,
@@ -33,21 +41,29 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
 };
 
 export const PLAN_PRICES = {
-  starter: {
-    monthly: { amount: 97, label: "$97/month" },
-    annual: { amount: 970, label: "$970/year (save $194)" },
+  standard: {
+    monthly: { amount: 197, label: "$197/month" },
+    annual: { amount: 1970, label: "$1,970/year (save $394)" },
   },
-  pro: {
-    monthly: { amount: 297, label: "$297/month" },
-    annual: { amount: 2970, label: "$2,970/year (save $594)" },
-  },
+  // ARCHIVED: Legacy plans — can be re-enabled if needed
+  // starter: {
+  //   monthly: { amount: 97, label: "$97/month" },
+  //   annual: { amount: 970, label: "$970/year (save $194)" },
+  // },
+  // pro: {
+  //   monthly: { amount: 297, label: "$297/month" },
+  //   annual: { amount: 2970, label: "$2,970/year (save $594)" },
+  // },
 } as const;
 
 export function getStripePriceId(
-  plan: "starter" | "pro",
+  plan: "standard" | "starter" | "pro",
   cycle: "monthly" | "annual"
 ): string {
   const map: Record<string, string | undefined> = {
+    standard_monthly: process.env.STRIPE_PRICE_STANDARD_MONTHLY,
+    standard_annual: process.env.STRIPE_PRICE_STANDARD_ANNUAL,
+    // Legacy archived plans
     starter_monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,
     starter_annual: process.env.STRIPE_PRICE_STARTER_ANNUAL,
     pro_monthly: process.env.STRIPE_PRICE_PRO_MONTHLY,
@@ -62,6 +78,13 @@ export function getPlanFromPriceId(priceId: string): {
   plan: PlanId;
   cycle: "monthly" | "annual";
 } | null {
+  // Active plans
+  if (priceId === process.env.STRIPE_PRICE_STANDARD_MONTHLY)
+    return { plan: "standard", cycle: "monthly" };
+  if (priceId === process.env.STRIPE_PRICE_STANDARD_ANNUAL)
+    return { plan: "standard", cycle: "annual" };
+
+  // Legacy archived plans (kept for backwards compatibility)
   if (priceId === process.env.STRIPE_PRICE_STARTER_MONTHLY)
     return { plan: "starter", cycle: "monthly" };
   if (priceId === process.env.STRIPE_PRICE_STARTER_ANNUAL)
@@ -70,12 +93,11 @@ export function getPlanFromPriceId(priceId: string): {
     return { plan: "pro", cycle: "monthly" };
   if (priceId === process.env.STRIPE_PRICE_PRO_ANNUAL)
     return { plan: "pro", cycle: "annual" };
+
   console.error(
     `[getPlanFromPriceId] Unknown priceId: ${priceId}. ` +
-    `Expected one of: starter_monthly=${process.env.STRIPE_PRICE_STARTER_MONTHLY}, ` +
-    `starter_annual=${process.env.STRIPE_PRICE_STARTER_ANNUAL}, ` +
-    `pro_monthly=${process.env.STRIPE_PRICE_PRO_MONTHLY}, ` +
-    `pro_annual=${process.env.STRIPE_PRICE_PRO_ANNUAL}. ` +
+    `Expected one of: standard_monthly=${process.env.STRIPE_PRICE_STANDARD_MONTHLY}, ` +
+    `standard_annual=${process.env.STRIPE_PRICE_STANDARD_ANNUAL}. ` +
     `Skipping plan update to avoid accidental downgrade.`
   );
   return null;

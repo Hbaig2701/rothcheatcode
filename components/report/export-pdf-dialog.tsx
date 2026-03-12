@@ -61,7 +61,7 @@ export function ExportPdfDialog({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const isPro = plan === "pro";
+  const isPro = plan === "pro" || plan === "standard"; // Both have full features
 
   // Fetch settings and plan on open
   useEffect(() => {
