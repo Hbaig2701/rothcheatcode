@@ -198,7 +198,7 @@ export function RevenueSection() {
                   fontSize: 12
                 }}
                 labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
-                formatter={(value: number) => [`$${value}`, 'MRR']}
+                formatter={(value: number | undefined) => value != null ? [`$${value}`, 'MRR'] : ['$0', 'MRR']}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }} />
               <Bar dataKey="mrr" name="MRR" fill="#d4af37" radius={[3, 3, 0, 0]} />
