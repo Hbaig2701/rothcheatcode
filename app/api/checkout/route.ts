@@ -58,9 +58,6 @@ export async function GET(request: NextRequest) {
     const metadata: Record<string, string> = { plan, cycle };
     if (userId) metadata.user_id = userId;
 
-    // Auto-apply 50% off first month coupon for Standard monthly only
-    const isStandardMonthly = plan === "standard" && cycle === "monthly";
-
     const sessionParams: Record<string, unknown> = {
       mode: "subscription",
       locale: "en",
@@ -72,9 +69,7 @@ export async function GET(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
       billing_address_collection: "required",
       metadata,
-      ...(isStandardMonthly
-        ? { discounts: [{ coupon: "standard-50-off" }] }
-        : { allow_promotion_codes: true }),
+      allow_promotion_codes: true, // Allow manual coupon entry at checkout
     };
 
     // Reuse existing customer if found, otherwise prefill email
