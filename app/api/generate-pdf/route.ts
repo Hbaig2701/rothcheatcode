@@ -973,7 +973,7 @@ export async function POST(request: NextRequest) {
 
     // Check plan for white-label branding
     const { plan: effectivePlan } = await getEffectivePlan(user.id);
-    const showPoweredBy = effectivePlan !== 'pro';
+    const showPoweredBy = effectivePlan !== 'pro' && effectivePlan !== 'standard';
 
     const body = await request.json();
     const { reportData, brandingOverrides, title } = body;
@@ -1005,8 +1005,8 @@ export async function POST(request: NextRequest) {
       hasContactInfo: !!(settings?.company_phone || settings?.company_email || settings?.company_website),
     };
 
-    // Apply branding overrides from export dialog (pro plan only)
-    if (effectivePlan === 'pro' && brandingOverrides) {
+    // Apply branding overrides from export dialog (pro/standard plans only)
+    if ((effectivePlan === 'pro' || effectivePlan === 'standard') && brandingOverrides) {
       if (brandingOverrides.companyName !== undefined) branding.companyName = brandingOverrides.companyName;
       if (brandingOverrides.tagline !== undefined) branding.tagline = brandingOverrides.tagline;
       if (brandingOverrides.logoUrl !== undefined) branding.logoUrl = brandingOverrides.logoUrl;
