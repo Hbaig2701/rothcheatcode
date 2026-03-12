@@ -126,8 +126,8 @@ export function TeamTab({ plan, isTeamAdmin = false }: TeamTabProps) {
     (m) => m.status !== "removed"
   ).length;
 
-  // Show upgrade gate only for plan owners on non-pro plans (not admin team members)
-  if (plan !== "pro" && !isTeamAdmin) {
+  // Show upgrade gate only for plan owners without team access (not admin team members)
+  if (plan !== "standard" && plan !== "pro" && !isTeamAdmin) {
     return (
       <div className="space-y-6">
         <Card>
