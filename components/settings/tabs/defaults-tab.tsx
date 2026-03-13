@@ -66,7 +66,7 @@ const TAX_SOURCE_OPTIONS = [
 ] as const;
 
 const BLUEPRINT_OPTIONS = [
-  { value: "fia", label: "FIA (Generic)" },
+  { value: "fia", label: "Generic Growth Product" },
   { value: "short-term-cap-growth", label: "Short-Term Cap Growth" },
   { value: "phased-bonus-growth", label: "Phased Bonus Growth" },
   { value: "vesting-bonus-growth", label: "Vesting Bonus Growth" },

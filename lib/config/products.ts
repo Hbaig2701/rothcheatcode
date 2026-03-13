@@ -46,7 +46,7 @@ export const LOCKABLE_FIELDS = [
 export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
   'fia': {
     id: 'fia',
-    label: 'FIA',
+    label: 'Generic Growth Product',
     category: 'Growth',
     description: 'Generic Fixed Index Annuity - fully customizable',
     lockedFields: [], // No fields locked - user can edit everything
