@@ -43,7 +43,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientFormulaSchema) as Resolver<ClientFormData>,
     defaultValues: {
-      // Formula Type (product preset)
+      // Product Preset
       // Priority: client value > user default > system default
       blueprint_type: client?.blueprint_type ?? (ud.blueprint_type as ClientFormData["blueprint_type"]) ?? "fia",
 

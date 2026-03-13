@@ -86,7 +86,7 @@ export function NewAccountSection() {
 
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
-      {/* Formula Type Dropdown */}
+      {/* Product Preset Dropdown */}
       <Controller
         name="blueprint_type"
         control={form.control}
@@ -94,11 +94,11 @@ export function NewAccountSection() {
           const selectedProduct = ALL_PRODUCTS[field.value as FormulaType];
           return (
             <Field>
-              <FieldLabel htmlFor="blueprint_type">Formula Type</FieldLabel>
+              <FieldLabel htmlFor="blueprint_type">Product Preset</FieldLabel>
               <Select value={field.value} onValueChange={handleFormulaTypeChange}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Formula type">
-                    {selectedProduct?.label ?? "Select Formula type"}
+                  <SelectValue placeholder="Select product preset">
+                    {selectedProduct?.label ?? "Select product preset"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>

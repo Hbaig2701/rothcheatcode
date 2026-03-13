@@ -194,10 +194,10 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
         </button>
       </div>
 
-      {/* Formula Type Selector */}
+      {/* Product Preset Selector */}
       <div className="px-7 py-4 border-b border-[rgba(255,255,255,0.07)] shrink-0">
         <label className="block text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-2">
-          Formula Type
+          Product Preset
         </label>
         <select
           value={formulaType}

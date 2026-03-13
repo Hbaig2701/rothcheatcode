@@ -69,7 +69,7 @@ export const nonSSIIncomeEntrySchema = z.object({
 // ============================================================================
 
 export const clientFormulaBaseSchema = z.object({
-  // Formula Type (product preset)
+  // Product Preset
   blueprint_type: formulaTypeEnum.default("fia"),
 
   // Section 1: Client Data
@@ -220,7 +220,7 @@ export const clientFullBaseSchema = z.object({
   spouse_age: z.number().int().min(18).max(100).optional().nullable(),
   life_expectancy: z.number().int().min(1).max(120).optional().nullable(),
 
-  // Formula Type (product preset)
+  // Product Preset
   blueprint_type: formulaTypeEnum.default("fia"),
 
   // GI-specific fields
@@ -342,7 +342,7 @@ export type ClientFullFormData = z.infer<typeof clientFullSchema>;
 
 // Explicit form type with all fields required for form defaultValues
 export type ClientFormData = {
-  // Formula Type (product preset)
+  // Product Preset
   blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth"
     | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income";
 

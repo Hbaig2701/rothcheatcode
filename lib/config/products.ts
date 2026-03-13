@@ -1,4 +1,4 @@
-// Product preset configuration for Formula Type dropdown
+// Product preset configuration for Product Preset dropdown
 // This file ONLY defines UI presets - it does NOT modify any calculation formulas
 
 export type GrowthFormulaType = 'fia' | 'short-term-cap-growth' | 'phased-bonus-growth' | 'vesting-bonus-growth';

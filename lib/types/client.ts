@@ -15,7 +15,7 @@ export interface Client {
   created_at: string;
   updated_at: string;
 
-  // ===== Formula Type (Product Preset) =====
+  // ===== Product Preset =====
   blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth"
     | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income";
 
@@ -118,7 +118,7 @@ export type ClientUpdate = Partial<ClientInsert>;
 
 // Formula-specific form data (subset of Client without legacy fields)
 export interface FormulaFormData {
-  // Formula Type (Product Preset)
+  // Product Preset
   blueprint_type: Client["blueprint_type"];
 
   // Section 1: Client Data

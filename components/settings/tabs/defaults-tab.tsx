@@ -340,7 +340,7 @@ export function DefaultsTab({ settings }: DefaultsTabProps) {
                       data-invalid={fieldState.invalid}
                       className="sm:col-span-2"
                     >
-                      <FieldLabel>Default Formula Type</FieldLabel>
+                      <FieldLabel>Default Product Preset</FieldLabel>
                       <Select
                         value={field.value}
                         onValueChange={field.onChange}
