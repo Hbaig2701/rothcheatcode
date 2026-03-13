@@ -94,7 +94,17 @@ export function NewAccountSection() {
           const selectedProduct = ALL_PRODUCTS[field.value as FormulaType];
           return (
             <Field>
-              <FieldLabel htmlFor="blueprint_type">Product Preset</FieldLabel>
+              <div className="flex items-center gap-2">
+                <FieldLabel htmlFor="blueprint_type">Product Preset</FieldLabel>
+                <a
+                  href="https://docs.google.com/document/d/1no9bs58mgqS97Bw_19pOoslGoALP0lz6/edit?usp=sharing&ouid=106247356235746651631&rtpof=true&sd=true"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors underline"
+                >
+                  See our Preset List
+                </a>
+              </div>
               <Select value={field.value} onValueChange={handleFormulaTypeChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select product preset">

@@ -196,9 +196,19 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
 
       {/* Product Preset Selector */}
       <div className="px-7 py-4 border-b border-[rgba(255,255,255,0.07)] shrink-0">
-        <label className="block text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-2">
-          Product Preset
-        </label>
+        <div className="flex items-center gap-2 mb-2">
+          <label className="block text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">
+            Product Preset
+          </label>
+          <a
+            href="https://docs.google.com/document/d/1no9bs58mgqS97Bw_19pOoslGoALP0lz6/edit?usp=sharing&ouid=106247356235746651631&rtpof=true&sd=true"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-[rgba(255,255,255,0.45)] hover:text-[rgba(255,255,255,0.85)] transition-colors underline"
+          >
+            See our Preset List
+          </a>
+        </div>
         <select
           value={formulaType}
           onChange={handleFormulaTypeChange}
