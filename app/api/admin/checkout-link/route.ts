@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,8 +26,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Advisor ID required' }, { status: 400 });
     }
 
-    // Get advisor email
-    const { data: advisor } = await supabase
+    // Use admin client to bypass RLS when reading advisor email
+    const admin = createAdminClient();
+    const { data: advisor } = await admin
       .from('profiles')
       .select('email')
       .eq('id', advisorId)
