@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { PaymentFailedBanner } from '@/components/payment-failed-banner'
+import { PaymentWallModal } from '@/components/payment-wall-modal'
 
 export default async function DashboardLayout({
   children,
@@ -101,6 +102,20 @@ export default async function DashboardLayout({
           {children}
         </div>
       </main>
+
+      {/*
+        🚀 PAYMENT WALL - ACTIVATE ON SUNDAY 🚀
+
+        To enable the payment wall that blocks grandfathered users:
+        1. Change enabled={false} to enabled={true} below
+        2. Commit and push to deploy
+
+        This will show a blocking modal for all users who don't have
+        an actual Stripe subscription (12 users as of March 14, 2026).
+
+        Paying users (2) will not see this - they can continue using the app.
+      */}
+      <PaymentWallModal enabled={false} />
     </SidebarProvider>
   )
 }
