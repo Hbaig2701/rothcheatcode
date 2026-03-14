@@ -26,7 +26,7 @@ export async function GET() {
     // Get all advisor profiles
     const { data: profiles } = await admin
       .from('profiles')
-      .select('id, email, created_at, plan, subscription_status, billing_cycle')
+      .select('id, email, created_at, plan, subscription_status, billing_cycle, stripe_customer_id, stripe_subscription_id')
       .eq('role', 'advisor')
       .order('created_at', { ascending: false });
 
@@ -45,13 +45,12 @@ export async function GET() {
       clientCountMap.set(c.user_id, (clientCountMap.get(c.user_id) || 0) + 1);
     });
 
-    // Categorize users
+    // Categorize users based on ACTUAL Stripe subscription, not just status
     const freeUsers = profiles
       .filter(p => {
-        // Would be blocked: not active/trialing AND no paid plan
-        const notPaying = p.subscription_status !== 'active' && p.subscription_status !== 'trialing';
-        const noPlan = !p.plan || p.plan === 'none';
-        return notPaying && noPlan; // Both conditions must be true
+        // Free = no Stripe customer/subscription (grandfathered/manual access)
+        const hasStripeSubscription = p.stripe_customer_id || p.stripe_subscription_id;
+        return !hasStripeSubscription;
       })
       .map(p => ({
         id: p.id,
@@ -62,13 +61,13 @@ export async function GET() {
         billingCycle: p.billing_cycle,
         clientCount: clientCountMap.get(p.id) || 0,
         daysSinceSignup: Math.floor((Date.now() - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24)),
+        isGrandfathered: p.subscription_status === 'active' && !p.stripe_customer_id,
       }));
 
     const payingUsers = profiles
       .filter(p => {
-        const isPaying = p.subscription_status === 'active' || p.subscription_status === 'trialing';
-        const hasPlan = p.plan && p.plan !== 'none';
-        return isPaying && hasPlan;
+        // Paying = has actual Stripe subscription
+        return p.stripe_customer_id || p.stripe_subscription_id;
       })
       .map(p => ({
         id: p.id,
