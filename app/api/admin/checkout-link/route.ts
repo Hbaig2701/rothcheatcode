@@ -73,8 +73,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Checkout link generation error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to generate checkout link';
     return NextResponse.json(
-      { error: 'Failed to generate checkout link' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
