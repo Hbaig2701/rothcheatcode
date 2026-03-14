@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { stripe } from '@/lib/stripe';
-import { getStripePriceId } from '@/lib/config/plans';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,38 +36,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Advisor not found' }, { status: 404 });
     }
 
-    // Get the price ID from environment variables
-    const priceId = getStripePriceId(
-      plan as 'standard' | 'starter' | 'pro',
-      cycle as 'monthly' | 'annual'
-    );
+    // Use existing checkout flow - just generate the URL
     const origin = request.headers.get('origin') || 'https://retirementexpert.ai';
-
-    // Create Stripe checkout session
-    const session = await stripe.checkout.sessions.create({
-      customer_email: advisor.email,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      success_url: `${origin}/welcome?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/dashboard`,
-      allow_promotion_codes: true, // Allow discount codes
-      billing_address_collection: 'required',
-      metadata: {
-        user_id: advisorId, // Webhook expects 'user_id' for reliable profile linking
-        plan, // Ensures plan is set immediately on checkout completion
-        cycle, // Ensures billing_cycle is set immediately
-        generated_by: 'admin',
-      },
-    });
+    const checkoutUrl = `${origin}/api/checkout?plan=${plan}&cycle=${cycle}&email=${encodeURIComponent(advisor.email)}`;
 
     return NextResponse.json({
-      url: session.url,
-      sessionId: session.id,
+      url: checkoutUrl,
+      message: 'Checkout link generated successfully',
     });
   } catch (error) {
     console.error('Checkout link generation error:', error);
