@@ -60,7 +60,9 @@ export async function POST(request: NextRequest) {
       allow_promotion_codes: true, // Allow discount codes
       billing_address_collection: 'required',
       metadata: {
-        advisor_id: advisorId,
+        user_id: advisorId, // Webhook expects 'user_id' for reliable profile linking
+        plan, // Ensures plan is set immediately on checkout completion
+        cycle, // Ensures billing_cycle is set immediately
         generated_by: 'admin',
       },
     });
