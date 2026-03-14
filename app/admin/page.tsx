@@ -122,15 +122,25 @@ export default function AdminDashboard() {
         body: JSON.stringify({ advisorId, plan: 'standard', cycle: 'monthly' }),
       })
       const data = await res.json()
+
+      if (!res.ok) {
+        // API returned an error
+        const errorMsg = data.error || `Server error: ${res.status}`
+        console.error('Checkout link API error:', data)
+        alert(`Failed to generate checkout link:\n\n${errorMsg}`)
+        return
+      }
+
       if (data.url) {
         await navigator.clipboard.writeText(data.url)
         alert(`Checkout link copied for ${email}!\n\nLink: ${data.url}`)
       } else {
-        alert('Failed to generate checkout link')
+        console.error('No URL in response:', data)
+        alert('Failed to generate checkout link: No URL returned')
       }
     } catch (err) {
       console.error('Checkout link generation failed:', err)
-      alert('Failed to generate checkout link')
+      alert(`Failed to generate checkout link:\n\n${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setGeneratingLink(null)
     }
