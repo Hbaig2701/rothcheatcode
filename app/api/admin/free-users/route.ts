@@ -51,7 +51,7 @@ export async function GET() {
         // Would be blocked: not active/trialing AND no paid plan
         const notPaying = p.subscription_status !== 'active' && p.subscription_status !== 'trialing';
         const noPlan = !p.plan || p.plan === 'none';
-        return notPaying || noPlan;
+        return notPaying && noPlan; // Both conditions must be true
       })
       .map(p => ({
         id: p.id,
