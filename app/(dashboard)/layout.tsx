@@ -104,18 +104,16 @@ export default async function DashboardLayout({
       </main>
 
       {/*
-        🚀 PAYMENT WALL - ACTIVATE ON SUNDAY 🚀
+        🚀 PAYMENT WALL - ACTIVATED 🚀
 
-        To enable the payment wall that blocks grandfathered users:
-        1. Change enabled={false} to enabled={true} below
-        2. Commit and push to deploy
+        Payment wall is now LIVE as of March 16, 2026.
 
-        This will show a blocking modal for all users who don't have
-        an actual Stripe subscription (12 users as of March 14, 2026).
+        Blocking 12 grandfathered users who don't have Stripe subscriptions.
+        Paying users (2) and admins continue with normal access.
 
-        Paying users (2) will not see this - they can continue using the app.
+        To disable: Change enabled={true} back to enabled={false}
       */}
-      <PaymentWallModal enabled={false} />
+      <PaymentWallModal enabled={true} />
     </SidebarProvider>
   )
 }
