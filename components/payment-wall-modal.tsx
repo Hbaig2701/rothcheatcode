@@ -82,8 +82,8 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
 
   const handleSubscribeClick = (url: string) => {
     if (url) {
-      setRedirecting(true);
-      window.location.href = url;
+      // Open in new tab instead of redirecting current tab
+      window.open(url, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -122,7 +122,7 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
           <Button
             onClick={() => handleSubscribeClick(monthlyUrl || '')}
             disabled={redirecting || !monthlyUrl}
-            className="w-full h-14 bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.12)] border border-[rgba(255,255,255,0.15)] text-white font-semibold transition-colors flex flex-col items-center justify-center"
+            className="w-full h-14 bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.16)] hover:shadow-lg hover:shadow-white/10 border-2 border-[rgba(255,255,255,0.25)] hover:border-[rgba(255,255,255,0.4)] text-white font-semibold transition-all duration-200 flex flex-col items-center justify-center shadow-md cursor-pointer"
           >
             {redirecting ? (
               <>
@@ -140,7 +140,7 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
           <Button
             onClick={() => handleSubscribeClick(annualUrl || '')}
             disabled={redirecting || !annualUrl}
-            className="w-full h-14 bg-[#d4af37] hover:bg-[#c5a028] text-black font-semibold transition-colors flex flex-col items-center justify-center relative"
+            className="w-full h-14 bg-[#d4af37] hover:bg-[#e5c047] hover:shadow-xl hover:shadow-[#d4af37]/30 border-2 border-[#d4af37] hover:border-[#e5c047] text-black font-semibold transition-all duration-200 flex flex-col items-center justify-center relative shadow-lg cursor-pointer"
           >
             {redirecting ? (
               <>
