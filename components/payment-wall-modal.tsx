@@ -11,7 +11,8 @@ interface PaymentWallModalProps {
 
 export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
   const [shouldBlock, setShouldBlock] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [monthlyUrl, setMonthlyUrl] = useState<string | null>(null);
+  const [annualUrl, setAnnualUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [redirecting, setRedirecting] = useState(false);
 
@@ -60,10 +61,14 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
         // Block this user - they're on free/grandfathered access
         setShouldBlock(true);
 
-        // Generate their personalized checkout link
+        // Generate their personalized checkout links (both monthly and annual)
         const origin = window.location.origin;
-        const checkoutLink = `${origin}/api/checkout?plan=standard&cycle=monthly&email=${encodeURIComponent(profile.email || '')}`;
-        setCheckoutUrl(checkoutLink);
+        const email = encodeURIComponent(profile.email || '');
+        const monthlyLink = `${origin}/api/checkout?plan=standard&cycle=monthly&email=${email}`;
+        const annualLink = `${origin}/api/checkout?plan=standard&cycle=annual&email=${email}`;
+
+        setMonthlyUrl(monthlyLink);
+        setAnnualUrl(annualLink);
 
         setLoading(false);
       } catch (error) {
@@ -75,10 +80,10 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
     checkAccess();
   }, [enabled]);
 
-  const handleSubscribeClick = () => {
-    if (checkoutUrl) {
+  const handleSubscribeClick = (url: string) => {
+    if (url) {
       setRedirecting(true);
-      window.location.href = checkoutUrl;
+      window.location.href = url;
     }
   };
 
@@ -111,21 +116,52 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
           powerful retirement projections for your clients.
         </p>
 
-        {/* Subscribe Button */}
-        <Button
-          onClick={handleSubscribeClick}
-          disabled={redirecting}
-          className="w-full h-12 bg-[#d4af37] hover:bg-[#c5a028] text-black font-semibold text-base transition-colors"
-        >
-          {redirecting ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Redirecting to checkout...
-            </>
-          ) : (
-            'Subscribe Now'
-          )}
-        </Button>
+        {/* Subscription Options */}
+        <div className="space-y-3 mb-6">
+          {/* Monthly Option */}
+          <Button
+            onClick={() => handleSubscribeClick(monthlyUrl || '')}
+            disabled={redirecting || !monthlyUrl}
+            className="w-full h-14 bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.12)] border border-[rgba(255,255,255,0.15)] text-white font-semibold transition-colors flex flex-col items-center justify-center"
+          >
+            {redirecting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </>
+            ) : (
+              <>
+                <span className="text-lg">Monthly</span>
+                <span className="text-sm text-[rgba(255,255,255,0.65)] font-normal">$197/month</span>
+              </>
+            )}
+          </Button>
+
+          {/* Annual Option */}
+          <Button
+            onClick={() => handleSubscribeClick(annualUrl || '')}
+            disabled={redirecting || !annualUrl}
+            className="w-full h-14 bg-[#d4af37] hover:bg-[#c5a028] text-black font-semibold transition-colors flex flex-col items-center justify-center relative"
+          >
+            {redirecting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+              </>
+            ) : (
+              <>
+                <span className="absolute top-1 right-2 text-[10px] bg-black/20 px-2 py-0.5 rounded-full">
+                  Save $394
+                </span>
+                <span className="text-lg">Annual</span>
+                <span className="text-sm text-black/70 font-normal">$1,970/year</span>
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Small text below buttons */}
+        <p className="text-xs text-[rgba(255,255,255,0.45)] text-center mb-6">
+          Cancel anytime • No long-term contracts
+        </p>
 
         {/* Additional info */}
         <p className="text-xs text-[rgba(255,255,255,0.45)] text-center mt-6">
