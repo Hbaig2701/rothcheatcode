@@ -10,7 +10,7 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar'
 import { LogoutButton } from '@/components/logout-button'
-import { LayoutDashboard, Users, Settings, FileText } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, FileText, Video } from 'lucide-react'
 
 const navItems = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -18,7 +18,11 @@ const navItems = [
   { title: 'Report History', href: '/reports', icon: FileText },
 ]
 
-export function AppSidebar({ user, displayName }: { user: User; displayName: string }) {
+const adminNavItems = [
+  { title: 'Training', href: '/training', icon: Video },
+]
+
+export function AppSidebar({ user, displayName, userRole }: { user: User; displayName: string; userRole: string | null }) {
 
   return (
     <Sidebar collapsible="none" className="border-r border-[rgba(255,255,255,0.07)] bg-[rgba(0,0,0,0.3)]">
@@ -29,6 +33,19 @@ export function AppSidebar({ user, displayName }: { user: User; displayName: str
       <SidebarContent className="px-4 pt-6">
         <SidebarMenu className="gap-0.5">
           {navItems.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton
+                render={<a href={item.href} />}
+                className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-medium text-[rgba(255,255,255,0.7)] transition-all hover:bg-[rgba(212,175,55,0.08)] hover:text-gold data-active:bg-[rgba(212,175,55,0.08)] data-active:text-gold data-active:border data-active:border-[rgba(212,175,55,0.2)] data-active:font-medium"
+              >
+                <item.icon className="size-4 opacity-80" />
+                <span>{item.title}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+
+          {/* Admin-only navigation items */}
+          {userRole === 'admin' && adminNavItems.map((item) => (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton
                 render={<a href={item.href} />}

@@ -22,7 +22,7 @@ export default async function DashboardLayout({
   // Fetch profile with subscription fields
   const { data: profile } = await supabase
     .from('profiles')
-    .select('is_active, plan, subscription_status, stripe_customer_id, team_owner_id')
+    .select('is_active, plan, subscription_status, stripe_customer_id, team_owner_id, role')
     .eq('id', user.id)
     .single()
 
@@ -92,7 +92,7 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
-      <AppSidebar user={user} displayName={displayName} />
+      <AppSidebar user={user} displayName={displayName} userRole={profile?.role ?? null} />
       <main className="flex-1 flex flex-col min-h-screen bg-[#0c0c0c]">
         <PaymentFailedBanner
           subscriptionStatus={profile?.subscription_status ?? null}
