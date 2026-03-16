@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { ChevronUp, ChevronDown, Download, Link as LinkIcon } from 'lucide-react'
+import { ChevronUp, ChevronDown, Download } from 'lucide-react'
 import { BulkActionsBar } from './_components/bulk-actions-bar'
 import { AnalyticsSection } from './_components/analytics-section'
 import { CostsSection } from './_components/costs-section'
@@ -45,7 +45,7 @@ interface ActivityPoint {
 type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status' | 'plan'
 type SortDir = 'asc' | 'desc'
 type TimeFilter = 'all' | '1d' | '7d' | '30d'
-type PlanFilter = 'all' | 'standard' | 'pro' | 'starter' | 'none'
+type PlanFilter = 'all' | 'paying' | 'trial'
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
@@ -62,7 +62,6 @@ export default function AdminDashboard() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
-  const [generatingLink, setGeneratingLink] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -112,39 +111,6 @@ export default function AdminDashboard() {
       setBulkLoading(false)
     }
   }, [selectedIds, refetchAdvisors])
-
-  const generateCheckoutLink = useCallback(async (advisorId: string, email: string) => {
-    setGeneratingLink(advisorId)
-    try {
-      const res = await fetch('/api/admin/checkout-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ advisorId, plan: 'standard', cycle: 'monthly' }),
-      })
-      const data = await res.json()
-
-      if (!res.ok) {
-        // API returned an error
-        const errorMsg = data.error || `Server error: ${res.status}`
-        console.error('Checkout link API error:', data)
-        alert(`Failed to generate checkout link:\n\n${errorMsg}`)
-        return
-      }
-
-      if (data.url) {
-        await navigator.clipboard.writeText(data.url)
-        alert(`Checkout link copied for ${email}!\n\nLink: ${data.url}`)
-      } else {
-        console.error('No URL in response:', data)
-        alert('Failed to generate checkout link: No URL returned')
-      }
-    } catch (err) {
-      console.error('Checkout link generation failed:', err)
-      alert(`Failed to generate checkout link:\n\n${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      setGeneratingLink(null)
-    }
-  }, [])
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds(prev => {
@@ -383,17 +349,17 @@ export default function AdminDashboard() {
               ))}
             </div>
             <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
-              {(['all', 'standard', 'pro', 'starter', 'none'] as const).map(p => (
+              {([['all', 'All'], ['paying', 'Paying'], ['trial', 'Trial']] as const).map(([value, label]) => (
                 <button
-                  key={p}
-                  onClick={() => setPlanFilter(p)}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors capitalize ${
-                    planFilter === p
+                  key={value}
+                  onClick={() => setPlanFilter(value as PlanFilter)}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                    planFilter === value
                       ? 'bg-[#d4af37] text-black font-medium'
                       : 'text-[rgba(255,255,255,0.65)] hover:text-white'
                   }`}
                 >
-                  {p}
+                  {label}
                 </button>
               ))}
             </div>
@@ -459,15 +425,12 @@ export default function AdminDashboard() {
                 <td className="px-4 py-3 text-sm text-white">{a.name ?? <span className="text-[rgba(255,255,255,0.35)]">—</span>}</td>
                 <td className="px-4 py-3 text-sm text-white">{a.email}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${
-                    a.plan === 'standard' || a.plan === 'pro'
-                      ? 'bg-[rgba(212,175,55,0.15)] text-[#d4af37]'
-                      : a.plan === 'starter'
-                        ? 'bg-[rgba(59,130,246,0.15)] text-[#3b82f6]'
-                        : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.55)]'
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    a.plan === 'paying'
+                      ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80]'
+                      : 'bg-[rgba(245,158,11,0.15)] text-[#f59e0b]'
                   }`}>
-                    {a.plan || 'none'}
-                    {a.subscriptionStatus === 'trialing' && <span className="ml-1 text-[10px] opacity-75">(trial)</span>}
+                    {a.plan === 'paying' ? 'Paying' : 'Trial'}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">
@@ -492,23 +455,12 @@ export default function AdminDashboard() {
                   </span>
                 </td>
                 <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/admin/advisors/${a.id}`}
-                      className="text-xs px-2 py-1 rounded-md bg-[rgba(59,130,246,0.15)] text-[#3b82f6] hover:bg-[rgba(59,130,246,0.25)] transition-colors inline-flex items-center gap-1"
-                    >
-                      View
-                    </Link>
-                    <button
-                      onClick={() => generateCheckoutLink(a.id, a.email)}
-                      disabled={generatingLink === a.id}
-                      className="text-xs px-2 py-1 rounded-md bg-[rgba(212,175,55,0.15)] text-[#d4af37] hover:bg-[rgba(212,175,55,0.25)] transition-colors inline-flex items-center gap-1 disabled:opacity-50"
-                      title="Generate and copy checkout link"
-                    >
-                      <LinkIcon className="h-3 w-3" />
-                      {generatingLink === a.id ? 'Generating...' : 'Get Link'}
-                    </button>
-                  </div>
+                  <Link
+                    href={`/admin/advisors/${a.id}`}
+                    className="text-xs px-2 py-1 rounded-md bg-[rgba(59,130,246,0.15)] text-[#3b82f6] hover:bg-[rgba(59,130,246,0.25)] transition-colors inline-flex items-center gap-1"
+                  >
+                    View
+                  </Link>
                 </td>
               </tr>
             ))}

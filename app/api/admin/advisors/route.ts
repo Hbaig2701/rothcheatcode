@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+// Test accounts to exclude from all metrics
+const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -27,11 +30,12 @@ export async function GET(request: NextRequest) {
     const statusFilter = searchParams.get('status') ?? 'all';
     const search = searchParams.get('search') ?? '';
 
-    // Fetch all advisor profiles
+    // Fetch all advisor profiles (exclude test accounts)
     const { data: profiles, error: profilesError } = await admin
       .from('profiles')
-      .select('id, email, created_at, role, is_active, plan, subscription_status')
+      .select('id, email, created_at, role, is_active, plan, subscription_status, stripe_customer_id, stripe_subscription_id')
       .eq('role', 'advisor')
+      .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
       .order('created_at', { ascending: false });
 
     if (profilesError) throw profilesError;
@@ -83,6 +87,9 @@ export async function GET(request: NextRequest) {
       const isRecentlyActive = lastActivity > fourteenDaysAgo;
       const isDeactivated = p.is_active === false;
 
+      // Determine payment status: paying if they have a Stripe subscription, trial otherwise
+      const hasPaid = !!(p.stripe_customer_id || p.stripe_subscription_id);
+
       return {
         id: p.id,
         name: nameMap.get(p.id) ?? null,
@@ -94,7 +101,7 @@ export async function GET(request: NextRequest) {
         sessionCount: sessionCounts.get(p.id) ?? 0,
         lastLogin,
         status: isDeactivated ? 'deactivated' as const : (isRecentlyActive ? 'active' as const : 'inactive' as const),
-        plan: p.plan ?? 'none',
+        plan: hasPaid ? 'paying' : 'trial',
         subscriptionStatus: p.subscription_status ?? null,
       };
     });

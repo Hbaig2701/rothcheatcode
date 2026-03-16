@@ -132,26 +132,48 @@ export function RevenueSection() {
         </div>
       )}
 
-      {/* Revenue by Plan */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4">
-          Revenue by Plan
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {data.byPlan.map(p => (
-            <div key={p.plan} className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
-              <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1 capitalize">{p.plan} Plan</p>
-              <p className="text-xl font-semibold text-white font-mono">
-                ${(p.monthlyRevenue + p.annualRevenue / 12).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                <span className="text-xs text-[rgba(255,255,255,0.55)]">/mo</span>
-              </p>
-              <p className="text-xs text-[rgba(255,255,255,0.55)] mt-1">
-                {p.count} {p.count === 1 ? 'subscriber' : 'subscribers'}
-              </p>
-            </div>
-          ))}
+      {/* Revenue Breakdown */}
+      {data.byPlan.length > 0 && (
+        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4">
+            Revenue Breakdown
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {data.byPlan.map(p => {
+              const monthlyCount = p.monthlyRevenue > 0 ? Math.round(p.monthlyRevenue / 197) : 0;
+              const annualCount = p.annualRevenue > 0 ? Math.round(p.annualRevenue / 1970) : 0;
+              return (
+                <div key={p.plan}>
+                  {monthlyCount > 0 && (
+                    <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4 mb-2">
+                      <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">Monthly Subscribers</p>
+                      <p className="text-xl font-semibold text-white font-mono">
+                        ${p.monthlyRevenue.toLocaleString()}
+                        <span className="text-xs text-[rgba(255,255,255,0.55)]">/mo</span>
+                      </p>
+                      <p className="text-xs text-[rgba(255,255,255,0.55)] mt-1">
+                        {monthlyCount} {monthlyCount === 1 ? 'subscriber' : 'subscribers'}
+                      </p>
+                    </div>
+                  )}
+                  {annualCount > 0 && (
+                    <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
+                      <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">Annual Subscribers</p>
+                      <p className="text-xl font-semibold text-white font-mono">
+                        ${p.annualRevenue.toLocaleString()}
+                        <span className="text-xs text-[rgba(255,255,255,0.55)]">/yr</span>
+                      </p>
+                      <p className="text-xs text-[rgba(255,255,255,0.55)] mt-1">
+                        {annualCount} {annualCount === 1 ? 'subscriber' : 'subscribers'}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Trial Performance */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">

@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PLAN_PRICES } from "@/lib/config/plans";
 
+// Test accounts to exclude from all metrics
+const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
+
 export async function GET() {
   try {
     const supabase = await createClient();
@@ -27,11 +30,12 @@ export async function GET() {
 
     const admin = createAdminClient();
 
-    // Get all advisor profiles with subscription data
+    // Get all advisor profiles with subscription data (exclude test accounts)
     const { data: profiles } = await admin
       .from("profiles")
-      .select("id, plan, subscription_status, billing_cycle, created_at, current_period_end")
-      .eq("role", "advisor");
+      .select("id, email, plan, subscription_status, billing_cycle, created_at, current_period_end")
+      .eq("role", "advisor")
+      .not('email', 'in', `(${TEST_EMAILS.join(',')})`);
 
     if (!profiles) {
       return NextResponse.json({ error: "Failed to fetch profiles" }, { status: 500 });

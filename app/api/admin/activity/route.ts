@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
+// Test accounts to exclude from all metrics
+const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -39,11 +42,24 @@ export async function GET(request: NextRequest) {
 
     const tableName = type === 'exports' ? 'export_log' : type === 'logins' ? 'login_log' : 'projections';
 
-    const { data: rows, error: queryError } = await admin
+    // Get test account IDs to exclude
+    const { data: testProfiles } = await admin
+      .from('profiles')
+      .select('id')
+      .in('email', TEST_EMAILS);
+    const testIds = (testProfiles ?? []).map(p => p.id);
+
+    let query = admin
       .from(tableName)
       .select('created_at')
       .gte('created_at', startDate.toISOString())
       .order('created_at', { ascending: true });
+
+    if (testIds.length > 0) {
+      query = query.not('user_id', 'in', `(${testIds.join(',')})`);
+    }
+
+    const { data: rows, error: queryError } = await query;
 
     if (queryError) throw queryError;
 
