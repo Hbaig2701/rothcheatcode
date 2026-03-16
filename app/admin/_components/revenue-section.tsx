@@ -175,22 +175,19 @@ export function RevenueSection() {
         </div>
       )}
 
-      {/* Trial Performance */}
+      {/* Conversion Performance */}
       <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
         <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4">
-          Trial Performance
+          Conversion Performance
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <TrialStat label="Active Trials" value={data.trials.active} />
-          <TrialStat label="Converted" value={data.trials.converted} subtext="all time" />
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <TrialStat label="Trial Users" value={data.trials.active} subtext="haven't paid yet" />
+          <TrialStat label="Paying Users" value={data.trials.converted} subtext="active subscriptions" />
           <TrialStat
             label="Conversion Rate"
             value={`${data.trials.conversionRate.toFixed(1)}%`}
             highlight={data.trials.conversionRate >= 50}
-          />
-          <TrialStat
-            label="Avg Days to Convert"
-            value={data.trials.avgDaysToConvert.toFixed(1)}
+            subtext="trial → paying"
           />
         </div>
       </div>

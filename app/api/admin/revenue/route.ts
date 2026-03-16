@@ -33,7 +33,7 @@ export async function GET() {
     // Get all advisor profiles with subscription data (exclude test accounts)
     const { data: profiles } = await admin
       .from("profiles")
-      .select("id, email, plan, subscription_status, billing_cycle, created_at, current_period_end")
+      .select("id, email, plan, subscription_status, billing_cycle, created_at, current_period_end, stripe_customer_id, stripe_subscription_id")
       .eq("role", "advisor")
       .not('email', 'in', `(${TEST_EMAILS.join(',')})`);
 
@@ -41,14 +41,19 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to fetch profiles" }, { status: 500 });
     }
 
-    // Calculate current MRR and active subscriptions
+    // Separate paying users (have Stripe subscription) from trial users (no Stripe data)
+    const hasStripe = (p: typeof profiles[0]) => !!(p.stripe_customer_id || p.stripe_subscription_id);
+    const payingProfiles = profiles.filter(hasStripe);
+    const trialProfiles = profiles.filter(p => !hasStripe(p));
+
+    // Calculate current MRR and active subscriptions (only actual Stripe subscribers)
     let totalMRR = 0;
     let totalARR = 0;
     let activeSubscriptions = 0;
     const revenueByPlan = new Map<string, { monthly: number; annual: number; count: number }>();
 
-    profiles.forEach(profile => {
-      // Only count active and trialing subscriptions
+    payingProfiles.forEach(profile => {
+      // Only count active subscriptions for revenue
       if (profile.subscription_status === 'active' || profile.subscription_status === 'trialing') {
         activeSubscriptions++;
 
@@ -76,16 +81,16 @@ export async function GET() {
       }
     });
 
-    // Calculate previous month's MRR for growth
+    // Calculate previous month's MRR for growth (only Stripe subscribers)
     const lastMonth = new Date();
     lastMonth.setMonth(lastMonth.getMonth() - 1);
-    const profilesLastMonth = profiles.filter(p => {
+    const payingLastMonth = payingProfiles.filter(p => {
       const createdDate = new Date(p.created_at);
       return createdDate <= lastMonth && (p.subscription_status === 'active' || p.subscription_status === 'trialing');
     });
 
     let lastMonthMRR = 0;
-    profilesLastMonth.forEach(profile => {
+    payingLastMonth.forEach(profile => {
       const plan = profile.plan as keyof typeof PLAN_PRICES;
       const cycle = profile.billing_cycle as 'monthly' | 'annual';
       if (plan && PLAN_PRICES[plan] && cycle) {
@@ -95,11 +100,11 @@ export async function GET() {
     });
 
     const mrrGrowth = lastMonthMRR > 0 ? ((totalMRR - lastMonthMRR) / lastMonthMRR) * 100 : 0;
-    const subscriptionGrowth = profilesLastMonth.length > 0
-      ? ((activeSubscriptions - profilesLastMonth.length) / profilesLastMonth.length) * 100
+    const subscriptionGrowth = payingLastMonth.length > 0
+      ? ((activeSubscriptions - payingLastMonth.length) / payingLastMonth.length) * 100
       : 0;
 
-    // Generate monthly revenue trend (last 6 months)
+    // Generate monthly revenue trend (last 6 months) - only Stripe subscribers
     const monthlyTrend = [];
     for (let i = 5; i >= 0; i--) {
       const monthDate = new Date();
@@ -107,7 +112,7 @@ export async function GET() {
       const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
       const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
 
-      const profilesInMonth = profiles.filter(p => {
+      const payingInMonth = payingProfiles.filter(p => {
         const created = new Date(p.created_at);
         return created <= monthEnd && (p.subscription_status === 'active' || p.subscription_status === 'trialing');
       });
@@ -116,7 +121,7 @@ export async function GET() {
       let newSubs = 0;
       let churned = 0;
 
-      profilesInMonth.forEach(profile => {
+      payingInMonth.forEach(profile => {
         const plan = profile.plan as keyof typeof PLAN_PRICES;
         const cycle = profile.billing_cycle as 'monthly' | 'annual';
         if (plan && PLAN_PRICES[plan] && cycle) {
@@ -130,8 +135,8 @@ export async function GET() {
         }
       });
 
-      // Count churned (canceled in this month)
-      const canceledInMonth = profiles.filter(p => {
+      // Count churned (canceled Stripe subscribers in this month)
+      const canceledInMonth = payingProfiles.filter(p => {
         if (p.subscription_status !== 'canceled') return false;
         const periodEnd = p.current_period_end ? new Date(p.current_period_end) : null;
         return periodEnd && periodEnd >= monthStart && periodEnd <= monthEnd;
@@ -146,21 +151,16 @@ export async function GET() {
       });
     }
 
-    // Trial metrics
-    const trials = profiles.filter(p => p.subscription_status === 'trialing');
-    const converted = profiles.filter(p =>
-      (p.subscription_status === 'active' || p.subscription_status === 'canceled') &&
-      p.plan !== 'none'
-    );
-    const conversionRate = profiles.length > 0 ? (converted.length / profiles.length) * 100 : 0;
+    // Trial metrics: trial = no Stripe subscription, converted = has Stripe subscription
+    const trialCount = trialProfiles.length;
+    const convertedCount = payingProfiles.length;
+    const totalEver = profiles.length;
+    const conversionRate = totalEver > 0 ? (convertedCount / totalEver) * 100 : 0;
 
-    // Simple avg days to convert (this is approximate - would need more data for accuracy)
-    const avgDaysToConvert = 7; // Placeholder - would need trial start/conversion tracking
-
-    // Health metrics
-    const pastDue = profiles.filter(p => p.subscription_status === 'past_due').length;
-    const canceled = profiles.filter(p => p.subscription_status === 'canceled').length;
-    const churnRate = profiles.length > 0 ? (canceled / profiles.length) * 100 : 0;
+    // Health metrics (only relevant for actual Stripe subscribers)
+    const pastDue = payingProfiles.filter(p => p.subscription_status === 'past_due').length;
+    const canceled = payingProfiles.filter(p => p.subscription_status === 'canceled').length;
+    const churnRate = payingProfiles.length > 0 ? (canceled / payingProfiles.length) * 100 : 0;
 
     return NextResponse.json({
       current: {
@@ -181,10 +181,10 @@ export async function GET() {
       })),
       byMonth: monthlyTrend,
       trials: {
-        active: trials.length,
-        converted: converted.length,
+        active: trialCount,
+        converted: convertedCount,
         conversionRate: Math.round(conversionRate * 10) / 10,
-        avgDaysToConvert,
+        avgDaysToConvert: 0,
       },
       health: {
         pastDue,
