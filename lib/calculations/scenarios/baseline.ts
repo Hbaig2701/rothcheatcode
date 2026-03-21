@@ -7,6 +7,7 @@ import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
+import { getMarginalBracket, getIRMAATier } from '../tax-helpers';
 
 /**
  * Run Baseline scenario: no Roth conversions, just RMDs
@@ -192,6 +193,23 @@ export function runBaselineScenario(
     // Determine tax bracket
     const bracket = determineTaxBracket(taxableIncome, client.filing_status, year);
 
+    // Calculate extended fields for adjustable columns
+    const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
+    const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+
+    // Calculate growth/interest for each account
+    const traditionalGrowth = iraInterest;
+    const rothGrowth = rothInterest;
+    const taxableGrowth = taxableInterest;
+
+    // Tax component breakdown
+    // In baseline: all tax is on ordinary income (RMD + other income)
+    // SS is tax-exempt per simplified model
+    const federalTaxOnOrdinaryIncome = federalResult.totalTax;
+    const stateTaxOnOrdinaryIncome = stateResult.totalTax;
+
+    const totalIncome = grossTaxableIncome + ssIncome;
+
     results.push({
       year,
       age,
@@ -204,7 +222,7 @@ export function runBaselineScenario(
       ssIncome,
       pensionIncome: 0, // Simplified - included in otherIncome
       otherIncome,
-      totalIncome: grossTaxableIncome + ssIncome,
+      totalIncome,
       federalTax: federalResult.totalTax,
       stateTax: stateResult.totalTax,
       niitTax: 0, // Simplified - not included in basic model
@@ -212,7 +230,27 @@ export function runBaselineScenario(
       totalTax,
       taxableSS: 0, // SSI is tax-exempt per simplified model
       netWorth: iraBalance + rothBalance + taxableBalance,
-      cumulativeDistributions: rmdTreatment === 'spent' ? cumulativeAfterTaxDistributions : undefined
+      cumulativeDistributions: rmdTreatment === 'spent' ? cumulativeAfterTaxDistributions : undefined,
+      // Extended fields for adjustable columns
+      traditionalBOY: boyIRA,
+      rothBOY: boyRoth,
+      taxableBOY: boyTaxable,
+      traditionalGrowth,
+      rothGrowth,
+      taxableGrowth,
+      productBonusApplied: 0, // No bonus in baseline
+      magi,
+      agi,
+      standardDeduction: deductions,
+      taxableIncome,
+      federalTaxBracket,
+      irmaaTier,
+      federalTaxOnSS: 0, // SS is tax-exempt
+      federalTaxOnConversions: 0, // No conversions in baseline
+      federalTaxOnOrdinaryIncome,
+      stateTaxOnSS: 0, // SS is tax-exempt
+      stateTaxOnConversions: 0, // No conversions in baseline
+      stateTaxOnOrdinaryIncome,
     });
   }
 

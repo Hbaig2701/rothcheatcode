@@ -46,6 +46,7 @@ import {
 } from '@/lib/config/gi-product-data';
 import type { GuaranteedIncomeFormulaType } from '@/lib/config/products';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
+import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier } from '../tax-helpers';
 
 // ---------------------------------------------------------------------------
 // Helper Functions
@@ -383,6 +384,18 @@ function runGIStrategyScenario(
 
       const totalTax = conversionTax + irmaaSurcharge;
 
+      // Calculate tax details
+      const totalIncome = grossIncomeWithConversion + ssIncome;
+      const agi = calculateAGI(totalIncome);
+      const taxableIncome = Math.max(0, grossIncomeWithConversion - deductions);
+      const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
+      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+
+      // Account growth this year
+      const traditionalGrowth = traditionalInterest;
+      const rothGrowth = rothInterest;
+      const taxableGrowth = taxableInterest;
+
       results.push({
         year, age, spouseAge,
         traditionalBalance,
@@ -393,7 +406,7 @@ function runGIStrategyScenario(
         ssIncome,
         pensionIncome: 0,
         otherIncome,
-        totalIncome: grossIncomeWithConversion + ssIncome,
+        totalIncome,
         federalTax: federalConversionTax,
         stateTax: stateConversionTax,
         niitTax: 0,
@@ -401,6 +414,31 @@ function runGIStrategyScenario(
         totalTax,
         taxableSS: 0,
         netWorth: traditionalBalance + rothBalance + taxableBalance,
+        // Extended fields for adjustable columns
+        traditionalBOY: boyTraditional,
+        rothBOY: boyRoth,
+        taxableBOY: boyTaxable,
+        traditionalGrowth,
+        rothGrowth,
+        taxableGrowth,
+        productBonusApplied: 0, // No bonus during conversion
+        magi,
+        agi,
+        standardDeduction: deductions,
+        taxableIncome,
+        federalTaxBracket,
+        irmaaTier,
+        federalTaxOnSS: 0,
+        federalTaxOnConversions: federalConversionTax,
+        federalTaxOnOrdinaryIncome: 0,
+        stateTaxOnSS: 0,
+        stateTaxOnConversions: stateConversionTax,
+        stateTaxOnOrdinaryIncome: 0,
+        // GI-specific fields
+        incomeRiderValue: 0,
+        accumulationValue: 0,
+        incomePayoutAmount: 0,
+        riderFee: 0,
       });
 
       giYearlyData.push({
@@ -489,6 +527,21 @@ function runGIStrategyScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
+      // Calculate tax details
+      const totalIncome = otherIncome + ssIncome;
+      const agi = calculateAGI(totalIncome);
+      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
+      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+
+      // Account growth this year
+      const traditionalGrowth = 0; // No growth (purchased this year, balance moved to GI)
+      const rothGrowth = 0; // Roth converted everything
+      const taxableGrowth = taxableInterest;
+
+      // Product bonus applied on purchase
+      const productBonusApplied = bonusAmount;
+
       results.push({
         year, age, spouseAge,
         traditionalBalance: accountValue, // Map GI account value to traditional for chart compatibility
@@ -499,7 +552,7 @@ function runGIStrategyScenario(
         ssIncome,
         pensionIncome: 0,
         otherIncome,
-        totalIncome: otherIncome + ssIncome,
+        totalIncome,
         federalTax: 0,
         stateTax: 0,
         niitTax: 0,
@@ -507,6 +560,31 @@ function runGIStrategyScenario(
         totalTax: irmaaSurcharge,
         taxableSS: 0,
         netWorth: accountValue + taxableBalance,
+        // Extended fields for adjustable columns
+        traditionalBOY: 0, // Purchased this year, was zero at BOY
+        rothBOY: boyRoth,
+        taxableBOY: boyTaxable,
+        traditionalGrowth,
+        rothGrowth,
+        taxableGrowth,
+        productBonusApplied,
+        magi,
+        agi,
+        standardDeduction: deductions,
+        taxableIncome,
+        federalTaxBracket,
+        irmaaTier,
+        federalTaxOnSS: 0,
+        federalTaxOnConversions: 0,
+        federalTaxOnOrdinaryIncome: 0,
+        stateTaxOnSS: 0,
+        stateTaxOnConversions: 0,
+        stateTaxOnOrdinaryIncome: 0,
+        // GI-specific fields
+        incomeRiderValue: incomeBase,
+        accumulationValue: accountValue,
+        incomePayoutAmount: 0,
+        riderFee: 0,
       });
 
       giYearlyData.push({
@@ -583,6 +661,18 @@ function runGIStrategyScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
+      // Calculate tax details
+      const totalIncome = otherIncome + ssIncome;
+      const agi = calculateAGI(totalIncome);
+      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
+      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+
+      // Account growth this year (interest before rider fee)
+      const traditionalGrowth = accountInterest;
+      const rothGrowth = 0;
+      const taxableGrowth = taxableInterest;
+
       results.push({
         year, age, spouseAge,
         traditionalBalance: accountValue,
@@ -593,7 +683,7 @@ function runGIStrategyScenario(
         ssIncome,
         pensionIncome: 0,
         otherIncome,
-        totalIncome: otherIncome + ssIncome,
+        totalIncome,
         federalTax: 0,
         stateTax: 0,
         niitTax: 0,
@@ -601,6 +691,31 @@ function runGIStrategyScenario(
         totalTax: irmaaSurcharge,
         taxableSS: 0,
         netWorth: accountValue + taxableBalance,
+        // Extended fields for adjustable columns
+        traditionalBOY: boyAccount,
+        rothBOY: 0,
+        taxableBOY: boyTaxable,
+        traditionalGrowth,
+        rothGrowth,
+        taxableGrowth,
+        productBonusApplied: 0, // No bonus during deferral
+        magi,
+        agi,
+        standardDeduction: deductions,
+        taxableIncome,
+        federalTaxBracket,
+        irmaaTier,
+        federalTaxOnSS: 0,
+        federalTaxOnConversions: 0,
+        federalTaxOnOrdinaryIncome: 0,
+        stateTaxOnSS: 0,
+        stateTaxOnConversions: 0,
+        stateTaxOnOrdinaryIncome: 0,
+        // GI-specific fields
+        incomeRiderValue: incomeBase,
+        accumulationValue: accountValue,
+        incomePayoutAmount: 0,
+        riderFee: yearRiderFee,
       });
 
       giYearlyData.push({
@@ -686,6 +801,18 @@ function runGIStrategyScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
+      // Calculate tax details
+      const totalIncome = grossGI + otherIncome + ssIncome;
+      const agi = calculateAGI(totalIncome);
+      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
+      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+
+      // Account growth this year (interest after payout, before rider fee)
+      const traditionalGrowth = accountInterest;
+      const rothGrowth = 0;
+      const taxableGrowth = taxableInterest;
+
       results.push({
         year, age, spouseAge,
         traditionalBalance: accountValue,
@@ -696,7 +823,7 @@ function runGIStrategyScenario(
         ssIncome,
         pensionIncome: 0,
         otherIncome,
-        totalIncome: grossGI + otherIncome + ssIncome,
+        totalIncome,
         federalTax: 0, // TAX-FREE
         stateTax: 0,   // TAX-FREE
         niitTax: 0,
@@ -704,6 +831,31 @@ function runGIStrategyScenario(
         totalTax: irmaaSurcharge,
         taxableSS: 0,
         netWorth: accountValue + taxableBalance,
+        // Extended fields for adjustable columns
+        traditionalBOY: boyAccount,
+        rothBOY: 0,
+        taxableBOY: boyTaxable,
+        traditionalGrowth,
+        rothGrowth,
+        taxableGrowth,
+        productBonusApplied: 0, // No bonus during income phase
+        magi,
+        agi,
+        standardDeduction: deductions,
+        taxableIncome,
+        federalTaxBracket,
+        irmaaTier,
+        federalTaxOnSS: 0,
+        federalTaxOnConversions: 0,
+        federalTaxOnOrdinaryIncome: 0, // GI income is tax-free (Roth)
+        stateTaxOnSS: 0,
+        stateTaxOnConversions: 0,
+        stateTaxOnOrdinaryIncome: 0,
+        // GI-specific fields
+        incomeRiderValue: incomeBaseAtIncomeAge,
+        accumulationValue: accountValue,
+        incomePayoutAmount: grossGI,
+        riderFee: yearRiderFee,
       });
 
       giYearlyData.push({
@@ -896,6 +1048,18 @@ function runGIBaselineScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
+      // Calculate tax details
+      const totalIncome = otherIncome + ssIncome;
+      const agi = calculateAGI(totalIncome);
+      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
+      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+
+      // Account growth this year
+      const traditionalGrowth = iraGrowth;
+      const rothGrowth = 0;
+      const taxableGrowth = taxableInterest;
+
       results.push({
         year, age, spouseAge,
         traditionalBalance,
@@ -906,7 +1070,7 @@ function runGIBaselineScenario(
         ssIncome,
         pensionIncome: 0,
         otherIncome,
-        totalIncome: otherIncome + ssIncome,
+        totalIncome,
         federalTax: 0,
         stateTax: 0,
         niitTax: 0,
@@ -914,6 +1078,31 @@ function runGIBaselineScenario(
         totalTax: irmaaSurcharge,
         taxableSS: 0,
         netWorth: traditionalBalance + taxableBalance,
+        // Extended fields for adjustable columns
+        traditionalBOY: boyTraditional,
+        rothBOY: 0,
+        taxableBOY: boyTaxable,
+        traditionalGrowth,
+        rothGrowth,
+        taxableGrowth,
+        productBonusApplied: 0, // No bonus during waiting
+        magi,
+        agi,
+        standardDeduction: deductions,
+        taxableIncome,
+        federalTaxBracket,
+        irmaaTier,
+        federalTaxOnSS: 0,
+        federalTaxOnConversions: 0,
+        federalTaxOnOrdinaryIncome: 0,
+        stateTaxOnSS: 0,
+        stateTaxOnConversions: 0,
+        stateTaxOnOrdinaryIncome: 0,
+        // GI-specific fields
+        incomeRiderValue: 0,
+        accumulationValue: 0,
+        incomePayoutAmount: 0,
+        riderFee: 0,
       });
 
       giYearlyData.push({
@@ -993,6 +1182,22 @@ function runGIBaselineScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
+      // Calculate tax details
+      const totalIncome = otherIncome + ssIncome;
+      const agi = calculateAGI(totalIncome);
+      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
+      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+
+      // Account growth this year
+      const traditionalGrowth = 0; // Purchased this year
+      const rothGrowth = 0;
+      const taxableGrowth = taxableInterest;
+
+      // Calculate bonus amount
+      const bonusRate = (client.bonus_percent ?? 0) / 100;
+      const productBonusApplied = Math.round(purchaseAmount * bonusRate);
+
       results.push({
         year, age, spouseAge,
         traditionalBalance: accountValue,
@@ -1003,7 +1208,7 @@ function runGIBaselineScenario(
         ssIncome,
         pensionIncome: 0,
         otherIncome,
-        totalIncome: otherIncome + ssIncome,
+        totalIncome,
         federalTax: 0,
         stateTax: 0,
         niitTax: 0,
@@ -1011,6 +1216,31 @@ function runGIBaselineScenario(
         totalTax: irmaaSurcharge,
         taxableSS: 0,
         netWorth: accountValue + taxableBalance,
+        // Extended fields for adjustable columns
+        traditionalBOY: boyTraditional,
+        rothBOY: 0,
+        taxableBOY: boyTaxable,
+        traditionalGrowth,
+        rothGrowth,
+        taxableGrowth,
+        productBonusApplied,
+        magi,
+        agi,
+        standardDeduction: deductions,
+        taxableIncome,
+        federalTaxBracket,
+        irmaaTier,
+        federalTaxOnSS: 0,
+        federalTaxOnConversions: 0,
+        federalTaxOnOrdinaryIncome: 0,
+        stateTaxOnSS: 0,
+        stateTaxOnConversions: 0,
+        stateTaxOnOrdinaryIncome: 0,
+        // GI-specific fields
+        incomeRiderValue: incomeBase,
+        accumulationValue: accountValue,
+        incomePayoutAmount: 0,
+        riderFee: 0,
       });
 
       giYearlyData.push({
@@ -1084,6 +1314,18 @@ function runGIBaselineScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
+      // Calculate tax details
+      const totalIncome = otherIncome + ssIncome;
+      const agi = calculateAGI(totalIncome);
+      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
+      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+
+      // Account growth this year (interest before rider fee)
+      const traditionalGrowth = accountInterest;
+      const rothGrowth = 0;
+      const taxableGrowth = taxableInterest;
+
       results.push({
         year, age, spouseAge,
         traditionalBalance: accountValue,
@@ -1094,7 +1336,7 @@ function runGIBaselineScenario(
         ssIncome,
         pensionIncome: 0,
         otherIncome,
-        totalIncome: otherIncome + ssIncome,
+        totalIncome,
         federalTax: 0,
         stateTax: 0,
         niitTax: 0,
@@ -1102,6 +1344,31 @@ function runGIBaselineScenario(
         totalTax: irmaaSurcharge,
         taxableSS: 0,
         netWorth: accountValue + taxableBalance,
+        // Extended fields for adjustable columns
+        traditionalBOY: boyAccount,
+        rothBOY: 0,
+        taxableBOY: boyTaxable,
+        traditionalGrowth,
+        rothGrowth,
+        taxableGrowth,
+        productBonusApplied: 0, // No bonus during deferral
+        magi,
+        agi,
+        standardDeduction: deductions,
+        taxableIncome,
+        federalTaxBracket,
+        irmaaTier,
+        federalTaxOnSS: 0,
+        federalTaxOnConversions: 0,
+        federalTaxOnOrdinaryIncome: 0,
+        stateTaxOnSS: 0,
+        stateTaxOnConversions: 0,
+        stateTaxOnOrdinaryIncome: 0,
+        // GI-specific fields
+        incomeRiderValue: incomeBase,
+        accumulationValue: accountValue,
+        incomePayoutAmount: 0,
+        riderFee: yearRiderFee,
       });
 
       giYearlyData.push({
@@ -1206,6 +1473,17 @@ function runGIBaselineScenario(
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
       taxableBalance = boyTaxable + grossGI + taxableInterest - totalTax;
 
+      // Calculate tax details
+      const totalIncome = grossTaxableIncome + ssIncome;
+      const agi = calculateAGI(totalIncome);
+      const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
+      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+
+      // Account growth this year (interest after payout, before rider fee)
+      const traditionalGrowth = accountInterest;
+      const rothGrowth = 0;
+      const taxableGrowth = taxableInterest;
+
       results.push({
         year, age, spouseAge,
         traditionalBalance: accountValue,
@@ -1216,7 +1494,7 @@ function runGIBaselineScenario(
         ssIncome,
         pensionIncome: 0,
         otherIncome,
-        totalIncome: grossTaxableIncome + ssIncome,
+        totalIncome,
         federalTax: federalResult.totalTax,
         stateTax: stateResult.totalTax,
         niitTax: 0,
@@ -1224,6 +1502,31 @@ function runGIBaselineScenario(
         totalTax,
         taxableSS: 0,
         netWorth: accountValue + taxableBalance,
+        // Extended fields for adjustable columns
+        traditionalBOY: boyAccount,
+        rothBOY: 0,
+        taxableBOY: boyTaxable,
+        traditionalGrowth,
+        rothGrowth,
+        taxableGrowth,
+        productBonusApplied: 0, // No bonus during income phase
+        magi,
+        agi,
+        standardDeduction: deductions,
+        taxableIncome,
+        federalTaxBracket,
+        irmaaTier,
+        federalTaxOnSS: 0,
+        federalTaxOnConversions: 0,
+        federalTaxOnOrdinaryIncome: federalResult.totalTax, // GI income is ordinary income (Traditional IRA)
+        stateTaxOnSS: 0,
+        stateTaxOnConversions: 0,
+        stateTaxOnOrdinaryIncome: stateResult.totalTax,
+        // GI-specific fields
+        incomeRiderValue: incomeBaseAtIncomeAge,
+        accumulationValue: accountValue,
+        incomePayoutAmount: grossGI,
+        riderFee: yearRiderFee,
       });
 
       giYearlyData.push({

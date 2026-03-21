@@ -6,6 +6,7 @@ import { calculateConversionStateTax } from '../modules/state-tax';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear } from '../utils/income';
+import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier } from '../tax-helpers';
 
 /**
  * Run Growth FIA Formula scenario: Roth conversions with FIA product features
@@ -158,6 +159,31 @@ export function runGrowthFormulaScenario(
     const totalTax = federalTax + stateTax;
     taxableBalance = boyTaxable - totalTax;
 
+    // Calculate taxable growth/interest for each account
+    const traditionalGrowth = iraInterest + (anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears
+      ? Math.round(iraBalance * anniversaryBonusPercent)
+      : 0);
+    const rothGrowth = rothInterest;
+    const taxableGrowth = 0; // No growth on taxable (just pays taxes)
+
+    // Calculate tax calculation details
+    const totalIncome = conversionAmount + otherIncome;
+    const agi = calculateAGI(totalIncome);
+    const magi = calculateMAGI(totalIncome);
+    const standardDeduction = deductions;
+    const taxableIncome = Math.max(0, totalIncome - standardDeduction);
+    const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status);
+    const irmaaTier = getIRMAATier(magi, client.filing_status);
+
+    // Product bonus applied this year (anniversary bonus if within bonus years)
+    const productBonusApplied = anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears
+      ? Math.round((iraAfterConversion + iraInterest) * anniversaryBonusPercent)
+      : 0;
+
+    // Tax component breakdown (all conversion tax, no SS or ordinary income in Growth FIA)
+    const federalTaxOnConversions = federalTax;
+    const stateTaxOnConversions = stateTax;
+
     results.push({
       year,
       age,
@@ -170,7 +196,7 @@ export function runGrowthFormulaScenario(
       ssIncome: 0,
       pensionIncome: 0,
       otherIncome,
-      totalIncome: conversionAmount + otherIncome,
+      totalIncome,
       federalTax,
       stateTax,
       niitTax: 0,
@@ -180,6 +206,26 @@ export function runGrowthFormulaScenario(
       netWorth: iraBalance + rothBalance + taxableBalance,
       surrenderChargePercent,
       surrenderValue,
+      // Extended fields for adjustable columns
+      traditionalBOY: boyIRA,
+      rothBOY: boyRoth,
+      taxableBOY: boyTaxable,
+      traditionalGrowth,
+      rothGrowth,
+      taxableGrowth,
+      productBonusApplied,
+      magi,
+      agi,
+      standardDeduction,
+      taxableIncome,
+      federalTaxBracket,
+      irmaaTier,
+      federalTaxOnSS: 0,
+      federalTaxOnConversions,
+      federalTaxOnOrdinaryIncome: 0,
+      stateTaxOnSS: 0,
+      stateTaxOnConversions,
+      stateTaxOnOrdinaryIncome: 0,
     });
   }
 

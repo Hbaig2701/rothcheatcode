@@ -174,6 +174,45 @@ export interface YearlyResult {
   // Cumulative after-tax distributions (for 'spent' RMD treatment)
   // Only populated in baseline scenario when rmd_treatment = 'spent'
   cumulativeDistributions?: number;
+
+  // ============================================================
+  // Extended fields for adjustable column feature
+  // ============================================================
+
+  // Beginning of year balances (in cents)
+  traditionalBOY?: number;
+  rothBOY?: number;
+  taxableBOY?: number;
+
+  // Account growth/interest (in cents)
+  traditionalGrowth?: number;
+  rothGrowth?: number;
+  taxableGrowth?: number;
+
+  // Product-specific (Growth FIA)
+  productBonusApplied?: number; // Annual bonus applied this year (in cents)
+
+  // Tax calculation details (in cents except percentages)
+  magi?: number; // Modified Adjusted Gross Income
+  agi?: number; // Adjusted Gross Income
+  standardDeduction?: number;
+  taxableIncome?: number;
+  federalTaxBracket?: number; // Marginal bracket as percentage (e.g., 22 for 22%)
+  irmaaTier?: number; // 0-5 (0 = standard, 5 = highest)
+
+  // Tax component breakdowns (in cents)
+  federalTaxOnSS?: number;
+  federalTaxOnConversions?: number;
+  federalTaxOnOrdinaryIncome?: number;
+  stateTaxOnSS?: number;
+  stateTaxOnConversions?: number;
+  stateTaxOnOrdinaryIncome?: number;
+
+  // Guaranteed Income-specific (optional, for GI products)
+  incomeRiderValue?: number; // Income benefit base (in cents)
+  accumulationValue?: number; // Account accumulation value (in cents)
+  incomePayoutAmount?: number; // Guaranteed income payout (in cents)
+  riderFee?: number; // Annual rider fee (in cents)
 }
 
 export interface SimulationInput {
