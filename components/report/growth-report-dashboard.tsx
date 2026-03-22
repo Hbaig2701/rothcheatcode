@@ -1,14 +1,18 @@
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useState, ReactNode, useEffect } from "react";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
 import type { YearlyResult } from "@/lib/calculations";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData } from "@/lib/calculations/transforms";
-import { ChevronDown, ChevronUp, Info, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Info, X, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
+import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
+import { ColumnSelectorModal } from "@/components/results/deep-dive/column-selector-modal";
+import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
+import { loadColumnPreferences, saveColumnPreferences, getDefaultColumns } from "@/lib/table-columns/storage";
 
 interface GrowthReportDashboardProps {
   client: Client;
@@ -30,6 +34,52 @@ const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
 export function GrowthReportDashboard({ client, projection }: GrowthReportDashboardProps) {
   const [tableView, setTableView] = useState<"strategy" | "baseline" | "comparison">("strategy");
   const [productDetailsOpen, setProductDetailsOpen] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
+
+  // Column customization state with SSR safety
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return getDefaultColumns("growth");
+    const saved = loadColumnPreferences(`report-${tableView}`);
+    return saved?.selectedColumns || getDefaultColumns("growth");
+  });
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    if (typeof window === 'undefined') return {};
+    const saved = loadColumnPreferences(`report-${tableView}`);
+    return saved?.columnWidths || {};
+  });
+
+  // Update selected columns when switching table views
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = loadColumnPreferences(`report-${tableView}`);
+    if (saved?.selectedColumns) {
+      setSelectedColumns(saved.selectedColumns);
+      setColumnWidths(saved.columnWidths || {});
+    } else {
+      setSelectedColumns(getDefaultColumns("growth"));
+      setColumnWidths({});
+    }
+  }, [tableView]);
+
+  const handleSaveColumns = (columns: string[]) => {
+    setSelectedColumns(columns);
+    saveColumnPreferences(`report-${tableView}`, {
+      selectedColumns: columns,
+      columnWidths,
+      lastUpdated: new Date().toISOString(),
+    });
+  };
+
+  const handleWidthChange = (columnId: string, width: number) => {
+    const newWidths = { ...columnWidths, [columnId]: width };
+    setColumnWidths(newWidths);
+    saveColumnPreferences(`report-${tableView}`, {
+      selectedColumns,
+      columnWidths: newWidths,
+      lastUpdated: new Date().toISOString(),
+    });
+  };
 
   const chartData = transformToChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
@@ -373,50 +423,73 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
               Year-by-Year Projection
             </p>
-            <div className="flex bg-[rgba(255,255,255,0.04)] rounded-lg p-1">
+            <div className="flex items-center gap-3">
+              {/* Adjust Columns button */}
               <button
-                onClick={() => setTableView("strategy")}
-                className={cn(
-                  "px-4 py-1.5 text-sm rounded-md transition-colors",
-                  tableView === "strategy"
-                    ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
-                )}
+                onClick={() => setColumnModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors"
               >
-                Strategy
+                <Settings2 className="h-4 w-4" />
+                Adjust Columns
               </button>
-              <button
-                onClick={() => setTableView("baseline")}
-                className={cn(
-                  "px-4 py-1.5 text-sm rounded-md transition-colors",
-                  tableView === "baseline"
-                    ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
-                )}
-              >
-                Baseline
-              </button>
-              <button
-                onClick={() => setTableView("comparison")}
-                className={cn(
-                  "px-4 py-1.5 text-sm rounded-md transition-colors",
-                  tableView === "comparison"
-                    ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
-                )}
-              >
-                Comparison
-              </button>
+              {/* View tabs */}
+              <div className="flex bg-[rgba(255,255,255,0.04)] rounded-lg p-1">
+                <button
+                  onClick={() => setTableView("strategy")}
+                  className={cn(
+                    "px-4 py-1.5 text-sm rounded-md transition-colors",
+                    tableView === "strategy"
+                      ? "bg-gold text-[#0c0c0c] font-medium"
+                      : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                  )}
+                >
+                  Strategy
+                </button>
+                <button
+                  onClick={() => setTableView("baseline")}
+                  className={cn(
+                    "px-4 py-1.5 text-sm rounded-md transition-colors",
+                    tableView === "baseline"
+                      ? "bg-gold text-[#0c0c0c] font-medium"
+                      : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                  )}
+                >
+                  Baseline
+                </button>
+                <button
+                  onClick={() => setTableView("comparison")}
+                  className={cn(
+                    "px-4 py-1.5 text-sm rounded-md transition-colors",
+                    tableView === "comparison"
+                      ? "bg-gold text-[#0c0c0c] font-medium"
+                      : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                  )}
+                >
+                  Comparison
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
+          <div className="p-6">
             {tableView === "strategy" && (
-              <StrategyTable years={projection.blueprint_years} client={client} />
+              <ResizableTable
+                columns={COLUMN_DEFINITIONS.filter(col => selectedColumns.includes(col.id))}
+                data={projection.blueprint_years}
+                columnWidths={columnWidths}
+                onColumnWidthChange={handleWidthChange}
+                frozenColumnCount={3}
+              />
             )}
             {tableView === "baseline" && (
-              <BaselineTable years={projection.baseline_years} client={client} />
+              <ResizableTable
+                columns={COLUMN_DEFINITIONS.filter(col => selectedColumns.includes(col.id))}
+                data={projection.baseline_years}
+                columnWidths={columnWidths}
+                onColumnWidthChange={handleWidthChange}
+                frozenColumnCount={3}
+              />
             )}
             {tableView === "comparison" && (
               <ComparisonTable
@@ -427,6 +500,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             )}
           </div>
         </div>
+
+        {/* Column Selector Modal */}
+        <ColumnSelectorModal
+          open={columnModalOpen}
+          onClose={() => setColumnModalOpen(false)}
+          selectedColumns={selectedColumns}
+          onSave={handleSaveColumns}
+          productType="growth"
+        />
 
         {/* Section 7: Disclaimer */}
         <p className="text-sm text-[rgba(255,255,255,0.55)] italic text-center max-w-[900px] mx-auto py-6">
