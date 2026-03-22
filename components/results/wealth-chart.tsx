@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -18,6 +19,21 @@ interface WealthChartProps {
 }
 
 export function WealthChart({ data, breakEvenAge }: WealthChartProps) {
+  // Fix SSR issue: Only render chart on client side after mount
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return (
+      <div className="h-full w-full flex items-center justify-center">
+        <div className="text-sm text-[rgba(255,255,255,0.55)]">Loading chart...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full">
       {/* CRITICAL: Parent div MUST have explicit height for ResponsiveContainer */}
