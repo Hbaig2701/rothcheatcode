@@ -111,10 +111,13 @@ export function ColumnSelectorModal({
     onClose();
   };
 
+  if (!open) return null;
+
   return (
-    <Dialog.Root open={open} onOpenChange={(isOpen) => !isOpen && handleCancel()}>
-      <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
-      <Dialog.Popup className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#1a1a1a] rounded-xl shadow-2xl border border-white/10 w-[650px] max-h-[85vh] overflow-hidden">
+    <Dialog.Root open={open} onOpenChange={(newOpen) => { if (!newOpen) handleCancel(); }}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
+        <Dialog.Popup className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#1a1a1a] rounded-xl shadow-2xl border border-white/10 w-[650px] max-h-[85vh] overflow-hidden">
         {/* Header */}
         <div className="px-6 py-5 border-b border-white/10">
           <Dialog.Title className="text-xl font-semibold text-white">
@@ -204,6 +207,7 @@ export function ColumnSelectorModal({
           </div>
         </div>
       </Dialog.Popup>
+      </Dialog.Portal>
     </Dialog.Root>
   );
 }
