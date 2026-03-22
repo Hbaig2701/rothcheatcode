@@ -10,7 +10,7 @@
  * - Cancel/Apply buttons
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
 import {
   COLUMN_DEFINITIONS,
@@ -49,11 +49,11 @@ export function ColumnSelectorModal({
   const [tempSelection, setTempSelection] = useState<string[]>(selectedColumns);
 
   // Reset temp selection when modal opens
-  useState(() => {
+  useEffect(() => {
     if (open) {
       setTempSelection(selectedColumns);
     }
-  });
+  }, [open, selectedColumns]);
 
   // Filter columns by product type
   const availableColumns = useMemo(
