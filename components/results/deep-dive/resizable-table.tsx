@@ -111,10 +111,10 @@ export function ResizableTable({
   };
 
   return (
-    <div className="relative border border-white/10 rounded-lg overflow-hidden bg-[#0a0a0a]">
+    <div className="relative border border-white/10 rounded-lg overflow-hidden bg-[#0a0a0a] w-full">
       {/* Single scrollable container for vertical scroll */}
-      <div className="max-h-[600px] overflow-y-auto">
-        <div className="flex">
+      <div className="max-h-[600px] overflow-y-auto w-full">
+        <div className="flex min-w-0">
           {/* Frozen columns (left) - sticky position */}
           {frozenColumns.length > 0 && (
             <div className="flex-shrink-0 border-r-2 border-[#d4af37]/30 sticky left-0 z-10 bg-[#0a0a0a]">

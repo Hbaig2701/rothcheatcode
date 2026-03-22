@@ -472,7 +472,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           </div>
 
           {/* Table */}
-          <div className="p-6">
+          <div className="p-6 overflow-x-auto">
             {tableView === "strategy" && (
               <ResizableTable
                 columns={COLUMN_DEFINITIONS.filter(col => selectedColumns.includes(col.id))}
