@@ -112,46 +112,49 @@ export function ResizableTable({
 
   return (
     <div className="relative border border-white/10 rounded-lg overflow-hidden bg-[#0a0a0a]">
-      <div className="flex max-h-[600px] overflow-hidden">
-        {/* Frozen columns (left) */}
-        {frozenColumns.length > 0 && (
-          <div className="flex-shrink-0 border-r-2 border-[#d4af37]/30 overflow-hidden">
-            <table className="border-collapse">
-              <thead>
-                <tr>
-                  {frozenColumns.map(renderHeader)}
-                </tr>
-              </thead>
-              <tbody className="overflow-y-auto">
-                {data.map((row, idx) => (
-                  <tr key={idx}>
-                    {frozenColumns.map((col) => renderCell(col, row, idx))}
+      {/* Single scrollable container for vertical scroll */}
+      <div className="max-h-[600px] overflow-y-auto">
+        <div className="flex">
+          {/* Frozen columns (left) - sticky position */}
+          {frozenColumns.length > 0 && (
+            <div className="flex-shrink-0 border-r-2 border-[#d4af37]/30 sticky left-0 z-10 bg-[#0a0a0a]">
+              <table className="border-collapse">
+                <thead className="sticky top-0 z-20 bg-[#1a1a1a]">
+                  <tr>
+                    {frozenColumns.map(renderHeader)}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {data.map((row, idx) => (
+                    <tr key={idx}>
+                      {frozenColumns.map((col) => renderCell(col, row, idx))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-        {/* Scrollable columns (right) */}
-        {scrollableColumns.length > 0 && (
-          <div className="flex-1 overflow-x-auto overflow-y-auto">
-            <table className="border-collapse w-full">
-              <thead>
-                <tr>
-                  {scrollableColumns.map(renderHeader)}
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((row, idx) => (
-                  <tr key={idx}>
-                    {scrollableColumns.map((col) => renderCell(col, row, idx))}
+          {/* Scrollable columns (right) - horizontal scroll only */}
+          {scrollableColumns.length > 0 && (
+            <div className="flex-1 overflow-x-auto">
+              <table className="border-collapse w-full">
+                <thead className="sticky top-0 z-10 bg-[#1a1a1a]">
+                  <tr>
+                    {scrollableColumns.map(renderHeader)}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {data.map((row, idx) => (
+                    <tr key={idx}>
+                      {scrollableColumns.map((col) => renderCell(col, row, idx))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Empty state */}

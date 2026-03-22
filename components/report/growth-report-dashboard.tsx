@@ -479,7 +479,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 data={projection.blueprint_years}
                 columnWidths={columnWidths}
                 onColumnWidthChange={handleWidthChange}
-                frozenColumnCount={3}
+                frozenColumnCount={2}
               />
             )}
             {tableView === "baseline" && (
@@ -488,7 +488,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 data={projection.baseline_years}
                 columnWidths={columnWidths}
                 onColumnWidthChange={handleWidthChange}
-                frozenColumnCount={3}
+                frozenColumnCount={2}
               />
             )}
             {tableView === "comparison" && (
