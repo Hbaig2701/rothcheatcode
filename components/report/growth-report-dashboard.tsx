@@ -6,9 +6,13 @@ import type { Client } from "@/lib/types/client";
 import type { YearlyResult } from "@/lib/calculations";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData } from "@/lib/calculations/transforms";
-import { ChevronDown, ChevronUp, Info, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Info, X, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
+import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
+import { ColumnSelectorModal } from "@/components/results/deep-dive/column-selector-modal";
+import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
+import { loadColumnPreferences, saveColumnPreferences, getDefaultColumns } from "@/lib/table-columns/storage";
 
 interface GrowthReportDashboardProps {
   client: Client;
@@ -30,6 +34,56 @@ const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
 export function GrowthReportDashboard({ client, projection }: GrowthReportDashboardProps) {
   const [tableView, setTableView] = useState<"strategy" | "baseline" | "comparison">("strategy");
   const [productDetailsOpen, setProductDetailsOpen] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
+
+  // Column preferences state (separate for each table view)
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(() => {
+    const saved = loadColumnPreferences(`report-${tableView}`);
+    return saved?.selectedColumns || getDefaultColumns("growth");
+  });
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    const saved = loadColumnPreferences(`report-${tableView}`);
+    return saved?.columnWidths || {};
+  });
+
+  // Handlers for column customization
+  const handleSaveColumns = (columns: string[]) => {
+    setSelectedColumns(columns);
+    saveColumnPreferences(`report-${tableView}`, {
+      selectedColumns: columns,
+      columnWidths,
+      lastUpdated: new Date().toISOString(),
+    });
+  };
+
+  const handleWidthChange = (columnId: string, width: number) => {
+    const newWidths = { ...columnWidths, [columnId]: width };
+    setColumnWidths(newWidths);
+    saveColumnPreferences(`report-${tableView}`, {
+      selectedColumns,
+      columnWidths: newWidths,
+      lastUpdated: new Date().toISOString(),
+    });
+  };
+
+  // Load preferences when switching table views
+  const handleTableViewChange = (view: "strategy" | "baseline" | "comparison") => {
+    setTableView(view);
+    const saved = loadColumnPreferences(`report-${view}`);
+    if (saved) {
+      setSelectedColumns(saved.selectedColumns);
+      setColumnWidths(saved.columnWidths);
+    } else {
+      setSelectedColumns(getDefaultColumns("growth"));
+      setColumnWidths({});
+    }
+  };
+
+  // Get active column definitions
+  const activeColumns = COLUMN_DEFINITIONS.filter((col) =>
+    selectedColumns.includes(col.id)
+  );
 
   const chartData = transformToChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
@@ -373,58 +427,70 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
               Year-by-Year Projection
             </p>
-            <div className="flex bg-[rgba(255,255,255,0.04)] rounded-lg p-1">
+            <div className="flex items-center gap-3">
+              {/* Adjust Columns button */}
               <button
-                onClick={() => setTableView("strategy")}
-                className={cn(
-                  "px-4 py-1.5 text-sm rounded-md transition-colors",
-                  tableView === "strategy"
-                    ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
-                )}
+                onClick={() => setColumnModalOpen(true)}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white hover:bg-white/10 transition-colors"
               >
-                Strategy
+                <Settings2 className="h-4 w-4" />
+                Adjust Columns
               </button>
-              <button
-                onClick={() => setTableView("baseline")}
-                className={cn(
-                  "px-4 py-1.5 text-sm rounded-md transition-colors",
-                  tableView === "baseline"
-                    ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
-                )}
-              >
-                Baseline
-              </button>
-              <button
-                onClick={() => setTableView("comparison")}
-                className={cn(
-                  "px-4 py-1.5 text-sm rounded-md transition-colors",
-                  tableView === "comparison"
-                    ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
-                )}
-              >
-                Comparison
-              </button>
+
+              {/* Table view tabs */}
+              <div className="flex bg-[rgba(255,255,255,0.04)] rounded-lg p-1">
+                <button
+                  onClick={() => handleTableViewChange("strategy")}
+                  className={cn(
+                    "px-4 py-1.5 text-sm rounded-md transition-colors",
+                    tableView === "strategy"
+                      ? "bg-gold text-[#0c0c0c] font-medium"
+                      : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                  )}
+                >
+                  Strategy
+                </button>
+                <button
+                  onClick={() => handleTableViewChange("baseline")}
+                  className={cn(
+                    "px-4 py-1.5 text-sm rounded-md transition-colors",
+                    tableView === "baseline"
+                      ? "bg-gold text-[#0c0c0c] font-medium"
+                      : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                  )}
+                >
+                  Baseline
+                </button>
+                <button
+                  onClick={() => handleTableViewChange("comparison")}
+                  className={cn(
+                    "px-4 py-1.5 text-sm rounded-md transition-colors",
+                    tableView === "comparison"
+                      ? "bg-gold text-[#0c0c0c] font-medium"
+                      : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                  )}
+                >
+                  Comparison
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
-            {tableView === "strategy" && (
-              <StrategyTable years={projection.blueprint_years} client={client} />
-            )}
-            {tableView === "baseline" && (
-              <BaselineTable years={projection.baseline_years} client={client} />
-            )}
-            {tableView === "comparison" && (
-              <ComparisonTable
-                strategyYears={projection.blueprint_years}
-                baselineYears={projection.baseline_years}
-                heirTaxRate={heirTaxRate}
-              />
-            )}
+          <div className="p-4">
+            <ResizableTable
+              columns={activeColumns}
+              data={
+                tableView === "strategy"
+                  ? projection.blueprint_years
+                  : tableView === "baseline"
+                  ? projection.baseline_years
+                  : projection.blueprint_years
+              }
+              columnWidths={columnWidths}
+              onColumnWidthChange={handleWidthChange}
+              frozenColumnCount={2}
+            />
           </div>
         </div>
 
@@ -437,6 +503,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           be considered tax or investment advice. Consult a qualified professional before making financial decisions.
         </p>
       </div>
+
+      {/* Column Selector Modal */}
+      <ColumnSelectorModal
+        open={columnModalOpen}
+        onClose={() => setColumnModalOpen(false)}
+        selectedColumns={selectedColumns}
+        onSave={handleSaveColumns}
+        productType="growth"
+      />
     </div>
   );
 }
