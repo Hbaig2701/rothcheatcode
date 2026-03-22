@@ -38,11 +38,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
   // Column preferences state (separate for each table view)
   const [selectedColumns, setSelectedColumns] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return getDefaultColumns("growth");
     const saved = loadColumnPreferences(`report-${tableView}`);
     return saved?.selectedColumns || getDefaultColumns("growth");
   });
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    if (typeof window === 'undefined') return {};
     const saved = loadColumnPreferences(`report-${tableView}`);
     return saved?.columnWidths || {};
   });
@@ -70,6 +72,11 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // Load preferences when switching table views
   const handleTableViewChange = (view: "strategy" | "baseline" | "comparison") => {
     setTableView(view);
+    if (typeof window === 'undefined') {
+      setSelectedColumns(getDefaultColumns("growth"));
+      setColumnWidths({});
+      return;
+    }
     const saved = loadColumnPreferences(`report-${view}`);
     if (saved) {
       setSelectedColumns(saved.selectedColumns);
