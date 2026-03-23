@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/welcome?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
       billing_address_collection: "required",
+      allow_promotion_codes: true,
     };
 
     const session = await stripe.checkout.sessions.create(

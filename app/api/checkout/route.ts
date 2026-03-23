@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/plans`,
       billing_address_collection: "required",
       metadata,
-      allow_promotion_codes: false, // Disabled - no promo codes at checkout
+      allow_promotion_codes: true,
     };
 
     // Reuse existing customer if found, otherwise prefill email
