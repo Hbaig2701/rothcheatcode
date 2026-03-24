@@ -9,11 +9,14 @@ import {
   ThumbsUp,
   AlertTriangle,
   ListChecks,
-  Sparkles,
   BarChart3,
   RefreshCw,
   Trash2,
   Clock,
+  ShieldAlert,
+  Target,
+  MessageSquareQuote,
+  Quote,
 } from 'lucide-react';
 import { useSalesCall, useReanalyzeSalesCall, useDeleteSalesCall } from '@/lib/queries/sales-calls';
 import { ScoreBadge } from '@/components/sales-calls/score-badge';
@@ -21,6 +24,23 @@ import { AnalysisCard } from '@/components/sales-calls/analysis-card';
 import { MetricsDisplay } from '@/components/sales-calls/metrics-display';
 import { TranscriptViewer } from '@/components/sales-calls/transcript-viewer';
 import { Button } from '@/components/ui/button';
+
+const CALL_STAGE_LABELS: Record<string, string> = {
+  prospecting: 'Prospecting',
+  discovery: 'Discovery',
+  pain_presentation: 'Pain Presentation',
+  solution_presentation: 'Solution Presentation',
+  objection_handling: 'Objection Handling',
+  close: 'Close',
+};
+
+const GRADE_COLORS: Record<string, string> = {
+  A: 'text-green-400 bg-green-500/10 border-green-500/20',
+  B: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+  C: 'text-yellow-400 bg-yellow-500/10 border-yellow-500/20',
+  D: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+  F: 'text-red-400 bg-red-500/10 border-red-500/20',
+};
 
 export default function SalesCallDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -115,14 +135,29 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
                 {formatDuration(call.duration_seconds)}
               </span>
             )}
+            {analysis?.callStage && (
+              <span className="rounded-md bg-[rgba(255,255,255,0.06)] px-2 py-0.5 text-xs font-medium text-[rgba(255,255,255,0.6)]">
+                {CALL_STAGE_LABELS[analysis.callStage] || analysis.callStage}
+              </span>
+            )}
           </div>
           {call.notes && (
             <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">{call.notes}</p>
           )}
         </div>
 
-        {call.overall_score !== null && call.status === 'complete' && (
-          <ScoreBadge score={call.overall_score} size="lg" />
+        {/* Score + Grade */}
+        {call.status === 'complete' && analysis && (
+          <div className="flex items-center gap-3">
+            {analysis.letterGrade && (
+              <span className={`inline-flex items-center justify-center h-12 w-12 rounded-xl border text-xl font-bold ${GRADE_COLORS[analysis.letterGrade] || GRADE_COLORS.C}`}>
+                {analysis.letterGrade}
+              </span>
+            )}
+            {analysis.overallScore != null && (
+              <ScoreBadge score={Math.round(analysis.overallScore * 10)} size="lg" />
+            )}
+          </div>
         )}
       </div>
 
@@ -177,66 +212,92 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
             </p>
           </AnalysisCard>
 
-          {/* Metrics */}
+          {/* Performance Metrics (8 dimensions with expandable coaching notes) */}
           <AnalysisCard title="Performance Metrics" icon={BarChart3}>
             <MetricsDisplay metrics={analysis.metrics} />
           </AnalysisCard>
 
-          {/* Strengths */}
-          <AnalysisCard title="Strengths" icon={ThumbsUp} variant="success">
-            <ul className="space-y-2.5">
-              {analysis.strengths.map((strength, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm text-[rgba(255,255,255,0.8)]">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-green-400 flex-shrink-0" />
-                  {strength}
-                </li>
-              ))}
-            </ul>
-          </AnalysisCard>
+          {/* Moments Done Well */}
+          {analysis.momentsDoneWell && analysis.momentsDoneWell.length > 0 && (
+            <AnalysisCard title="Top Moments Done Well" icon={ThumbsUp} variant="success">
+              <ul className="space-y-4">
+                {analysis.momentsDoneWell.map((moment, i) => (
+                  <li key={i} className="space-y-1.5">
+                    <div className="flex items-start gap-2.5">
+                      <Quote className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-[rgba(255,255,255,0.6)] italic">
+                        &ldquo;{moment.quote}&rdquo;
+                      </p>
+                    </div>
+                    <p className="text-sm text-[rgba(255,255,255,0.8)] pl-[26px]">
+                      {moment.explanation}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </AnalysisCard>
+          )}
 
-          {/* Improvements */}
-          <AnalysisCard title="Areas for Improvement" icon={AlertTriangle} variant="warning">
-            <ul className="space-y-2.5">
-              {analysis.improvements.map((improvement, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm text-[rgba(255,255,255,0.8)]">
-                  <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-yellow-400 flex-shrink-0" />
-                  {improvement}
-                </li>
-              ))}
-            </ul>
-          </AnalysisCard>
+          {/* Missed Opportunities */}
+          {analysis.missedOpportunities && analysis.missedOpportunities.length > 0 && (
+            <AnalysisCard title="Missed Opportunities" icon={Target} variant="warning">
+              <ul className="space-y-5">
+                {analysis.missedOpportunities.map((opp, i) => (
+                  <li key={i} className="space-y-2">
+                    <div className="flex items-start gap-2.5">
+                      <Quote className="h-4 w-4 text-yellow-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-sm text-[rgba(255,255,255,0.6)] italic">
+                        &ldquo;{opp.quote}&rdquo;
+                      </p>
+                    </div>
+                    <p className="text-sm text-[rgba(255,255,255,0.8)] pl-[26px]">
+                      {opp.explanation}
+                    </p>
+                    <div className="ml-[26px] rounded-md bg-gold/5 border border-gold/10 px-3 py-2">
+                      <p className="text-xs text-[rgba(255,255,255,0.5)] mb-1 font-medium uppercase tracking-wider">Better language:</p>
+                      <p className="text-sm text-gold italic">
+                        &ldquo;{opp.betterLanguage}&rdquo;
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </AnalysisCard>
+          )}
 
-          {/* Next Steps */}
-          <AnalysisCard title="Actionable Next Steps" icon={ListChecks}>
-            <ul className="space-y-2.5">
-              {analysis.nextSteps.map((step, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-sm text-[rgba(255,255,255,0.8)]">
-                  <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-md bg-gold/10 text-gold text-xs font-bold flex-shrink-0">
-                    {i + 1}
-                  </span>
-                  {step}
-                </li>
-              ))}
-            </ul>
-          </AnalysisCard>
+          {/* Compliance Flags */}
+          {analysis.complianceFlags && analysis.complianceFlags.length > 0 && (
+            <AnalysisCard title="Compliance Flags" icon={ShieldAlert} variant="warning">
+              <ul className="space-y-4">
+                {analysis.complianceFlags.map((flag, i) => (
+                  <li key={i} className="rounded-md bg-red-500/5 border border-red-500/15 p-3 space-y-1.5">
+                    <p className="text-xs font-semibold text-red-400 uppercase tracking-wider">
+                      {flag.issue}
+                    </p>
+                    <p className="text-sm text-[rgba(255,255,255,0.6)] italic">
+                      &ldquo;{flag.quote}&rdquo;
+                    </p>
+                    <p className="text-sm text-[rgba(255,255,255,0.8)]">
+                      {flag.concern}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </AnalysisCard>
+          )}
 
-          {/* Key Moments */}
-          {analysis.keyMoments && analysis.keyMoments.length > 0 && (
-            <AnalysisCard title="Key Moments" icon={Sparkles}>
+          {/* Priority Action Items */}
+          {analysis.priorityActions && analysis.priorityActions.length > 0 && (
+            <AnalysisCard title="Priority Action Items" icon={ListChecks}>
               <ul className="space-y-2.5">
-                {analysis.keyMoments.map((moment, i) => {
-                  const dotColor = {
-                    positive: 'bg-green-400',
-                    negative: 'bg-red-400',
-                    neutral: 'bg-[rgba(255,255,255,0.4)]',
-                  }[moment.sentiment];
-                  return (
-                    <li key={i} className="flex items-start gap-2.5 text-sm text-[rgba(255,255,255,0.8)]">
-                      <span className={`mt-1.5 h-1.5 w-1.5 rounded-full ${dotColor} flex-shrink-0`} />
-                      {moment.description}
-                    </li>
-                  );
-                })}
+                {analysis.priorityActions.map((action, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm text-[rgba(255,255,255,0.8)]">
+                    <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-md bg-gold/10 text-gold text-xs font-bold flex-shrink-0">
+                      {i + 1}
+                    </span>
+                    {action}
+                  </li>
+                ))}
               </ul>
             </AnalysisCard>
           )}
