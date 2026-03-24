@@ -10,11 +10,12 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar'
 import { LogoutButton } from '@/components/logout-button'
-import { LayoutDashboard, Users, Settings, FileText, Video } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, FileText, Video, Mic } from 'lucide-react'
 
 const navItems = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { title: 'Clients', href: '/clients', icon: Users },
+  { title: 'Sales Calls', href: '/sales-calls', icon: Mic },
   { title: 'Report History', href: '/reports', icon: FileText },
 ]
 
