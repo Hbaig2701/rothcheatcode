@@ -84,6 +84,14 @@ export function ResizableTable({
     const width = getColumnWidth(col);
     const isLastFrozen = isFrozen && frozenIndex === frozenColumns.length - 1;
 
+    // Frozen headers: sticky top + left (z-30)
+    // Scrollable headers: sticky top only (z-20)
+    const stickyStyle: React.CSSProperties = {
+      position: 'sticky',
+      top: 0,
+      ...(isFrozen ? { left: `${frozenOffsets[frozenIndex]}px`, zIndex: 30 } : { zIndex: 20 }),
+    };
+
     return (
       <th
         key={col.id}
@@ -91,7 +99,7 @@ export function ResizableTable({
           width: `${width}px`,
           minWidth: `${width}px`,
           maxWidth: `${width}px`,
-          ...(isFrozen ? { position: 'sticky' as const, left: `${frozenOffsets[frozenIndex]}px`, zIndex: 30 } : {}),
+          ...stickyStyle,
         }}
         className={`
           relative border-b border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-left text-xs font-semibold text-white/70 uppercase tracking-wider
@@ -142,8 +150,8 @@ export function ResizableTable({
     <div className="relative border border-white/10 rounded-lg overflow-hidden bg-[#0a0a0a] w-full">
       {/* Single scrollable container */}
       <div className="max-h-[600px] overflow-auto w-full">
-        <table className="border-collapse w-max">
-          <thead className="sticky top-0 z-20">
+        <table className="w-max" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+          <thead>
             <tr>
               {frozenColumns.map((col, i) => renderHeader(col, true, i))}
               {scrollableColumns.map((col) => renderHeader(col, false, -1))}
