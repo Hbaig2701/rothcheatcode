@@ -14,6 +14,7 @@ import { calculateIRMAAWithLookback, calculateIRMAAHeadroom } from '../modules/i
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
+import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier } from '../tax-helpers';
 
 /**
  * Run Formula scenario: strategic Roth conversions
@@ -253,6 +254,12 @@ export function runFormulaScenario(
     // Determine tax bracket
     const bracket = determineTaxBracket(taxableIncomeWithConversion, client.filing_status, year);
 
+    // Extended fields for adjustable columns
+    const totalIncome = grossIncomeWithConversion + ssIncome;
+    const agi = calculateAGI(totalIncome);
+    const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+    const federalTaxBracket = getMarginalBracket(taxableIncomeWithConversion, client.filing_status, year);
+
     results.push({
       year,
       age,
@@ -265,14 +272,34 @@ export function runFormulaScenario(
       ssIncome,
       pensionIncome: 0,
       otherIncome,
-      totalIncome: grossIncomeWithConversion + ssIncome,
+      totalIncome,
       federalTax: federalConversionTax,
       stateTax: stateConversionTax,
       niitTax: 0,
       irmaaSurcharge,
       totalTax,
       taxableSS: 0, // SSI is tax-exempt per simplified model
-      netWorth: iraBalance + rothBalance + taxableBalance
+      netWorth: iraBalance + rothBalance + taxableBalance,
+      // Extended fields for adjustable columns
+      traditionalBOY: boyIRA,
+      rothBOY: boyRoth,
+      taxableBOY: boyTaxable,
+      traditionalGrowth: iraInterest,
+      rothGrowth: rothInterest,
+      taxableGrowth: 0, // No growth on taxable (just pays taxes)
+      productBonusApplied: 0, // Bonus applied at year 0 only (in initial balance)
+      magi,
+      agi,
+      standardDeduction: deductions,
+      taxableIncome: taxableIncomeWithConversion,
+      federalTaxBracket,
+      irmaaTier,
+      federalTaxOnSS: 0,
+      federalTaxOnConversions: federalConversionTax,
+      federalTaxOnOrdinaryIncome: 0,
+      stateTaxOnSS: 0,
+      stateTaxOnConversions: stateConversionTax,
+      stateTaxOnOrdinaryIncome: 0,
     });
   }
 

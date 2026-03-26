@@ -64,7 +64,27 @@ export function runGrowthBaselineScenario(
       irmaaSurcharge: 0,
       totalTax: 0,
       taxableSS: 0,
-      netWorth: iraBalance // Just the traditional IRA balance
+      netWorth: iraBalance, // Just the traditional IRA balance
+      // Extended fields for adjustable columns
+      traditionalBOY: boyIRA,
+      rothBOY: 0,
+      taxableBOY: 0,
+      traditionalGrowth: interest,
+      rothGrowth: 0,
+      taxableGrowth: 0,
+      productBonusApplied: 0,
+      magi: 0,
+      agi: 0,
+      standardDeduction: 0,
+      taxableIncome: 0,
+      federalTaxBracket: 0,
+      irmaaTier: 0,
+      federalTaxOnSS: 0,
+      federalTaxOnConversions: 0,
+      federalTaxOnOrdinaryIncome: 0,
+      stateTaxOnSS: 0,
+      stateTaxOnConversions: 0,
+      stateTaxOnOrdinaryIncome: 0,
     });
   }
 

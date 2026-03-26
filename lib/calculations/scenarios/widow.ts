@@ -9,6 +9,7 @@ import { calculateNIIT } from '../modules/niit';
 import { calculateIRMAA } from '../modules/irmaa';
 import { adjustForInflation } from '../modules/inflation';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getMarginalBracket, getIRMAATier } from '../tax-helpers';
 
 export interface WidowScenarioInput {
   client: Client;
@@ -58,9 +59,16 @@ export function runWidowScenario(
     const age = ageAtDeath + yearOffset;
     const totalYearsFromNow = deathYearOffset + yearOffset;
 
+    // Beginning of Year balances
+    const boyTraditional = traditionalBalance;
+    const boyRoth = rothBalance;
+    const boyTaxable = taxableBalance;
+
     // Apply growth
-    traditionalBalance += Math.round(traditionalBalance * growthRate);
-    rothBalance += Math.round(rothBalance * growthRate);
+    const traditionalGrowthAmt = Math.round(traditionalBalance * growthRate);
+    traditionalBalance += traditionalGrowthAmt;
+    const rothGrowthAmt = Math.round(rothBalance * growthRate);
+    rothBalance += rothGrowthAmt;
     const taxableGrowth = Math.round(taxableBalance * growthRate);
     taxableBalance += taxableGrowth;
 
@@ -145,6 +153,11 @@ export function runWidowScenario(
                      niitResult.taxAmount + irmaaResult.annualSurcharge;
     taxableBalance -= totalTax;
 
+    // Extended field calculations
+    const magi = grossIncome; // Simplified MAGI for widow
+    const federalTaxBracket = getMarginalBracket(taxableIncome, 'single', year);
+    const irmaaTier = getIRMAATier(magi, 'single', year);
+
     results.push({
       year,
       age,
@@ -164,7 +177,27 @@ export function runWidowScenario(
       irmaaSurcharge: irmaaResult.annualSurcharge,
       totalTax,
       taxableSS: ssResult.taxableAmount,
-      netWorth: traditionalBalance + rothBalance + taxableBalance
+      netWorth: traditionalBalance + rothBalance + taxableBalance,
+      // Extended fields for adjustable columns
+      traditionalBOY: boyTraditional,
+      rothBOY: boyRoth,
+      taxableBOY: boyTaxable,
+      traditionalGrowth: traditionalGrowthAmt,
+      rothGrowth: rothGrowthAmt,
+      taxableGrowth,
+      productBonusApplied: 0,
+      magi,
+      agi: grossIncome,
+      standardDeduction: deductions,
+      taxableIncome,
+      federalTaxBracket,
+      irmaaTier,
+      federalTaxOnSS: 0, // SS taxation handled via ssResult.taxableAmount inclusion in grossIncome
+      federalTaxOnConversions: 0,
+      federalTaxOnOrdinaryIncome: federalResult.totalTax,
+      stateTaxOnSS: 0,
+      stateTaxOnConversions: 0,
+      stateTaxOnOrdinaryIncome: stateResult.totalTax,
     });
   }
 
