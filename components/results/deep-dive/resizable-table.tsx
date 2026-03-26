@@ -39,8 +39,9 @@ export function ResizableTable({
 
   const showTooltip = useCallback((columnId: string, e: React.MouseEvent) => {
     if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+    // Capture rect immediately — e.currentTarget is null after the event completes
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     tooltipTimeoutRef.current = setTimeout(() => {
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       setTooltip({ columnId, x: rect.left + rect.width / 2, y: rect.top });
     }, 400);
   }, []);
