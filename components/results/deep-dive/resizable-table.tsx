@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type { ColumnDefinition } from '@/lib/table-columns/column-definitions';
 import type { YearlyResult } from '@/lib/calculations/types';
 
@@ -174,10 +175,10 @@ export function ResizableTable({
 
   return (
     <div className="relative border border-white/10 rounded-lg overflow-hidden bg-[#0a0a0a] w-full">
-      {/* Column description tooltip */}
-      {tooltip && tooltipColumn?.description && (
+      {/* Column description tooltip - rendered via portal to escape overflow-hidden */}
+      {tooltip && tooltipColumn?.description && createPortal(
         <div
-          className="fixed z-50 pointer-events-none"
+          className="fixed z-[9999] pointer-events-none"
           style={{
             left: `${tooltip.x}px`,
             top: `${tooltip.y - 8}px`,
@@ -192,7 +193,8 @@ export function ResizableTable({
           <div className="flex justify-center">
             <div className="w-2 h-2 bg-[#1a1a1a] border-r border-b border-[#d4af37]/40 transform rotate-45 -mt-1" />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       {/* Single scrollable container */}
       <div className="max-h-[600px] overflow-auto w-full">
