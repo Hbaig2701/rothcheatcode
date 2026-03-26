@@ -5,7 +5,8 @@ import { calculateOptimalConversion, calculateConversionFederalTax } from '../mo
 import { calculateConversionStateTax } from '../modules/state-tax';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
-import { getNonSSIIncomeForYear } from '../utils/income';
+import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
+import { calculateIRMAAWithLookback } from '../modules/irmaa';
 import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier } from '../tax-helpers';
 
 /**
@@ -61,6 +62,9 @@ export function runGrowthFormulaScenario(
   const yearsToDefer = client.years_to_defer_conversion ?? 0;
   const conversionStartAge = clientAge + yearsToDefer;
   const conversionEndAge = client.end_age ?? 100;
+
+  // Income history for IRMAA 2-year lookback
+  const incomeHistory = new Map<number, number>();
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
@@ -155,8 +159,28 @@ export function runGrowthFormulaScenario(
       surrenderValue = Math.round(iraBalance * (1 - surrenderChargePercent / 100));
     }
 
+    // Calculate tax calculation details (needed for IRMAA before totalTax)
+    const totalIncome = conversionAmount + otherIncome;
+    const agi = calculateAGI(totalIncome);
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
+    const magi = calculateMAGI(totalIncome, taxExemptNonSSI);
+    const standardDeduction = deductions;
+    const taxableIncome = Math.max(0, totalIncome - standardDeduction);
+    const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status);
+
+    // Store MAGI for IRMAA 2-year lookback
+    incomeHistory.set(year, magi);
+
+    // IRMAA (Medicare surcharge, age 65+ only, uses 2-year lookback)
+    let irmaaSurcharge = 0;
+    if (age >= 65) {
+      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+      irmaaSurcharge = irmaaResult.annualSurcharge;
+    }
+    const irmaaTier = getIRMAATier(magi, client.filing_status);
+
     // Taxes paid from external funds (taxable account goes negative)
-    const totalTax = federalTax + stateTax;
+    const totalTax = federalTax + stateTax + irmaaSurcharge;
     taxableBalance = boyTaxable - totalTax;
 
     // Calculate taxable growth/interest for each account
@@ -165,15 +189,6 @@ export function runGrowthFormulaScenario(
       : 0);
     const rothGrowth = rothInterest;
     const taxableGrowth = 0; // No growth on taxable (just pays taxes)
-
-    // Calculate tax calculation details
-    const totalIncome = conversionAmount + otherIncome;
-    const agi = calculateAGI(totalIncome);
-    const magi = calculateMAGI(totalIncome);
-    const standardDeduction = deductions;
-    const taxableIncome = Math.max(0, totalIncome - standardDeduction);
-    const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status);
-    const irmaaTier = getIRMAATier(magi, client.filing_status);
 
     // Product bonus applied this year (anniversary bonus if within bonus years)
     const productBonusApplied = anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears
@@ -200,7 +215,7 @@ export function runGrowthFormulaScenario(
       federalTax,
       stateTax,
       niitTax: 0,
-      irmaaSurcharge: 0,
+      irmaaSurcharge,
       totalTax,
       taxableSS: 0,
       netWorth: iraBalance + rothBalance + taxableBalance,
