@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
+import { ChevronDown, ChevronRight, Copy, Check, FileText } from 'lucide-react';
 
 interface TranscriptViewerProps {
   transcript: string;
@@ -18,20 +18,23 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
   };
 
   return (
-    <div className="rounded-xl border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)]">
+    <div className="rounded-[14px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.025)]">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex items-center justify-between w-full px-5 py-4 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+        className="flex items-center justify-between w-full px-7 py-5 text-left hover:bg-[rgba(255,255,255,0.02)] transition-colors"
       >
-        <div className="flex items-center gap-2">
-          {expanded ? (
-            <ChevronDown className="h-4 w-4 text-[rgba(255,255,255,0.5)]" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-[rgba(255,255,255,0.5)]" />
-          )}
-          <span className="text-sm font-semibold text-white uppercase tracking-wider">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-[10px] flex items-center justify-center bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)]">
+            <FileText className="w-4 h-4 text-gold" />
+          </div>
+          <span className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">
             Transcript
           </span>
+          {expanded ? (
+            <ChevronDown className="h-4 w-4 text-[rgba(255,255,255,0.3)]" />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-[rgba(255,255,255,0.3)]" />
+          )}
         </div>
         {expanded && (
           <button
@@ -39,7 +42,7 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
               e.stopPropagation();
               handleCopy();
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium text-[rgba(255,255,255,0.6)] rounded-md border border-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[rgba(255,255,255,0.6)] rounded-[8px] border border-[rgba(255,255,255,0.1)] hover:border-[rgba(212,175,55,0.3)] hover:text-gold transition-all"
           >
             {copied ? (
               <>
@@ -57,8 +60,8 @@ export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
       </button>
 
       {expanded && (
-        <div className="px-5 pb-5">
-          <div className="max-h-96 overflow-y-auto rounded-lg bg-[rgba(0,0,0,0.3)] p-4">
+        <div className="px-7 pb-7">
+          <div className="max-h-96 overflow-y-auto rounded-[10px] bg-[rgba(0,0,0,0.3)] p-4">
             <pre className="text-sm text-[rgba(255,255,255,0.7)] whitespace-pre-wrap font-sans leading-relaxed">
               {transcript}
             </pre>

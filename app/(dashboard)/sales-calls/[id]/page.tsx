@@ -15,8 +15,6 @@ import {
   Clock,
   ShieldAlert,
   Target,
-  MessageSquareQuote,
-  Quote,
 } from 'lucide-react';
 import { useSalesCall, useReanalyzeSalesCall, useDeleteSalesCall } from '@/lib/queries/sales-calls';
 import { ScoreBadge } from '@/components/sales-calls/score-badge';
@@ -94,9 +92,11 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
       <div className="p-9">
         <button
           onClick={() => router.push('/sales-calls')}
-          className="inline-flex items-center gap-2 text-sm text-[rgba(255,255,255,0.6)] hover:text-white transition-colors mb-6"
+          className="inline-flex items-center gap-2.5 text-sm text-[rgba(255,255,255,0.6)] hover:text-white transition-colors mb-8 group"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <div className="w-8 h-8 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] flex items-center justify-center group-hover:border-[rgba(212,175,55,0.3)] group-hover:bg-[rgba(212,175,55,0.06)] transition-all">
+            <ArrowLeft className="h-4 w-4" />
+          </div>
           Back to Sales Calls
         </button>
         <div className="flex flex-col items-center justify-center py-20">
@@ -115,55 +115,58 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
       {/* Back link */}
       <button
         onClick={() => router.push('/sales-calls')}
-        className="inline-flex items-center gap-2 text-sm text-[rgba(255,255,255,0.6)] hover:text-white transition-colors mb-6"
+        className="inline-flex items-center gap-2.5 text-sm text-[rgba(255,255,255,0.6)] hover:text-white transition-colors mb-8 group"
       >
-        <ArrowLeft className="h-4 w-4" />
+        <div className="w-8 h-8 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] flex items-center justify-center group-hover:border-[rgba(212,175,55,0.3)] group-hover:bg-[rgba(212,175,55,0.06)] transition-all">
+          <ArrowLeft className="h-4 w-4" />
+        </div>
         Back to Sales Calls
       </button>
 
-      {/* Header */}
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <h1 className="font-display text-2xl font-normal text-white mb-2">
-            {call.title || 'Untitled Call'}
-          </h1>
-          <div className="flex items-center gap-4 text-sm text-[rgba(255,255,255,0.5)]">
-            <span>{formatDate(call.call_date)}</span>
-            {call.duration_seconds && (
-              <span className="flex items-center gap-1">
-                <Clock className="h-3.5 w-3.5" />
-                {formatDuration(call.duration_seconds)}
-              </span>
-            )}
-            {analysis?.callStage && (
-              <span className="rounded-md bg-[rgba(255,255,255,0.06)] px-2 py-0.5 text-xs font-medium text-[rgba(255,255,255,0.6)]">
-                {CALL_STAGE_LABELS[analysis.callStage] || analysis.callStage}
-              </span>
-            )}
-          </div>
-          {call.notes && (
-            <p className="text-sm text-[rgba(255,255,255,0.5)] mt-2">{call.notes}</p>
-          )}
-        </div>
-
-        {/* Score + Grade */}
-        {call.status === 'complete' && analysis && (
-          <div className="flex items-center gap-3">
-            {analysis.letterGrade && (
-              <span className={`inline-flex items-center justify-center h-12 w-12 rounded-xl border text-xl font-bold ${GRADE_COLORS[analysis.letterGrade] || GRADE_COLORS.C}`}>
-                {analysis.letterGrade}
-              </span>
-            )}
-            {analysis.overallScore != null && (
+      {/* Hero Header Card */}
+      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7 mb-8">
+        <div className="flex items-center gap-8">
+          {/* Score Ring (only when complete) */}
+          {call.status === 'complete' && analysis && analysis.overallScore != null && (
+            <div className="flex-shrink-0 flex flex-col items-center gap-3">
               <ScoreBadge score={Math.round(analysis.overallScore * 10)} size="lg" />
+              {analysis.letterGrade && (
+                <span className={`inline-flex items-center justify-center h-10 w-10 rounded-[10px] border text-lg font-bold ${GRADE_COLORS[analysis.letterGrade] || GRADE_COLORS.C}`}>
+                  {analysis.letterGrade}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Title + metadata */}
+          <div className="flex-1 min-w-0">
+            <h1 className="font-display text-[26px] font-normal text-white mb-2">
+              {call.title || 'Untitled Call'}
+            </h1>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-[rgba(255,255,255,0.5)]">
+              <span>{formatDate(call.call_date)}</span>
+              {call.duration_seconds && (
+                <span className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  {formatDuration(call.duration_seconds)}
+                </span>
+              )}
+              {analysis?.callStage && (
+                <span className="rounded-[20px] bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] px-3 py-0.5 text-xs font-medium text-gold">
+                  {CALL_STAGE_LABELS[analysis.callStage] || analysis.callStage}
+                </span>
+              )}
+            </div>
+            {call.notes && (
+              <p className="text-sm text-[rgba(255,255,255,0.45)] mt-3 leading-relaxed">{call.notes}</p>
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Processing state */}
       {isProcessing && (
-        <div className="flex flex-col items-center justify-center py-16 rounded-xl border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] mb-6">
+        <div className="flex flex-col items-center justify-center py-16 rounded-[14px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.025)] mb-6">
           <Loader2 className="h-10 w-10 animate-spin text-gold mb-4" />
           <p className="text-sm font-medium text-white mb-1">
             {call.status === 'uploading' && 'Uploading recording...'}
@@ -178,7 +181,7 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
       {/* Failed state */}
       {call.status === 'failed' && (
-        <div className="flex flex-col items-center py-12 rounded-xl border border-red-500/20 bg-red-500/5 mb-6">
+        <div className="flex flex-col items-center py-12 rounded-[14px] border border-red-500/20 bg-red-500/5 mb-6">
           <AlertTriangle className="h-8 w-8 text-red-400 mb-3" />
           <p className="text-sm font-medium text-white mb-1">Analysis Failed</p>
           <p className="text-xs text-[rgba(255,255,255,0.5)] mb-4">
@@ -204,7 +207,7 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
       {/* Analysis results */}
       {call.status === 'complete' && analysis && (
-        <div className="space-y-5">
+        <div className="space-y-6">
           {/* Summary */}
           <AnalysisCard title="Summary" icon={FileText}>
             <p className="text-sm text-[rgba(255,255,255,0.8)] leading-relaxed">
@@ -212,7 +215,7 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
             </p>
           </AnalysisCard>
 
-          {/* Performance Metrics (8 dimensions with expandable coaching notes) */}
+          {/* Performance Metrics */}
           <AnalysisCard title="Performance Metrics" icon={BarChart3}>
             <MetricsDisplay metrics={analysis.metrics} />
           </AnalysisCard>
@@ -220,16 +223,15 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
           {/* Moments Done Well */}
           {analysis.momentsDoneWell && analysis.momentsDoneWell.length > 0 && (
             <AnalysisCard title="Top Moments Done Well" icon={ThumbsUp} variant="success">
-              <ul className="space-y-4">
+              <ul className="space-y-5">
                 {analysis.momentsDoneWell.map((moment, i) => (
-                  <li key={i} className="space-y-1.5">
-                    <div className="flex items-start gap-2.5">
-                      <Quote className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-[rgba(255,255,255,0.6)] italic">
+                  <li key={i} className="space-y-2">
+                    <div className="border-l-2 border-green-500/40 pl-4">
+                      <p className="text-sm text-[rgba(255,255,255,0.55)] italic leading-relaxed">
                         &ldquo;{moment.quote}&rdquo;
                       </p>
                     </div>
-                    <p className="text-sm text-[rgba(255,255,255,0.8)] pl-[26px]">
+                    <p className="text-sm text-[rgba(255,255,255,0.8)] pl-4 leading-relaxed">
                       {moment.explanation}
                     </p>
                   </li>
@@ -241,20 +243,19 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
           {/* Missed Opportunities */}
           {analysis.missedOpportunities && analysis.missedOpportunities.length > 0 && (
             <AnalysisCard title="Missed Opportunities" icon={Target} variant="warning">
-              <ul className="space-y-5">
+              <ul className="space-y-6">
                 {analysis.missedOpportunities.map((opp, i) => (
                   <li key={i} className="space-y-2">
-                    <div className="flex items-start gap-2.5">
-                      <Quote className="h-4 w-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-                      <p className="text-sm text-[rgba(255,255,255,0.6)] italic">
+                    <div className="border-l-2 border-yellow-500/40 pl-4">
+                      <p className="text-sm text-[rgba(255,255,255,0.55)] italic leading-relaxed">
                         &ldquo;{opp.quote}&rdquo;
                       </p>
                     </div>
-                    <p className="text-sm text-[rgba(255,255,255,0.8)] pl-[26px]">
+                    <p className="text-sm text-[rgba(255,255,255,0.8)] pl-4 leading-relaxed">
                       {opp.explanation}
                     </p>
-                    <div className="ml-[26px] rounded-md bg-gold/5 border border-gold/10 px-3 py-2">
-                      <p className="text-xs text-[rgba(255,255,255,0.5)] mb-1 font-medium uppercase tracking-wider">Better language:</p>
+                    <div className="ml-4 rounded-[10px] bg-[rgba(212,175,55,0.05)] border border-[rgba(212,175,55,0.12)] px-4 py-3">
+                      <p className="text-xs text-[rgba(255,255,255,0.5)] mb-1 font-medium uppercase tracking-[1.5px]">Suggested language</p>
                       <p className="text-sm text-gold italic">
                         &ldquo;{opp.betterLanguage}&rdquo;
                       </p>
@@ -267,16 +268,21 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
           {/* Compliance Flags */}
           {analysis.complianceFlags && analysis.complianceFlags.length > 0 && (
-            <AnalysisCard title="Compliance Flags" icon={ShieldAlert} variant="warning">
+            <AnalysisCard title="Compliance Flags" icon={ShieldAlert} variant="danger">
               <ul className="space-y-4">
                 {analysis.complianceFlags.map((flag, i) => (
-                  <li key={i} className="rounded-md bg-red-500/5 border border-red-500/15 p-3 space-y-1.5">
-                    <p className="text-xs font-semibold text-red-400 uppercase tracking-wider">
-                      {flag.issue}
-                    </p>
-                    <p className="text-sm text-[rgba(255,255,255,0.6)] italic">
-                      &ldquo;{flag.quote}&rdquo;
-                    </p>
+                  <li key={i} className="rounded-[10px] bg-[rgba(248,113,113,0.06)] border border-red-500/15 p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <ShieldAlert className="h-4 w-4 text-red-400 flex-shrink-0" />
+                      <p className="text-sm font-semibold text-red-400 uppercase tracking-wider">
+                        {flag.issue}
+                      </p>
+                    </div>
+                    <div className="border-l-2 border-red-500/30 pl-3 ml-2">
+                      <p className="text-sm text-[rgba(255,255,255,0.55)] italic">
+                        &ldquo;{flag.quote}&rdquo;
+                      </p>
+                    </div>
                     <p className="text-sm text-[rgba(255,255,255,0.8)]">
                       {flag.concern}
                     </p>
@@ -289,16 +295,16 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
           {/* Priority Action Items */}
           {analysis.priorityActions && analysis.priorityActions.length > 0 && (
             <AnalysisCard title="Priority Action Items" icon={ListChecks}>
-              <ul className="space-y-2.5">
+              <ol className="space-y-3">
                 {analysis.priorityActions.map((action, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-sm text-[rgba(255,255,255,0.8)]">
-                    <span className="mt-0.5 flex h-5 w-5 items-center justify-center rounded-md bg-gold/10 text-gold text-xs font-bold flex-shrink-0">
+                  <li key={i} className="flex items-start gap-4 text-sm text-[rgba(255,255,255,0.8)]">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[rgba(212,175,55,0.1)] border border-[rgba(212,175,55,0.2)] text-gold text-xs font-mono font-bold flex-shrink-0">
                       {i + 1}
                     </span>
-                    {action}
+                    <span className="pt-1 leading-relaxed">{action}</span>
                   </li>
                 ))}
-              </ul>
+              </ol>
             </AnalysisCard>
           )}
 
@@ -308,7 +314,7 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
           )}
 
           {/* Actions */}
-          <div className="flex items-center gap-3 pt-4">
+          <div className="flex items-center gap-3 pt-6 mt-2 border-t border-[rgba(255,255,255,0.06)]">
             <Button
               variant="outline"
               onClick={handleReanalyze}
