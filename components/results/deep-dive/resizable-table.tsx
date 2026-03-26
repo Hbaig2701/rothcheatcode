@@ -4,14 +4,14 @@
  * Resizable Table with Frozen Columns
  *
  * Features:
- * - Frozen left columns (Year, Age, Spouse Age)
+ * - Frozen left columns (Year, Age, Spouse Age) via CSS sticky
  * - Horizontal scroll for remaining columns
  * - Resizable column widths with drag handles
  * - Min width enforcement (60px)
- * - Synchronized row heights
+ * - Single <table> ensures row heights are always synchronized
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type { ColumnDefinition } from '@/lib/table-columns/column-definitions';
 import type { YearlyResult } from '@/lib/calculations/types';
 
@@ -70,13 +70,33 @@ export function ResizableTable({
     return columnWidths[col.id] || col.defaultWidth || 120;
   };
 
-  const renderHeader = (col: ColumnDefinition) => {
+  // Calculate total width of frozen columns for sticky offsets
+  const frozenWidths = frozenColumns.map(getColumnWidth);
+  const frozenOffsets: number[] = [];
+  let offset = 0;
+  for (const w of frozenWidths) {
+    frozenOffsets.push(offset);
+    offset += w;
+  }
+  const totalFrozenWidth = offset;
+
+  const renderHeader = (col: ColumnDefinition, isFrozen: boolean, frozenIndex: number) => {
     const width = getColumnWidth(col);
+    const isLastFrozen = isFrozen && frozenIndex === frozenColumns.length - 1;
+
     return (
       <th
         key={col.id}
-        style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }}
-        className="relative border-b border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-left text-xs font-semibold text-white/70 uppercase tracking-wider"
+        style={{
+          width: `${width}px`,
+          minWidth: `${width}px`,
+          maxWidth: `${width}px`,
+          ...(isFrozen ? { position: 'sticky' as const, left: `${frozenOffsets[frozenIndex]}px`, zIndex: 30 } : {}),
+        }}
+        className={`
+          relative border-b border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-left text-xs font-semibold text-white/70 uppercase tracking-wider
+          ${isLastFrozen ? 'border-r-2 border-r-[#d4af37]/30' : ''}
+        `}
       >
         {col.label}
         {/* Resize handle */}
@@ -91,18 +111,26 @@ export function ResizableTable({
     );
   };
 
-  const renderCell = (col: ColumnDefinition, row: YearlyResult, rowIndex: number) => {
+  const renderCell = (col: ColumnDefinition, row: YearlyResult, rowIndex: number, isFrozen: boolean, frozenIndex: number) => {
     const width = getColumnWidth(col);
     const value = (row as any)[col.id];
     const formatted = col.formatter(value);
+    const isLastFrozen = isFrozen && frozenIndex === frozenColumns.length - 1;
+    const bgClass = rowIndex % 2 === 0 ? 'bg-[#0a0a0a]' : 'bg-[#0d0d0d]';
 
     return (
       <td
         key={`${col.id}-${rowIndex}`}
-        style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }}
+        style={{
+          width: `${width}px`,
+          minWidth: `${width}px`,
+          maxWidth: `${width}px`,
+          ...(isFrozen ? { position: 'sticky' as const, left: `${frozenOffsets[frozenIndex]}px`, zIndex: 5 } : {}),
+        }}
         className={`
           border-b border-white/5 px-3 py-2 text-sm text-white/80
-          ${rowIndex % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.02]'}
+          ${bgClass}
+          ${isLastFrozen ? 'border-r-2 border-r-[#d4af37]/30' : ''}
         `}
       >
         {formatted}
@@ -112,49 +140,24 @@ export function ResizableTable({
 
   return (
     <div className="relative border border-white/10 rounded-lg overflow-hidden bg-[#0a0a0a] w-full">
-      {/* Single scrollable container for vertical scroll */}
-      <div className="max-h-[600px] overflow-y-auto w-full">
-        <div className="flex min-w-0">
-          {/* Frozen columns (left) - sticky position */}
-          {frozenColumns.length > 0 && (
-            <div className="flex-shrink-0 border-r-2 border-[#d4af37]/30 sticky left-0 z-10 bg-[#0a0a0a]">
-              <table className="border-collapse">
-                <thead className="sticky top-0 z-20 bg-[#1a1a1a]">
-                  <tr>
-                    {frozenColumns.map(renderHeader)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((row, idx) => (
-                    <tr key={idx}>
-                      {frozenColumns.map((col) => renderCell(col, row, idx))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Scrollable columns (right) - horizontal scroll only */}
-          {scrollableColumns.length > 0 && (
-            <div className="flex-1 overflow-x-auto">
-              <table className="border-collapse w-full">
-                <thead className="sticky top-0 z-10 bg-[#1a1a1a]">
-                  <tr>
-                    {scrollableColumns.map(renderHeader)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.map((row, idx) => (
-                    <tr key={idx}>
-                      {scrollableColumns.map((col) => renderCell(col, row, idx))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+      {/* Single scrollable container */}
+      <div className="max-h-[600px] overflow-auto w-full">
+        <table className="border-collapse w-max">
+          <thead className="sticky top-0 z-20">
+            <tr>
+              {frozenColumns.map((col, i) => renderHeader(col, true, i))}
+              {scrollableColumns.map((col) => renderHeader(col, false, -1))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row, idx) => (
+              <tr key={idx}>
+                {frozenColumns.map((col, i) => renderCell(col, row, idx, true, i))}
+                {scrollableColumns.map((col) => renderCell(col, row, idx, false, -1))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Empty state */}
