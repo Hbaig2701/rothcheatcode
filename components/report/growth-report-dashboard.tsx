@@ -175,7 +175,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 "text-[28px] font-mono font-medium",
                 lifetimeWealthDiff >= 0 ? "text-[#4ade80]" : "text-[#f87171]"
               )}>
-                {baseLifetimeWealth > 0 ? `${lifetimeWealthDiff >= 0 ? "+" : ""}${((lifetimeWealthDiff / baseLifetimeWealth) * 100).toFixed(1)}%` : "N/A"}
+                {baseLifetimeWealth !== 0 ? `${lifetimeWealthDiff >= 0 ? "+" : ""}${((lifetimeWealthDiff / Math.abs(baseLifetimeWealth)) * 100).toFixed(1)}%` : "N/A"}
               </p>
               <p className="text-base text-[rgba(255,255,255,0.65)] mt-1">vs Doing Nothing</p>
             </div>

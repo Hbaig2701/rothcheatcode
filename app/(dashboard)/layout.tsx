@@ -93,7 +93,7 @@ export default async function DashboardLayout({
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <AppSidebar user={user} displayName={displayName} userRole={profile?.role ?? null} />
-      <main className="flex-1 flex flex-col min-h-screen bg-[#0c0c0c]">
+      <main className="flex-1 min-w-0 flex flex-col min-h-screen bg-[#0c0c0c]">
         <PaymentFailedBanner
           subscriptionStatus={profile?.subscription_status ?? null}
           isTeamMember={!!profile?.team_owner_id}
