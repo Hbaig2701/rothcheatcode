@@ -63,15 +63,15 @@ export function IncomeTable() {
           No income entries. Click &quot;Add Entry&quot; to add annual income data.
         </p>
       ) : (
-        <div className="border rounded-md overflow-hidden">
+        <div className="border rounded-md overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-3 py-2 text-left font-medium">Year</th>
-                <th className="px-3 py-2 text-left font-medium">Age(s)</th>
-                <th className="px-3 py-2 text-left font-medium">Gross Taxable</th>
-                <th className="px-3 py-2 text-left font-medium">Tax Exempt</th>
-                <th className="px-3 py-2 w-10"></th>
+                <th className="px-2 py-2 text-left font-medium">Year</th>
+                <th className="px-2 py-2 text-left font-medium">Age(s)</th>
+                <th className="px-2 py-2 text-left font-medium">Gross Taxable</th>
+                <th className="px-2 py-2 text-left font-medium">Tax Exempt</th>
+                <th className="px-1 py-2 w-8"></th>
               </tr>
             </thead>
             <tbody>
@@ -133,22 +133,22 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
 
   return (
     <tr className="border-t">
-      <td className="px-3 py-2">
+      <td className="px-2 py-1.5">
         <Input
           type="number"
           min={2024}
           max={2100}
-          className="w-20 h-8"
+          className="w-[4.5rem] h-8"
           {...form.register(`non_ssi_income.${index}.year`, { valueAsNumber: true })}
         />
       </td>
-      <td className="px-3 py-2">
-        <div className="h-8 flex items-center px-3 bg-muted/20 rounded-sm text-muted-foreground font-mono text-xs">
+      <td className="px-2 py-1.5">
+        <div className="h-8 flex items-center px-2 bg-muted/20 rounded-sm text-muted-foreground font-mono text-xs whitespace-nowrap">
           {displayAge}
         </div>
         <input type="hidden" {...form.register(`non_ssi_income.${index}.age`)} value={displayAge} />
       </td>
-      <td className="px-3 py-2">
+      <td className="px-2 py-1.5">
         <Controller
           name={`non_ssi_income.${index}.gross_taxable`}
           control={form.control}
@@ -157,12 +157,12 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
               {...field}
               value={field.value ?? 0}
               onChange={(value) => field.onChange(value ?? 0)}
-              className="w-32 h-8"
+              className="w-24 h-8"
             />
           )}
         />
       </td>
-      <td className="px-3 py-2">
+      <td className="px-2 py-1.5">
         <Controller
           name={`non_ssi_income.${index}.tax_exempt`}
           control={form.control}
@@ -171,18 +171,18 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
               {...field}
               value={field.value ?? 0}
               onChange={(value) => field.onChange(value ?? 0)}
-              className="w-32 h-8"
+              className="w-24 h-8"
             />
           )}
         />
       </td>
-      <td className="px-3 py-2">
+      <td className="px-1 py-1.5">
         <Button
           type="button"
           variant="ghost"
           size="sm"
           onClick={handleRemove}
-          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive shrink-0"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
