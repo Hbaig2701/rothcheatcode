@@ -144,7 +144,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const payoutTypeDisplay = client.payout_type === "joint" ? "Joint Life" : "Single Life";
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
       <div className="p-9 space-y-6">
         {/* Section 1: The Guarantee (Hero Card) - Tax-Free Roth GI Income */}
         <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[16px] py-10 px-12 text-center relative">

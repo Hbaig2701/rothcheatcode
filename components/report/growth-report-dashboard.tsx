@@ -152,7 +152,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   };
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
+    <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
       <div className="p-9 space-y-6">
         {/* Section 1: Strategy Summary (Hero) */}
         <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] py-8 px-10">

@@ -253,7 +253,7 @@ export default function ResultsPage({ params }: ResultsPageProps) {
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Report Dashboard - Full width when drawer closed */}
-        <div className="flex-1 h-full overflow-hidden">
+        <div className="flex-1 min-w-0 h-full overflow-hidden">
           <ReportDashboard clientId={id} />
         </div>
 
