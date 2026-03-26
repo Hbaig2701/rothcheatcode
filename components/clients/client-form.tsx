@@ -124,14 +124,51 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
 
   const onValidationError = (errors: FieldErrors<ClientFormData>) => {
     const messages: string[] = [];
-    const flattenErrors = (obj: Record<string, unknown>, prefix = "") => {
+
+    // Human-readable field name mapping
+    const fieldLabels: Record<string, string> = {
+      name: "Name",
+      age: "Age",
+      spouse_name: "Spouse Name",
+      spouse_age: "Spouse Age",
+      filing_status: "Filing Status",
+      state: "State",
+      qualified_account_value: "Qualified Account Value",
+      carrier_name: "Carrier Name",
+      product_name: "Product Name",
+      bonus_percent: "Bonus Percent",
+      rate_of_return: "Rate of Return",
+      max_tax_rate: "Max Tax Rate",
+      tax_rate: "Tax Rate",
+      ssi_payout_age: "SSI Payout Age",
+      ssi_annual_amount: "SSI Annual Amount",
+      spouse_ssi_payout_age: "Spouse SSI Payout Age",
+      spouse_ssi_annual_amount: "Spouse SSI Annual Amount",
+      end_age: "End Age",
+      heir_tax_rate: "Heir Tax Rate",
+      year: "Year",
+      gross_taxable: "Gross Taxable Amount",
+      tax_exempt: "Tax Exempt Amount",
+      non_ssi_income: "Non-SSI Income",
+    };
+
+    const getLabel = (key: string) => fieldLabels[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+    const flattenErrors = (obj: Record<string, unknown>, parentLabel = "") => {
       for (const key in obj) {
         const val = obj[key] as Record<string, unknown>;
         if (val?.message) {
-          const label = prefix ? `${prefix} > ${key}` : key;
-          messages.push(`${label}: ${val.message}`);
+          const label = parentLabel || getLabel(key);
+          messages.push(`${label}: ${val.message as string}`);
         } else if (val && typeof val === "object") {
-          flattenErrors(val as Record<string, unknown>, key);
+          // For array entries (non_ssi_income.0.year), show as "Non-SSI Income Row 1"
+          const isArrayIndex = /^\d+$/.test(key);
+          const nextLabel = isArrayIndex
+            ? `${parentLabel || "Income"} Row ${Number(key) + 1}`
+            : parentLabel
+              ? `${parentLabel} — ${getLabel(key)}`
+              : getLabel(key);
+          flattenErrors(val as Record<string, unknown>, nextLabel);
         }
       }
     };
@@ -145,6 +182,13 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
     setValidationErrors([]);
     setSubmitError(null);
     try {
+      // Filter out any invalid/ghost income entries (e.g., from failed deletes)
+      if (data.non_ssi_income) {
+        data.non_ssi_income = data.non_ssi_income.filter(
+          (entry) => entry.year && !Number.isNaN(entry.year) && entry.year >= 2024
+        );
+      }
+
       // Calculate date_of_birth from age (assume Jan 1st of calculated birth year)
       const currentYear = new Date().getFullYear();
       const birthYear = currentYear - data.age;

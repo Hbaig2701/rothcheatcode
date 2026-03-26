@@ -1,16 +1,16 @@
 "use client";
 
-import { useFieldArray, useFormContext } from "react-hook-form";
+import { useFieldArray, useFormContext, Controller } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Plus, Trash2 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export function IncomeTable() {
   const form = useFormContext<ClientFormData>();
-  const { fields, append, remove, update } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: "non_ssi_income",
   });
@@ -75,26 +75,16 @@ export function IncomeTable() {
               </tr>
             </thead>
             <tbody>
-              {fields.map((field, index) => {
-                // We need to watch the year to update display if user edits year
-                // However, calling watch inside map is bad for perf if list is long, 
-                // but list is usually short (<10 rows).
-                // Use Controller or watch at component level?
-                // Let's just rely on field.year initially, and if edited, we update.
-                // Actually, to display dynamic updates, we need to watch.
-                // Ideally use a row component. But for simplicity:
-
-                return (
-                  <IncomeTableRow
-                    key={field.id}
-                    index={index}
-                    remove={remove}
-                    currentAge={currentAge}
-                    spouseAge={spouseAge}
-                    currentYear={currentYear}
-                  />
-                );
-              })}
+              {fields.map((field, index) => (
+                <IncomeTableRow
+                  key={field.id}
+                  index={index}
+                  onRemove={() => remove(index)}
+                  currentAge={currentAge}
+                  spouseAge={spouseAge}
+                  currentYear={currentYear}
+                />
+              ))}
             </tbody>
           </table>
         </div>
@@ -103,8 +93,18 @@ export function IncomeTable() {
   );
 }
 
-function IncomeTableRow({ index, remove, currentAge, spouseAge, currentYear }: any) {
+interface IncomeTableRowProps {
+  index: number;
+  onRemove: () => void;
+  currentAge: number;
+  spouseAge: number | undefined;
+  currentYear: number;
+}
+
+function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }: IncomeTableRowProps) {
   const form = useFormContext<ClientFormData>();
+  const removingRef = useRef(false);
+
   // Watch year for this row
   const rowYear = form.watch(`non_ssi_income.${index}.year`);
   const filingStatus = form.watch("filing_status");
@@ -116,18 +116,20 @@ function IncomeTableRow({ index, remove, currentAge, spouseAge, currentYear }: a
   const sAge = (isMarried && spouseAge) ? (spouseAge + delta) : null;
   const displayAge = sAge ? `${cAge}/${sAge}` : `${cAge}`;
 
-  // Sync the form value `age` whenever `rowYear` or global ages change?
-  // We can use a hidden input with value={displayAge}.
-  // But we need to register it.
-
+  // Sync the calculated age to form state (only if not being removed)
   useEffect(() => {
-    // Keep the form state 'age' in sync with the calculated one
-    // This ensures submit gets the correct string
+    if (removingRef.current) return;
     const currentVal = form.getValues(`non_ssi_income.${index}.age`);
     if (currentVal !== displayAge) {
       form.setValue(`non_ssi_income.${index}.age`, displayAge);
     }
   }, [displayAge, index, form]);
+
+  const handleRemove = () => {
+    // Mark as removing to prevent useEffect from re-creating the entry
+    removingRef.current = true;
+    onRemove();
+  };
 
   return (
     <tr className="border-t">
@@ -141,25 +143,37 @@ function IncomeTableRow({ index, remove, currentAge, spouseAge, currentYear }: a
         />
       </td>
       <td className="px-3 py-2">
-        {/* Read Only Display */}
         <div className="h-8 flex items-center px-3 bg-muted/20 rounded-sm text-muted-foreground font-mono text-xs">
           {displayAge}
         </div>
-        {/* Hidden input to persist value */}
         <input type="hidden" {...form.register(`non_ssi_income.${index}.age`)} value={displayAge} />
       </td>
       <td className="px-3 py-2">
-        <CurrencyInput
-          value={form.watch(`non_ssi_income.${index}.gross_taxable`) ?? 0}
-          onChange={(value) => form.setValue(`non_ssi_income.${index}.gross_taxable`, value ?? 0)}
-          className="w-32 h-8"
+        <Controller
+          name={`non_ssi_income.${index}.gross_taxable`}
+          control={form.control}
+          render={({ field: { ref, ...field } }) => (
+            <CurrencyInput
+              {...field}
+              value={field.value ?? 0}
+              onChange={(value) => field.onChange(value ?? 0)}
+              className="w-32 h-8"
+            />
+          )}
         />
       </td>
       <td className="px-3 py-2">
-        <CurrencyInput
-          value={form.watch(`non_ssi_income.${index}.tax_exempt`) ?? 0}
-          onChange={(value) => form.setValue(`non_ssi_income.${index}.tax_exempt`, value ?? 0)}
-          className="w-32 h-8"
+        <Controller
+          name={`non_ssi_income.${index}.tax_exempt`}
+          control={form.control}
+          render={({ field: { ref, ...field } }) => (
+            <CurrencyInput
+              {...field}
+              value={field.value ?? 0}
+              onChange={(value) => field.onChange(value ?? 0)}
+              className="w-32 h-8"
+            />
+          )}
         />
       </td>
       <td className="px-3 py-2">
@@ -167,7 +181,7 @@ function IncomeTableRow({ index, remove, currentAge, spouseAge, currentYear }: a
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => remove(index)}
+          onClick={handleRemove}
           className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
         >
           <Trash2 className="h-4 w-4" />

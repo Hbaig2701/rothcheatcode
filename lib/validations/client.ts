@@ -58,10 +58,20 @@ export const strategyEnum = z.enum([
 // ============================================================================
 
 export const nonSSIIncomeEntrySchema = z.object({
-  year: z.number().int().min(2024).max(2100),
+  year: z.preprocess(
+    (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
+    z.number({ error: "Year is required" })
+      .int().min(2024, "Year must be 2024 or later").max(2100, "Year must be 2100 or earlier")
+  ),
   age: z.union([z.number(), z.string()]), // Allow "62/60" format
-  gross_taxable: z.number().int().min(0), // In cents
-  tax_exempt: z.number().int().min(0),    // In cents
+  gross_taxable: z.preprocess(
+    (v) => v === undefined || v === null ? 0 : v,
+    z.number({ error: "Amount must be a number" }).int().min(0, "Amount must be positive")
+  ),
+  tax_exempt: z.preprocess(
+    (v) => v === undefined || v === null ? 0 : v,
+    z.number({ error: "Amount must be a number" }).int().min(0, "Amount must be positive")
+  ),
 });
 
 // ============================================================================

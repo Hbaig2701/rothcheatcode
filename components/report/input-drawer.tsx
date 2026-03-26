@@ -118,6 +118,13 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
 
   const onSubmit = async (data: ClientFormData) => {
     try {
+      // Filter out any invalid/ghost income entries
+      if (data.non_ssi_income) {
+        data.non_ssi_income = data.non_ssi_income.filter(
+          (entry) => entry.year && !Number.isNaN(entry.year) && entry.year >= 2024
+        );
+      }
+
       const currentYear = new Date().getFullYear();
       const birthYear = currentYear - data.age;
       const dateOfBirth = `${birthYear}-01-01`;
