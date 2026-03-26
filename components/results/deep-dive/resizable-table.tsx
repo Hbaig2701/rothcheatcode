@@ -11,7 +11,7 @@
  * - Single <table> ensures row heights are always synchronized
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ColumnDefinition } from '@/lib/table-columns/column-definitions';
 import type { YearlyResult } from '@/lib/calculations/types';
 
@@ -33,6 +33,27 @@ export function ResizableTable({
   const [resizing, setResizing] = useState<string | null>(null);
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(0);
+  const [tooltip, setTooltip] = useState<{ columnId: string; x: number; y: number } | null>(null);
+  const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const showTooltip = useCallback((columnId: string, e: React.MouseEvent) => {
+    if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+    tooltipTimeoutRef.current = setTimeout(() => {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setTooltip({ columnId, x: rect.left + rect.width / 2, y: rect.top });
+    }, 400);
+  }, []);
+
+  const hideTooltip = useCallback(() => {
+    if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+    setTooltip(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
+    };
+  }, []);
 
   const frozenColumns = columns.slice(0, frozenColumnCount);
   const scrollableColumns = columns.slice(frozenColumnCount);
@@ -104,7 +125,10 @@ export function ResizableTable({
         className={`
           relative border-b border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-left text-xs font-semibold text-white/70 uppercase tracking-wider
           ${isLastFrozen ? 'border-r-2 border-r-[#d4af37]/30' : ''}
+          ${col.description ? 'cursor-help' : ''}
         `}
+        onMouseEnter={col.description ? (e) => showTooltip(col.id, e) : undefined}
+        onMouseLeave={col.description ? hideTooltip : undefined}
       >
         {col.label}
         {/* Resize handle */}
@@ -146,8 +170,30 @@ export function ResizableTable({
     );
   };
 
+  const tooltipColumn = tooltip ? columns.find(c => c.id === tooltip.columnId) : null;
+
   return (
     <div className="relative border border-white/10 rounded-lg overflow-hidden bg-[#0a0a0a] w-full">
+      {/* Column description tooltip */}
+      {tooltip && tooltipColumn?.description && (
+        <div
+          className="fixed z-50 pointer-events-none"
+          style={{
+            left: `${tooltip.x}px`,
+            top: `${tooltip.y - 8}px`,
+            transform: 'translate(-50%, -100%)',
+          }}
+        >
+          <div className="bg-[#1a1a1a] border border-[#d4af37]/40 rounded-lg px-3 py-2 shadow-xl max-w-xs">
+            <p className="text-xs font-semibold text-[#d4af37] mb-1">{tooltipColumn.label}</p>
+            <p className="text-xs text-white/80 leading-relaxed">{tooltipColumn.description}</p>
+          </div>
+          {/* Arrow */}
+          <div className="flex justify-center">
+            <div className="w-2 h-2 bg-[#1a1a1a] border-r border-b border-[#d4af37]/40 transform rotate-45 -mt-1" />
+          </div>
+        </div>
+      )}
       {/* Single scrollable container */}
       <div className="max-h-[600px] overflow-auto w-full">
         <table className="w-max" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
