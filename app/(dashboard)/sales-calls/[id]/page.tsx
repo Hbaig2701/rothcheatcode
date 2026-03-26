@@ -111,7 +111,7 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
   const analysis = call.analysis_results;
 
   return (
-    <div className="p-9 max-w-4xl">
+    <div className="p-9 max-w-6xl">
       {/* Back link */}
       <button
         onClick={() => router.push('/sales-calls')}
@@ -220,92 +220,102 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
             <MetricsDisplay metrics={analysis.metrics} />
           </AnalysisCard>
 
-          {/* Moments Done Well */}
-          {analysis.momentsDoneWell && analysis.momentsDoneWell.length > 0 && (
-            <AnalysisCard title="Top Moments Done Well" icon={ThumbsUp} variant="success">
-              <ul className="space-y-5">
-                {analysis.momentsDoneWell.map((moment, i) => (
-                  <li key={i} className="space-y-2">
-                    <div className="border-l-2 border-green-500/40 pl-4">
-                      <p className="text-sm text-[rgba(255,255,255,0.55)] italic leading-relaxed">
-                        &ldquo;{moment.quote}&rdquo;
-                      </p>
-                    </div>
-                    <p className="text-sm text-[rgba(255,255,255,0.8)] pl-4 leading-relaxed">
-                      {moment.explanation}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </AnalysisCard>
+          {/* Moments Done Well + Missed Opportunities — side by side on wide screens */}
+          {((analysis.momentsDoneWell?.length ?? 0) > 0 || (analysis.missedOpportunities?.length ?? 0) > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Moments Done Well */}
+              {analysis.momentsDoneWell && analysis.momentsDoneWell.length > 0 && (
+                <AnalysisCard title="Top Moments Done Well" icon={ThumbsUp} variant="success">
+                  <ul className="space-y-5">
+                    {analysis.momentsDoneWell.map((moment, i) => (
+                      <li key={i} className="space-y-2">
+                        <div className="border-l-2 border-green-500/40 pl-4">
+                          <p className="text-sm text-[rgba(255,255,255,0.55)] italic leading-relaxed">
+                            &ldquo;{moment.quote}&rdquo;
+                          </p>
+                        </div>
+                        <p className="text-sm text-[rgba(255,255,255,0.8)] pl-4 leading-relaxed">
+                          {moment.explanation}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </AnalysisCard>
+              )}
+
+              {/* Missed Opportunities */}
+              {analysis.missedOpportunities && analysis.missedOpportunities.length > 0 && (
+                <AnalysisCard title="Missed Opportunities" icon={Target} variant="warning">
+                  <ul className="space-y-6">
+                    {analysis.missedOpportunities.map((opp, i) => (
+                      <li key={i} className="space-y-2">
+                        <div className="border-l-2 border-yellow-500/40 pl-4">
+                          <p className="text-sm text-[rgba(255,255,255,0.55)] italic leading-relaxed">
+                            &ldquo;{opp.quote}&rdquo;
+                          </p>
+                        </div>
+                        <p className="text-sm text-[rgba(255,255,255,0.8)] pl-4 leading-relaxed">
+                          {opp.explanation}
+                        </p>
+                        <div className="ml-4 rounded-[10px] bg-[rgba(212,175,55,0.05)] border border-[rgba(212,175,55,0.12)] px-4 py-3">
+                          <p className="text-xs text-[rgba(255,255,255,0.5)] mb-1 font-medium uppercase tracking-[1.5px]">Suggested language</p>
+                          <p className="text-sm text-gold italic">
+                            &ldquo;{opp.betterLanguage}&rdquo;
+                          </p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </AnalysisCard>
+              )}
+            </div>
           )}
 
-          {/* Missed Opportunities */}
-          {analysis.missedOpportunities && analysis.missedOpportunities.length > 0 && (
-            <AnalysisCard title="Missed Opportunities" icon={Target} variant="warning">
-              <ul className="space-y-6">
-                {analysis.missedOpportunities.map((opp, i) => (
-                  <li key={i} className="space-y-2">
-                    <div className="border-l-2 border-yellow-500/40 pl-4">
-                      <p className="text-sm text-[rgba(255,255,255,0.55)] italic leading-relaxed">
-                        &ldquo;{opp.quote}&rdquo;
-                      </p>
-                    </div>
-                    <p className="text-sm text-[rgba(255,255,255,0.8)] pl-4 leading-relaxed">
-                      {opp.explanation}
-                    </p>
-                    <div className="ml-4 rounded-[10px] bg-[rgba(212,175,55,0.05)] border border-[rgba(212,175,55,0.12)] px-4 py-3">
-                      <p className="text-xs text-[rgba(255,255,255,0.5)] mb-1 font-medium uppercase tracking-[1.5px]">Suggested language</p>
-                      <p className="text-sm text-gold italic">
-                        &ldquo;{opp.betterLanguage}&rdquo;
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </AnalysisCard>
-          )}
+          {/* Compliance Flags + Action Items — side by side on wide screens */}
+          {((analysis.complianceFlags?.length ?? 0) > 0 || (analysis.priorityActions?.length ?? 0) > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Compliance Flags */}
+              {analysis.complianceFlags && analysis.complianceFlags.length > 0 && (
+                <AnalysisCard title="Compliance Flags" icon={ShieldAlert} variant="danger">
+                  <ul className="space-y-4">
+                    {analysis.complianceFlags.map((flag, i) => (
+                      <li key={i} className="rounded-[10px] bg-[rgba(248,113,113,0.06)] border border-red-500/15 p-4 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <ShieldAlert className="h-4 w-4 text-red-400 flex-shrink-0" />
+                          <p className="text-sm font-semibold text-red-400 uppercase tracking-wider">
+                            {flag.issue}
+                          </p>
+                        </div>
+                        <div className="border-l-2 border-red-500/30 pl-3 ml-2">
+                          <p className="text-sm text-[rgba(255,255,255,0.55)] italic">
+                            &ldquo;{flag.quote}&rdquo;
+                          </p>
+                        </div>
+                        <p className="text-sm text-[rgba(255,255,255,0.8)]">
+                          {flag.concern}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </AnalysisCard>
+              )}
 
-          {/* Compliance Flags */}
-          {analysis.complianceFlags && analysis.complianceFlags.length > 0 && (
-            <AnalysisCard title="Compliance Flags" icon={ShieldAlert} variant="danger">
-              <ul className="space-y-4">
-                {analysis.complianceFlags.map((flag, i) => (
-                  <li key={i} className="rounded-[10px] bg-[rgba(248,113,113,0.06)] border border-red-500/15 p-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <ShieldAlert className="h-4 w-4 text-red-400 flex-shrink-0" />
-                      <p className="text-sm font-semibold text-red-400 uppercase tracking-wider">
-                        {flag.issue}
-                      </p>
-                    </div>
-                    <div className="border-l-2 border-red-500/30 pl-3 ml-2">
-                      <p className="text-sm text-[rgba(255,255,255,0.55)] italic">
-                        &ldquo;{flag.quote}&rdquo;
-                      </p>
-                    </div>
-                    <p className="text-sm text-[rgba(255,255,255,0.8)]">
-                      {flag.concern}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </AnalysisCard>
-          )}
-
-          {/* Priority Action Items */}
-          {analysis.priorityActions && analysis.priorityActions.length > 0 && (
-            <AnalysisCard title="Priority Action Items" icon={ListChecks}>
-              <ol className="space-y-3">
-                {analysis.priorityActions.map((action, i) => (
-                  <li key={i} className="flex items-start gap-4 text-sm text-[rgba(255,255,255,0.8)]">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[rgba(212,175,55,0.1)] border border-[rgba(212,175,55,0.2)] text-gold text-xs font-mono font-bold flex-shrink-0">
-                      {i + 1}
-                    </span>
-                    <span className="pt-1 leading-relaxed">{action}</span>
-                  </li>
-                ))}
-              </ol>
-            </AnalysisCard>
+              {/* Priority Action Items */}
+              {analysis.priorityActions && analysis.priorityActions.length > 0 && (
+                <AnalysisCard title="Priority Action Items" icon={ListChecks}>
+                  <ol className="space-y-3">
+                    {analysis.priorityActions.map((action, i) => (
+                      <li key={i} className="flex items-start gap-4 text-sm text-[rgba(255,255,255,0.8)]">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[rgba(212,175,55,0.1)] border border-[rgba(212,175,55,0.2)] text-gold text-xs font-mono font-bold flex-shrink-0">
+                          {i + 1}
+                        </span>
+                        <span className="pt-1 leading-relaxed">{action}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </AnalysisCard>
+              )}
+            </div>
           )}
 
           {/* Transcript */}
