@@ -37,14 +37,14 @@ function getScoreColorHex(score: number) {
   return '#f87171';
 }
 
-const MINI_RADIUS = 16;
+const MINI_RADIUS = 20;
 const MINI_CIRCUMFERENCE = 2 * Math.PI * MINI_RADIUS;
 
 export function MetricsDisplay({ metrics }: MetricsDisplayProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {METRIC_CONFIG.map(({ key, label }) => {
         const dimension = metrics[key] as DimensionScore;
         const isExpanded = expanded === key;
@@ -65,41 +65,41 @@ export function MetricsDisplay({ metrics }: MetricsDisplayProps) {
           >
             <button
               onClick={() => hasDetails && setExpanded(isExpanded ? null : key)}
-              className={`flex items-center w-full p-4 text-left ${hasDetails ? 'cursor-pointer' : 'cursor-default'}`}
+              className={`flex items-center w-full p-5 text-left ${hasDetails ? 'cursor-pointer' : 'cursor-default'}`}
             >
               {/* Mini SVG circle */}
-              <div className="relative w-10 h-10 flex-shrink-0">
-                <svg className="w-full h-full" viewBox="0 0 40 40">
+              <div className="relative w-12 h-12 flex-shrink-0">
+                <svg className="w-full h-full" viewBox="0 0 48 48">
                   <circle
-                    cx="20" cy="20" r={MINI_RADIUS}
+                    cx="24" cy="24" r={MINI_RADIUS}
                     fill="none"
                     stroke="rgba(255,255,255,0.08)"
-                    strokeWidth="3"
+                    strokeWidth="3.5"
                   />
                   <circle
-                    cx="20" cy="20" r={MINI_RADIUS}
+                    cx="24" cy="24" r={MINI_RADIUS}
                     fill="none"
                     stroke={strokeColor}
-                    strokeWidth="3"
+                    strokeWidth="3.5"
                     strokeLinecap="round"
                     strokeDasharray={MINI_CIRCUMFERENCE}
                     strokeDashoffset={offset}
-                    transform="rotate(-90 20 20)"
+                    transform="rotate(-90 24 24)"
                     className="transition-all duration-500 ease-out"
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className={`text-xs font-mono font-bold ${getScoreColor(score)}`}>
+                  <span className={`text-sm font-mono font-bold ${getScoreColor(score)}`}>
                     {score}
                   </span>
                 </div>
               </div>
 
-              <div className="flex-1 min-w-0 ml-3">
-                <span className="text-sm text-[rgba(255,255,255,0.8)] leading-tight block mb-1.5">
+              <div className="flex-1 min-w-0 ml-4">
+                <span className="text-base text-[rgba(255,255,255,0.85)] leading-tight block mb-2">
                   {label}
                 </span>
-                <div className="h-1 rounded-full bg-[rgba(255,255,255,0.06)]">
+                <div className="h-1.5 rounded-full bg-[rgba(255,255,255,0.06)]">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${getBarColor(score)}`}
                     style={{ width: `${score * 10}%` }}
@@ -108,26 +108,26 @@ export function MetricsDisplay({ metrics }: MetricsDisplayProps) {
               </div>
 
               {hasDetails && (
-                <div className="ml-2 flex-shrink-0">
+                <div className="ml-3 flex-shrink-0">
                   {isExpanded ? (
-                    <ChevronDown className="h-4 w-4 text-[rgba(255,255,255,0.3)]" />
+                    <ChevronDown className="h-5 w-5 text-[rgba(255,255,255,0.3)]" />
                   ) : (
-                    <ChevronRight className="h-4 w-4 text-[rgba(255,255,255,0.3)]" />
+                    <ChevronRight className="h-5 w-5 text-[rgba(255,255,255,0.3)]" />
                   )}
                 </div>
               )}
             </button>
 
             {isExpanded && hasDetails && (
-              <div className="px-4 pb-4 space-y-2">
+              <div className="px-5 pb-5 space-y-3">
                 {rationale && (
-                  <p className="text-xs text-[rgba(255,255,255,0.6)] leading-relaxed">
+                  <p className="text-sm text-[rgba(255,255,255,0.6)] leading-relaxed">
                     {rationale}
                   </p>
                 )}
                 {coachingNote && (
-                  <div className="rounded-[8px] bg-[rgba(212,175,55,0.05)] border border-[rgba(212,175,55,0.12)] px-3 py-2">
-                    <p className="text-xs text-gold leading-relaxed">
+                  <div className="rounded-[8px] bg-[rgba(212,175,55,0.05)] border border-[rgba(212,175,55,0.12)] px-4 py-3">
+                    <p className="text-sm text-gold leading-relaxed">
                       <span className="font-semibold">Coach:</span> {coachingNote}
                     </p>
                   </div>

@@ -27,37 +27,37 @@ function getScoreColorHex(s: number) {
 
 export function ScoreBadge({ score, size = 'sm' }: ScoreBadgeProps) {
   if (size === 'lg') {
-    const radius = 52;
+    const radius = 64;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (score / 100) * circumference;
     const strokeColor = getScoreColorHex(score);
 
     return (
       <div className="inline-flex flex-col items-center">
-        <div className="relative w-[120px] h-[120px]">
-          <svg className="w-full h-full" viewBox="0 0 120 120">
+        <div className="relative w-[150px] h-[150px]">
+          <svg className="w-full h-full" viewBox="0 0 150 150">
             <circle
-              cx="60" cy="60" r={radius}
+              cx="75" cy="75" r={radius}
               fill="none"
               stroke="rgba(255,255,255,0.08)"
-              strokeWidth="8"
+              strokeWidth="9"
             />
             <circle
-              cx="60" cy="60" r={radius}
+              cx="75" cy="75" r={radius}
               fill="none"
               stroke={strokeColor}
-              strokeWidth="8"
+              strokeWidth="9"
               strokeLinecap="round"
               strokeDasharray={circumference}
               strokeDashoffset={offset}
-              transform="rotate(-90 60 60)"
+              transform="rotate(-90 75 75)"
               className="transition-all duration-700 ease-out"
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-3xl font-mono font-medium text-white">{score}</span>
+            <span className="text-4xl font-mono font-semibold text-white">{score}</span>
             <span
-              className="text-[10px] font-medium uppercase tracking-[1.5px]"
+              className="text-xs font-semibold uppercase tracking-[1.5px]"
               style={{ color: strokeColor }}
             >
               {getScoreLabel(score)}
@@ -71,7 +71,7 @@ export function ScoreBadge({ score, size = 'sm' }: ScoreBadgeProps) {
   const colorClass = getScoreColor(score);
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold ${colorClass}`}>
+    <span className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-sm font-semibold ${colorClass}`}>
       {score}
     </span>
   );

@@ -44,12 +44,12 @@ export function AnalysisCard({ title, icon: Icon, children, variant = 'default' 
   const styles = VARIANT_STYLES[variant];
 
   return (
-    <div className={`rounded-[14px] ${styles.border} bg-[rgba(255,255,255,0.025)] p-7 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] ${styles.hoverBorder}`}>
-      <div className="flex items-center gap-3 mb-5">
-        <div className={`w-8 h-8 rounded-[10px] flex items-center justify-center ${styles.iconBg} border ${styles.iconBorder}`}>
-          <Icon className={`w-4 h-4 ${styles.iconColor}`} />
+    <div className={`rounded-[14px] ${styles.border} bg-[rgba(255,255,255,0.025)] p-8 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] ${styles.hoverBorder}`}>
+      <div className="flex items-center gap-3 mb-6">
+        <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center ${styles.iconBg} border ${styles.iconBorder}`}>
+          <Icon className={`w-[18px] h-[18px] ${styles.iconColor}`} />
         </div>
-        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">{title}</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">{title}</h3>
       </div>
       {children}
     </div>

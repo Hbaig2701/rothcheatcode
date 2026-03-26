@@ -79,9 +79,9 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
   if (isLoading) {
     return (
-      <div className="p-9">
+      <div className="p-10">
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-gold" />
+          <Loader2 className="h-10 w-10 animate-spin text-gold" />
         </div>
       </div>
     );
@@ -89,19 +89,19 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
   if (isError || !call) {
     return (
-      <div className="p-9">
+      <div className="p-10">
         <button
           onClick={() => router.push('/sales-calls')}
-          className="inline-flex items-center gap-2.5 text-sm text-[rgba(255,255,255,0.6)] hover:text-white transition-colors mb-8 group"
+          className="inline-flex items-center gap-3 text-base text-[rgba(255,255,255,0.6)] hover:text-white transition-colors mb-8 group"
         >
-          <div className="w-8 h-8 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] flex items-center justify-center group-hover:border-[rgba(212,175,55,0.3)] group-hover:bg-[rgba(212,175,55,0.06)] transition-all">
-            <ArrowLeft className="h-4 w-4" />
+          <div className="w-9 h-9 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] flex items-center justify-center group-hover:border-[rgba(212,175,55,0.3)] group-hover:bg-[rgba(212,175,55,0.06)] transition-all">
+            <ArrowLeft className="h-5 w-5" />
           </div>
           Back to Sales Calls
         </button>
         <div className="flex flex-col items-center justify-center py-20">
-          <p className="text-sm text-red-400 mb-2">Failed to load sales call</p>
-          <p className="text-xs text-[rgba(255,255,255,0.4)]">{error?.message}</p>
+          <p className="text-base text-red-400 mb-2">Failed to load sales call</p>
+          <p className="text-sm text-[rgba(255,255,255,0.4)]">{error?.message}</p>
         </div>
       </div>
     );
@@ -111,27 +111,27 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
   const analysis = call.analysis_results;
 
   return (
-    <div className="p-9 max-w-6xl">
+    <div className="p-10">
       {/* Back link */}
       <button
         onClick={() => router.push('/sales-calls')}
-        className="inline-flex items-center gap-2.5 text-sm text-[rgba(255,255,255,0.6)] hover:text-white transition-colors mb-8 group"
+        className="inline-flex items-center gap-3 text-base text-[rgba(255,255,255,0.6)] hover:text-white transition-colors mb-8 group"
       >
-        <div className="w-8 h-8 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] flex items-center justify-center group-hover:border-[rgba(212,175,55,0.3)] group-hover:bg-[rgba(212,175,55,0.06)] transition-all">
-          <ArrowLeft className="h-4 w-4" />
+        <div className="w-9 h-9 rounded-[10px] border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.04)] flex items-center justify-center group-hover:border-[rgba(212,175,55,0.3)] group-hover:bg-[rgba(212,175,55,0.06)] transition-all">
+          <ArrowLeft className="h-5 w-5" />
         </div>
         Back to Sales Calls
       </button>
 
       {/* Hero Header Card */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7 mb-8">
-        <div className="flex items-center gap-8">
+      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-8 mb-8">
+        <div className="flex items-center gap-10">
           {/* Score Ring (only when complete) */}
           {call.status === 'complete' && analysis && analysis.overallScore != null && (
             <div className="flex-shrink-0 flex flex-col items-center gap-3">
               <ScoreBadge score={Math.round(analysis.overallScore * 10)} size="lg" />
               {analysis.letterGrade && (
-                <span className={`inline-flex items-center justify-center h-10 w-10 rounded-[10px] border text-lg font-bold ${GRADE_COLORS[analysis.letterGrade] || GRADE_COLORS.C}`}>
+                <span className={`inline-flex items-center justify-center h-12 w-12 rounded-[10px] border text-xl font-bold ${GRADE_COLORS[analysis.letterGrade] || GRADE_COLORS.C}`}>
                   {analysis.letterGrade}
                 </span>
               )}
@@ -140,25 +140,25 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
           {/* Title + metadata */}
           <div className="flex-1 min-w-0">
-            <h1 className="font-display text-[26px] font-normal text-white mb-2">
+            <h1 className="font-display text-[32px] font-normal text-white mb-3">
               {call.title || 'Untitled Call'}
             </h1>
-            <div className="flex flex-wrap items-center gap-4 text-sm text-[rgba(255,255,255,0.5)]">
+            <div className="flex flex-wrap items-center gap-5 text-base text-[rgba(255,255,255,0.5)]">
               <span>{formatDate(call.call_date)}</span>
               {call.duration_seconds && (
-                <span className="flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5" />
+                <span className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
                   {formatDuration(call.duration_seconds)}
                 </span>
               )}
               {analysis?.callStage && (
-                <span className="rounded-[20px] bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] px-3 py-0.5 text-xs font-medium text-gold">
+                <span className="rounded-[20px] bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] px-4 py-1 text-sm font-medium text-gold">
                   {CALL_STAGE_LABELS[analysis.callStage] || analysis.callStage}
                 </span>
               )}
             </div>
             {call.notes && (
-              <p className="text-sm text-[rgba(255,255,255,0.45)] mt-3 leading-relaxed">{call.notes}</p>
+              <p className="text-base text-[rgba(255,255,255,0.45)] mt-3 leading-relaxed">{call.notes}</p>
             )}
           </div>
         </div>
@@ -166,14 +166,14 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
       {/* Processing state */}
       {isProcessing && (
-        <div className="flex flex-col items-center justify-center py-16 rounded-[14px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.025)] mb-6">
-          <Loader2 className="h-10 w-10 animate-spin text-gold mb-4" />
-          <p className="text-sm font-medium text-white mb-1">
+        <div className="flex flex-col items-center justify-center py-16 rounded-[14px] border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.025)] mb-8">
+          <Loader2 className="h-12 w-12 animate-spin text-gold mb-4" />
+          <p className="text-base font-medium text-white mb-1">
             {call.status === 'uploading' && 'Uploading recording...'}
             {call.status === 'transcribing' && 'Transcribing audio...'}
             {call.status === 'analyzing' && 'Analyzing transcript...'}
           </p>
-          <p className="text-xs text-[rgba(255,255,255,0.4)]">
+          <p className="text-sm text-[rgba(255,255,255,0.4)]">
             This may take a minute. This page will update automatically.
           </p>
         </div>
@@ -181,16 +181,15 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
       {/* Failed state */}
       {call.status === 'failed' && (
-        <div className="flex flex-col items-center py-12 rounded-[14px] border border-red-500/20 bg-red-500/5 mb-6">
-          <AlertTriangle className="h-8 w-8 text-red-400 mb-3" />
-          <p className="text-sm font-medium text-white mb-1">Analysis Failed</p>
-          <p className="text-xs text-[rgba(255,255,255,0.5)] mb-4">
+        <div className="flex flex-col items-center py-14 rounded-[14px] border border-red-500/20 bg-red-500/5 mb-8">
+          <AlertTriangle className="h-10 w-10 text-red-400 mb-3" />
+          <p className="text-base font-medium text-white mb-1">Analysis Failed</p>
+          <p className="text-sm text-[rgba(255,255,255,0.5)] mb-4">
             {call.error_message || 'An unexpected error occurred'}
           </p>
           {call.transcript_text && (
             <Button
               variant="outline"
-              size="sm"
               onClick={handleReanalyze}
               disabled={reanalyzeMutation.isPending}
             >
@@ -207,10 +206,10 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
       {/* Analysis results */}
       {call.status === 'complete' && analysis && (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {/* Summary */}
           <AnalysisCard title="Summary" icon={FileText}>
-            <p className="text-sm text-[rgba(255,255,255,0.8)] leading-relaxed">
+            <p className="text-base text-[rgba(255,255,255,0.8)] leading-relaxed">
               {analysis.summary}
             </p>
           </AnalysisCard>
@@ -222,19 +221,19 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
           {/* Moments Done Well + Missed Opportunities — side by side on wide screens */}
           {((analysis.momentsDoneWell?.length ?? 0) > 0 || (analysis.missedOpportunities?.length ?? 0) > 0) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               {/* Moments Done Well */}
               {analysis.momentsDoneWell && analysis.momentsDoneWell.length > 0 && (
                 <AnalysisCard title="Top Moments Done Well" icon={ThumbsUp} variant="success">
-                  <ul className="space-y-5">
+                  <ul className="space-y-6">
                     {analysis.momentsDoneWell.map((moment, i) => (
                       <li key={i} className="space-y-2">
-                        <div className="border-l-2 border-green-500/40 pl-4">
-                          <p className="text-sm text-[rgba(255,255,255,0.55)] italic leading-relaxed">
+                        <div className="border-l-2 border-green-500/40 pl-5">
+                          <p className="text-base text-[rgba(255,255,255,0.55)] italic leading-relaxed">
                             &ldquo;{moment.quote}&rdquo;
                           </p>
                         </div>
-                        <p className="text-sm text-[rgba(255,255,255,0.8)] pl-4 leading-relaxed">
+                        <p className="text-base text-[rgba(255,255,255,0.8)] pl-5 leading-relaxed">
                           {moment.explanation}
                         </p>
                       </li>
@@ -246,20 +245,20 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
               {/* Missed Opportunities */}
               {analysis.missedOpportunities && analysis.missedOpportunities.length > 0 && (
                 <AnalysisCard title="Missed Opportunities" icon={Target} variant="warning">
-                  <ul className="space-y-6">
+                  <ul className="space-y-7">
                     {analysis.missedOpportunities.map((opp, i) => (
                       <li key={i} className="space-y-2">
-                        <div className="border-l-2 border-yellow-500/40 pl-4">
-                          <p className="text-sm text-[rgba(255,255,255,0.55)] italic leading-relaxed">
+                        <div className="border-l-2 border-yellow-500/40 pl-5">
+                          <p className="text-base text-[rgba(255,255,255,0.55)] italic leading-relaxed">
                             &ldquo;{opp.quote}&rdquo;
                           </p>
                         </div>
-                        <p className="text-sm text-[rgba(255,255,255,0.8)] pl-4 leading-relaxed">
+                        <p className="text-base text-[rgba(255,255,255,0.8)] pl-5 leading-relaxed">
                           {opp.explanation}
                         </p>
-                        <div className="ml-4 rounded-[10px] bg-[rgba(212,175,55,0.05)] border border-[rgba(212,175,55,0.12)] px-4 py-3">
-                          <p className="text-xs text-[rgba(255,255,255,0.5)] mb-1 font-medium uppercase tracking-[1.5px]">Suggested language</p>
-                          <p className="text-sm text-gold italic">
+                        <div className="ml-5 rounded-[10px] bg-[rgba(212,175,55,0.05)] border border-[rgba(212,175,55,0.12)] px-5 py-3">
+                          <p className="text-sm text-[rgba(255,255,255,0.5)] mb-1 font-medium uppercase tracking-[1.5px]">Suggested language</p>
+                          <p className="text-base text-gold italic">
                             &ldquo;{opp.betterLanguage}&rdquo;
                           </p>
                         </div>
@@ -273,25 +272,25 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
 
           {/* Compliance Flags + Action Items — side by side on wide screens */}
           {((analysis.complianceFlags?.length ?? 0) > 0 || (analysis.priorityActions?.length ?? 0) > 0) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
               {/* Compliance Flags */}
               {analysis.complianceFlags && analysis.complianceFlags.length > 0 && (
                 <AnalysisCard title="Compliance Flags" icon={ShieldAlert} variant="danger">
                   <ul className="space-y-4">
                     {analysis.complianceFlags.map((flag, i) => (
-                      <li key={i} className="rounded-[10px] bg-[rgba(248,113,113,0.06)] border border-red-500/15 p-4 space-y-2">
+                      <li key={i} className="rounded-[10px] bg-[rgba(248,113,113,0.06)] border border-red-500/15 p-5 space-y-2">
                         <div className="flex items-center gap-2">
-                          <ShieldAlert className="h-4 w-4 text-red-400 flex-shrink-0" />
+                          <ShieldAlert className="h-5 w-5 text-red-400 flex-shrink-0" />
                           <p className="text-sm font-semibold text-red-400 uppercase tracking-wider">
                             {flag.issue}
                           </p>
                         </div>
-                        <div className="border-l-2 border-red-500/30 pl-3 ml-2">
-                          <p className="text-sm text-[rgba(255,255,255,0.55)] italic">
+                        <div className="border-l-2 border-red-500/30 pl-4 ml-2">
+                          <p className="text-base text-[rgba(255,255,255,0.55)] italic">
                             &ldquo;{flag.quote}&rdquo;
                           </p>
                         </div>
-                        <p className="text-sm text-[rgba(255,255,255,0.8)]">
+                        <p className="text-base text-[rgba(255,255,255,0.8)]">
                           {flag.concern}
                         </p>
                       </li>
@@ -303,10 +302,10 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
               {/* Priority Action Items */}
               {analysis.priorityActions && analysis.priorityActions.length > 0 && (
                 <AnalysisCard title="Priority Action Items" icon={ListChecks}>
-                  <ol className="space-y-3">
+                  <ol className="space-y-4">
                     {analysis.priorityActions.map((action, i) => (
-                      <li key={i} className="flex items-start gap-4 text-sm text-[rgba(255,255,255,0.8)]">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[rgba(212,175,55,0.1)] border border-[rgba(212,175,55,0.2)] text-gold text-xs font-mono font-bold flex-shrink-0">
+                      <li key={i} className="flex items-start gap-4 text-base text-[rgba(255,255,255,0.8)]">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[rgba(212,175,55,0.1)] border border-[rgba(212,175,55,0.2)] text-gold text-sm font-mono font-bold flex-shrink-0">
                           {i + 1}
                         </span>
                         <span className="pt-1 leading-relaxed">{action}</span>
