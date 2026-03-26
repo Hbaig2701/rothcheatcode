@@ -183,17 +183,15 @@ export function runGrowthFormulaScenario(
     const totalTax = federalTax + stateTax + irmaaSurcharge;
     taxableBalance = boyTaxable - totalTax;
 
-    // Calculate taxable growth/interest for each account
-    const traditionalGrowth = iraInterest + (anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears
-      ? Math.round(iraBalance * anniversaryBonusPercent)
-      : 0);
-    const rothGrowth = rothInterest;
-    const taxableGrowth = 0; // No growth on taxable (just pays taxes)
-
     // Product bonus applied this year (anniversary bonus if within bonus years)
     const productBonusApplied = anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears
       ? Math.round((iraAfterConversion + iraInterest) * anniversaryBonusPercent)
       : 0;
+
+    // Calculate display growth/interest for each account
+    const traditionalGrowth = iraInterest + productBonusApplied;
+    const rothGrowth = rothInterest;
+    const taxableGrowth = 0; // No growth on taxable (just pays taxes)
 
     // Tax component breakdown (all conversion tax, no SS or ordinary income in Growth FIA)
     const federalTaxOnConversions = federalTax;

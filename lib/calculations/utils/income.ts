@@ -18,7 +18,7 @@ export function getNonSSIIncomeForYear(
   // If income table has entries, use year-specific lookup
   if (client.non_ssi_income && client.non_ssi_income.length > 0) {
     const entry = client.non_ssi_income.find(e => e.year === year);
-    return entry ? entry.gross_taxable : 0;
+    return entry ? (entry.gross_taxable ?? 0) : 0;
   }
 
   // Fall back to flat field
@@ -38,7 +38,7 @@ export function getTaxExemptIncomeForYear(
   // If income table has entries, use year-specific lookup
   if (client.non_ssi_income && client.non_ssi_income.length > 0) {
     const entry = client.non_ssi_income.find(e => e.year === year);
-    return entry ? entry.tax_exempt : 0;
+    return entry ? (entry.tax_exempt ?? 0) : 0;
   }
 
   // Fall back to flat field
