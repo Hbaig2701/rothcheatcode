@@ -15,6 +15,16 @@ const videos = [
     description: 'Walk through adding a new client, entering their financial details, and generating your first projection.',
     loomId: '28fcb6cae434460a9744b2e1b5c79d99',
   },
+  {
+    title: 'Adding Team Members',
+    description: 'Learn how to invite team members to your account so they can collaborate on client cases.',
+    loomId: 'da607e87203a4f499327b3b9018225e2',
+  },
+  {
+    title: 'Customizing a PDF Report',
+    description: 'See how to generate and customize professional PDF reports to share with your clients.',
+    loomId: '1914f9854f474d90b28051524caa8b4c',
+  },
 ]
 
 export default async function TrainingPage() {
