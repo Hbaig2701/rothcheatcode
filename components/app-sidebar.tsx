@@ -17,9 +17,6 @@ const navItems = [
   { title: 'Clients', href: '/clients', icon: Users },
   { title: 'Sales Calls', href: '/sales-calls', icon: Mic },
   { title: 'Report History', href: '/reports', icon: FileText },
-]
-
-const adminNavItems = [
   { title: 'Training', href: '/training', icon: Video },
 ]
 
@@ -45,18 +42,6 @@ export function AppSidebar({ user, displayName, userRole }: { user: User; displa
             </SidebarMenuItem>
           ))}
 
-          {/* Admin-only navigation items */}
-          {userRole === 'admin' && adminNavItems.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                render={<a href={item.href} />}
-                className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-medium text-[rgba(255,255,255,0.7)] transition-all hover:bg-[rgba(212,175,55,0.08)] hover:text-gold data-active:bg-[rgba(212,175,55,0.08)] data-active:text-gold data-active:border data-active:border-[rgba(212,175,55,0.2)] data-active:font-medium"
-              >
-                <item.icon className="size-4 opacity-80" />
-                <span>{item.title}</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
         </SidebarMenu>
       </SidebarContent>
 
