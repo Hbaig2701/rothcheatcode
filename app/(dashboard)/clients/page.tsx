@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useClients } from "@/lib/queries/clients";
+import { useClients, useDeleteClient } from "@/lib/queries/clients";
 import { ClientCard } from "@/components/clients/client-card";
 import { ClientsEmptyState } from "@/components/clients/clients-empty-state";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Plus, Loader2, Search } from "lucide-react";
 
 export default function ClientsPage() {
   const { data: clients, isLoading, isError, error } = useClients();
+  const deleteClient = useDeleteClient();
   const [search, setSearch] = useState("");
 
   if (isLoading) {
@@ -91,6 +92,7 @@ export default function ClientsPage() {
               key={client.id}
               client={client}
               delta={(client as any).delta ?? 0}
+              onDelete={(id) => deleteClient.mutate(id)}
             />
           ))}
         </div>

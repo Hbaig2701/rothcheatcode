@@ -10,7 +10,7 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar'
 import { LogoutButton } from '@/components/logout-button'
-import { LayoutDashboard, Users, Settings, FileText, Video, Mic } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, FileText, Video, Mic, Bell } from 'lucide-react'
 
 const navItems = [
   { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -18,6 +18,7 @@ const navItems = [
   { title: 'Sales Calls', href: '/sales-calls', icon: Mic },
   { title: 'Report History', href: '/reports', icon: FileText },
   { title: 'Training', href: '/training', icon: Video },
+  { title: 'Updates', href: '/updates', icon: Bell },
 ]
 
 export function AppSidebar({ user, displayName, userRole }: { user: User; displayName: string; userRole: string | null }) {

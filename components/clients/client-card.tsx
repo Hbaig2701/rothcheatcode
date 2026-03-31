@@ -1,7 +1,19 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Trash2 } from "lucide-react";
 import type { Client } from "@/lib/types/client";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface ClientCardProps {
   client: Client;
@@ -83,11 +95,13 @@ function Sparkline({ delta }: { delta: number }) {
   );
 }
 
-export function ClientCard({ client, delta = 0 }: ClientCardProps) {
+export function ClientCard({ client, delta = 0, onDelete }: ClientCardProps) {
+  const router = useRouter();
+
   return (
-    <Link
-      href={`/clients/${client.id}`}
-      className="block bg-bg-card border border-border-default rounded-[16px] p-7 transition-all duration-250 hover:bg-bg-card-hover hover:border-border-hover cursor-pointer"
+    <div
+      onClick={() => router.push(`/clients/${client.id}`)}
+      className="block group bg-bg-card border border-border-default rounded-[16px] p-7 transition-all duration-250 hover:bg-bg-card-hover hover:border-border-hover cursor-pointer"
     >
       {/* Header: Name + Badge */}
       <div className="flex justify-between items-start mb-[18px]">
@@ -97,7 +111,43 @@ export function ClientCard({ client, delta = 0 }: ClientCardProps) {
             {formatFilingStatus(client.filing_status)} · Age {client.age} · {client.state}
           </p>
         </div>
-        <DeltaBadge value={delta} />
+        <div className="flex items-center gap-2">
+          {onDelete && (
+            <div className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+              <AlertDialog>
+                <AlertDialogTrigger render={
+                  <button 
+                    onClick={(e) => e.stopPropagation()} 
+                    className="p-1.5 text-text-muted hover:text-red hover:bg-red/10 rounded-md transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                } />
+                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure you want to delete them?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete {client.name}&apos;s profile and remove their data from our servers.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red hover:bg-red/90 text-white"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(client.id);
+                      }}
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          )}
+          <DeltaBadge value={delta} />
+        </div>
       </div>
 
       {/* Stats Row */}
@@ -123,6 +173,6 @@ export function ClientCard({ client, delta = 0 }: ClientCardProps) {
       <p className="text-sm text-text-muted mt-2">
         Created {formatDate(client.created_at)}
       </p>
-    </Link>
+    </div>
   );
 }
