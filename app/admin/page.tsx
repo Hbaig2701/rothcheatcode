@@ -216,7 +216,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-[rgba(255,255,255,0.55)]">Loading dashboard...</div>
+        <div className="text-text-dim">Loading dashboard...</div>
       </div>
     )
   }
@@ -235,13 +235,13 @@ export default function AdminDashboard() {
       <RevenueSection />
 
       {/* Activity Chart */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">
+          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted">
             Activity Over Time
           </h2>
           <div className="flex gap-2">
-            <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
+            <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
               {(['scenario_runs', 'exports', 'logins'] as const).map(t => (
                 <button
                   key={t}
@@ -249,22 +249,22 @@ export default function AdminDashboard() {
                   className={`px-3 py-1 text-xs rounded-md transition-colors ${
                     activityType === t
                       ? 'bg-[#d4af37] text-black font-medium'
-                      : 'text-[rgba(255,255,255,0.65)] hover:text-white'
+                      : 'text-text-muted hover:text-foreground'
                   }`}
                 >
                   {t === 'scenario_runs' ? 'Scenarios' : t === 'exports' ? 'Exports' : 'Logins'}
                 </button>
               ))}
             </div>
-            <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
+            <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
               {(['7d', '30d', '90d'] as const).map(r => (
                 <button
                   key={r}
                   onClick={() => setActivityRange(r)}
                   className={`px-3 py-1 text-xs rounded-md transition-colors ${
                     activityRange === r
-                      ? 'bg-[rgba(255,255,255,0.15)] text-white font-medium'
-                      : 'text-[rgba(255,255,255,0.65)] hover:text-white'
+                      ? 'bg-[rgba(255,255,255,0.15)] text-foreground font-medium'
+                      : 'text-text-muted hover:text-foreground'
                   }`}
                 >
                   {r}
@@ -288,7 +288,7 @@ export default function AdminDashboard() {
               />
               <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} allowDecimals={false} />
               <Tooltip
-                contentStyle={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 12 }}
+                contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }}
                 labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
                 itemStyle={{ color: '#d4af37' }}
               />
@@ -305,9 +305,9 @@ export default function AdminDashboard() {
       <CostsSection />
 
       {/* Advisors Table */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">
+          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted">
             Advisors
           </h2>
           <div className="flex gap-3 flex-wrap">
@@ -316,9 +316,9 @@ export default function AdminDashboard() {
               placeholder="Search name or email..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="px-3 py-1.5 text-xs bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white placeholder:text-[rgba(255,255,255,0.65)] outline-none focus:border-[#d4af37]"
+              className="px-3 py-1.5 text-xs bg-bg-card-hover border border-border-default rounded-lg text-foreground placeholder:text-text-muted outline-none focus:border-[#d4af37]"
             />
-            <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
+            <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
               {([['all', 'All'], ['1d', '1 Day'], ['7d', '7 Days'], ['30d', '30 Days']] as const).map(([value, label]) => (
                 <button
                   key={value}
@@ -326,29 +326,29 @@ export default function AdminDashboard() {
                   className={`px-3 py-1 text-xs rounded-md transition-colors ${
                     timeFilter === value
                       ? 'bg-[#d4af37] text-black font-medium'
-                      : 'text-[rgba(255,255,255,0.65)] hover:text-white'
+                      : 'text-text-muted hover:text-foreground'
                   }`}
                 >
                   {label}
                 </button>
               ))}
             </div>
-            <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
+            <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
               {(['all', 'active', 'inactive', 'deactivated'] as const).map(s => (
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
                   className={`px-3 py-1 text-xs rounded-md transition-colors capitalize ${
                     statusFilter === s
-                      ? 'bg-[rgba(255,255,255,0.15)] text-white font-medium'
-                      : 'text-[rgba(255,255,255,0.65)] hover:text-white'
+                      ? 'bg-[rgba(255,255,255,0.15)] text-foreground font-medium'
+                      : 'text-text-muted hover:text-foreground'
                   }`}
                 >
                   {s}
                 </button>
               ))}
             </div>
-            <div className="flex gap-1 bg-[rgba(255,255,255,0.05)] rounded-lg p-1">
+            <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
               {([['all', 'All'], ['paying', 'Paying'], ['trial', 'Trial']] as const).map(([value, label]) => (
                 <button
                   key={value}
@@ -356,7 +356,7 @@ export default function AdminDashboard() {
                   className={`px-3 py-1 text-xs rounded-md transition-colors ${
                     planFilter === value
                       ? 'bg-[#d4af37] text-black font-medium'
-                      : 'text-[rgba(255,255,255,0.65)] hover:text-white'
+                      : 'text-text-muted hover:text-foreground'
                   }`}
                 >
                   {label}
@@ -365,7 +365,7 @@ export default function AdminDashboard() {
             </div>
             <button
               onClick={exportToCSV}
-              className="px-3 py-1.5 text-xs bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white hover:bg-[rgba(255,255,255,0.08)] transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 text-xs bg-bg-card-hover border border-border-default rounded-lg text-foreground hover:bg-secondary transition-colors flex items-center gap-1.5"
             >
               <Download className="h-3.5 w-3.5" />
               Export CSV
@@ -383,13 +383,13 @@ export default function AdminDashboard() {
 
         <table className="w-full">
           <thead>
-            <tr className="border-b border-[rgba(255,255,255,0.07)]">
+            <tr className="border-b border-border-default">
               <th className="px-4 py-3 w-10">
                 <input
                   type="checkbox"
                   checked={filtered.length > 0 && selectedIds.size === filtered.length}
                   onChange={toggleSelectAll}
-                  className="rounded border-[rgba(255,255,255,0.2)] bg-transparent accent-[#d4af37]"
+                  className="rounded border-border bg-transparent accent-[#d4af37]"
                 />
               </th>
               <SortableHeader label="Name" sortKey="name" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
@@ -402,14 +402,14 @@ export default function AdminDashboard() {
               <SortableHeader label="Sessions" sortKey="sessionCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Last Session" sortKey="lastLogin" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Status" sortKey="status" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-              <th className="px-4 py-3 text-xs uppercase tracking-[1px] font-semibold text-[rgba(255,255,255,0.65)]">Actions</th>
+              <th className="px-4 py-3 text-xs uppercase tracking-[1px] font-semibold text-text-muted">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(a => (
               <tr
                 key={a.id}
-                className={`border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors cursor-pointer ${
+                className={`border-b border-bg-card hover:bg-bg-card transition-colors cursor-pointer ${
                   selectedIds.has(a.id) ? 'bg-[rgba(212,175,55,0.05)]' : ''
                 }`}
                 onClick={() => window.location.href = `/admin/advisors/${a.id}`}
@@ -419,28 +419,28 @@ export default function AdminDashboard() {
                     type="checkbox"
                     checked={selectedIds.has(a.id)}
                     onChange={() => toggleSelect(a.id)}
-                    className="rounded border-[rgba(255,255,255,0.2)] bg-transparent accent-[#d4af37]"
+                    className="rounded border-border bg-transparent accent-[#d4af37]"
                   />
                 </td>
-                <td className="px-4 py-3 text-sm text-white">{a.name ?? <span className="text-[rgba(255,255,255,0.35)]">—</span>}</td>
-                <td className="px-4 py-3 text-sm text-white">{a.email}</td>
+                <td className="px-4 py-3 text-sm text-foreground">{a.name ?? <span className="text-text-dimmer">—</span>}</td>
+                <td className="px-4 py-3 text-sm text-foreground">{a.email}</td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     a.plan === 'paying'
-                      ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80]'
+                      ? 'bg-[rgba(74,222,128,0.15)] text-green'
                       : 'bg-[rgba(245,158,11,0.15)] text-[#f59e0b]'
                   }`}>
                     {a.plan === 'paying' ? 'Paying' : 'Trial'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">
+                <td className="px-4 py-3 text-sm text-text-muted">
                   {new Date(a.createdAt).toLocaleDateString()}
                 </td>
-                <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.clientCount}</td>
-                <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.scenarioRunCount}</td>
-                <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.exportCount}</td>
-                <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{a.sessionCount}</td>
-                <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">
+                <td className="px-4 py-3 text-sm text-right font-mono text-text-dim">{a.clientCount}</td>
+                <td className="px-4 py-3 text-sm text-right font-mono text-text-dim">{a.scenarioRunCount}</td>
+                <td className="px-4 py-3 text-sm text-right font-mono text-text-dim">{a.exportCount}</td>
+                <td className="px-4 py-3 text-sm text-right font-mono text-text-dim">{a.sessionCount}</td>
+                <td className="px-4 py-3 text-sm text-text-muted">
                   {a.lastLogin ? new Date(a.lastLogin).toLocaleDateString() : 'Never'}
                 </td>
                 <td className="px-4 py-3">
@@ -448,8 +448,8 @@ export default function AdminDashboard() {
                     a.status === 'deactivated'
                       ? 'bg-[rgba(239,68,68,0.15)] text-[#ef4444]'
                       : a.status === 'active'
-                        ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80]'
-                        : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.55)]'
+                        ? 'bg-[rgba(74,222,128,0.15)] text-green'
+                        : 'bg-secondary text-text-dim'
                   }`}>
                     {a.status}
                   </span>
@@ -466,7 +466,7 @@ export default function AdminDashboard() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-4 py-8 text-center text-sm text-[rgba(255,255,255,0.65)]">
+                <td colSpan={12} className="px-4 py-8 text-center text-sm text-text-muted">
                   No advisors found
                 </td>
               </tr>
@@ -490,7 +490,7 @@ function SortableHeader({ label, sortKey: key, align, currentSort, currentDir, o
   return (
     <th
       className={`${align === 'right' ? 'text-right' : 'text-left'} px-4 py-3 text-xs uppercase tracking-[1px] font-semibold cursor-pointer select-none transition-colors ${
-        isActive ? 'text-[#d4af37]' : 'text-[rgba(255,255,255,0.65)] hover:text-[rgba(255,255,255,0.8)]'
+        isActive ? 'text-primary' : 'text-text-muted hover:text-foreground/80'
       }`}
       onClick={() => onSort(key)}
     >
@@ -506,11 +506,11 @@ function SortableHeader({ label, sortKey: key, align, currentSort, currentDir, o
 
 function StatCard({ label, value, trend }: { label: string; value: number; trend?: number }) {
   return (
-    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-5">
-      <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-semibold mb-2">{label}</p>
-      <p className="text-2xl font-semibold text-white font-mono">{value.toLocaleString()}</p>
+    <div className="bg-bg-card border border-border-default rounded-[14px] p-5">
+      <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-semibold mb-2">{label}</p>
+      <p className="text-2xl font-semibold text-foreground font-mono">{value.toLocaleString()}</p>
       {trend != null && trend > 0 && (
-        <p className="text-xs text-[#4ade80] mt-1">+{trend} this week</p>
+        <p className="text-xs text-green mt-1">+{trend} this week</p>
       )}
     </div>
   )

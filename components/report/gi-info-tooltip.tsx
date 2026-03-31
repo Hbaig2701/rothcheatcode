@@ -74,7 +74,7 @@ export function InfoTooltip({
       <button
         ref={triggerRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-4 h-4 rounded-full flex items-center justify-center text-[rgba(255,255,255,0.65)] hover:text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+        className="w-4 h-4 rounded-full flex items-center justify-center text-text-muted hover:text-text-dim hover:bg-bg-card-hover transition-colors"
         aria-label={`Info about ${title}`}
       >
         <Info className="w-3 h-3" />
@@ -83,16 +83,16 @@ export function InfoTooltip({
       {isOpen && (
         <div
           ref={tooltipRef}
-          className="absolute z-50 top-full right-0 mt-2 w-[360px] max-w-[90vw] bg-[rgba(12,12,12,0.98)] border border-[rgba(255,255,255,0.1)] rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-in fade-in-0 zoom-in-95 duration-150"
+          className="absolute z-50 top-full right-0 mt-2 w-[360px] max-w-[90vw] bg-[rgba(12,12,12,0.98)] border border-border-default rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-in fade-in-0 zoom-in-95 duration-150"
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[rgba(255,255,255,0.07)]">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-border-default">
+            <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-medium">
               How This Is Calculated
             </p>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-[rgba(255,255,255,0.55)] hover:text-white transition-colors"
+              className="text-text-dim hover:text-foreground transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -101,7 +101,7 @@ export function InfoTooltip({
           {/* Content */}
           <div className="px-5 py-4 space-y-4">
             {/* Title */}
-            <p className="text-sm font-medium text-white">{title}</p>
+            <p className="text-sm font-medium text-foreground">{title}</p>
 
             {/* Calculation breakdown */}
             {calculations && calculations.length > 0 && (
@@ -111,16 +111,16 @@ export function InfoTooltip({
                     return (
                       <div
                         key={idx}
-                        className="border-t border-[rgba(255,255,255,0.1)] my-2"
+                        className="border-t border-border-default my-2"
                       />
                     );
                   }
 
                   const valueColor = {
                     gold: "text-gold",
-                    green: "text-[#4ade80]",
-                    red: "text-[#f87171]",
-                    muted: "text-[rgba(255,255,255,0.65)]",
+                    green: "text-green",
+                    red: "text-red",
+                    muted: "text-text-muted",
                   }[line.highlight || "muted"];
 
                   return (
@@ -131,7 +131,7 @@ export function InfoTooltip({
                         line.isResult && "font-semibold pt-1"
                       )}
                     >
-                      <span className="text-[rgba(255,255,255,0.65)]">
+                      <span className="text-text-muted">
                         {line.label}
                       </span>
                       <span className={valueColor}>{line.value}</span>
@@ -146,7 +146,7 @@ export function InfoTooltip({
 
             {/* Explanation */}
             {explanation && (
-              <p className="text-sm text-[rgba(255,255,255,0.65)] leading-relaxed pt-2 border-t border-[rgba(255,255,255,0.07)]">
+              <p className="text-sm text-text-muted leading-relaxed pt-2 border-t border-border-default">
                 {explanation}
               </p>
             )}

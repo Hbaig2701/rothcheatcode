@@ -147,7 +147,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
       <div className="p-9 space-y-6">
         {/* Section 1: The Guarantee (Hero Card) - Tax-Free Roth GI Income */}
-        <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[16px] py-10 px-12 text-center relative">
+        <div className="bg-accent border border-gold-border rounded-[16px] py-10 px-12 text-center relative">
           <div className="absolute top-4 right-4">
             <InfoTooltip
               {...getGuaranteedIncomeTooltip(
@@ -166,23 +166,23 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
           <p className="text-5xl font-mono font-semibold text-gold mb-1">
             {toUSD(projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0)}/year
           </p>
-          <p className="text-lg font-display text-white mb-3">tax-free for life</p>
+          <p className="text-lg font-display text-foreground mb-3">tax-free for life</p>
 
           {/* Comparison with baseline taxable income */}
           {projection.gi_baseline_annual_income_net && (
             <div className="bg-[rgba(0,0,0,0.2)] rounded-lg py-3 px-6 inline-block mb-4">
-              <p className="text-sm text-[rgba(255,255,255,0.6)]">
+              <p className="text-sm text-text-dim">
                 vs. Traditional GI: {toUSD(projection.gi_baseline_annual_income_gross || 0)}/year gross
-                → <span className="text-[#f87171]">{toUSD(projection.gi_baseline_annual_income_net)}/year after tax</span>
+                → <span className="text-red">{toUSD(projection.gi_baseline_annual_income_net)}/year after tax</span>
               </p>
             </div>
           )}
 
-          <p className="text-base text-[rgba(255,255,255,0.6)]">
+          <p className="text-base text-text-dim">
             Starting age {incomeStartAge} · {payoutTypeDisplay} · {payoutPercent.toFixed(2)}% payout rate
           </p>
           {projection.gi_annual_income_advantage && projection.gi_annual_income_advantage > 0 && (
-            <p className="text-base text-[#4ade80] mt-2 font-medium">
+            <p className="text-base text-green mt-2 font-medium">
               +{toUSD(projection.gi_annual_income_advantage)}/year advantage over traditional
             </p>
           )}
@@ -190,72 +190,72 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
 
         {/* Section 2: 4-Phase Journey */}
         {projection.gi_conversion_phase_years && projection.gi_conversion_phase_years > 0 && (
-          <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-6 font-medium">
+          <div className="bg-bg-card border border-border-default rounded-[14px] p-7">
+            <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-6 font-medium">
               Your Tax-Free Income Journey
             </p>
 
             {/* 4-Phase Timeline */}
             <div className="flex items-stretch gap-3 mb-6 overflow-x-auto pb-2">
               {/* Phase 1: Conversion */}
-              <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] p-5 min-w-[180px] flex-1">
+              <div className="bg-bg-input border border-border-default rounded-[10px] p-5 min-w-[180px] flex-1">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-7 h-7 rounded-full bg-[rgba(212,175,55,0.15)] flex items-center justify-center text-gold text-sm font-bold">1</div>
                   <p className="text-sm font-medium text-gold uppercase tracking-wide">Convert</p>
                 </div>
-                <p className="text-2xl font-mono font-medium text-white mb-1">
+                <p className="text-2xl font-mono font-medium text-foreground mb-1">
                   {projection.gi_conversion_phase_years} years
                 </p>
-                <p className="text-xs text-[rgba(255,255,255,0.65)] mb-2">Traditional → Roth IRA</p>
-                <p className="text-sm font-mono text-[#f87171]">
+                <p className="text-xs text-text-muted mb-2">Traditional → Roth IRA</p>
+                <p className="text-sm font-mono text-red">
                   Tax: {toUSD(projection.gi_total_conversion_tax || 0)}
                 </p>
               </div>
 
               <div className="flex items-center">
-                <ArrowRight className="w-5 h-5 text-[rgba(255,255,255,0.65)]" />
+                <ArrowRight className="w-5 h-5 text-text-muted" />
               </div>
 
               {/* Phase 2: Purchase */}
-              <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] p-5 min-w-[180px] flex-1">
+              <div className="bg-bg-input border border-border-default rounded-[10px] p-5 min-w-[180px] flex-1">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-7 h-7 rounded-full bg-[rgba(212,175,55,0.15)] flex items-center justify-center text-gold text-sm font-bold">2</div>
                   <p className="text-sm font-medium text-gold uppercase tracking-wide">Purchase</p>
                 </div>
-                <p className="text-2xl font-mono font-medium text-white mb-1">
+                <p className="text-2xl font-mono font-medium text-foreground mb-1">
                   Age {projection.gi_purchase_age}
                 </p>
-                <p className="text-xs text-[rgba(255,255,255,0.65)] mb-2">Buy GI in Roth IRA</p>
-                <p className="text-sm font-mono text-[#4ade80]">
+                <p className="text-xs text-text-muted mb-2">Buy GI in Roth IRA</p>
+                <p className="text-sm font-mono text-green">
                   {toUSD(projection.gi_purchase_amount || 0)}
                 </p>
               </div>
 
               <div className="flex items-center">
-                <ArrowRight className="w-5 h-5 text-[rgba(255,255,255,0.65)]" />
+                <ArrowRight className="w-5 h-5 text-text-muted" />
               </div>
 
               {/* Phase 3: Grow (Deferral) */}
-              <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] p-5 min-w-[180px] flex-1">
+              <div className="bg-bg-input border border-border-default rounded-[10px] p-5 min-w-[180px] flex-1">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-7 h-7 rounded-full bg-[rgba(212,175,55,0.15)] flex items-center justify-center text-gold text-sm font-bold">3</div>
                   <p className="text-sm font-medium text-gold uppercase tracking-wide">Grow</p>
                 </div>
-                <p className="text-2xl font-mono font-medium text-white mb-1">
+                <p className="text-2xl font-mono font-medium text-foreground mb-1">
                   {projection.gi_deferral_years || 0} years
                 </p>
-                <p className="text-xs text-[rgba(255,255,255,0.65)] mb-2">Income Base grows</p>
+                <p className="text-xs text-text-muted mb-2">Income Base grows</p>
                 <p className="text-sm font-mono text-gold">
                   +{toUSD(rollUpGrowth)}
                 </p>
               </div>
 
               <div className="flex items-center">
-                <ArrowRight className="w-5 h-5 text-[rgba(255,255,255,0.65)]" />
+                <ArrowRight className="w-5 h-5 text-text-muted" />
               </div>
 
               {/* Phase 4: Income */}
-              <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[10px] p-5 min-w-[180px] flex-1">
+              <div className="bg-accent border border-gold-border rounded-[10px] p-5 min-w-[180px] flex-1">
                 <div className="flex items-center gap-2 mb-3">
                   <div className="w-7 h-7 rounded-full bg-[rgba(212,175,55,0.25)] flex items-center justify-center text-gold text-sm font-bold">4</div>
                   <p className="text-sm font-medium text-gold uppercase tracking-wide">Income</p>
@@ -264,7 +264,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                   For Life
                 </p>
                 <p className="text-xs text-[rgba(212,175,55,0.7)] mb-2">Tax-free payments</p>
-                <p className="text-sm font-mono text-[#4ade80]">
+                <p className="text-sm font-mono text-green">
                   {toUSD(projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0)}/yr
                 </p>
               </div>
@@ -273,7 +273,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
             {/* Break-even callout */}
             {projection.gi_break_even_years && projection.gi_break_even_age && (
               <div className="bg-[rgba(74,222,128,0.05)] border border-[rgba(74,222,128,0.15)] rounded-lg p-4 text-center">
-                <p className="text-sm text-[#4ade80]">
+                <p className="text-sm text-green">
                   <span className="font-semibold">Break-even at age {projection.gi_break_even_age}</span>
                   {" "}({projection.gi_break_even_years} years after income starts) — then pure tax-free advantage
                 </p>
@@ -283,47 +283,47 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
         )}
 
         {/* Section 3: Income Base Journey */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
-          <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-6 font-medium">
+        <div className="bg-bg-card border border-border-default rounded-[14px] p-7">
+          <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-6 font-medium">
             How Your Income Is Calculated
           </p>
 
           {/* Journey Flow */}
           <div className="flex items-center justify-between gap-3 mb-6 overflow-x-auto pb-2">
             {/* Step 1: Purchase Amount (Roth balance after conversion) */}
-            <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] py-4 px-5 text-center min-w-[130px]">
-              <p className="text-xl font-mono font-medium text-white">{toUSD(purchaseAmount)}</p>
-              <p className="text-sm text-[rgba(255,255,255,0.65)] mt-1">GI Premium</p>
+            <div className="bg-bg-input border border-border-default rounded-[10px] py-4 px-5 text-center min-w-[130px]">
+              <p className="text-xl font-mono font-medium text-foreground">{toUSD(purchaseAmount)}</p>
+              <p className="text-sm text-text-muted mt-1">GI Premium</p>
             </div>
 
-            <span className="text-xl text-[rgba(255,255,255,0.65)]">→</span>
+            <span className="text-xl text-text-muted">→</span>
 
             {/* Step 2: Bonus */}
-            <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] py-4 px-5 text-center min-w-[130px]">
+            <div className="bg-bg-input border border-border-default rounded-[10px] py-4 px-5 text-center min-w-[130px]">
               <p className="text-xl font-mono font-medium text-gold">+{toUSD(bonusAmount)}</p>
-              <p className="text-sm text-[rgba(255,255,255,0.65)] mt-1">{bonusPercent}% Bonus</p>
+              <p className="text-sm text-text-muted mt-1">{bonusPercent}% Bonus</p>
             </div>
 
-            <span className="text-xl text-[rgba(255,255,255,0.65)]">→</span>
+            <span className="text-xl text-text-muted">→</span>
 
             {/* Step 3: Starting Income Base */}
-            <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] py-4 px-5 text-center min-w-[130px]">
-              <p className="text-xl font-mono font-medium text-white">{toUSD(startingIncomeBase)}</p>
-              <p className="text-sm text-[rgba(255,255,255,0.65)] mt-1">Starting Income Base</p>
+            <div className="bg-bg-input border border-border-default rounded-[10px] py-4 px-5 text-center min-w-[130px]">
+              <p className="text-xl font-mono font-medium text-foreground">{toUSD(startingIncomeBase)}</p>
+              <p className="text-sm text-text-muted mt-1">Starting Income Base</p>
             </div>
 
-            <span className="text-xl text-[rgba(255,255,255,0.65)]">→</span>
+            <span className="text-xl text-text-muted">→</span>
 
             {/* Step 4: Roll-Up Growth */}
-            <div className="bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] rounded-[10px] py-4 px-5 text-center min-w-[130px]">
+            <div className="bg-bg-input border border-border-default rounded-[10px] py-4 px-5 text-center min-w-[130px]">
               <p className="text-xl font-mono font-medium text-gold">+{toUSD(rollUpGrowth)}</p>
-              <p className="text-sm text-[rgba(255,255,255,0.65)] mt-1">Roll-Up Growth</p>
+              <p className="text-sm text-text-muted mt-1">Roll-Up Growth</p>
             </div>
 
-            <span className="text-xl text-[rgba(255,255,255,0.65)]">→</span>
+            <span className="text-xl text-text-muted">→</span>
 
             {/* Step 5: Final Income Base */}
-            <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[10px] py-4 px-5 text-center min-w-[130px] relative">
+            <div className="bg-accent border border-gold-border rounded-[10px] py-4 px-5 text-center min-w-[130px] relative">
               <div className="absolute top-1 right-1">
                 <InfoTooltip
                   {...getFinalIncomeBaseTooltip(
@@ -344,15 +344,15 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
           </div>
 
           {/* Formula Line */}
-          <div className="pt-5 border-t border-[rgba(255,255,255,0.07)]">
-            <p className="text-base font-mono text-[rgba(255,255,255,0.6)]">
+          <div className="pt-5 border-t border-border-default">
+            <p className="text-base font-mono text-text-dim">
               {toUSD(finalIncomeBase)} × {payoutPercent.toFixed(2)}% = <span className="text-gold font-semibold">{toUSD(calculatedIncome)}/year guaranteed</span>
             </p>
           </div>
         </div>
 
         {/* Section 3: The Protection Promise */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7 relative">
+        <div className="bg-bg-card border border-border-default rounded-[14px] p-7 relative">
           {depletionAge && (
             <div className="absolute top-4 right-4">
               <InfoTooltip
@@ -365,12 +365,12 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
               />
             </div>
           )}
-          <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-5 font-medium">
+          <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-5 font-medium">
             The Guarantee
           </p>
 
           {depletionAge && (
-            <p className="text-base text-[rgba(255,255,255,0.6)] mb-5">
+            <p className="text-base text-text-dim mb-5">
               Your Account Value is projected to deplete at age {depletionAge}.
             </p>
           )}
@@ -379,35 +379,35 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
           <div className="space-y-3 mb-5">
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 rounded-full bg-[rgba(74,222,128,0.1)] flex items-center justify-center shrink-0">
-                <Check className="w-4 h-4 text-[#4ade80]" />
+                <Check className="w-4 h-4 text-green" />
               </div>
-              <p className="text-base text-white">
+              <p className="text-base text-foreground">
                 Your guaranteed income of {toUSD(projection.gi_annual_income_gross || 0)}/year continues for life
               </p>
             </div>
             {depletionAge && cumulativeAtDepletion > 0 && (
               <div className="flex items-center gap-3">
                 <div className="w-6 h-6 rounded-full bg-[rgba(74,222,128,0.1)] flex items-center justify-center shrink-0">
-                  <Check className="w-4 h-4 text-[#4ade80]" />
+                  <Check className="w-4 h-4 text-green" />
                 </div>
-                <p className="text-base text-white">
+                <p className="text-base text-foreground">
                   You will have received {toUSD(cumulativeAtDepletion)} in income by age {depletionAge}
                 </p>
               </div>
             )}
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 rounded-full bg-[rgba(74,222,128,0.1)] flex items-center justify-center shrink-0">
-                <Check className="w-4 h-4 text-[#4ade80]" />
+                <Check className="w-4 h-4 text-green" />
               </div>
-              <p className="text-base text-white">
+              <p className="text-base text-foreground">
                 Total projected lifetime income: {toUSD(giTotalGross)} (to age {client.end_age})
               </p>
             </div>
           </div>
 
           {/* Comparison Callout */}
-          <div className="bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.07)] rounded-[10px] p-5">
-            <p className="text-sm text-[rgba(255,255,255,0.55)] italic">
+          <div className="bg-[rgba(255,255,255,0.02)] border border-border-default rounded-[10px] p-5">
+            <p className="text-sm text-text-dim italic">
               Without this guarantee, withdrawing {toUSD(projection.gi_annual_income_gross || 0)}/year from a traditional portfolio at 0% growth would deplete your funds entirely — with no further income.
             </p>
           </div>
@@ -430,13 +430,13 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
               <p className="text-xs uppercase tracking-[1.5px] text-[rgba(74,222,128,0.7)] mb-2 font-medium">
                 Tax-Free Wealth Created
               </p>
-              <p className="text-4xl font-mono font-semibold text-[#4ade80] mb-2">
+              <p className="text-4xl font-mono font-semibold text-green mb-2">
                 +{toUSD(projection.gi_tax_free_wealth_created)}
               </p>
-              <p className="text-sm text-[rgba(255,255,255,0.65)]">
+              <p className="text-sm text-text-muted">
                 Lifetime advantage over Traditional GI
                 {projection.gi_percent_improvement && (
-                  <span className={`${projection.gi_percent_improvement >= 0 ? "text-[#4ade80]" : "text-[#f87171]"} ml-2`}>
+                  <span className={`${projection.gi_percent_improvement >= 0 ? "text-green" : "text-red"} ml-2`}>
                     ({projection.gi_percent_improvement >= 0 ? "+" : ""}{projection.gi_percent_improvement.toFixed(1)}% improvement)
                   </span>
                 )}
@@ -510,22 +510,22 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
         </div>
 
         {/* Section 5: Cumulative Income Chart */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
+        <div className="bg-bg-card border border-border-default rounded-[14px] p-7">
           <div className="flex justify-between items-center mb-6">
             <div>
-              <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
+              <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-medium">
                 Cumulative Income Received
               </p>
-              <p className="text-sm text-[rgba(255,255,255,0.55)] mt-1">
+              <p className="text-sm text-text-dim mt-1">
                 Total net income in your pocket over time
               </p>
             </div>
             <div className="flex items-center gap-5 text-sm">
-              <span className="flex items-center gap-2 text-[#4ade80]">
+              <span className="flex items-center gap-2 text-green">
                 <span className="w-4 h-0.5 bg-[#4ade80] rounded" />
                 Tax-Free (Strategy)
               </span>
-              <span className="flex items-center gap-2 text-[rgba(255,255,255,0.65)]">
+              <span className="flex items-center gap-2 text-text-muted">
                 <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 4px, transparent 4px, transparent 6px)" }} />
                 After-Tax (Baseline)
               </span>
@@ -539,55 +539,55 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
             />
           </div>
           {/* Chart explanation */}
-          <div className="mt-4 pt-4 border-t border-[rgba(255,255,255,0.07)]">
-            <p className="text-sm text-[rgba(255,255,255,0.55)]">
-              The gap between the lines is your <span className="text-[#4ade80] font-medium">Tax-Free Wealth Created</span> — the extra money you keep by having Roth income instead of taxable income.
+          <div className="mt-4 pt-4 border-t border-border-default">
+            <p className="text-sm text-text-dim">
+              The gap between the lines is your <span className="text-green font-medium">Tax-Free Wealth Created</span> — the extra money you keep by having Roth income instead of taxable income.
             </p>
           </div>
         </div>
 
         {/* Section 6: Roth Conversion Summary (Conditional) */}
         {totalConverted > 0 && (
-          <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-6 font-medium">
+          <div className="bg-bg-card border border-border-default rounded-[14px] p-7">
+            <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-6 font-medium">
               Roth Conversions (Deferral Period)
             </p>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
               <div>
-                <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">Total Converted</p>
+                <p className="text-xs text-text-muted mb-1">Total Converted</p>
                 <p className="text-xl font-mono font-medium text-gold">{toUSD(totalConverted)}</p>
               </div>
               <div>
-                <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">Conversion Taxes Paid</p>
-                <p className="text-xl font-mono font-medium text-[#f87171]">{toUSD(blueConversionTax)}</p>
+                <p className="text-xs text-text-muted mb-1">Conversion Taxes Paid</p>
+                <p className="text-xl font-mono font-medium text-red">{toUSD(blueConversionTax)}</p>
               </div>
               <div>
-                <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">Final Roth Balance</p>
-                <p className="text-xl font-mono font-medium text-[#4ade80]">{toUSD(blueFinalRoth)}</p>
+                <p className="text-xs text-text-muted mb-1">Final Roth Balance</p>
+                <p className="text-xl font-mono font-medium text-green">{toUSD(blueFinalRoth)}</p>
               </div>
               <div>
-                <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">Tax Bracket Used</p>
-                <p className="text-xl font-mono font-medium text-[rgba(255,255,255,0.6)]">{client.tax_rate}%</p>
+                <p className="text-xs text-text-muted mb-1">Tax Bracket Used</p>
+                <p className="text-xl font-mono font-medium text-text-dim">{client.tax_rate}%</p>
               </div>
             </div>
           </div>
         )}
 
         {/* Section 7: Year-by-Year Table */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] overflow-hidden">
+        <div className="bg-bg-card border border-border-default rounded-[14px] overflow-hidden">
           {/* Table Header */}
-          <div className="flex justify-between items-center px-6 py-5 border-b border-[rgba(255,255,255,0.07)]">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
+          <div className="flex justify-between items-center px-6 py-5 border-b border-border-default">
+            <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-medium">
               Year-by-Year Projection
             </p>
-            <div className="flex bg-[rgba(255,255,255,0.04)] rounded-lg p-1">
+            <div className="flex bg-bg-input rounded-lg p-1">
               <button
                 onClick={() => setTableView("summary")}
                 className={cn(
                   "px-4 py-1.5 text-sm rounded-md transition-colors",
                   tableView === "summary"
-                    ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                    ? "bg-gold text-primary-foreground font-medium"
+                    : "text-text-muted hover:text-foreground"
                 )}
               >
                 Summary
@@ -597,8 +597,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                 className={cn(
                   "px-4 py-1.5 text-sm rounded-md transition-colors",
                   tableView === "full"
-                    ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                    ? "bg-gold text-primary-foreground font-medium"
+                    : "text-text-muted hover:text-foreground"
                 )}
               >
                 Strategy
@@ -608,8 +608,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                 className={cn(
                   "px-4 py-1.5 text-sm rounded-md transition-colors",
                   tableView === "baseline"
-                    ? "bg-gold text-[#0c0c0c] font-medium"
-                    : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                    ? "bg-gold text-primary-foreground font-medium"
+                    : "text-text-muted hover:text-foreground"
                 )}
               >
                 Baseline
@@ -622,47 +622,47 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
             <table className="w-full">
               <thead>
                 <tr className="bg-[rgba(255,255,255,0.02)]">
-                  <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Year</th>
-                  <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Age</th>
-                  <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Phase</th>
+                  <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Year</th>
+                  <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Age</th>
+                  <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Phase</th>
 
                   {/* Strategy (Full) columns */}
                   {tableView === "full" && (
                     <>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Trad (BOY)</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Conversion</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Conv. Tax</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Trad (EOY)</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Roth (EOY)</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Income Base</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Acct Value</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Rider Fee</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">GI Income</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Net</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Cumulative</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Trad (BOY)</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Conversion</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Conv. Tax</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Trad (EOY)</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Roth (EOY)</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Income Base</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Acct Value</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Rider Fee</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">GI Income</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Net</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Cumulative</th>
                     </>
                   )}
 
                   {/* Summary columns */}
                   {tableView === "summary" && (
                     <>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Key Value</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">GI Income</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Taxes</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Net</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Cumulative</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Key Value</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">GI Income</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Taxes</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Net</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Cumulative</th>
                     </>
                   )}
 
                   {/* Baseline columns - Traditional GI scenario */}
                   {tableView === "baseline" && (
                     <>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Income Base</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Acct Value</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">GI Income</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Tax ({client.tax_rate}%)</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Net Income</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Cumulative</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Income Base</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Acct Value</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">GI Income</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Tax ({client.tax_rate}%)</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Net Income</th>
+                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Cumulative</th>
                     </>
                   )}
                 </tr>
@@ -690,40 +690,40 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
 
                   // Phase display for baseline
                   const phaseLabel = isDeferralPhase ? "Grow" : isIncomePhase ? "Income" : row.phase;
-                  const phaseColor = isDeferralPhase ? "text-[#3b82f6]" : isIncomePhase ? "text-[rgba(255,255,255,0.65)]" : "text-[rgba(255,255,255,0.65)]";
+                  const phaseColor = isDeferralPhase ? "text-[#3b82f6]" : isIncomePhase ? "text-text-muted" : "text-text-muted";
 
                   return (
                     <tr
                       key={row.year}
-                      className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+                      className="border-b border-border-default/50 hover:bg-bg-card transition-colors"
                     >
-                      <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
-                      <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{row.age}</td>
+                      <td className="px-4 py-3 text-sm font-mono text-text-dim">{row.year}</td>
+                      <td className="px-4 py-3 text-sm text-text-muted">{row.age}</td>
                       <td className={cn("px-4 py-3 text-sm font-medium uppercase tracking-wide", phaseColor)}>
                         {phaseLabel}
                       </td>
                       <td className={cn(
                         "px-4 py-3 text-sm font-mono text-right",
-                        isDeferralPhase ? "text-gold" : "text-[rgba(255,255,255,0.65)]"
+                        isDeferralPhase ? "text-gold" : "text-text-muted"
                       )}>
                         {row.incomeBase > 0 ? toUSD(row.incomeBase) : "—"}
                       </td>
                       <td className={cn(
                         "px-4 py-3 text-sm font-mono text-right",
-                        isAccountZero ? "text-[rgba(255,255,255,0.55)]" : "text-[rgba(255,255,255,0.65)]"
+                        isAccountZero ? "text-text-dim" : "text-text-muted"
                       )}>
                         {isAccountZero ? "$0" : toUSD(row.accountValue)}
                       </td>
-                      <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.6)]">
+                      <td className="px-4 py-3 text-sm font-mono text-right text-text-dim">
                         {grossIncome > 0 ? toUSD(grossIncome) : "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
+                      <td className="px-4 py-3 text-sm font-mono text-right text-red">
                         {taxOnIncome > 0 ? toUSD(taxOnIncome) : "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+                      <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                         {netIncome > 0 ? toUSD(netIncome) : "—"}
                       </td>
-                      <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+                      <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                         {cumulative > 0 ? toUSD(cumulative) : "—"}
                       </td>
                     </tr>
@@ -775,20 +775,20 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                     conversion: "text-[#f97316]",
                     purchase: "text-[#a855f7]",
                     deferral: "text-[#3b82f6]",
-                    income: "text-[#4ade80]",
-                  }[row.phase] || "text-[rgba(255,255,255,0.65)]";
+                    income: "text-green",
+                  }[row.phase] || "text-text-muted";
 
                   return (
                     <tr
                       key={row.year}
                       className={cn(
-                        "border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors",
+                        "border-b border-border-default/50 hover:bg-bg-card transition-colors",
                         isDepletionRow && "bg-[rgba(212,175,55,0.03)] border-l-[3px] border-l-gold",
                         isPurchasePhase && "bg-[rgba(168,85,247,0.05)]"
                       )}
                     >
-                      <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
-                      <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{row.age}</td>
+                      <td className="px-4 py-3 text-sm font-mono text-text-dim">{row.year}</td>
+                      <td className="px-4 py-3 text-sm text-text-muted">{row.age}</td>
                       <td className={cn("px-4 py-3 text-sm font-medium uppercase tracking-wide", phaseColor)}>
                         {phaseLabel}
                       </td>
@@ -796,21 +796,21 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                       {/* Strategy (Full) columns */}
                       {tableView === "full" && (
                         <>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+                          <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                             {isConversionPhase && boyTraditional > 0 ? toUSD(boyTraditional) : "—"}
                           </td>
                           <td className="px-4 py-3 text-sm font-mono text-right text-gold">
                             {row.conversionAmount > 0 ? toUSD(row.conversionAmount) : "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
+                          <td className="px-4 py-3 text-sm font-mono text-right text-red">
                             {row.conversionTax > 0 ? toUSD(row.conversionTax) : "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+                          <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                             {isConversionPhase && eoyTraditional > 0 ? toUSD(eoyTraditional) : "—"}
                           </td>
                           <td className={cn(
                             "px-4 py-3 text-sm font-mono text-right",
-                            isPurchasePhase ? "text-[#a855f7]" : "text-[#4ade80]"
+                            isPurchasePhase ? "text-[#a855f7]" : "text-green"
                           )}>
                             {isPurchasePhase && purchaseRothAmount > 0
                               ? toUSD(purchaseRothAmount)
@@ -818,26 +818,26 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                           </td>
                           <td className={cn(
                             "px-4 py-3 text-sm font-mono text-right",
-                            (isPurchasePhase || isDeferralPhase || isIncomePhase) ? "text-gold" : "text-[rgba(255,255,255,0.65)]"
+                            (isPurchasePhase || isDeferralPhase || isIncomePhase) ? "text-gold" : "text-text-muted"
                           )}>
                             {row.incomeBase > 0 ? toUSD(row.incomeBase) : "—"}
                           </td>
                           <td className={cn(
                             "px-4 py-3 text-sm font-mono text-right",
-                            isAccountZero ? "text-[rgba(255,255,255,0.55)]" : "text-[rgba(255,255,255,0.65)]"
+                            isAccountZero ? "text-text-dim" : "text-text-muted"
                           )}>
                             {isConversionPhase ? "—" : (isAccountZero ? "$0" : toUSD(row.accountValue))}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.55)]">
+                          <td className="px-4 py-3 text-sm font-mono text-right text-text-dim">
                             {row.riderFee > 0 ? toUSD(row.riderFee) : "—"}
                           </td>
                           <td className="px-4 py-3 text-sm font-mono text-right text-gold">
                             {row.guaranteedIncomeGross > 0 ? toUSD(row.guaranteedIncomeGross) : "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[#4ade80]">
+                          <td className="px-4 py-3 text-sm font-mono text-right text-green">
                             {row.guaranteedIncomeNet > 0 ? toUSD(row.guaranteedIncomeNet) : "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+                          <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                             {cumulative > 0 ? toUSD(cumulative) : "—"}
                           </td>
                         </>
@@ -848,22 +848,22 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                         <>
                           <td className={cn(
                             "px-4 py-3 text-sm font-mono text-right",
-                            isIncomePhase ? "text-gold" : "text-[rgba(255,255,255,0.65)]"
+                            isIncomePhase ? "text-gold" : "text-text-muted"
                           )}>
                             {keyValue > 0 ? toUSD(keyValue) : "—"}
                           </td>
                           <td className="px-4 py-3 text-sm font-mono text-right text-gold">
                             {row.guaranteedIncomeGross > 0 ? toUSD(row.guaranteedIncomeGross) : "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
+                          <td className="px-4 py-3 text-sm font-mono text-right text-red">
                             {(row.conversionTax > 0 || (blueprintYear && (blueprintYear.federalTax + blueprintYear.stateTax) > 0))
                               ? toUSD(row.conversionTax || (blueprintYear?.federalTax || 0) + (blueprintYear?.stateTax || 0))
                               : "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[#4ade80]">
+                          <td className="px-4 py-3 text-sm font-mono text-right text-green">
                             {row.guaranteedIncomeNet > 0 ? toUSD(row.guaranteedIncomeNet) : "—"}
                           </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+                          <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                             {cumulative > 0 ? toUSD(cumulative) : "—"}
                           </td>
                         </>
@@ -877,7 +877,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
 
           {/* Depletion note */}
           {depletionAge && (
-            <div className="px-6 py-3 border-t border-[rgba(255,255,255,0.07)] bg-[rgba(212,175,55,0.03)]">
+            <div className="px-6 py-3 border-t border-border-default bg-[rgba(212,175,55,0.03)]">
               <p className="text-sm text-gold italic">
                 Income continues for life after account depletion
               </p>
@@ -891,18 +891,18 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
             onClick={() => setProductDetailsOpen(!productDetailsOpen)}
             className="w-full flex justify-between items-center py-4 text-left"
           >
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
+            <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-medium">
               Product Details
             </p>
             {productDetailsOpen ? (
-              <ChevronUp className="w-4 h-4 text-[rgba(255,255,255,0.65)]" />
+              <ChevronUp className="w-4 h-4 text-text-muted" />
             ) : (
-              <ChevronDown className="w-4 h-4 text-[rgba(255,255,255,0.65)]" />
+              <ChevronDown className="w-4 h-4 text-text-muted" />
             )}
           </button>
 
           {productDetailsOpen && (
-            <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
+            <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
               <div className="grid grid-cols-2 gap-x-12 gap-y-3">
                 <DetailRow label="Carrier" value={client.carrier_name} />
                 <DetailRow label="Product" value={client.product_name} />
@@ -919,7 +919,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
         </div>
 
         {/* Section 9: Disclaimer */}
-        <p className="text-sm text-[rgba(255,255,255,0.55)] italic text-center max-w-[800px] mx-auto py-6">
+        <p className="text-sm text-text-dim italic text-center max-w-[800px] mx-auto py-6">
           This optimized plan is for educational purposes only. Before making a Roth conversion or purchasing an annuity, discuss your final plan with a tax professional and licensed insurance agent.
         </p>
       </div>
@@ -962,16 +962,16 @@ function ComparisonCard({
   // For absolute display (like break-even years), just show the strategy value
   if (showAsAbsolute) {
     return (
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[12px] p-5 relative">
+      <div className="bg-bg-card border border-border-default rounded-[12px] p-5 relative">
         {tooltip && (
           <div className="absolute top-3 right-3">
             <InfoTooltip {...tooltip} />
           </div>
         )}
-        <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4 font-medium">
+        <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-4 font-medium">
           {label}
         </p>
-        <p className="text-2xl font-mono font-medium text-white">
+        <p className="text-2xl font-mono font-medium text-foreground">
           {suffix ? `${strategy}${suffix}` : toUSD(strategy)}
         </p>
       </div>
@@ -979,29 +979,29 @@ function ComparisonCard({
   }
 
   return (
-    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[12px] p-5 relative">
+    <div className="bg-bg-card border border-border-default rounded-[12px] p-5 relative">
       {tooltip && (
         <div className="absolute top-3 right-3">
           <InfoTooltip {...tooltip} />
         </div>
       )}
-      <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4 font-medium">
+      <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-4 font-medium">
         {label}
       </p>
       <div className="flex justify-between mb-2">
         <div>
-          <p className="text-xs uppercase text-[rgba(255,255,255,0.55)] mb-1">Baseline</p>
-          <p className="text-lg font-mono text-[rgba(255,255,255,0.6)]">{toUSD(baseline)}</p>
+          <p className="text-xs uppercase text-text-dim mb-1">Baseline</p>
+          <p className="text-lg font-mono text-text-dim">{toUSD(baseline)}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs uppercase text-[rgba(255,255,255,0.55)] mb-1">Strategy</p>
-          <p className="text-lg font-mono font-medium text-white">{toUSD(strategy)}</p>
+          <p className="text-xs uppercase text-text-dim mb-1">Strategy</p>
+          <p className="text-lg font-mono font-medium text-foreground">{toUSD(strategy)}</p>
         </div>
       </div>
-      <div className="pt-3 border-t border-[rgba(255,255,255,0.07)]">
+      <div className="pt-3 border-t border-border-default">
         <p className={cn(
           "text-base font-mono font-medium",
-          isPositive ? "text-[#4ade80]" : "text-[#f87171]"
+          isPositive ? "text-green" : "text-red"
         )}>
           {diff >= 0 ? "+" : ""}{toUSD(diff)} ({pct >= 0 ? "+" : ""}{(pct * 100).toFixed(1)}%)
         </p>
@@ -1014,8 +1014,8 @@ function ComparisonCard({
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between items-center">
-      <p className="text-sm text-[rgba(255,255,255,0.65)]">{label}</p>
-      <p className="text-sm font-mono text-[rgba(255,255,255,0.7)]">{value}</p>
+      <p className="text-sm text-text-muted">{label}</p>
+      <p className="text-sm font-mono text-text-muted">{value}</p>
     </div>
   );
 }

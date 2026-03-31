@@ -53,8 +53,8 @@ export function RevenueSection() {
 
   if (loading) {
     return (
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <div className="text-sm text-[rgba(255,255,255,0.55)]">Loading revenue data...</div>
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+        <div className="text-sm text-text-dim">Loading revenue data...</div>
       </div>
     )
   }
@@ -66,8 +66,8 @@ export function RevenueSection() {
   return (
     <div className="space-y-6">
       {/* Revenue Overview */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
           Revenue Overview
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -98,8 +98,8 @@ export function RevenueSection() {
 
       {/* Health Alerts */}
       {hasHealthIssues && (
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4 flex items-center gap-2">
+        <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4 flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-[#ef4444]" />
             Subscription Health Alerts
           </h2>
@@ -134,8 +134,8 @@ export function RevenueSection() {
 
       {/* Revenue Breakdown */}
       {data.byPlan.length > 0 && (
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4">
+        <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
             Revenue Breakdown
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -145,25 +145,25 @@ export function RevenueSection() {
               return (
                 <div key={p.plan}>
                   {monthlyCount > 0 && (
-                    <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4 mb-2">
-                      <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">Monthly Subscribers</p>
-                      <p className="text-xl font-semibold text-white font-mono">
+                    <div className="bg-bg-card rounded-xl p-4 mb-2">
+                      <p className="text-xs text-text-muted mb-1">Monthly Subscribers</p>
+                      <p className="text-xl font-semibold text-foreground font-mono">
                         ${p.monthlyRevenue.toLocaleString()}
-                        <span className="text-xs text-[rgba(255,255,255,0.55)]">/mo</span>
+                        <span className="text-xs text-text-dim">/mo</span>
                       </p>
-                      <p className="text-xs text-[rgba(255,255,255,0.55)] mt-1">
+                      <p className="text-xs text-text-dim mt-1">
                         {monthlyCount} {monthlyCount === 1 ? 'subscriber' : 'subscribers'}
                       </p>
                     </div>
                   )}
                   {annualCount > 0 && (
-                    <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
-                      <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">Annual Subscribers</p>
-                      <p className="text-xl font-semibold text-white font-mono">
+                    <div className="bg-bg-card rounded-xl p-4">
+                      <p className="text-xs text-text-muted mb-1">Annual Subscribers</p>
+                      <p className="text-xl font-semibold text-foreground font-mono">
                         ${p.annualRevenue.toLocaleString()}
-                        <span className="text-xs text-[rgba(255,255,255,0.55)]">/yr</span>
+                        <span className="text-xs text-text-dim">/yr</span>
                       </p>
-                      <p className="text-xs text-[rgba(255,255,255,0.55)] mt-1">
+                      <p className="text-xs text-text-dim mt-1">
                         {annualCount} {annualCount === 1 ? 'subscriber' : 'subscribers'}
                       </p>
                     </div>
@@ -176,8 +176,8 @@ export function RevenueSection() {
       )}
 
       {/* Conversion Performance */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
           Conversion Performance
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -193,8 +193,8 @@ export function RevenueSection() {
       </div>
 
       {/* MRR Trend */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
           MRR Trend (Last 6 Months)
         </h2>
         <div className="h-[250px]">
@@ -211,8 +211,8 @@ export function RevenueSection() {
               />
               <Tooltip
                 contentStyle={{
-                  background: '#1a1a1a',
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border-default)',
                   borderRadius: 8,
                   fontSize: 12
                 }}
@@ -243,13 +243,13 @@ function RevenueStat({
   subtext: string
 }) {
   return (
-    <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
-      <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">{label}</p>
-      <p className="text-2xl font-semibold text-white font-mono mb-1">{value}</p>
+    <div className="bg-bg-card rounded-xl p-4">
+      <p className="text-xs text-text-muted mb-1">{label}</p>
+      <p className="text-2xl font-semibold text-foreground font-mono mb-1">{value}</p>
       <div className="flex items-center gap-2">
-        <span className="text-xs text-[rgba(255,255,255,0.55)]">{subtext}</span>
+        <span className="text-xs text-text-dim">{subtext}</span>
         {trend != null && trend !== 0 && (
-          <span className={`flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? 'text-[#4ade80]' : 'text-[#ef4444]'}`}>
+          <span className={`flex items-center gap-0.5 text-xs font-medium ${trend > 0 ? 'text-green' : 'text-[#ef4444]'}`}>
             {trend > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
             {trend > 0 ? '+' : ''}{trend}%
           </span>
@@ -295,13 +295,13 @@ function TrialStat({
   highlight?: boolean
 }) {
   return (
-    <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
-      <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">{label}</p>
-      <p className={`text-xl font-semibold font-mono ${highlight ? 'text-[#4ade80]' : 'text-white'}`}>
+    <div className="bg-bg-card rounded-xl p-4">
+      <p className="text-xs text-text-muted mb-1">{label}</p>
+      <p className={`text-xl font-semibold font-mono ${highlight ? 'text-green' : 'text-foreground'}`}>
         {value}
       </p>
       {subtext && (
-        <p className="text-xs text-[rgba(255,255,255,0.55)] mt-1">{subtext}</p>
+        <p className="text-xs text-text-dim mt-1">{subtext}</p>
       )}
     </div>
   )

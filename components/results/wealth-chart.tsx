@@ -29,7 +29,7 @@ export function WealthChart({ data, breakEvenAge }: WealthChartProps) {
   if (!isMounted) {
     return (
       <div className="h-full w-full flex items-center justify-center">
-        <div className="text-sm text-[rgba(255,255,255,0.55)]">Loading chart...</div>
+        <div className="text-sm text-text-dim">Loading chart...</div>
       </div>
     );
   }

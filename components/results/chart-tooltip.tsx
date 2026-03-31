@@ -32,22 +32,22 @@ export function ChartTooltip({
     : 0;
 
   return (
-    <div className="rounded-lg border border-[#2A2A2A] bg-[#141414]/95 p-3 shadow-xl backdrop-blur-sm">
-      <p className="font-semibold text-white mb-2">Age {label}</p>
+    <div className="rounded-lg border border-[#2A2A2A] bg-surface/95 p-3 shadow-xl backdrop-blur-sm">
+      <p className="font-semibold text-foreground mb-2">Age {label}</p>
       <div className="space-y-1.5 text-sm">
         <div className="flex justify-between gap-6">
           <span className="text-[#F5B800] flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#F5B800]"></span>
             Formula:
           </span>
-          <span className="font-mono text-white">{formatCurrency(formula?.value ?? 0)}</span>
+          <span className="font-mono text-foreground">{formatCurrency(formula?.value ?? 0)}</span>
         </div>
         <div className="flex justify-between gap-6">
           <span className="text-red-400 flex items-center gap-2">
             <span className="w-2 h-0.5 bg-red-500"></span>
             Baseline:
           </span>
-          <span className="font-mono text-white">{formatCurrency(baseline?.value ?? 0)}</span>
+          <span className="font-mono text-foreground">{formatCurrency(baseline?.value ?? 0)}</span>
         </div>
         <div className="border-t border-[#2A2A2A] pt-2 mt-2">
           <div className="flex justify-between gap-6">

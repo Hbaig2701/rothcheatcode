@@ -83,7 +83,7 @@ export default function AdvisorDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <div className="text-[rgba(255,255,255,0.55)]">Loading advisor...</div>
+        <div className="text-text-dim">Loading advisor...</div>
       </div>
     )
   }
@@ -91,8 +91,8 @@ export default function AdvisorDetailPage() {
   if (!data?.advisor) {
     return (
       <div className="text-center py-20">
-        <p className="text-[rgba(255,255,255,0.55)]">Advisor not found</p>
-        <Link href="/admin" className="text-[#d4af37] text-sm mt-2 inline-block">Back to Dashboard</Link>
+        <p className="text-text-dim">Advisor not found</p>
+        <Link href="/admin" className="text-primary text-sm mt-2 inline-block">Back to Dashboard</Link>
       </div>
     )
   }
@@ -105,7 +105,7 @@ export default function AdvisorDetailPage() {
       {feedback && (
         <div className={`px-4 py-3 rounded-lg text-sm font-medium ${
           feedback.type === 'success'
-            ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80] border border-[rgba(74,222,128,0.2)]'
+            ? 'bg-[rgba(74,222,128,0.15)] text-green border border-green/20'
             : 'bg-[rgba(239,68,68,0.15)] text-[#ef4444] border border-[rgba(239,68,68,0.2)]'
         }`}>
           {feedback.message}
@@ -115,11 +115,11 @@ export default function AdvisorDetailPage() {
       {/* Confirmation Modal */}
       {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-xl p-6 max-w-md w-full mx-4 space-y-4">
-            <h3 className="text-lg font-semibold text-white">
+          <div className="bg-surface-elevated border border-border-default rounded-xl p-6 max-w-md w-full mx-4 space-y-4">
+            <h3 className="text-lg font-semibold text-foreground">
               {confirmAction === 'delete' ? 'Permanently Delete User?' : 'Deactivate User?'}
             </h3>
-            <p className="text-sm text-[rgba(255,255,255,0.65)]">
+            <p className="text-sm text-text-muted">
               {confirmAction === 'delete'
                 ? `This will permanently delete ${advisor.email} and all their data (clients, projections, exports, logs). This action cannot be undone.`
                 : `This will temporarily block ${advisor.email} from logging in. You can reactivate their account later.`}
@@ -128,7 +128,7 @@ export default function AdvisorDetailPage() {
               <button
                 onClick={() => setConfirmAction(null)}
                 disabled={actionLoading}
-                className="px-4 py-2 text-sm rounded-lg bg-[rgba(255,255,255,0.08)] text-white hover:bg-[rgba(255,255,255,0.12)] transition-colors"
+                className="px-4 py-2 text-sm rounded-lg bg-secondary text-foreground hover:bg-[rgba(255,255,255,0.12)] transition-colors"
               >
                 Cancel
               </button>
@@ -151,11 +151,11 @@ export default function AdvisorDetailPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <Link href="/admin" className="text-xs text-[rgba(255,255,255,0.55)] hover:text-white transition-colors mb-2 inline-block">
+          <Link href="/admin" className="text-xs text-text-dim hover:text-foreground transition-colors mb-2 inline-block">
             &larr; Back to Dashboard
           </Link>
-          <h2 className="text-xl font-semibold text-white">{advisor.email}</h2>
-          <p className="text-sm text-[rgba(255,255,255,0.55)] mt-1">
+          <h2 className="text-xl font-semibold text-foreground">{advisor.email}</h2>
+          <p className="text-sm text-text-dim mt-1">
             Signed up {new Date(advisor.createdAt).toLocaleDateString()}
           </p>
         </div>
@@ -163,16 +163,16 @@ export default function AdvisorDetailPage() {
           advisor.status === 'deactivated'
             ? 'bg-[rgba(239,68,68,0.15)] text-[#ef4444]'
             : advisor.status === 'active'
-              ? 'bg-[rgba(74,222,128,0.15)] text-[#4ade80]'
-              : 'bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.55)]'
+              ? 'bg-[rgba(74,222,128,0.15)] text-green'
+              : 'bg-secondary text-text-dim'
         }`}>
           {advisor.status}
         </span>
       </div>
 
       {/* Admin Actions */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.55)] mb-4">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-text-dim mb-4">
           Admin Actions
         </h3>
         <div className="flex flex-wrap gap-3">
@@ -188,7 +188,7 @@ export default function AdvisorDetailPage() {
             <button
               onClick={() => handleAction('reactivate')}
               disabled={actionLoading}
-              className="px-4 py-2 text-sm rounded-lg bg-[rgba(74,222,128,0.15)] text-[#4ade80] border border-[rgba(74,222,128,0.2)] hover:bg-[rgba(74,222,128,0.25)] transition-colors font-medium"
+              className="px-4 py-2 text-sm rounded-lg bg-[rgba(74,222,128,0.15)] text-green border border-green/20 hover:bg-[rgba(74,222,128,0.25)] transition-colors font-medium"
             >
               {actionLoading ? 'Processing...' : 'Reactivate Account'}
             </button>
@@ -209,7 +209,7 @@ export default function AdvisorDetailPage() {
           </button>
         </div>
         {advisor.deactivatedAt && (
-          <p className="text-xs text-[rgba(255,255,255,0.65)] mt-3">
+          <p className="text-xs text-text-muted mt-3">
             Deactivated on {new Date(advisor.deactivatedAt).toLocaleDateString()}
           </p>
         )}
@@ -226,67 +226,67 @@ export default function AdvisorDetailPage() {
       </div>
 
       {/* Client List */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.55)] mb-4">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-text-dim mb-4">
           Clients ({clients.length})
         </h3>
         {clients.length > 0 ? (
           <table className="w-full">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.07)]">
-                <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] font-medium">Name</th>
-                <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] font-medium">Created</th>
-                <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] font-medium">Last Activity</th>
-                <th className="text-right px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] font-medium">Scenarios</th>
-                <th className="text-right px-4 py-2 text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] font-medium">Exports</th>
+              <tr className="border-b border-border-default">
+                <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-text-dim font-medium">Name</th>
+                <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-text-dim font-medium">Created</th>
+                <th className="text-left px-4 py-2 text-xs uppercase tracking-[1px] text-text-dim font-medium">Last Activity</th>
+                <th className="text-right px-4 py-2 text-xs uppercase tracking-[1px] text-text-dim font-medium">Scenarios</th>
+                <th className="text-right px-4 py-2 text-xs uppercase tracking-[1px] text-text-dim font-medium">Exports</th>
               </tr>
             </thead>
             <tbody>
               {clients.map(c => (
-                <tr key={c.id} className="border-b border-[rgba(255,255,255,0.03)]">
-                  <td className="px-4 py-3 text-sm text-white">{c.name}</td>
-                  <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{new Date(c.createdAt).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{new Date(c.lastActivity).toLocaleDateString()}</td>
-                  <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{c.scenarioRuns}</td>
-                  <td className="px-4 py-3 text-sm text-right font-mono text-[rgba(255,255,255,0.6)]">{c.exports}</td>
+                <tr key={c.id} className="border-b border-bg-card">
+                  <td className="px-4 py-3 text-sm text-foreground">{c.name}</td>
+                  <td className="px-4 py-3 text-sm text-text-muted">{new Date(c.createdAt).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm text-text-muted">{new Date(c.lastActivity).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-sm text-right font-mono text-text-dim">{c.scenarioRuns}</td>
+                  <td className="px-4 py-3 text-sm text-right font-mono text-text-dim">{c.exports}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p className="text-sm text-[rgba(255,255,255,0.65)] text-center py-4">No clients yet</p>
+          <p className="text-sm text-text-muted text-center py-4">No clients yet</p>
         )}
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.55)] mb-4">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-text-dim mb-4">
           Recent Activity
         </h3>
         {recentActivity.length > 0 ? (
           <div className="space-y-2">
             {recentActivity.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between py-2 border-b border-[rgba(255,255,255,0.03)] last:border-0">
+              <div key={idx} className="flex items-center justify-between py-2 border-b border-bg-card last:border-0">
                 <div className="flex items-center gap-3">
                   <span className={`w-2 h-2 rounded-full ${
                     item.type === 'login' ? 'bg-blue-400' :
                     item.type === 'scenario_run' ? 'bg-[#d4af37]' :
                     'bg-[#4ade80]'
                   }`} />
-                  <span className="text-sm text-[rgba(255,255,255,0.7)]">
+                  <span className="text-sm text-text-muted">
                     {item.type === 'login' && 'Logged in'}
                     {item.type === 'scenario_run' && `Ran scenario${item.clientName ? ` for ${item.clientName}` : ''}`}
                     {item.type === 'export' && `Exported PDF${item.clientName ? ` for ${item.clientName}` : ''}`}
                   </span>
                 </div>
-                <span className="text-xs text-[rgba(255,255,255,0.65)]">
+                <span className="text-xs text-text-muted">
                   {formatTimeAgo(item.timestamp)}
                 </span>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-[rgba(255,255,255,0.65)] text-center py-4">No activity yet</p>
+          <p className="text-sm text-text-muted text-center py-4">No activity yet</p>
         )}
       </div>
     </div>
@@ -295,9 +295,9 @@ export default function AdvisorDetailPage() {
 
 function MiniStat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-lg p-3">
-      <p className="text-[9px] uppercase tracking-[1px] text-[rgba(255,255,255,0.55)] mb-1">{label}</p>
-      <p className="text-lg font-semibold text-white font-mono">{value}</p>
+    <div className="bg-bg-card border border-border-default rounded-lg p-3">
+      <p className="text-[9px] uppercase tracking-[1px] text-text-dim mb-1">{label}</p>
+      <p className="text-lg font-semibold text-foreground font-mono">{value}</p>
     </div>
   )
 }

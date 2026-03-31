@@ -61,7 +61,7 @@ export function MetricsDisplay({ metrics }: MetricsDisplayProps) {
         return (
           <div
             key={key}
-            className="rounded-[12px] border border-[rgba(255,255,255,0.05)] bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+            className="rounded-[12px] border border-border-default bg-bg-card hover:bg-bg-input transition-colors"
           >
             <button
               onClick={() => hasDetails && setExpanded(isExpanded ? null : key)}
@@ -96,10 +96,10 @@ export function MetricsDisplay({ metrics }: MetricsDisplayProps) {
               </div>
 
               <div className="flex-1 min-w-0 ml-4">
-                <span className="text-base text-[rgba(255,255,255,0.85)] leading-tight block mb-2">
+                <span className="text-base text-foreground leading-tight block mb-2">
                   {label}
                 </span>
-                <div className="h-1.5 rounded-full bg-[rgba(255,255,255,0.06)]">
+                <div className="h-1.5 rounded-full bg-bg-card-hover">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${getBarColor(score)}`}
                     style={{ width: `${score * 10}%` }}
@@ -110,9 +110,9 @@ export function MetricsDisplay({ metrics }: MetricsDisplayProps) {
               {hasDetails && (
                 <div className="ml-3 flex-shrink-0">
                   {isExpanded ? (
-                    <ChevronDown className="h-5 w-5 text-[rgba(255,255,255,0.3)]" />
+                    <ChevronDown className="h-5 w-5 text-text-dimmer" />
                   ) : (
-                    <ChevronRight className="h-5 w-5 text-[rgba(255,255,255,0.3)]" />
+                    <ChevronRight className="h-5 w-5 text-text-dimmer" />
                   )}
                 </div>
               )}
@@ -121,7 +121,7 @@ export function MetricsDisplay({ metrics }: MetricsDisplayProps) {
             {isExpanded && hasDetails && (
               <div className="px-5 pb-5 space-y-3">
                 {rationale && (
-                  <p className="text-sm text-[rgba(255,255,255,0.6)] leading-relaxed">
+                  <p className="text-sm text-text-dim leading-relaxed">
                     {rationale}
                   </p>
                 )}

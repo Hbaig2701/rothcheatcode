@@ -47,8 +47,8 @@ function DeltaBadge({ value }: { value: number }) {
     <span
       className={`inline-block px-3 py-1 rounded-[20px] text-sm font-mono font-medium ${
         isPositive
-          ? "bg-[rgba(74,222,128,0.08)] text-[#4ade80]"
-          : "bg-[rgba(248,113,113,0.08)] text-[#f87171]"
+          ? "bg-green-bg text-green"
+          : "bg-red-bg text-red"
       }`}
     >
       {isPositive ? "+" : ""}
@@ -87,13 +87,13 @@ export function ClientCard({ client, delta = 0 }: ClientCardProps) {
   return (
     <Link
       href={`/clients/${client.id}`}
-      className="block bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-7 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)] cursor-pointer"
+      className="block bg-bg-card border border-border-default rounded-[16px] p-7 transition-all duration-250 hover:bg-bg-card-hover hover:border-border-hover cursor-pointer"
     >
       {/* Header: Name + Badge */}
       <div className="flex justify-between items-start mb-[18px]">
         <div>
-          <h3 className="text-lg font-medium text-white mb-1">{client.name}</h3>
-          <p className="text-sm text-[rgba(255,255,255,0.6)]">
+          <h3 className="text-lg font-medium text-foreground mb-1">{client.name}</h3>
+          <p className="text-sm text-text-dim">
             {formatFilingStatus(client.filing_status)} · Age {client.age} · {client.state}
           </p>
         </div>
@@ -103,14 +103,14 @@ export function ClientCard({ client, delta = 0 }: ClientCardProps) {
       {/* Stats Row */}
       <div className="flex gap-8 mb-3">
         <div>
-          <p className="text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.65)] mb-1">Balance</p>
-          <p className="text-base font-mono text-[rgba(255,255,255,0.8)]">
+          <p className="text-xs uppercase tracking-[1px] text-text-muted mb-1">Balance</p>
+          <p className="text-base font-mono text-foreground/80">
             {formatCompactCurrency(client.qualified_account_value)}
           </p>
         </div>
         <div>
-          <p className="text-xs uppercase tracking-[1px] text-[rgba(255,255,255,0.65)] mb-1">Product</p>
-          <p className="text-base font-mono text-[rgba(255,255,255,0.8)] truncate max-w-[140px]">
+          <p className="text-xs uppercase tracking-[1px] text-text-muted mb-1">Product</p>
+          <p className="text-base font-mono text-foreground/80 truncate max-w-[140px]">
             {client.carrier_name}
           </p>
         </div>
@@ -120,7 +120,7 @@ export function ClientCard({ client, delta = 0 }: ClientCardProps) {
       <Sparkline delta={delta} />
 
       {/* Footer */}
-      <p className="text-sm text-[rgba(255,255,255,0.65)] mt-2">
+      <p className="text-sm text-text-muted mt-2">
         Created {formatDate(client.created_at)}
       </p>
     </Link>

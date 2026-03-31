@@ -19,13 +19,13 @@ function UsageRow({ label, used, limit }: { label: string; used: number; limit: 
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs">
-        <span className="text-[rgba(255,255,255,0.6)]">{label}</span>
-        <span className="font-mono text-[rgba(255,255,255,0.8)]">
+        <span className="text-text-dim">{label}</span>
+        <span className="font-mono text-foreground/80">
           {used}{isUnlimited ? "" : `/${limit}`}
         </span>
       </div>
       {!isUnlimited && (
-        <div className="h-1.5 w-full rounded-full bg-[rgba(255,255,255,0.08)]">
+        <div className="h-1.5 w-full rounded-full bg-secondary">
           <div
             className={`h-full rounded-full transition-all ${
               isNearLimit ? "bg-[#f59e0b]" : "bg-gold"
@@ -40,11 +40,11 @@ function UsageRow({ label, used, limit }: { label: string; used: number; limit: 
 
 export function UsageCard({ usage }: UsageCardProps) {
   return (
-    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-[22px_24px] transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
-      <div className="w-9 h-9 rounded-[10px] flex items-center justify-center mb-4 bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)]">
+    <div className="bg-bg-card border border-border-default rounded-[14px] p-[22px_24px] transition-all duration-250 hover:bg-bg-card-hover hover:border-border-hover">
+      <div className="w-9 h-9 rounded-[10px] flex items-center justify-center mb-4 bg-accent border border-gold-border">
         <Activity className="w-[18px] h-[18px] text-gold" />
       </div>
-      <p className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-3">
+      <p className="text-xs font-medium uppercase tracking-[1.5px] text-text-muted mb-3">
         Plan Usage
       </p>
       <div className="space-y-2.5">

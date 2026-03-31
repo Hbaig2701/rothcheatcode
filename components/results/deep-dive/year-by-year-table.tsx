@@ -64,12 +64,12 @@ export function YearByYearTable({ years, scenario, productType = "growth" }: Yea
     <div className="space-y-4">
       {/* Header with Adjust Columns button */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-white">
+        <h3 className="text-lg font-semibold text-foreground">
           {scenario === "baseline" ? "Baseline" : "Strategy"} Projection
         </h3>
         <button
           onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white hover:bg-white/10 transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-bg-card border border-border-default rounded-lg text-foreground hover:bg-white/10 transition-colors"
         >
           <Settings2 className="h-4 w-4" />
           Adjust Columns

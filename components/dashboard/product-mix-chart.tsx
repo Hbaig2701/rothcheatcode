@@ -24,18 +24,18 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
 
   if (data.length === 0) {
     return (
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
-        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-6">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-7">
+        <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-text-muted mb-6">
           Product Mix
         </h3>
-        <p className="text-sm text-[rgba(255,255,255,0.6)] text-center py-8">No data yet</p>
+        <p className="text-sm text-text-dim text-center py-8">No data yet</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
-      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-6">
+    <div className="bg-bg-card border border-border-default rounded-[14px] p-7 transition-all duration-250 hover:bg-bg-card-hover hover:border-border-hover">
+      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-text-muted mb-6">
         Product Mix
       </h3>
 
@@ -59,7 +59,7 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
               </Pie>
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#141414",
+                  backgroundColor: "var(--surface)",
                   border: "1px solid rgba(255,255,255,0.07)",
                   borderRadius: "10px",
                   color: "#fff",
@@ -77,17 +77,17 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
 
         <div className="space-y-2 w-full">
           {coloredData.map((item) => (
-            <div key={item.name} className="flex items-center justify-between py-2 border-t border-[rgba(255,255,255,0.07)]">
+            <div key={item.name} className="flex items-center justify-between py-2 border-t border-border-default">
               <div className="flex items-center gap-2">
                 <span
                   className="w-2 h-2 rounded-full inline-block"
                   style={{ backgroundColor: item.color }}
                 />
-                <span className="text-sm text-[rgba(255,255,255,0.7)]">{item.name}</span>
+                <span className="text-sm text-text-muted">{item.name}</span>
               </div>
-              <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">
+              <span className="text-sm font-mono text-text-muted">
                 {item.value}{" "}
-                <span className="text-[rgba(255,255,255,0.55)]">
+                <span className="text-text-dim">
                   ({total > 0 ? Math.round((item.value / total) * 100) : 0}%)
                 </span>
               </span>

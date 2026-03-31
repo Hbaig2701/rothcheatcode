@@ -106,8 +106,8 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
     ];
 
     return (
-        <div className="w-full bg-[#141414] rounded-sm border border-[#2A2A2A] text-xs">
-            <div className="grid grid-cols-4 bg-[#141414] border-b border-[#2A2A2A] p-2 font-bold text-[#A0A0A0] uppercase tracking-wider">
+        <div className="w-full bg-surface rounded-sm border border-[#2A2A2A] text-xs">
+            <div className="grid grid-cols-4 bg-surface border-b border-[#2A2A2A] p-2 font-bold text-[#A0A0A0] uppercase tracking-wider">
                 <div>Metric</div>
                 <div className="text-right">Baseline Trajectory</div>
                 <div className="text-right text-[#F5B800]">Formula Trajectory</div>
@@ -144,17 +144,17 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
                     const blue = row.blue ?? 0;
                     const diff = blue - base;
 
-                    let colorClass = "text-white";
+                    let colorClass = "text-foreground";
                     if (row.label.includes("Wealth") || row.label.includes("Net Legacy") || row.label.includes("After-Tax GI") || row.label.includes("Total Lifetime Income") || row.label.includes("Total Legacy")) {
                         colorClass = diff >= 0 ? "text-[#22C55E]" : "text-red-400";
                     } else if (row.label.includes("Tax") || row.label.includes("Costs") || row.label.includes("IRMAA")) {
                         colorClass = diff <= 0 ? "text-[#22C55E]" : "text-red-400";
                     } else {
-                        colorClass = diff >= 0 ? "text-[#22C55E]" : "text-white";
+                        colorClass = diff >= 0 ? "text-[#22C55E]" : "text-foreground";
                     }
 
                     return (
-                        <div key={i} className={cn("grid grid-cols-4 p-2 items-center hover:bg-[#141414]/20", row.highlight && "bg-[#141414]/40 font-semibold")}>
+                        <div key={i} className={cn("grid grid-cols-4 p-2 items-center hover:bg-surface/20", row.highlight && "bg-surface/40 font-semibold")}>
                             <div className="text-[#A0A0A0]">{row.label}</div>
                             <div className="text-right font-mono text-[#A0A0A0]">{toUSD(base)}</div>
                             <div className="text-right font-mono text-[#F5B800]">{toUSD(blue)}</div>

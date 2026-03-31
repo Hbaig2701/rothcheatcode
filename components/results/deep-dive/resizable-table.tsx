@@ -125,8 +125,8 @@ export function ResizableTable({
           ...stickyStyle,
         }}
         className={`
-          relative border-b border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-left text-xs font-semibold text-white/70 uppercase tracking-wider
-          ${isLastFrozen ? 'border-r-2 border-r-[#d4af37]/30' : ''}
+          relative border-b border-border-default bg-surface-elevated px-3 py-2.5 text-left text-xs font-semibold text-text-muted uppercase tracking-wider
+          ${isLastFrozen ? 'border-r-2 border-r-primary/30' : ''}
           ${col.description ? 'cursor-help' : ''}
         `}
         onMouseEnter={col.description ? (e) => showTooltip(col.id, e) : undefined}
@@ -136,8 +136,8 @@ export function ResizableTable({
         {/* Resize handle */}
         <div
           className={`
-            absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-[#d4af37] transition-colors
-            ${resizing === col.id ? 'bg-[#d4af37]' : 'bg-transparent'}
+            absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary transition-colors
+            ${resizing === col.id ? 'bg-primary' : 'bg-transparent'}
           `}
           onMouseDown={handleMouseDown(col.id, width)}
         />
@@ -150,7 +150,7 @@ export function ResizableTable({
     const value = (row as any)[col.id];
     const formatted = col.formatter(value);
     const isLastFrozen = isFrozen && frozenIndex === frozenColumns.length - 1;
-    const bgClass = rowIndex % 2 === 0 ? 'bg-[#0a0a0a]' : 'bg-[#0d0d0d]';
+    const bgClass = rowIndex % 2 === 0 ? 'bg-background' : 'bg-bg-card';
 
     return (
       <td
@@ -162,9 +162,9 @@ export function ResizableTable({
           ...(isFrozen ? { position: 'sticky' as const, left: `${frozenOffsets[frozenIndex]}px`, zIndex: 5 } : {}),
         }}
         className={`
-          border-b border-white/5 px-3 py-2 text-sm text-white/80
+          border-b border-border-default/50 px-3 py-2 text-sm text-foreground/80
           ${bgClass}
-          ${isLastFrozen ? 'border-r-2 border-r-[#d4af37]/30' : ''}
+          ${isLastFrozen ? 'border-r-2 border-r-primary/30' : ''}
         `}
       >
         {formatted}
@@ -175,7 +175,7 @@ export function ResizableTable({
   const tooltipColumn = tooltip ? columns.find(c => c.id === tooltip.columnId) : null;
 
   return (
-    <div className="relative border border-white/10 rounded-lg overflow-hidden bg-[#0a0a0a] w-full">
+    <div className="relative border border-border-default rounded-lg overflow-hidden bg-background w-full">
       {/* Column description tooltip - rendered via portal to escape overflow-hidden */}
       {tooltip && tooltipColumn?.description && createPortal(
         <div
@@ -186,13 +186,13 @@ export function ResizableTable({
             transform: 'translate(-50%, -100%)',
           }}
         >
-          <div className="bg-[#1a1a1a] border border-[#d4af37]/40 rounded-lg px-3 py-2 shadow-xl max-w-xs">
-            <p className="text-xs font-semibold text-[#d4af37] mb-1">{tooltipColumn.label}</p>
-            <p className="text-xs text-white/80 leading-relaxed">{tooltipColumn.description}</p>
+          <div className="bg-surface-elevated border border-primary/40 rounded-lg px-3 py-2 shadow-xl max-w-xs">
+            <p className="text-xs font-semibold text-primary mb-1">{tooltipColumn.label}</p>
+            <p className="text-xs text-foreground/80 leading-relaxed">{tooltipColumn.description}</p>
           </div>
           {/* Arrow */}
           <div className="flex justify-center">
-            <div className="w-2 h-2 bg-[#1a1a1a] border-r border-b border-[#d4af37]/40 transform rotate-45 -mt-1" />
+            <div className="w-2 h-2 bg-surface-elevated border-r border-b border-primary/40 transform rotate-45 -mt-1" />
           </div>
         </div>,
         document.body
@@ -219,7 +219,7 @@ export function ResizableTable({
 
       {/* Empty state */}
       {data.length === 0 && (
-        <div className="py-12 text-center text-sm text-white/50">
+        <div className="py-12 text-center text-sm text-text-dim">
           No data available
         </div>
       )}

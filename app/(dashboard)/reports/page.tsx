@@ -195,12 +195,12 @@ export default function ReportsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0c0c0c] text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-6 py-8 max-w-7xl">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Report History</h1>
+            <h1 className="text-3xl font-bold text-foreground mb-2">Report History</h1>
             <p className="text-gray-400">
               View and manage all your generated reports
             </p>
@@ -209,7 +209,7 @@ export default function ReportsPage() {
             variant="outline"
             onClick={fetchReports}
             disabled={loading}
-            className="border-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.05)]"
+            className="border-border-default hover:bg-bg-card-hover"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -217,7 +217,7 @@ export default function ReportsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.07)] rounded-lg p-4 mb-6">
+        <div className="bg-bg-card border border-border-default rounded-lg p-4 mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Search */}
             <div className="flex-1 relative">
@@ -227,12 +227,12 @@ export default function ReportsPage() {
                 placeholder="Search by title, client name, or file name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.1)] text-white placeholder:text-gray-500"
+                className="pl-10 bg-bg-card-hover border-border-default text-foreground placeholder:text-gray-500"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -242,7 +242,7 @@ export default function ReportsPage() {
             {/* Type Filter */}
             <div className="sm:w-64">
               <Select value={reportTypeFilter} onValueChange={(value) => setReportTypeFilter(value || 'all')}>
-                <SelectTrigger className="bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.1)] text-white">
+                <SelectTrigger className="bg-bg-card-hover border-border-default text-foreground">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue placeholder="All Types" />
                 </SelectTrigger>
@@ -268,7 +268,7 @@ export default function ReportsPage() {
             <p className="mt-4 text-gray-400">Loading reports...</p>
           </div>
         ) : filteredReports.length === 0 ? (
-          <div className="text-center py-12 bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.07)] rounded-lg">
+          <div className="text-center py-12 bg-bg-card border border-border-default rounded-lg">
             <FileText className="h-12 w-12 text-gray-600 mx-auto mb-4" />
             <p className="text-gray-400 text-lg mb-2">
               {reports.length === 0
@@ -294,7 +294,7 @@ export default function ReportsPage() {
             {filteredReports.map((report) => (
               <div
                 key={report.id}
-                className="bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.07)] rounded-lg p-4 hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                className="bg-bg-card border border-border-default rounded-lg p-4 hover:bg-bg-card-hover transition-colors"
               >
                 <div className="flex items-start justify-between gap-4">
                   {/* Report Info */}
@@ -303,12 +303,12 @@ export default function ReportsPage() {
                       <FileText className="h-5 w-5 text-gold flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         {report.title && (
-                          <h3 className="text-white font-semibold truncate mb-0.5">
+                          <h3 className="text-foreground font-semibold truncate mb-0.5">
                             {report.title}
                           </h3>
                         )}
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-sm ${report.title ? 'text-gray-400' : 'text-white font-medium'}`}>
+                          <span className={`text-sm ${report.title ? 'text-gray-400' : 'text-foreground font-medium'}`}>
                             {report.client_name || 'Unknown Client'}
                           </span>
                           <span
@@ -332,7 +332,7 @@ export default function ReportsPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => handlePreview(report)}
-                      className="text-gray-400 hover:text-white hover:bg-[rgba(255,255,255,0.1)]"
+                      className="text-gray-400 hover:text-foreground hover:bg-secondary"
                     >
                       <Eye className="h-4 w-4 mr-2" />
                       Preview
@@ -342,7 +342,7 @@ export default function ReportsPage() {
                       size="sm"
                       onClick={() => handleDownload(report)}
                       disabled={downloadingId === report.id}
-                      className="text-gold hover:text-gold/80 hover:bg-[rgba(212,175,55,0.1)]"
+                      className="text-gold hover:text-gold/80 hover:bg-accent"
                     >
                       {downloadingId === report.id ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -369,7 +369,7 @@ export default function ReportsPage() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="bg-[#1a1a1a] border-[rgba(255,255,255,0.1)] text-white">
+        <DialogContent className="bg-surface-elevated border-border-default text-foreground">
           <DialogHeader>
             <DialogTitle>Delete Report</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -377,9 +377,9 @@ export default function ReportsPage() {
             </DialogDescription>
           </DialogHeader>
           {reportToDelete && (
-            <div className="py-4 bg-[rgba(255,255,255,0.03)] rounded-lg px-4">
+            <div className="py-4 bg-bg-card rounded-lg px-4">
               {reportToDelete.title && (
-                <p className="text-sm text-white font-semibold mb-1">
+                <p className="text-sm text-foreground font-semibold mb-1">
                   {reportToDelete.title}
                 </p>
               )}
@@ -396,7 +396,7 @@ export default function ReportsPage() {
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
               disabled={deleting}
-              className="border-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.05)]"
+              className="border-border-default hover:bg-bg-card-hover"
             >
               Cancel
             </Button>
@@ -427,7 +427,7 @@ export default function ReportsPage() {
           setPreviewUrl(null);
         }
       }}>
-        <DialogContent className="bg-[#1a1a1a] border-[rgba(255,255,255,0.1)] text-white max-w-6xl h-[90vh] flex flex-col p-0">
+        <DialogContent className="bg-surface-elevated border-border-default text-foreground max-w-6xl h-[90vh] flex flex-col p-0">
           <DialogHeader className="px-6 pt-6 pb-4 shrink-0">
             <DialogTitle>PDF Preview</DialogTitle>
           </DialogHeader>

@@ -24,7 +24,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Panel 1: Guaranteed Income Overview */}
-                <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+                <div className="bg-surface border border-[#2A2A2A] rounded-lg p-4 space-y-3">
                     <h4 className="text-xs font-bold text-[#F5B800] uppercase tracking-wider">
                         Income Overview
                     </h4>
@@ -34,7 +34,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                                 Income Start Age
                                 <InfoTooltip text={GI_TOOLTIPS.incomeStartAge} />
                             </span>
-                            <span className="text-xs font-mono text-white">
+                            <span className="text-xs font-mono text-foreground">
                                 {projection.gi_income_start_age ?? "\u2014"}
                             </span>
                         </div>
@@ -76,7 +76,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                                 Account Depletion Age
                                 <InfoTooltip text={GI_TOOLTIPS.accountDepletionAge} />
                             </span>
-                            <span className="text-xs font-mono text-white">
+                            <span className="text-xs font-mono text-foreground">
                                 {projection.gi_depletion_age ?? "Never"}
                             </span>
                         </div>
@@ -95,7 +95,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                 </div>
 
                 {/* Panel 2: Income Base Snapshot */}
-                <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+                <div className="bg-surface border border-[#2A2A2A] rounded-lg p-4 space-y-3">
                     <h4 className="text-xs font-bold text-[#F5B800] uppercase tracking-wider">
                         Income Base
                     </h4>
@@ -105,7 +105,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                                 At Policy Start
                                 <InfoTooltip text={GI_TOOLTIPS.incomeBaseAtStart} />
                             </span>
-                            <span className="text-xs font-mono text-white">
+                            <span className="text-xs font-mono text-foreground">
                                 {projection.gi_income_base_at_start
                                     ? toUSD(projection.gi_income_base_at_start)
                                     : "\u2014"}
@@ -148,7 +148,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                 </div>
 
                 {/* Panel 3: Lifetime Income Totals */}
-                <div className="bg-[#141414] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+                <div className="bg-surface border border-[#2A2A2A] rounded-lg p-4 space-y-3">
                     <h4 className="text-xs font-bold text-[#F5B800] uppercase tracking-wider">
                         Lifetime Totals
                     </h4>
@@ -158,7 +158,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                                 Total Gross Paid
                                 <InfoTooltip text={GI_TOOLTIPS.totalGrossPaid} />
                             </span>
-                            <span className="text-xs font-mono text-white">
+                            <span className="text-xs font-mono text-foreground">
                                 {projection.gi_total_gross_paid
                                     ? toUSD(projection.gi_total_gross_paid)
                                     : "\u2014"}

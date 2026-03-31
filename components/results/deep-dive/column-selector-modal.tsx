@@ -131,13 +131,13 @@ export function ColumnSelectorModal({
     <Dialog.Root open={open} onOpenChange={(newOpen) => { if (!newOpen) handleCancel(); }}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
-        <Dialog.Popup className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-[#1a1a1a] rounded-xl shadow-2xl border border-white/10 w-[650px] max-h-[85vh] overflow-hidden">
+        <Dialog.Popup className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-surface-elevated rounded-xl shadow-2xl border border-border-default w-[650px] max-h-[85vh] overflow-hidden">
         {/* Header */}
-        <div className="px-6 py-5 border-b border-white/10">
-          <Dialog.Title className="text-xl font-semibold text-white">
+        <div className="px-6 py-5 border-b border-border-default">
+          <Dialog.Title className="text-xl font-semibold text-foreground">
             Adjust Columns
           </Dialog.Title>
-          <p className="text-sm text-white/60 mt-1">
+          <p className="text-sm text-text-dim mt-1">
             Select up to 10 columns to display (Year and Age are always visible)
           </p>
 
@@ -148,7 +148,7 @@ export function ColumnSelectorModal({
               placeholder="Search columns..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/20 rounded-lg text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#d4af37] focus:border-transparent"
+              className="w-full px-3 py-2 bg-bg-card border border-border rounded-lg text-sm text-foreground placeholder:text-text-dimmer focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
             />
           </div>
         </div>
@@ -156,7 +156,7 @@ export function ColumnSelectorModal({
         {/* Content */}
         <div className="px-6 py-4 overflow-y-auto max-h-[60vh]">
           {Object.keys(groupedColumns).length === 0 ? (
-            <div className="py-12 text-center text-sm text-white/50">
+            <div className="py-12 text-center text-sm text-text-dim">
               No columns found matching "{searchQuery}"
             </div>
           ) : (
@@ -167,7 +167,7 @@ export function ColumnSelectorModal({
 
                 return (
                   <div key={category} className="mb-6 last:mb-0">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-white/50 mb-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-text-dim mb-3">
                       {CATEGORY_LABELS[category]}
                     </h3>
                     <div className="space-y-2">
@@ -181,8 +181,8 @@ export function ColumnSelectorModal({
                             className={`
                               flex items-start gap-3 p-3 rounded-lg transition-colors
                               ${isDisabled
-                                ? 'opacity-50 cursor-not-allowed bg-white/5'
-                                : 'cursor-pointer hover:bg-white/5'
+                                ? 'opacity-50 cursor-not-allowed bg-bg-card'
+                                : 'cursor-pointer hover:bg-bg-card'
                               }
                             `}
                           >
@@ -191,19 +191,19 @@ export function ColumnSelectorModal({
                               checked={isSelected}
                               onChange={() => handleToggle(col.id, col.frozen)}
                               disabled={isDisabled}
-                              className="mt-0.5 rounded border-white/20 bg-white/5 text-[#d4af37] focus:ring-[#d4af37] focus:ring-offset-0 disabled:cursor-not-allowed"
+                              className="mt-0.5 rounded border-border bg-bg-card text-primary focus:ring-primary focus:ring-offset-0 disabled:cursor-not-allowed"
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-white flex items-center gap-2">
+                              <div className="text-sm font-medium text-foreground flex items-center gap-2">
                                 {col.label}
                                 {col.frozen && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white/60">
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-text-dim">
                                     FROZEN
                                   </span>
                                 )}
                               </div>
                               {col.description && (
-                                <div className="text-xs text-white/50 mt-0.5">
+                                <div className="text-xs text-text-dim mt-0.5">
                                   {col.description}
                                 </div>
                               )}
@@ -220,14 +220,14 @@ export function ColumnSelectorModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-white/10 flex items-center justify-between">
-          <div className="text-sm text-white/60">
-            <span className="font-medium text-white">{nonFrozenSelectedCount}</span> / 10 columns selected
+        <div className="px-6 py-4 border-t border-border-default flex items-center justify-between">
+          <div className="text-sm text-text-dim">
+            <span className="font-medium text-foreground">{nonFrozenSelectedCount}</span> / 10 columns selected
           </div>
           <div className="flex gap-3">
             <button
               onClick={handleCancel}
-              className="px-4 py-2 text-sm border border-white/20 rounded-lg text-white hover:bg-white/5 transition-colors"
+              className="px-4 py-2 text-sm border border-border rounded-lg text-foreground hover:bg-bg-card transition-colors"
             >
               Cancel
             </button>

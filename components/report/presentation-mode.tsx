@@ -23,8 +23,8 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
 
   if (isLoading || !projectionResponse?.projection) {
     return (
-      <div className="fixed inset-0 bg-[#0c0c0c] z-50 flex items-center justify-center">
-        <div className="text-[rgba(255,255,255,0.65)]">Loading presentation...</div>
+      <div className="fixed inset-0 bg-background z-50 flex items-center justify-center">
+        <div className="text-text-muted">Loading presentation...</div>
       </div>
     );
   }
@@ -133,7 +133,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
   return (
     <div
       ref={contentRef}
-      className="fixed inset-0 bg-[#0c0c0c] z-50 overflow-y-auto text-white relative"
+      className="fixed inset-0 bg-background z-50 overflow-y-auto text-foreground relative"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -155,16 +155,16 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
       )}
 
       {/* Sticky Toolbar */}
-      <div className="sticky top-0 z-50 px-8 py-3 flex justify-between items-center bg-[rgba(12,12,12,0.9)] backdrop-blur-xl border-b border-[rgba(255,255,255,0.07)]">
+      <div className="sticky top-0 z-50 px-8 py-3 flex justify-between items-center bg-[rgba(12,12,12,0.9)] backdrop-blur-xl border-b border-border-default">
         <div className="flex items-center gap-4">
           <button
             onClick={onExit}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-[rgba(255,255,255,0.65)] border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm text-text-muted border border-border-default rounded-[10px] hover:bg-bg-input transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Exit
           </button>
-          <span className="text-sm text-[rgba(255,255,255,0.55)]">
+          <span className="text-sm text-text-dim">
             Presenting: {client.name}
           </span>
         </div>
@@ -178,8 +178,8 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
             }}
             className={`inline-flex items-center gap-2 px-4 py-2 text-sm rounded-[10px] transition-colors ${
               annotation.isActive
-                ? "text-gold border border-gold bg-[rgba(212,175,55,0.08)]"
-                : "text-[rgba(255,255,255,0.65)] border border-[rgba(255,255,255,0.07)] hover:bg-[rgba(255,255,255,0.04)]"
+                ? "text-gold border border-gold bg-accent"
+                : "text-text-muted border border-border-default hover:bg-bg-input"
             }`}
           >
             <Pencil className="h-4 w-4" />
@@ -188,7 +188,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
           {annotation.isActive && annotation.annotations.length > 0 && (
             <button
               onClick={annotation.clearAll}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-[rgba(255,255,255,0.65)] border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm text-text-muted border border-border-default rounded-[10px] hover:bg-bg-input transition-colors"
             >
               Clear
             </button>
@@ -201,11 +201,11 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
         {/* Title Section */}
         <div className="text-center mb-20">
           <div className="w-[60px] h-[3px] bg-gold rounded mx-auto mb-7" />
-          <p className="text-sm uppercase tracking-[3px] text-[rgba(255,255,255,0.65)] mb-4">
+          <p className="text-sm uppercase tracking-[3px] text-text-muted mb-4">
             Retirement Strategy Analysis
           </p>
           <h1 className="font-display text-[52px] font-normal mb-3">{client.name}</h1>
-          <p className="text-lg text-[rgba(255,255,255,0.65)]">
+          <p className="text-lg text-text-muted">
             Age {client.age}
             {client.spouse_name && ` & ${client.spouse_name}, ${client.spouse_age}`} ·{" "}
             {formatFilingStatus(client.filing_status)} ·{" "}
@@ -234,22 +234,22 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
           ].map((m) => (
             <div
               key={m.label}
-              className="text-center py-9 px-7 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px]"
+              className="text-center py-9 px-7 bg-bg-card border border-border-default rounded-[16px]"
             >
-              <p className="text-sm uppercase tracking-[2px] text-[rgba(255,255,255,0.65)] mb-[18px]">
+              <p className="text-sm uppercase tracking-[2px] text-text-muted mb-[18px]">
                 {m.label}
               </p>
               <p className="text-[32px] font-mono font-medium text-gold">{m.value}</p>
-              <p className="text-sm text-[rgba(255,255,255,0.65)] mt-2">{m.sub}</p>
+              <p className="text-sm text-text-muted mt-2">{m.sub}</p>
             </div>
           ))}
         </div>
 
         {/* Chart */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-9 mb-16">
+        <div className="bg-bg-card border border-border-default rounded-[16px] p-9 mb-16">
           <div className="text-center mb-6">
             <h2 className="text-xl font-medium mb-2">Lifetime Wealth Trajectory</h2>
-            <p className="text-sm text-[rgba(255,255,255,0.65)]">
+            <p className="text-sm text-text-muted">
               {isGI
                 ? "Total wealth if client passes at each age (GI payments + legacy - costs)"
                 : "Total wealth if client passes at each age (distributions + legacy - costs)"}
@@ -259,7 +259,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
                 <span className="w-3.5 h-0.5 bg-gold rounded" />
                 Strategy {isGI ? "(GI + Roth)" : "(Roth)"}
               </span>
-              <span className="flex items-center gap-2 text-[rgba(255,255,255,0.65)]">
+              <span className="flex items-center gap-2 text-text-muted">
                 <span
                   className="w-3.5 h-0.5 rounded"
                   style={{
@@ -277,17 +277,17 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
         </div>
 
         {/* Wealth Summary Bar */}
-        <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[14px] p-6 flex justify-between items-center mb-16">
+        <div className="bg-accent border border-gold-border rounded-[14px] p-6 flex justify-between items-center mb-16">
           <div>
             <p className="text-xs uppercase tracking-[1.5px] text-[rgba(212,175,55,0.8)] mb-1">
               Lifetime Wealth Improvement
             </p>
             <div className="flex items-center gap-8 mt-2">
               <div>
-                <p className="text-xs text-[rgba(255,255,255,0.65)]">BASELINE</p>
-                <p className="text-xl font-mono text-[rgba(255,255,255,0.6)]">{toUSD(baseLifetime)}</p>
+                <p className="text-xs text-text-muted">BASELINE</p>
+                <p className="text-xl font-mono text-text-dim">{toUSD(baseLifetime)}</p>
               </div>
-              <span className="text-xl text-[rgba(255,255,255,0.55)]">→</span>
+              <span className="text-xl text-text-dim">→</span>
               <div>
                 <p className="text-xs text-[rgba(212,175,55,0.8)]">STRATEGY</p>
                 <p className="text-xl font-mono font-semibold text-gold">{toUSD(blueLifetime)}</p>
@@ -300,7 +300,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
         </div>
 
         {/* Disclaimer */}
-        <p className="text-center text-sm text-[rgba(255,255,255,0.55)] italic py-8">
+        <p className="text-center text-sm text-text-dim italic py-8">
           This optimized plan is for educational purposes only. Before making a Roth conversion,
           discuss your final plan with a tax professional.
         </p>

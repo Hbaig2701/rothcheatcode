@@ -19,8 +19,8 @@ export function BulkActionsBar({ selectedIds, advisorEmails, onClear, onBulkActi
 
   return (
     <>
-      <div className="flex items-center gap-3 bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-xl px-4 py-3 mb-4">
-        <span className="text-sm font-medium text-[#d4af37]">
+      <div className="flex items-center gap-3 bg-accent border border-gold-border rounded-xl px-4 py-3 mb-4">
+        <span className="text-sm font-medium text-primary">
           {count} selected
         </span>
         <div className="flex-1" />
@@ -43,7 +43,7 @@ export function BulkActionsBar({ selectedIds, advisorEmails, onClear, onBulkActi
         <button
           onClick={onClear}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-[rgba(255,255,255,0.65)] hover:text-white transition-colors disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg text-text-muted hover:text-foreground transition-colors disabled:opacity-50"
         >
           <X className="h-3.5 w-3.5" />
           Clear
@@ -53,18 +53,18 @@ export function BulkActionsBar({ selectedIds, advisorEmails, onClear, onBulkActi
       {/* Confirmation Dialog */}
       {confirmAction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <h3 className="text-lg font-semibold text-white mb-2">
+          <div className="bg-surface-elevated border border-border-default rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <h3 className="text-lg font-semibold text-foreground mb-2">
               {confirmAction === 'delete' ? 'Delete' : 'Deactivate'} {count} Advisor{count > 1 ? 's' : ''}?
             </h3>
-            <p className="text-sm text-[rgba(255,255,255,0.65)] mb-4">
+            <p className="text-sm text-text-muted mb-4">
               {confirmAction === 'delete'
                 ? 'This will permanently delete all data for these advisors including their clients, scenarios, and exports. This cannot be undone.'
                 : 'These advisors will no longer be able to access the platform. You can reactivate them later.'}
             </p>
-            <div className="max-h-40 overflow-y-auto mb-4 bg-[rgba(255,255,255,0.03)] rounded-lg p-3 space-y-1">
+            <div className="max-h-40 overflow-y-auto mb-4 bg-bg-card rounded-lg p-3 space-y-1">
               {Array.from(selectedIds).map(id => (
-                <p key={id} className="text-xs text-[rgba(255,255,255,0.6)] font-mono">
+                <p key={id} className="text-xs text-text-dim font-mono">
                   {advisorEmails.get(id) ?? id}
                 </p>
               ))}
@@ -73,7 +73,7 @@ export function BulkActionsBar({ selectedIds, advisorEmails, onClear, onBulkActi
               <button
                 onClick={() => setConfirmAction(null)}
                 disabled={loading}
-                className="px-4 py-2 text-sm rounded-lg text-[rgba(255,255,255,0.6)] hover:text-white transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm rounded-lg text-text-dim hover:text-foreground transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>

@@ -44,9 +44,9 @@ export function DashboardContent({ userName }: DashboardContentProps) {
   if (error) {
     return (
       <div className="p-9">
-        <div className="bg-[rgba(248,113,113,0.08)] border border-[rgba(248,113,113,0.2)] rounded-[14px] p-6 text-center">
-          <p className="text-[#f87171]">Failed to load dashboard data.</p>
-          <p className="text-sm text-[rgba(255,255,255,0.55)] mt-1">{error.message}</p>
+        <div className="bg-red-bg border border-red/20 rounded-[14px] p-6 text-center">
+          <p className="text-red">Failed to load dashboard data.</p>
+          <p className="text-sm text-text-dim mt-1">{error.message}</p>
         </div>
       </div>
     );
@@ -67,14 +67,14 @@ export function DashboardContent({ userName }: DashboardContentProps) {
       {/* Header */}
       <div className="flex justify-between items-start mb-9">
         <div>
-          <h1 className="font-display text-[30px] font-normal text-white">
+          <h1 className="font-display text-[30px] font-normal text-foreground">
             Welcome back, {userName}
           </h1>
-          <p className="text-sm text-[rgba(255,255,255,0.65)] mt-1.5">
+          <p className="text-sm text-text-muted mt-1.5">
             Here&apos;s your practice overview
           </p>
         </div>
-        <span className="text-sm font-mono text-[rgba(255,255,255,0.6)]">
+        <span className="text-sm font-mono text-text-dim">
           {today}
         </span>
       </div>

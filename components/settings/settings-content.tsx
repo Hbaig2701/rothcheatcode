@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   CreditCard,
   Users,
+  Palette,
   Loader2,
 } from "lucide-react";
 import { ProfileTab } from "./tabs/profile-tab";
@@ -19,6 +20,7 @@ import { BusinessTab } from "./tabs/business-tab";
 import { DefaultsTab } from "./tabs/defaults-tab";
 import { BillingTab } from "./tabs/billing-tab";
 import { TeamTab } from "./tabs/team-tab";
+import { AppearanceTab } from "./tabs/appearance-tab";
 
 interface TabDef {
   value: string;
@@ -31,6 +33,7 @@ const BASE_TABS: TabDef[] = [
   { value: "security", label: "Security", icon: Shield },
   { value: "business", label: "Business & Logo", icon: Building2 },
   { value: "defaults", label: "Default Values", icon: SlidersHorizontal },
+  { value: "appearance", label: "Appearance", icon: Palette },
   { value: "billing", label: "Billing", icon: CreditCard },
 ];
 
@@ -56,15 +59,15 @@ export function SettingsContent({ user }: { user: User }) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-8 animate-spin text-[rgba(255,255,255,0.55)]" />
+        <Loader2 className="size-8 animate-spin text-text-dim" />
       </div>
     );
   }
 
   if (error || !settings) {
     return (
-      <div className="rounded-[14px] border border-[rgba(248,113,113,0.2)] bg-[rgba(248,113,113,0.08)] p-6">
-        <p className="text-[#f87171]">
+      <div className="rounded-[14px] border border-red/20 bg-red-bg p-6">
+        <p className="text-red">
           Failed to load settings. Please try refreshing the page.
         </p>
       </div>
@@ -77,7 +80,7 @@ export function SettingsContent({ user }: { user: User }) {
 
   return (
     <div className="p-9 max-w-5xl">
-      <h1 className="font-display text-[30px] font-normal text-white mb-9">Settings</h1>
+      <h1 className="font-display text-[30px] font-normal text-foreground mb-9">Settings</h1>
 
       <div className="flex gap-8">
         {/* Left Tab Navigation */}
@@ -87,7 +90,7 @@ export function SettingsContent({ user }: { user: User }) {
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
-                className="justify-start gap-2.5 h-11 px-3.5 rounded-lg text-sm font-normal text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] data-[state=active]:bg-[rgba(212,175,55,0.08)] data-[state=active]:text-gold data-[state=active]:border data-[state=active]:border-[rgba(212,175,55,0.2)] border border-transparent transition-all"
+                className="justify-start gap-2.5 h-11 px-3.5 rounded-lg text-sm font-normal text-muted-foreground hover:bg-secondary data-[state=active]:bg-accent data-[state=active]:text-accent-foreground data-[state=active]:border data-[state=active]:border-gold-border border border-transparent transition-all"
               >
                 <tab.icon className="size-4 opacity-70" />
                 {tab.label}
@@ -96,7 +99,7 @@ export function SettingsContent({ user }: { user: User }) {
           </TabsList>
 
           {/* Right Content Card */}
-          <div className="flex-1 bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-9">
+          <div className="flex-1 bg-bg-card border border-border-default rounded-[16px] p-9">
             <TabsContent value="profile" className="mt-0">
               <ProfileTab user={user} settings={settings} />
             </TabsContent>
@@ -108,6 +111,9 @@ export function SettingsContent({ user }: { user: User }) {
             </TabsContent>
             <TabsContent value="defaults" className="mt-0">
               <DefaultsTab settings={settings} />
+            </TabsContent>
+            <TabsContent value="appearance" className="mt-0">
+              <AppearanceTab />
             </TabsContent>
             <TabsContent value="billing" className="mt-0">
               <BillingTab />

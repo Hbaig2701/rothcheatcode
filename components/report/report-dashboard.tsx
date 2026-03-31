@@ -18,15 +18,15 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
     if (clientLoading || projectionLoading) {
         return (
             <div className="p-9 space-y-4 h-full">
-                <Skeleton className="h-12 w-full bg-[rgba(255,255,255,0.025)]" />
-                <Skeleton className="h-64 w-full bg-[rgba(255,255,255,0.025)]" />
+                <Skeleton className="h-12 w-full bg-bg-card" />
+                <Skeleton className="h-64 w-full bg-bg-card" />
             </div>
         );
     }
 
     if (!client || !projectionResponse?.projection) {
         return (
-            <div className="p-9 h-full text-[rgba(255,255,255,0.65)]">
+            <div className="p-9 h-full text-text-muted">
                 No data available. Please recalculate.
             </div>
         );

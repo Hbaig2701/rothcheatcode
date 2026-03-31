@@ -29,18 +29,18 @@ export function ValueDeliveredPanel({
   ];
 
   return (
-    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
-      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-2">
+    <div className="bg-bg-card border border-border-default rounded-[14px] p-7 transition-all duration-250 hover:bg-bg-card-hover hover:border-border-hover">
+      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-text-muted mb-2">
         Value Delivered
       </h3>
-      <p className="text-sm text-[rgba(255,255,255,0.6)] mb-6">
+      <p className="text-sm text-text-dim mb-6">
         Your impact across all client scenarios
       </p>
 
       <div className="space-y-5">
         {items.map((item) => (
           <div key={item.label}>
-            <p className="text-sm text-[rgba(255,255,255,0.6)] mb-1">{item.label}</p>
+            <p className="text-sm text-text-dim mb-1">{item.label}</p>
             <p className="text-[24px] font-mono font-medium text-gold">
               {formatWholeDollars(item.value)}
             </p>

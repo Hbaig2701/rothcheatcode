@@ -60,7 +60,7 @@ export function CallsList({ calls }: CallsListProps) {
       case 'analyzing':
         return <Loader2 className="h-4 w-4 text-gold animate-spin" />;
       default:
-        return <Clock className="h-4 w-4 text-[rgba(255,255,255,0.4)]" />;
+        return <Clock className="h-4 w-4 text-text-dimmer" />;
     }
   };
 
@@ -82,25 +82,25 @@ export function CallsList({ calls }: CallsListProps) {
           <div
             key={call.id}
             onClick={() => router.push(`/sales-calls/${call.id}`)}
-            className="flex items-center justify-between rounded-xl border border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.03)] px-5 py-4 cursor-pointer hover:bg-[rgba(255,255,255,0.05)] hover:border-[rgba(255,255,255,0.12)] transition-colors"
+            className="flex items-center justify-between rounded-xl border border-border-default bg-bg-card px-5 py-4 cursor-pointer hover:bg-bg-card-hover hover:border-border-default transition-colors"
           >
             <div className="flex items-center gap-4 min-w-0 flex-1">
               <StatusIndicator status={call.status} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-white truncate">
+                <p className="text-sm font-medium text-foreground truncate">
                   {call.title || 'Untitled Call'}
                 </p>
                 <div className="flex items-center gap-3 mt-0.5">
-                  <span className="text-xs text-[rgba(255,255,255,0.4)]">
+                  <span className="text-xs text-text-dimmer">
                     {formatDate(call.call_date)}
                   </span>
                   {call.duration_seconds && (
-                    <span className="text-xs text-[rgba(255,255,255,0.4)]">
+                    <span className="text-xs text-text-dimmer">
                       {formatDuration(call.duration_seconds)}
                     </span>
                   )}
                   {call.status !== 'complete' && (
-                    <span className="text-xs text-[rgba(255,255,255,0.4)]">
+                    <span className="text-xs text-text-dimmer">
                       {statusLabel(call.status)}
                     </span>
                   )}
@@ -117,7 +117,7 @@ export function CallsList({ calls }: CallsListProps) {
                   e.stopPropagation();
                   setDeleteTarget(call);
                 }}
-                className="p-1.5 rounded-md hover:bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.4)] hover:text-red-400 transition-colors"
+                className="p-1.5 rounded-md hover:bg-secondary text-text-dimmer hover:text-red-400 transition-colors"
               >
                 <Trash2 className="h-4 w-4" />
               </button>

@@ -47,8 +47,8 @@ function DeltaBadge({ value, size = "md" }: { value: number; size?: "md" | "lg" 
     <span
       className={`inline-block rounded-[20px] font-mono font-medium ${sizeStyles} ${
         isPositive
-          ? "bg-[rgba(74,222,128,0.08)] text-[#4ade80]"
-          : "bg-[rgba(248,113,113,0.08)] text-[#f87171]"
+          ? "bg-green-bg text-green"
+          : "bg-red-bg text-red"
       }`}
     >
       {isPositive ? "+" : ""}
@@ -104,7 +104,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
     return (
       <div className="p-9">
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-[rgba(255,255,255,0.55)]" />
+          <Loader2 className="h-8 w-8 animate-spin text-text-dim" />
         </div>
       </div>
     );
@@ -114,10 +114,10 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
     return (
       <div className="p-9">
         <div className="flex flex-col items-center justify-center h-64 text-center">
-          <h2 className="text-lg font-semibold text-[#f87171] mb-2">
+          <h2 className="text-lg font-semibold text-red mb-2">
             Failed to load client
           </h2>
-          <p className="text-[rgba(255,255,255,0.65)] mb-4">
+          <p className="text-text-muted mb-4">
             {error?.message || "Client not found"}
           </p>
           <Button variant="outline" render={<a href="/clients" />}>
@@ -134,27 +134,27 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
       <div className="flex items-center gap-4 mb-9">
         <a
           href="/clients"
-          className="flex items-center justify-center w-10 h-10 rounded-lg border border-[rgba(255,255,255,0.07)] text-[rgba(255,255,255,0.65)] hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)] transition-all"
+          className="flex items-center justify-center w-10 h-10 rounded-lg border border-border-default text-text-muted hover:bg-secondary hover:border-border-hover transition-all"
         >
           <ArrowLeft className="h-4 w-4" />
         </a>
         <div className="flex-1">
-          <h1 className="font-display text-[28px] font-normal text-white">{client.name}</h1>
-          <p className="text-sm text-[rgba(255,255,255,0.55)] mt-1">
+          <h1 className="font-display text-[28px] font-normal text-foreground">{client.name}</h1>
+          <p className="text-sm text-text-dim mt-1">
             Client since {formatDate(client.created_at)}
           </p>
         </div>
         <div className="flex gap-2">
           <a
             href={`/clients/${client.id}/edit`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[rgba(255,255,255,0.7)] bg-transparent border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)] transition-all"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-text-muted bg-transparent border border-border-default rounded-[10px] hover:bg-secondary hover:border-border-hover transition-all"
           >
             <Pencil className="h-4 w-4" />
             Edit
           </a>
           <a
             href={`/clients/${client.id}/results`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[#0c0c0c] bg-gold rounded-[10px] hover:bg-[rgba(212,175,55,0.9)] transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-primary-foreground bg-gold rounded-[10px] hover:bg-[rgba(212,175,55,0.9)] transition-colors"
           >
             View Results
             <BarChart3 className="h-4 w-4" />
@@ -165,8 +165,8 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
       {/* Two-column layout */}
       <div className="grid gap-5 md:grid-cols-2">
         {/* Basic Information */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-7">
-          <h2 className="text-base font-medium text-white mb-6">Basic Information</h2>
+        <div className="bg-bg-card border border-border-default rounded-[16px] p-7">
+          <h2 className="text-base font-medium text-foreground mb-6">Basic Information</h2>
           <div className="space-y-0">
             {[
               { label: "Age", value: `${client.age} years old` },
@@ -179,33 +179,33 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             ].map((item) => (
               <div
                 key={item.label}
-                className="flex justify-between py-2.5 border-b border-[rgba(255,255,255,0.07)] last:border-b-0"
+                className="flex justify-between py-2.5 border-b border-border-default last:border-b-0"
               >
-                <span className="text-sm text-[rgba(255,255,255,0.55)]">{item.label}</span>
-                <span className="text-sm font-mono text-[rgba(255,255,255,0.8)]">{item.value}</span>
+                <span className="text-sm text-text-dim">{item.label}</span>
+                <span className="text-sm font-mono text-foreground/80">{item.value}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Roth Conversion Scenarios */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-7">
-          <h2 className="text-base font-medium text-white mb-3">Roth Conversion Scenarios</h2>
-          <p className="text-sm text-[rgba(255,255,255,0.55)] mb-7">
+        <div className="bg-bg-card border border-border-default rounded-[16px] p-7">
+          <h2 className="text-base font-medium text-foreground mb-3">Roth Conversion Scenarios</h2>
+          <p className="text-sm text-text-dim mb-7">
             Compare strategies and find the optimal approach for this client.
           </p>
 
           {/* Scenario Card */}
           <a
             href={`/clients/${client.id}/results`}
-            className="block bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[12px] p-5 mb-4 hover:bg-[rgba(212,175,55,0.12)] transition-colors cursor-pointer"
+            className="block bg-accent border border-gold-border rounded-[12px] p-5 mb-4 hover:bg-[rgba(212,175,55,0.12)] transition-colors cursor-pointer"
           >
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-[14px] font-medium text-white mb-1">
+                <p className="text-[14px] font-medium text-foreground mb-1">
                   {client.product_name} · {client.carrier_name}
                 </p>
-                <p className="text-sm text-[rgba(255,255,255,0.55)]">
+                <p className="text-sm text-text-dim">
                   Optimized conversion · Max {client.max_tax_rate}% bracket
                 </p>
               </div>
@@ -213,7 +213,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             </div>
           </a>
 
-          <button className="w-full py-2.5 px-4 text-sm font-medium text-[rgba(255,255,255,0.7)] bg-transparent border border-[rgba(255,255,255,0.07)] rounded-[10px] hover:bg-[rgba(255,255,255,0.04)] hover:border-[rgba(212,175,55,0.3)] transition-all">
+          <button className="w-full py-2.5 px-4 text-sm font-medium text-text-muted bg-transparent border border-border-default rounded-[10px] hover:bg-secondary hover:border-border-hover transition-all">
             + New Scenario
           </button>
         </div>

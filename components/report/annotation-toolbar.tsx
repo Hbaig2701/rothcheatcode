@@ -79,7 +79,7 @@ export function AnnotationToolbar({
                 "w-9 h-9 flex items-center justify-center rounded-lg border transition-all",
                 isActive
                   ? "bg-[#F5B800] border-[#F5B800] text-black"
-                  : "bg-transparent border-transparent text-[#A0A0A0] hover:bg-[#2A2A2A] hover:border-[#3A3A3A] hover:text-white"
+                  : "bg-transparent border-transparent text-[#A0A0A0] hover:bg-[#2A2A2A] hover:border-[#3A3A3A] hover:text-foreground"
               )}
             >
               <Icon className="h-4 w-4" />
@@ -99,7 +99,7 @@ export function AnnotationToolbar({
           className="w-9 h-9 flex items-center justify-center rounded-lg border border-[#3A3A3A] hover:border-[#5A5A5A] transition-all"
         >
           <div
-            className="w-5 h-5 rounded-sm border border-white/20"
+            className="w-5 h-5 rounded-sm border border-border"
             style={{ backgroundColor: color }}
           />
         </button>
@@ -117,7 +117,7 @@ export function AnnotationToolbar({
                   "w-7 h-7 rounded-sm border-2 transition-all hover:scale-110",
                   color === c.value
                     ? "border-[#F5B800]"
-                    : "border-transparent hover:border-white/40"
+                    : "border-transparent hover:border-border-hover"
                 )}
                 style={{ backgroundColor: c.value }}
                 title={c.id}
@@ -136,7 +136,7 @@ export function AnnotationToolbar({
           onClick={onUndo}
           disabled={!canUndo}
           title="Undo (Ctrl+Z)"
-          className="w-9 h-9 flex items-center justify-center rounded-lg text-[#A0A0A0] hover:bg-[#2A2A2A] hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#A0A0A0]"
+          className="w-9 h-9 flex items-center justify-center rounded-lg text-[#A0A0A0] hover:bg-[#2A2A2A] hover:text-foreground transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#A0A0A0]"
         >
           <Undo2 className="h-4 w-4" />
         </button>
@@ -144,7 +144,7 @@ export function AnnotationToolbar({
           onClick={onRedo}
           disabled={!canRedo}
           title="Redo (Ctrl+Shift+Z)"
-          className="w-9 h-9 flex items-center justify-center rounded-lg text-[#A0A0A0] hover:bg-[#2A2A2A] hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#A0A0A0]"
+          className="w-9 h-9 flex items-center justify-center rounded-lg text-[#A0A0A0] hover:bg-[#2A2A2A] hover:text-foreground transition-all disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-[#A0A0A0]"
         >
           <Redo2 className="h-4 w-4" />
         </button>

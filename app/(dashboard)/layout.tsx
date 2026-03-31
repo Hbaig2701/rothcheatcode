@@ -91,9 +91,9 @@ export default async function DashboardLayout({
   const defaultOpen = cookieStore.get('sidebar_state')?.value !== 'false'
 
   return (
-    <SidebarProvider defaultOpen={defaultOpen}>
+    <SidebarProvider defaultOpen={defaultOpen} className="bg-sidebar">
       <AppSidebar user={user} displayName={displayName} userRole={profile?.role ?? null} />
-      <main className="flex-1 min-w-0 flex flex-col min-h-screen bg-[#0c0c0c]">
+      <main className="flex-1 min-w-0 flex flex-col min-h-screen bg-background">
         <PaymentFailedBanner
           subscriptionStatus={profile?.subscription_status ?? null}
           isTeamMember={!!profile?.team_owner_id}

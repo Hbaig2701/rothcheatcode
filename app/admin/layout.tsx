@@ -15,8 +15,8 @@ export default async function AdminLayout({
   await requireAdmin(supabase, user)
 
   return (
-    <div className="min-h-screen bg-[#0c0c0c] text-white">
-      <header className="border-b border-[rgba(255,255,255,0.07)] bg-[rgba(255,255,255,0.02)]">
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b border-border-default bg-[rgba(255,255,255,0.02)]">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
@@ -24,15 +24,15 @@ export default async function AdminLayout({
               <span className="text-lg font-semibold tracking-tight">Admin</span>
             </div>
             <nav className="flex items-center gap-4 text-sm">
-              <Link href="/admin" className="text-[rgba(255,255,255,0.6)] hover:text-white transition-colors">
+              <Link href="/admin" className="text-text-dim hover:text-foreground transition-colors">
                 Dashboard
               </Link>
-              <Link href="/admin/advisors" className="text-[rgba(255,255,255,0.6)] hover:text-white transition-colors">
+              <Link href="/admin/advisors" className="text-text-dim hover:text-foreground transition-colors">
                 Advisors
               </Link>
             </nav>
           </div>
-          <Link href="/dashboard" className="text-sm text-[rgba(255,255,255,0.55)] hover:text-white transition-colors">
+          <Link href="/dashboard" className="text-sm text-text-dim hover:text-foreground transition-colors">
             Back to App
           </Link>
         </div>

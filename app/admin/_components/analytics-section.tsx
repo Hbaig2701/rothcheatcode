@@ -35,8 +35,8 @@ export function AnalyticsSection() {
 
   if (loading) {
     return (
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <div className="text-sm text-[rgba(255,255,255,0.55)]">Loading analytics...</div>
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+        <div className="text-sm text-text-dim">Loading analytics...</div>
       </div>
     )
   }
@@ -49,8 +49,8 @@ export function AnalyticsSection() {
   return (
     <div className="space-y-6">
       {/* Feature Adoption */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
           Feature Adoption
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -59,10 +59,10 @@ export function AnalyticsSection() {
           <AdoptionCard label="Custom Branding" count={fa.withBranding} total={total} />
           <AdoptionCard label="Team Invites Sent" count={fa.withTeamInvites} total={total} />
           <AdoptionCard label="Team Members Accepted" count={fa.acceptedTeamMembers} total={fa.totalTeamMembers || 0} suffix="invites" />
-          <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
-            <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">Avg Clients / Advisor</p>
-            <p className="text-xl font-semibold text-white font-mono">{data.engagement.avgClientsPerAdvisor}</p>
-            <p className="text-xs text-[rgba(255,255,255,0.55)] mt-1">
+          <div className="bg-bg-card rounded-xl p-4">
+            <p className="text-xs text-text-muted mb-1">Avg Clients / Advisor</p>
+            <p className="text-xl font-semibold text-foreground font-mono">{data.engagement.avgClientsPerAdvisor}</p>
+            <p className="text-xs text-text-dim mt-1">
               {data.engagement.avgScenariosPerAdvisor} avg scenarios
             </p>
           </div>
@@ -70,30 +70,30 @@ export function AnalyticsSection() {
       </div>
 
       {/* Subscriptions */}
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-4">
+      <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
           Subscription Overview
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {/* Plan distribution */}
           {data.subscriptions.plans.map(p => (
-            <div key={p.plan} className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
-              <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1 capitalize">{p.plan} Plan</p>
-              <p className="text-xl font-semibold text-white font-mono">{p.count}</p>
+            <div key={p.plan} className="bg-bg-card rounded-xl p-4">
+              <p className="text-xs text-text-muted mb-1 capitalize">{p.plan} Plan</p>
+              <p className="text-xl font-semibold text-foreground font-mono">{p.count}</p>
             </div>
           ))}
           {/* Active vs inactive */}
           {data.subscriptions.statuses.map(s => (
-            <div key={s.status} className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
-              <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1 capitalize">{s.status}</p>
-              <p className="text-xl font-semibold text-white font-mono">{s.count}</p>
+            <div key={s.status} className="bg-bg-card rounded-xl p-4">
+              <p className="text-xs text-text-muted mb-1 capitalize">{s.status}</p>
+              <p className="text-xl font-semibold text-foreground font-mono">{s.count}</p>
             </div>
           ))}
           {/* Billing cycle */}
           {data.subscriptions.cycles.map(c => (
-            <div key={c.cycle} className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
-              <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1 capitalize">{c.cycle}</p>
-              <p className="text-xl font-semibold text-white font-mono">{c.count}</p>
+            <div key={c.cycle} className="bg-bg-card rounded-xl p-4">
+              <p className="text-xs text-text-muted mb-1 capitalize">{c.cycle}</p>
+              <p className="text-xl font-semibold text-foreground font-mono">{c.count}</p>
             </div>
           ))}
         </div>
@@ -110,17 +110,17 @@ function AdoptionCard({ label, count, total, suffix }: {
 }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
-    <div className="bg-[rgba(255,255,255,0.03)] rounded-xl p-4">
-      <p className="text-xs text-[rgba(255,255,255,0.65)] mb-1">{label}</p>
-      <p className="text-xl font-semibold text-white font-mono">
-        {count} <span className="text-sm text-[rgba(255,255,255,0.55)]">/ {total}</span>
+    <div className="bg-bg-card rounded-xl p-4">
+      <p className="text-xs text-text-muted mb-1">{label}</p>
+      <p className="text-xl font-semibold text-foreground font-mono">
+        {count} <span className="text-sm text-text-dim">/ {total}</span>
       </p>
       {total > 0 && (
         <div className="mt-2">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-[rgba(255,255,255,0.55)]">{pct}%{suffix ? ` of ${suffix}` : ''}</span>
+            <span className="text-xs text-text-dim">{pct}%{suffix ? ` of ${suffix}` : ''}</span>
           </div>
-          <div className="h-1.5 bg-[rgba(255,255,255,0.05)] rounded-full overflow-hidden">
+          <div className="h-1.5 bg-bg-card-hover rounded-full overflow-hidden">
             <div
               className="h-full rounded-full transition-all"
               style={{

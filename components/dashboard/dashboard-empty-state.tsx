@@ -6,8 +6,8 @@ import { Plus } from "lucide-react";
 export function DashboardEmptyState() {
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] p-14 text-center max-w-md">
-        <div className="w-16 h-16 rounded-full bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] flex items-center justify-center mx-auto mb-6">
+      <div className="bg-bg-card border border-border-default rounded-[16px] p-14 text-center max-w-md">
+        <div className="w-16 h-16 rounded-full bg-accent border border-gold-border flex items-center justify-center mx-auto mb-6">
           <svg
             className="w-8 h-8 text-gold"
             fill="none"
@@ -23,15 +23,15 @@ export function DashboardEmptyState() {
           </svg>
         </div>
 
-        <h2 className="font-display text-xl font-normal text-white mb-2">No Scenarios Yet</h2>
-        <p className="text-sm text-[rgba(255,255,255,0.65)] mb-8">
+        <h2 className="font-display text-xl font-normal text-foreground mb-2">No Scenarios Yet</h2>
+        <p className="text-sm text-text-muted mb-8">
           Create your first client scenario to see your dashboard analytics and track your
           impact.
         </p>
 
         <Link
           href="/clients/new"
-          className="inline-flex items-center gap-2 px-6 py-3 bg-gold hover:bg-[rgba(212,175,55,0.9)] text-[#0c0c0c] font-semibold rounded-[10px] transition-colors"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-gold hover:bg-[rgba(212,175,55,0.9)] text-primary-foreground font-semibold rounded-[10px] transition-colors"
         >
           <Plus className="w-4 h-4" />
           Create First Scenario

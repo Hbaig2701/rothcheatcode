@@ -101,17 +101,17 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
         {/* Icon */}
         <div className="flex justify-center mb-6">
           <div className="w-20 h-20 rounded-full bg-[rgba(212,175,55,0.15)] flex items-center justify-center">
-            <Crown className="w-10 h-10 text-[#d4af37]" />
+            <Crown className="w-10 h-10 text-primary" />
           </div>
         </div>
 
         {/* Title */}
-        <h1 className="text-3xl font-bold text-white text-center mb-3">
+        <h1 className="text-3xl font-bold text-foreground text-center mb-3">
           Your Trial Has Ended
         </h1>
 
         {/* Message */}
-        <p className="text-[rgba(255,255,255,0.65)] text-center mb-8 leading-relaxed">
+        <p className="text-text-muted text-center mb-8 leading-relaxed">
           Subscribe now to regain access to Retirement Expert and continue creating
           powerful retirement projections for your clients.
         </p>
@@ -122,7 +122,7 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
           <Button
             onClick={() => handleSubscribeClick(monthlyUrl || '')}
             disabled={redirecting || !monthlyUrl}
-            className="w-full h-14 bg-[rgba(255,255,255,0.1)] hover:bg-[rgba(255,255,255,0.16)] hover:shadow-lg hover:shadow-white/10 border-2 border-[rgba(255,255,255,0.25)] hover:border-[rgba(255,255,255,0.4)] text-white font-semibold transition-all duration-200 flex flex-col items-center justify-center shadow-md cursor-pointer"
+            className="w-full h-14 bg-secondary hover:bg-secondary hover:shadow-lg hover:shadow-white/10 border-2 border-border hover:border-border text-foreground font-semibold transition-all duration-200 flex flex-col items-center justify-center shadow-md cursor-pointer"
           >
             {redirecting ? (
               <>
@@ -131,7 +131,7 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
             ) : (
               <>
                 <span className="text-lg">Monthly</span>
-                <span className="text-sm text-[rgba(255,255,255,0.65)] font-normal">$197/month</span>
+                <span className="text-sm text-text-muted font-normal">$197/month</span>
               </>
             )}
           </Button>
@@ -159,14 +159,14 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
         </div>
 
         {/* Small text below buttons */}
-        <p className="text-xs text-[rgba(255,255,255,0.45)] text-center mb-6">
+        <p className="text-xs text-text-dimmer text-center mb-6">
           Cancel anytime • No long-term contracts
         </p>
 
         {/* Additional info */}
-        <p className="text-xs text-[rgba(255,255,255,0.45)] text-center mt-6">
+        <p className="text-xs text-text-dimmer text-center mt-6">
           Questions? Contact{' '}
-          <a href="mailto:support@retirementexpert.ai" className="text-[#d4af37] hover:underline">
+          <a href="mailto:support@retirementexpert.ai" className="text-primary hover:underline">
             support@retirementexpert.ai
           </a>
         </p>

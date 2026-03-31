@@ -189,29 +189,29 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
   };
 
   return (
-    <div className="flex flex-col h-full text-white">
+    <div className="flex flex-col h-full text-foreground">
       {/* Drawer Header */}
-      <div className="flex items-center justify-between px-7 py-5 border-b border-[rgba(255,255,255,0.07)] shrink-0">
+      <div className="flex items-center justify-between px-7 py-5 border-b border-border-default shrink-0">
         <span className="text-base font-medium">Scenario Inputs</span>
         <button
           onClick={onClose}
-          className="text-[rgba(255,255,255,0.55)] hover:text-white transition-colors"
+          className="text-text-dim hover:text-foreground transition-colors"
         >
           <X className="h-5 w-5" />
         </button>
       </div>
 
       {/* Product Preset Selector */}
-      <div className="px-7 py-4 border-b border-[rgba(255,255,255,0.07)] shrink-0">
+      <div className="px-7 py-4 border-b border-border-default shrink-0">
         <div className="flex items-center gap-2 mb-2">
-          <label className="block text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">
+          <label className="block text-xs uppercase tracking-[1.5px] text-text-muted">
             Product Preset
           </label>
           <a
             href="https://docs.google.com/document/d/1no9bs58mgqS97Bw_19pOoslGoALP0lz6/edit?usp=sharing&ouid=106247356235746651631&rtpof=true&sd=true"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-[rgba(255,255,255,0.45)] hover:text-[rgba(255,255,255,0.85)] transition-colors underline"
+            className="text-xs text-text-dimmer hover:text-foreground/85 transition-colors underline"
           >
             See our Preset List
           </a>
@@ -219,7 +219,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
         <select
           value={formulaType}
           onChange={handleFormulaTypeChange}
-          className="w-full bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.07)] text-sm h-10 rounded-lg px-3 text-white focus:ring-1 focus:ring-gold focus:border-[rgba(212,175,55,0.3)] outline-none transition-colors"
+          className="w-full bg-bg-input border border-border-default text-sm h-10 rounded-lg px-3 text-foreground focus:ring-1 focus:ring-gold focus:border-[rgba(212,175,55,0.3)] outline-none transition-colors"
         >
           <optgroup label="Growth">
             {Object.values(GROWTH_PRODUCTS).map((product) => (
@@ -250,14 +250,14 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
               "[&_.grid]:!grid-cols-1 [&_.grid]:gap-3",
               "[&_[class*='col-span']]:!col-span-1",
               // Styles - improved readability
-              "[&_label]:text-sm [&_label]:font-normal [&_label]:text-[rgba(255,255,255,0.6)] [&_label]:mb-1.5",
-              "[&_input]:bg-[rgba(255,255,255,0.04)] [&_input]:border-[rgba(255,255,255,0.1)] [&_input]:h-10 [&_input]:text-sm [&_input]:text-white [&_input]:rounded-lg [&_input]:px-3.5",
+              "[&_label]:text-sm [&_label]:font-normal [&_label]:text-text-dim [&_label]:mb-1.5",
+              "[&_input]:bg-bg-input [&_input]:border-border-default [&_input]:h-10 [&_input]:text-sm [&_input]:text-foreground [&_input]:rounded-lg [&_input]:px-3.5",
               "[&_input:focus]:border-[rgba(212,175,55,0.4)] [&_input:focus]:ring-0",
-              "[&_button[role=combobox]]:bg-[rgba(255,255,255,0.04)] [&_button[role=combobox]]:border-[rgba(255,255,255,0.1)] [&_button[role=combobox]]:h-10 [&_button[role=combobox]]:text-sm [&_button[role=combobox]]:text-white [&_button[role=combobox]]:rounded-lg [&_button[role=combobox]]:px-3.5",
-              "[&_[data-slot=select-trigger]]:bg-[rgba(255,255,255,0.04)] [&_[data-slot=select-trigger]]:border-[rgba(255,255,255,0.1)] [&_[data-slot=select-trigger]]:h-10 [&_[data-slot=select-trigger]]:text-sm [&_[data-slot=select-trigger]]:text-white [&_[data-slot=select-trigger]]:w-full",
+              "[&_button[role=combobox]]:bg-bg-input [&_button[role=combobox]]:border-border-default [&_button[role=combobox]]:h-10 [&_button[role=combobox]]:text-sm [&_button[role=combobox]]:text-foreground [&_button[role=combobox]]:rounded-lg [&_button[role=combobox]]:px-3.5",
+              "[&_[data-slot=select-trigger]]:bg-bg-input [&_[data-slot=select-trigger]]:border-border-default [&_[data-slot=select-trigger]]:h-10 [&_[data-slot=select-trigger]]:text-sm [&_[data-slot=select-trigger]]:text-foreground [&_[data-slot=select-trigger]]:w-full",
               // Section headers - improved readability
-              "[&_h3]:text-xs [&_h3]:font-medium [&_h3]:uppercase [&_h3]:tracking-[1.5px] [&_h3]:text-[rgba(255,255,255,0.65)] [&_h3]:border-b [&_h3]:border-[rgba(255,255,255,0.1)] [&_h3]:pb-2 [&_h3]:mb-4",
-              "[&_p]:text-xs [&_p]:text-[rgba(255,255,255,0.55)]"
+              "[&_h3]:text-xs [&_h3]:font-medium [&_h3]:uppercase [&_h3]:tracking-[1.5px] [&_h3]:text-text-muted [&_h3]:border-b [&_h3]:border-border-default [&_h3]:pb-2 [&_h3]:mb-4",
+              "[&_p]:text-xs [&_p]:text-text-dim"
             )}
           >
             <ClientDataSection />
@@ -273,10 +273,10 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       </div>
 
       {/* Footer */}
-      <div className="px-7 py-5 border-t border-[rgba(255,255,255,0.07)] shrink-0">
+      <div className="px-7 py-5 border-t border-border-default shrink-0">
         <button
           onClick={form.handleSubmit(onSubmit)}
-          className="w-full h-11 bg-gold hover:bg-[rgba(212,175,55,0.9)] text-[#0c0c0c] font-semibold text-sm rounded-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full h-11 bg-gold hover:bg-[rgba(212,175,55,0.9)] text-primary-foreground font-semibold text-sm rounded-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           disabled={isPending}
         >
           {isPending && <Loader2 className="h-4 w-4 animate-spin" />}

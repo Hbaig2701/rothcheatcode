@@ -258,7 +258,7 @@ export function ExportPdfDialog({
 
             {/* Starter overlay */}
             {!isPro && (
-              <div className="mb-4 rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-4">
+              <div className="mb-4 rounded-lg border border-border-default bg-bg-card p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Lock className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">
@@ -311,7 +311,7 @@ export function ExportPdfDialog({
                   <label className="text-sm font-medium">Logo</label>
                   <div className="flex items-center gap-3">
                     {form.logoUrl ? (
-                      <div className="relative h-12 w-24 rounded border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] flex items-center justify-center overflow-hidden">
+                      <div className="relative h-12 w-24 rounded border border-border-default bg-bg-card flex items-center justify-center overflow-hidden">
                         <img
                           src={form.logoUrl}
                           alt="Logo"
@@ -320,13 +320,13 @@ export function ExportPdfDialog({
                         <button
                           type="button"
                           onClick={handleRemoveLogo}
-                          className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-white flex items-center justify-center"
+                          className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-foreground flex items-center justify-center"
                         >
                           <X className="h-2.5 w-2.5" />
                         </button>
                       </div>
                     ) : (
-                      <div className="h-12 w-24 rounded border border-dashed border-[rgba(255,255,255,0.15)] flex items-center justify-center">
+                      <div className="h-12 w-24 rounded border border-dashed border-border flex items-center justify-center">
                         <ImageIcon className="h-5 w-5 text-muted-foreground" />
                       </div>
                     )}

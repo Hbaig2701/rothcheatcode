@@ -155,8 +155,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
       <div className="p-9 space-y-6">
         {/* Section 1: Strategy Summary (Hero) */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[16px] py-8 px-10">
-          <p className="text-sm uppercase tracking-[3px] text-[rgba(255,255,255,0.55)] mb-6 font-medium">
+        <div className="bg-bg-card border border-border-default rounded-[16px] py-8 px-10">
+          <p className="text-sm uppercase tracking-[3px] text-text-dim mb-6 font-medium">
             Your Roth Conversion Strategy
           </p>
 
@@ -164,28 +164,28 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             <div>
               <p className={cn(
                 "text-[44px] font-mono font-semibold",
-                lifetimeWealthDiff >= 0 ? "text-gold" : "text-[#f87171]"
+                lifetimeWealthDiff >= 0 ? "text-gold" : "text-red"
               )}>
                 {lifetimeWealthDiff >= 0 ? "+" : ""}{toUSD(lifetimeWealthDiff)}
               </p>
-              <p className="text-base text-[rgba(255,255,255,0.65)] mt-1">Additional Lifetime Wealth</p>
+              <p className="text-base text-text-muted mt-1">Additional Lifetime Wealth</p>
             </div>
-            <div className="border-l border-[rgba(255,255,255,0.1)] pl-8">
+            <div className="border-l border-border-default pl-8">
               <p className={cn(
                 "text-[28px] font-mono font-medium",
-                lifetimeWealthDiff >= 0 ? "text-[#4ade80]" : "text-[#f87171]"
+                lifetimeWealthDiff >= 0 ? "text-green" : "text-red"
               )}>
                 {baseLifetimeWealth !== 0 ? `${lifetimeWealthDiff >= 0 ? "+" : ""}${((lifetimeWealthDiff / Math.abs(baseLifetimeWealth)) * 100).toFixed(1)}%` : "N/A"}
               </p>
-              <p className="text-base text-[rgba(255,255,255,0.65)] mt-1">vs Doing Nothing</p>
+              <p className="text-base text-text-muted mt-1">vs Doing Nothing</p>
             </div>
           </div>
 
-          <div className="pt-5 border-t border-[rgba(255,255,255,0.07)]">
-            <p className="text-base text-[rgba(255,255,255,0.65)]">
+          <div className="pt-5 border-t border-border-default">
+            <p className="text-base text-text-muted">
               Convert {toUSD(blueConversions)} over {conversionYears.length} years · Stay in the {getTargetBracket()} bracket
             </p>
-            <p className="text-sm text-[rgba(255,255,255,0.55)] mt-1">
+            <p className="text-sm text-text-dim mt-1">
               Projected final Roth balance: {toUSD(blueFinalRoth)} (tax-free)
             </p>
           </div>
@@ -280,8 +280,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
         {/* Section 3: Conversion Strategy Breakdown */}
         {conversionYears.length > 0 && (
-          <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-6 font-medium">
+          <div className="bg-bg-card border border-border-default rounded-[14px] p-7">
+            <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-6 font-medium">
               Conversion Strategy
             </p>
 
@@ -290,40 +290,40 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               {conversionYears.slice(0, 8).map((year, idx) => (
                 <div
                   key={year.year}
-                  className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-[10px] py-4 px-5 text-center min-w-[110px] shrink-0"
+                  className="bg-accent border border-gold-border rounded-[10px] py-4 px-5 text-center min-w-[110px] shrink-0"
                 >
-                  <p className="text-sm font-mono text-[rgba(255,255,255,0.6)]">{year.year}</p>
-                  <p className="text-xs text-[rgba(255,255,255,0.55)] mb-2">Age {year.age}</p>
+                  <p className="text-sm font-mono text-text-dim">{year.year}</p>
+                  <p className="text-xs text-text-dim mb-2">Age {year.age}</p>
                   <p className="text-lg font-mono font-medium text-gold">{toUSD(year.conversionAmount)}</p>
-                  <p className="text-xs text-[rgba(255,255,255,0.55)] mt-1">Convert</p>
-                  <p className="text-sm font-mono text-white mt-2">{client.tax_rate || 24}%</p>
-                  <p className="text-xs text-[rgba(255,255,255,0.55)]">Bracket</p>
+                  <p className="text-xs text-text-dim mt-1">Convert</p>
+                  <p className="text-sm font-mono text-foreground mt-2">{client.tax_rate || 24}%</p>
+                  <p className="text-xs text-text-dim">Bracket</p>
                 </div>
               ))}
               {conversionYears.length > 8 && (
-                <div className="flex items-center justify-center min-w-[80px] text-[rgba(255,255,255,0.55)] text-sm">
+                <div className="flex items-center justify-center min-w-[80px] text-text-dim text-sm">
                   +{conversionYears.length - 8} more
                 </div>
               )}
             </div>
 
             {/* Summary Row */}
-            <div className="pt-5 border-t border-[rgba(255,255,255,0.07)]">
-              <p className="text-sm text-[rgba(255,255,255,0.65)]">
-                Total Converted: <span className="font-mono text-white">{toUSD(blueConversions)}</span>
+            <div className="pt-5 border-t border-border-default">
+              <p className="text-sm text-text-muted">
+                Total Converted: <span className="font-mono text-foreground">{toUSD(blueConversions)}</span>
                 {" · "}
-                Total Conversion Taxes: <span className="font-mono text-white">{toUSD(blueTax)}</span>
+                Total Conversion Taxes: <span className="font-mono text-foreground">{toUSD(blueTax)}</span>
                 {" · "}
-                Avg Tax Rate: <span className="font-mono text-white">{avgTaxRate.toFixed(1)}%</span>
+                Avg Tax Rate: <span className="font-mono text-foreground">{avgTaxRate.toFixed(1)}%</span>
               </p>
             </div>
           </div>
         )}
 
         {/* Section 4: Legacy to Heirs Chart */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-7">
+        <div className="bg-bg-card border border-border-default rounded-[14px] p-7">
           <div className="flex justify-between items-center mb-6">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
+            <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-medium">
               Legacy to Heirs Over Time
             </p>
             <div className="flex items-center gap-5 text-sm">
@@ -331,7 +331,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 <span className="w-4 h-0.5 bg-gold rounded" />
                 Strategy (Roth)
               </span>
-              <span className="flex items-center gap-2 text-[rgba(255,255,255,0.65)]">
+              <span className="flex items-center gap-2 text-text-muted">
                 <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 4px, transparent 4px, transparent 6px)" }} />
                 Baseline (Traditional)
               </span>
@@ -341,7 +341,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             <WealthChart data={chartData} breakEvenAge={chartBreakEvenAge} />
           </div>
           {chartBreakEvenAge && (
-            <p className="text-sm text-[rgba(255,255,255,0.55)] text-center mt-4">
+            <p className="text-sm text-text-dim text-center mt-4">
               Strategy surpasses baseline at age {chartBreakEvenAge}
             </p>
           )}
@@ -350,97 +350,97 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         {/* Section 5: Account & Liquidity Snapshot */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Account Summary */}
-          <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-5 font-medium">
+          <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+            <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-5 font-medium">
               Account Summary
             </p>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.65)]">Starting Balance</span>
-                <span className="text-base font-mono text-white">{toUSD(client.qualified_account_value)}</span>
+                <span className="text-sm text-text-muted">Starting Balance</span>
+                <span className="text-base font-mono text-foreground">{toUSD(client.qualified_account_value)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.65)]">Final Traditional IRA</span>
-                <span className="text-base font-mono text-[rgba(255,255,255,0.6)]">{toUSD(blueFinalTraditional)}</span>
+                <span className="text-sm text-text-muted">Final Traditional IRA</span>
+                <span className="text-base font-mono text-text-dim">{toUSD(blueFinalTraditional)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.65)]">Final Roth IRA</span>
-                <span className="text-base font-mono text-[#4ade80]">{toUSD(blueFinalRoth)}</span>
+                <span className="text-sm text-text-muted">Final Roth IRA</span>
+                <span className="text-base font-mono text-green">{toUSD(blueFinalRoth)}</span>
               </div>
-              <div className="pt-3 border-t border-[rgba(255,255,255,0.07)] flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.6)] font-medium">Total Portfolio</span>
-                <span className="text-lg font-mono font-medium text-white">{toUSD(blueFinalTraditional + blueFinalRoth)}</span>
+              <div className="pt-3 border-t border-border-default flex justify-between items-center">
+                <span className="text-sm text-text-dim font-medium">Total Portfolio</span>
+                <span className="text-lg font-mono font-medium text-foreground">{toUSD(blueFinalTraditional + blueFinalRoth)}</span>
               </div>
             </div>
           </div>
 
           {/* Product Details */}
-          <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-5 font-medium">
+          <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
+            <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-5 font-medium">
               Product Details
             </p>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.65)]">Carrier</span>
-                <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">{client.carrier_name}</span>
+                <span className="text-sm text-text-muted">Carrier</span>
+                <span className="text-sm font-mono text-text-muted">{client.carrier_name}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.65)]">Product</span>
-                <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">{client.product_name}</span>
+                <span className="text-sm text-text-muted">Product</span>
+                <span className="text-sm font-mono text-text-muted">{client.product_name}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.65)]">Assumed Return</span>
+                <span className="text-sm text-text-muted">Assumed Return</span>
                 <span className="text-sm font-mono text-gold">{client.rate_of_return}%</span>
               </div>
               {client.bonus_percent > 0 && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-[rgba(255,255,255,0.65)]">Premium Bonus</span>
+                  <span className="text-sm text-text-muted">Premium Bonus</span>
                   <span className="text-sm font-mono text-gold">{client.bonus_percent}%</span>
                 </div>
               )}
               {client.anniversary_bonus_percent != null && client.anniversary_bonus_years != null && (
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-[rgba(255,255,255,0.65)]">Anniversary Bonus</span>
+                  <span className="text-sm text-text-muted">Anniversary Bonus</span>
                   <span className="text-sm font-mono text-gold">{client.anniversary_bonus_percent}% × {client.anniversary_bonus_years} years</span>
                 </div>
               )}
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.65)]">Surrender Period</span>
-                <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">{client.surrender_years} years</span>
+                <span className="text-sm text-text-muted">Surrender Period</span>
+                <span className="text-sm font-mono text-text-muted">{client.surrender_years} years</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-[rgba(255,255,255,0.65)]">Free Withdrawal</span>
-                <span className="text-sm font-mono text-[rgba(255,255,255,0.7)]">{client.penalty_free_percent}% annually</span>
+                <span className="text-sm text-text-muted">Free Withdrawal</span>
+                <span className="text-sm font-mono text-text-muted">{client.penalty_free_percent}% annually</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Section 6: Year-by-Year Table */}
-        <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] overflow-hidden">
+        <div className="bg-bg-card border border-border-default rounded-[14px] overflow-hidden">
           {/* Table Header */}
-          <div className="flex justify-between items-center px-6 py-5 border-b border-[rgba(255,255,255,0.07)]">
-            <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
+          <div className="flex justify-between items-center px-6 py-5 border-b border-border-default">
+            <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-medium">
               Year-by-Year Projection
             </p>
             <div className="flex items-center gap-3">
               {/* Adjust Columns button */}
               <button
                 onClick={() => setColumnModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-lg text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-bg-card-hover border border-border-default rounded-lg text-foreground hover:bg-[rgba(255,255,255,0.1)] transition-colors"
               >
                 <Settings2 className="h-4 w-4" />
                 Adjust Columns
               </button>
               {/* View tabs */}
-              <div className="flex bg-[rgba(255,255,255,0.04)] rounded-lg p-1">
+              <div className="flex bg-bg-input rounded-lg p-1">
                 <button
                   onClick={() => setTableView("strategy")}
                   className={cn(
                     "px-4 py-1.5 text-sm rounded-md transition-colors",
                     tableView === "strategy"
-                      ? "bg-gold text-[#0c0c0c] font-medium"
-                      : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                      ? "bg-gold text-primary-foreground font-medium"
+                      : "text-text-muted hover:text-foreground"
                   )}
                 >
                   Strategy
@@ -450,8 +450,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   className={cn(
                     "px-4 py-1.5 text-sm rounded-md transition-colors",
                     tableView === "baseline"
-                      ? "bg-gold text-[#0c0c0c] font-medium"
-                      : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                      ? "bg-gold text-primary-foreground font-medium"
+                      : "text-text-muted hover:text-foreground"
                   )}
                 >
                   Baseline
@@ -461,8 +461,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   className={cn(
                     "px-4 py-1.5 text-sm rounded-md transition-colors",
                     tableView === "comparison"
-                      ? "bg-gold text-[#0c0c0c] font-medium"
-                      : "text-[rgba(255,255,255,0.65)] hover:text-white"
+                      ? "bg-gold text-primary-foreground font-medium"
+                      : "text-text-muted hover:text-foreground"
                   )}
                 >
                   Comparison
@@ -511,7 +511,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         />
 
         {/* Section 7: Disclaimer */}
-        <p className="text-sm text-[rgba(255,255,255,0.55)] italic text-center max-w-[900px] mx-auto py-6">
+        <p className="text-sm text-text-dim italic text-center max-w-[900px] mx-auto py-6">
           Projections use an assumed average annual return of {client.rate_of_return}% and do not represent guaranteed performance.
           Actual index-linked interest will vary based on market conditions and is subject to caps, participation rates, or spreads
           as declared by the carrier. The 0% floor protects against market losses but does not guarantee positive returns.
@@ -545,19 +545,19 @@ function InfoModal({
         onClick={onClose}
       />
       {/* Modal */}
-      <div className="relative bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-[16px] max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden shadow-2xl">
+      <div className="relative bg-surface-elevated border border-border-default rounded-[16px] max-w-lg w-full mx-4 max-h-[80vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[rgba(255,255,255,0.07)]">
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-default">
+          <h3 className="text-lg font-semibold text-foreground">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+            className="p-1 rounded-lg hover:bg-bg-card-hover transition-colors"
           >
-            <X className="h-5 w-5 text-[rgba(255,255,255,0.65)]" />
+            <X className="h-5 w-5 text-text-muted" />
           </button>
         </div>
         {/* Content */}
-        <div className="px-6 py-5 overflow-y-auto max-h-[60vh] text-sm text-[rgba(255,255,255,0.7)] space-y-4">
+        <div className="px-6 py-5 overflow-y-auto max-h-[60vh] text-sm text-text-muted space-y-4">
           {children}
         </div>
       </div>
@@ -586,9 +586,9 @@ function ComparisonCard({
 
   return (
     <>
-      <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[12px] p-5">
+      <div className="bg-bg-card border border-border-default rounded-[12px] p-5">
         <div className="flex items-center gap-1.5 mb-4">
-          <p className="text-xs uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] font-medium">
+          <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-medium">
             {label}
           </p>
           {infoContent && (
@@ -597,24 +597,24 @@ function ComparisonCard({
               className="p-0.5 rounded hover:bg-[rgba(255,255,255,0.1)] transition-colors"
               title="Learn how this is calculated"
             >
-              <Info className="h-3.5 w-3.5 text-[rgba(255,255,255,0.55)] hover:text-gold" />
+              <Info className="h-3.5 w-3.5 text-text-dim hover:text-gold" />
             </button>
           )}
         </div>
         <div className="flex justify-between mb-2">
           <div>
-            <p className="text-xs uppercase text-[rgba(255,255,255,0.55)] mb-1">Baseline</p>
-            <p className="text-lg font-mono text-[rgba(255,255,255,0.6)]">{toUSD(baseline)}</p>
+            <p className="text-xs uppercase text-text-dim mb-1">Baseline</p>
+            <p className="text-lg font-mono text-text-dim">{toUSD(baseline)}</p>
           </div>
           <div className="text-right">
-            <p className="text-xs uppercase text-[rgba(255,255,255,0.55)] mb-1">Strategy</p>
-            <p className="text-lg font-mono font-medium text-white">{toUSD(strategy)}</p>
+            <p className="text-xs uppercase text-text-dim mb-1">Strategy</p>
+            <p className="text-lg font-mono font-medium text-foreground">{toUSD(strategy)}</p>
           </div>
         </div>
-        <div className="pt-3 border-t border-[rgba(255,255,255,0.07)]">
+        <div className="pt-3 border-t border-border-default">
           <p className={cn(
             "text-base font-mono font-medium",
-            isPositive ? "text-[#4ade80]" : "text-[#f87171]"
+            isPositive ? "text-green" : "text-red"
           )}>
             {diff >= 0 ? "+" : ""}{toUSD(diff)} ({pct >= 0 ? "+" : ""}{(pct * 100).toFixed(1)}%)
           </p>
@@ -681,15 +681,15 @@ function LifetimeWealthInfo({
 
   return (
     <>
-      <p className="text-white font-medium">What is Lifetime Wealth?</p>
+      <p className="text-foreground font-medium">What is Lifetime Wealth?</p>
       <p>
         Lifetime Wealth is the total value your family receives—what you pass to heirs (after their taxes)
         plus any retirement distributions you received. Here's exactly how we calculated yours:
       </p>
 
       {/* Starting Point */}
-      <div className="bg-[rgba(255,255,255,0.05)] rounded-lg p-4">
-        <p className="text-white font-medium text-xs uppercase tracking-wider mb-2">Your Starting Point</p>
+      <div className="bg-bg-card-hover rounded-lg p-4">
+        <p className="text-foreground font-medium text-xs uppercase tracking-wider mb-2">Your Starting Point</p>
         <div className="space-y-1 font-mono text-sm">
           <p>Initial Investment: {toUSD(startingBalance)}</p>
           <p>Age: {client.age} → projecting to age {client.end_age} ({projectionYears} years)</p>
@@ -698,54 +698,54 @@ function LifetimeWealthInfo({
       </div>
 
       {/* Baseline Calculation */}
-      <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-3">
-        <p className="text-white font-medium text-xs uppercase tracking-wider">Baseline: Keep Traditional IRA</p>
-        <p className="text-xs text-[rgba(255,255,255,0.65)]">
+      <div className="bg-bg-card rounded-lg p-4 space-y-3">
+        <p className="text-foreground font-medium text-xs uppercase tracking-wider">Baseline: Keep Traditional IRA</p>
+        <p className="text-xs text-text-muted">
           Your {toUSD(startingBalance)} stays in a Traditional IRA, growing at {client.rate_of_return}% with RMDs starting at 73:
         </p>
-        <div className="space-y-1 font-mono text-sm border-t border-[rgba(255,255,255,0.1)] pt-3">
+        <div className="space-y-1 font-mono text-sm border-t border-border-default pt-3">
           <p>Final Traditional IRA: {toUSD(baseFinalTraditional)}</p>
           <p>Final Roth IRA: {toUSD(baseFinalRoth)}</p>
           <p>Final Taxable Account: {toUSD(Math.max(0, projection.baseline_final_taxable))}</p>
-          <p className="text-[rgba(255,255,255,0.65)]">─────────────────────</p>
+          <p className="text-text-muted">─────────────────────</p>
           <p>Gross Estate: {toUSD(projection.baseline_final_net_worth)}</p>
-          <p className="text-[#f87171]">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
-          <p className="text-white font-medium">= Net Legacy to Heirs: {toUSD(baseNetLegacy)}</p>
+          <p className="text-red">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
+          <p className="text-foreground font-medium">= Net Legacy to Heirs: {toUSD(baseNetLegacy)}</p>
           {rmdTreatment === 'spent' && (
             <>
-              <p className="text-[rgba(255,255,255,0.65)] mt-2">Plus distributions you received:</p>
+              <p className="text-text-muted mt-2">Plus distributions you received:</p>
               <p>+ After-Tax RMDs Spent: {toUSD(baseCumulativeDistributions)}</p>
             </>
           )}
-          <p className="text-[rgba(255,255,255,0.65)]">─────────────────────</p>
-          <p className="text-white font-semibold text-base">Baseline Lifetime Wealth: {toUSD(baseLifetimeWealth)}</p>
+          <p className="text-text-muted">─────────────────────</p>
+          <p className="text-foreground font-semibold text-base">Baseline Lifetime Wealth: {toUSD(baseLifetimeWealth)}</p>
         </div>
-        <p className="text-xs text-[rgba(255,255,255,0.55)] mt-2">
+        <p className="text-xs text-text-dim mt-2">
           Over {projectionYears} years, you'd take {toUSD(baseRMDs)} in RMDs and pay {toUSD(baseTax)} in income taxes on them.
         </p>
       </div>
 
       {/* Strategy Calculation */}
-      <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
+      <div className="bg-accent border border-gold-border rounded-lg p-4 space-y-3">
         <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy: Roth Conversions</p>
-        <p className="text-xs text-[rgba(255,255,255,0.65)]">
+        <p className="text-xs text-text-muted">
           Your {toUSD(startingBalance)} + {client.bonus_percent}% premium bonus ({toUSD(bonusAmount)}) = {toUSD(startingWithBonus)} starting balance
           {hasAnniversaryBonus && <>, plus {client.anniversary_bonus_percent}% anniversary bonus applied at end of years 1-{client.anniversary_bonus_years}</>}
           , converted to Roth over time:
         </p>
-        <div className="space-y-1 font-mono text-sm border-t border-[rgba(212,175,55,0.2)] pt-3">
+        <div className="space-y-1 font-mono text-sm border-t border-gold-border pt-3">
           <p>Total Converted to Roth: {toUSD(blueConversions)}</p>
           <p>Conversion Taxes Paid: {toUSD(blueTax)}</p>
-          <p className="text-[rgba(255,255,255,0.65)]">─────────────────────</p>
+          <p className="text-text-muted">─────────────────────</p>
           <p>Final Traditional IRA: {toUSD(blueFinalTraditional)}</p>
-          <p className="text-[#4ade80]">Final Roth IRA: {toUSD(blueFinalRoth)}</p>
+          <p className="text-green">Final Roth IRA: {toUSD(blueFinalRoth)}</p>
           <p>Final Taxable Account: {toUSD(Math.max(0, projection.blueprint_final_taxable))}</p>
-          <p className="text-[rgba(255,255,255,0.65)]">─────────────────────</p>
+          <p className="text-text-muted">─────────────────────</p>
           <p>Gross Estate: {toUSD(projection.blueprint_final_net_worth)}</p>
-          <p className="text-[#f87171]">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
+          <p className="text-red">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
           <p className="text-gold font-semibold text-base">Strategy Lifetime Wealth: {toUSD(blueLifetimeWealth)}</p>
         </div>
-        <p className="text-xs text-[rgba(255,255,255,0.55)] mt-2">
+        <p className="text-xs text-text-dim mt-2">
           No RMDs required from Roth. Your heirs inherit {toUSD(blueFinalRoth)} completely tax-free.
         </p>
       </div>
@@ -754,10 +754,10 @@ function LifetimeWealthInfo({
       <div className={cn(
         "rounded-lg p-4",
         wealthDiff > 0
-          ? "bg-[rgba(74,222,128,0.08)] border border-[rgba(74,222,128,0.2)]"
-          : "bg-[rgba(248,113,113,0.08)] border border-[rgba(248,113,113,0.2)]"
+          ? "bg-green-bg border border-green/20"
+          : "bg-red-bg border border-red/20"
       )}>
-        <p className={cn("font-medium", wealthDiff > 0 ? "text-[#4ade80]" : "text-[#f87171]")}>
+        <p className={cn("font-medium", wealthDiff > 0 ? "text-green" : "text-red")}>
           The Bottom Line: {wealthDiff > 0 ? "+" : ""}{toUSD(wealthDiff)}
         </p>
         <p className="mt-2 text-sm">
@@ -814,41 +814,41 @@ function LegacyToHeirsInfo({
 
   return (
     <>
-      <p className="text-white font-medium">What is Legacy to Heirs?</p>
+      <p className="text-foreground font-medium">What is Legacy to Heirs?</p>
       <p>
         This is the net amount your beneficiaries actually receive after paying any taxes owed on inherited accounts.
         Roth IRAs pass tax-free, but Traditional IRAs are taxed as income to your heirs.
       </p>
 
-      <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-3">
-        <p className="text-white font-medium text-xs uppercase tracking-wider">Baseline Inheritance</p>
-        <p className="text-xs text-[rgba(255,255,255,0.65)]">Your heirs receive:</p>
+      <div className="bg-bg-card rounded-lg p-4 space-y-3">
+        <p className="text-foreground font-medium text-xs uppercase tracking-wider">Baseline Inheritance</p>
+        <p className="text-xs text-text-muted">Your heirs receive:</p>
         <div className="space-y-1 font-mono text-sm">
           <p>Traditional IRA Balance: {toUSD(baseFinalTraditional)}</p>
-          <p className="text-[#f87171]">− Heir's Income Tax ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
+          <p className="text-red">− Heir's Income Tax ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
           <p>+ Roth IRA (tax-free): {toUSD(baseFinalRoth)}</p>
           <p>+ Taxable Account: {toUSD(Math.max(0, baseFinalTaxable))}</p>
-          <p className="border-t border-[rgba(255,255,255,0.1)] pt-2 text-white font-medium">
+          <p className="border-t border-border-default pt-2 text-foreground font-medium">
             = Net Legacy: {toUSD(baseNetLegacy)}
           </p>
         </div>
       </div>
 
-      <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
+      <div className="bg-accent border border-gold-border rounded-lg p-4 space-y-3">
         <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy Inheritance</p>
-        <p className="text-xs text-[rgba(255,255,255,0.65)]">Your heirs receive:</p>
+        <p className="text-xs text-text-muted">Your heirs receive:</p>
         <div className="space-y-1 font-mono text-sm">
           <p>Traditional IRA Balance: {toUSD(blueFinalTraditional)}</p>
-          <p className="text-[#f87171]">− Heir's Income Tax ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
-          <p className="text-[#4ade80]">+ Roth IRA (tax-free): {toUSD(blueFinalRoth)}</p>
+          <p className="text-red">− Heir's Income Tax ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
+          <p className="text-green">+ Roth IRA (tax-free): {toUSD(blueFinalRoth)}</p>
           <p>+ Taxable Account: {toUSD(Math.max(0, blueFinalTaxable))}</p>
-          <p className="border-t border-[rgba(212,175,55,0.2)] pt-2 text-gold font-medium">
+          <p className="border-t border-gold-border pt-2 text-gold font-medium">
             = Net Legacy: {toUSD(blueNetLegacy)}
           </p>
         </div>
       </div>
 
-      <p className="text-[rgba(255,255,255,0.65)] text-xs">
+      <p className="text-text-muted text-xs">
         Note: We assume your heirs will be in the {heirTaxPct}% tax bracket when they inherit.
         Under current law, non-spouse beneficiaries must withdraw inherited IRAs within 10 years.
       </p>
@@ -886,34 +886,34 @@ function TotalTaxesInfo({
 
   return (
     <>
-      <p className="text-white font-medium">What are Total Taxes Paid?</p>
+      <p className="text-foreground font-medium">What are Total Taxes Paid?</p>
       <p>
         This includes all taxes paid by you AND your heirs over the projection period—income taxes on
         distributions/conversions, Medicare IRMAA surcharges, and the taxes your heirs pay on inherited IRAs.
       </p>
 
-      <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-3">
-        <p className="text-white font-medium text-xs uppercase tracking-wider">Baseline Taxes</p>
+      <div className="bg-bg-card rounded-lg p-4 space-y-3">
+        <p className="text-foreground font-medium text-xs uppercase tracking-wider">Baseline Taxes</p>
         <div className="space-y-1 font-mono text-sm">
           <p>Income Tax on RMDs: {toUSD(baseTax)}</p>
           <p>Medicare IRMAA Surcharges: {toUSD(baseIrmaa)}</p>
           <p>Heir's Tax on Inheritance ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
-          <p className="border-t border-[rgba(255,255,255,0.1)] pt-2 text-[#f87171] font-medium">
+          <p className="border-t border-border-default pt-2 text-red font-medium">
             = Total Taxes: {toUSD(baseTotalTaxes)}
           </p>
         </div>
       </div>
 
-      <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4 space-y-3">
+      <div className="bg-accent border border-gold-border rounded-lg p-4 space-y-3">
         <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy Taxes</p>
         <div className="space-y-1 font-mono text-sm">
           <p>Income Tax on Conversions: {toUSD(blueTax)}</p>
-          <p className="text-xs text-[rgba(255,255,255,0.65)]">
+          <p className="text-xs text-text-muted">
             (Converted {toUSD(blueConversions)} staying in {client.max_tax_rate}% bracket)
           </p>
           <p>Medicare IRMAA Surcharges: {toUSD(blueIrmaa)}</p>
           <p>Heir's Tax on Remaining Traditional ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
-          <p className="border-t border-[rgba(212,175,55,0.2)] pt-2 text-gold font-medium">
+          <p className="border-t border-gold-border pt-2 text-gold font-medium">
             = Total Taxes: {toUSD(blueTotalTaxes)}
           </p>
         </div>
@@ -922,10 +922,10 @@ function TotalTaxesInfo({
       <div className={cn(
         "rounded-lg p-4",
         taxSavings > 0
-          ? "bg-[rgba(74,222,128,0.08)] border border-[rgba(74,222,128,0.2)]"
-          : "bg-[rgba(248,113,113,0.08)] border border-[rgba(248,113,113,0.2)]"
+          ? "bg-green-bg border border-green/20"
+          : "bg-red-bg border border-red/20"
       )}>
-        <p className={taxSavings > 0 ? "text-[#4ade80] font-medium" : "text-[#f87171] font-medium"}>
+        <p className={taxSavings > 0 ? "text-green font-medium" : "text-red font-medium"}>
           {taxSavings > 0 ? "Tax Savings" : "Additional Taxes"}
         </p>
         <p className="mt-2">
@@ -955,7 +955,7 @@ function DistributionsInfo({
 }) {
   return (
     <>
-      <p className="text-white font-medium">
+      <p className="text-foreground font-medium">
         {rmdTreatment === 'spent' ? "What are After-Tax Distributions?" : "What are Gross Distributions?"}
       </p>
 
@@ -965,11 +965,11 @@ function DistributionsInfo({
             After-Tax Distributions represent the actual money you received and spent during retirement
             from Required Minimum Distributions, after paying income taxes on them.
           </p>
-          <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-2">
+          <div className="bg-bg-card rounded-lg p-4 space-y-2">
             <p className="font-mono text-sm">Gross RMDs Taken: {toUSD(baseRMDs)}</p>
             <p className="font-mono text-sm">After Taxes: {toUSD(baseCumulativeDistributions)}</p>
           </div>
-          <p className="text-[rgba(255,255,255,0.65)] text-xs">
+          <p className="text-text-muted text-xs">
             Since you selected "Spent on Living Expenses" for RMD treatment, these distributions
             are added to your Lifetime Wealth calculation (money you received and used).
           </p>
@@ -980,16 +980,16 @@ function DistributionsInfo({
             Gross Distributions represent the total Required Minimum Distributions (RMDs) you're
             forced to take from your Traditional IRA starting at age 73, before taxes.
           </p>
-          <div className="bg-[rgba(255,255,255,0.03)] rounded-lg p-4 space-y-2">
+          <div className="bg-bg-card rounded-lg p-4 space-y-2">
             <p className="font-mono text-sm">Total Gross RMDs: {toUSD(baseRMDs)}</p>
-            <p className="text-xs text-[rgba(255,255,255,0.65)]">
+            <p className="text-xs text-text-muted">
               (These are taxed as ordinary income each year)
             </p>
           </div>
         </>
       )}
 
-      <div className="bg-[rgba(212,175,55,0.08)] border border-[rgba(212,175,55,0.2)] rounded-lg p-4">
+      <div className="bg-accent border border-gold-border rounded-lg p-4">
         <p className="text-gold font-medium">Strategy: No Forced Distributions</p>
         <p className="mt-2">
           With the Roth conversion strategy, you convert to a Roth IRA which has <strong>no Required
@@ -1038,17 +1038,17 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
     <table className="w-full">
       <thead>
         <tr className="bg-[rgba(255,255,255,0.02)]">
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Year</th>
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Age</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Trad BOY</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Converted</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Taxes</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Trad EOY</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Year</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Age</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Trad BOY</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Converted</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Taxes</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Trad EOY</th>
           {hasSurrenderValues && (
-            <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">SV</th>
+            <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">SV</th>
           )}
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Roth EOY</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Net Worth</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Roth EOY</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Net Worth</th>
         </tr>
       </thead>
       <tbody>
@@ -1059,29 +1059,29 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
             <tr
               key={row.year}
               className={cn(
-                "border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors",
+                "border-b border-border-default/50 hover:bg-bg-card transition-colors",
                 hasConversion && "border-l-[3px] border-l-gold"
               )}
             >
-              <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
-              <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{row.age}</td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+              <td className="px-4 py-3 text-sm font-mono text-text-dim">{row.year}</td>
+              <td className="px-4 py-3 text-sm text-text-muted">{row.age}</td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                 {toUSD(tradBOY)}
               </td>
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
-                hasConversion ? "text-gold" : "text-[rgba(255,255,255,0.55)]"
+                hasConversion ? "text-gold" : "text-text-dim"
               )}>
                 {hasConversion ? toUSD(row.conversionAmount) : "—"}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
+              <td className="px-4 py-3 text-sm font-mono text-right text-red">
                 {toUSD(row.federalTax + row.stateTax)}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+              <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                 {toUSD(row.traditionalBalance)}
               </td>
               {hasSurrenderValues && (
-                <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.55)]">
+                <td className="px-4 py-3 text-sm font-mono text-right text-text-dim">
                   {row.surrenderValue != null ? (
                     <span title={`${row.surrenderChargePercent ?? 0}% charge`}>
                       {toUSD(row.surrenderValue)}
@@ -1091,11 +1091,11 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
               )}
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
-                row.rothBalance > 0 ? "text-[#4ade80]" : "text-[rgba(255,255,255,0.55)]"
+                row.rothBalance > 0 ? "text-green" : "text-text-dim"
               )}>
                 {row.rothBalance > 0 ? toUSD(row.rothBalance) : "—"}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-white">
+              <td className="px-4 py-3 text-sm font-mono text-right text-foreground">
                 {toUSD(row.netWorth)}
               </td>
             </tr>
@@ -1103,15 +1103,15 @@ function StrategyTable({ years, client }: { years: YearlyResult[]; client: Clien
         })}
       </tbody>
       <tfoot>
-        <tr className="bg-[rgba(255,255,255,0.04)] border-t border-[rgba(255,255,255,0.1)]">
-          <td className="px-4 py-3 text-sm font-semibold text-white" colSpan={3}>TOTALS</td>
+        <tr className="bg-bg-input border-t border-border-default">
+          <td className="px-4 py-3 text-sm font-semibold text-foreground" colSpan={3}>TOTALS</td>
           <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-gold">
             {toUSD(totalConverted)}
           </td>
-          <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-[#f87171]">
+          <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-red">
             {toUSD(totalTaxes)}
           </td>
-          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]" colSpan={hasSurrenderValues ? 4 : 3}>—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-text-muted" colSpan={hasSurrenderValues ? 4 : 3}>—</td>
         </tr>
       </tfoot>
     </table>
@@ -1139,13 +1139,13 @@ function BaselineTable({ years, client }: { years: YearlyResult[]; client: Clien
     <table className="w-full">
       <thead>
         <tr className="bg-[rgba(255,255,255,0.02)]">
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Year</th>
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Age</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Trad BOY</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">RMD</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Taxes</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Trad EOY</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Net Worth</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Year</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Age</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Trad BOY</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">RMD</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Taxes</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Trad EOY</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Net Worth</th>
         </tr>
       </thead>
       <tbody>
@@ -1154,26 +1154,26 @@ function BaselineTable({ years, client }: { years: YearlyResult[]; client: Clien
           return (
             <tr
               key={row.year}
-              className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+              className="border-b border-border-default/50 hover:bg-bg-card transition-colors"
             >
-              <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{row.year}</td>
-              <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{row.age}</td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+              <td className="px-4 py-3 text-sm font-mono text-text-dim">{row.year}</td>
+              <td className="px-4 py-3 text-sm text-text-muted">{row.age}</td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                 {toUSD(tradBOY)}
               </td>
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
-                row.rmdAmount > 0 ? "text-[rgba(255,255,255,0.6)]" : "text-[rgba(255,255,255,0.55)]"
+                row.rmdAmount > 0 ? "text-text-dim" : "text-text-dim"
               )}>
                 {row.rmdAmount > 0 ? toUSD(row.rmdAmount) : "—"}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[#f87171]">
+              <td className="px-4 py-3 text-sm font-mono text-right text-red">
                 {toUSD(row.federalTax + row.stateTax)}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+              <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                 {toUSD(row.traditionalBalance)}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-white">
+              <td className="px-4 py-3 text-sm font-mono text-right text-foreground">
                 {toUSD(row.netWorth)}
               </td>
             </tr>
@@ -1181,15 +1181,15 @@ function BaselineTable({ years, client }: { years: YearlyResult[]; client: Clien
         })}
       </tbody>
       <tfoot>
-        <tr className="bg-[rgba(255,255,255,0.04)] border-t border-[rgba(255,255,255,0.1)]">
-          <td className="px-4 py-3 text-sm font-semibold text-white" colSpan={3}>TOTALS</td>
-          <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-white">
+        <tr className="bg-bg-input border-t border-border-default">
+          <td className="px-4 py-3 text-sm font-semibold text-foreground" colSpan={3}>TOTALS</td>
+          <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-foreground">
             {toUSD(totalRMDs)}
           </td>
-          <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-[#f87171]">
+          <td className="px-4 py-3 text-sm font-mono text-right font-semibold text-red">
             {toUSD(totalTaxes)}
           </td>
-          <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]" colSpan={2}>—</td>
+          <td className="px-4 py-3 text-sm font-mono text-right text-text-muted" colSpan={2}>—</td>
         </tr>
       </tfoot>
     </table>
@@ -1210,13 +1210,13 @@ function ComparisonTable({
     <table className="w-full">
       <thead>
         <tr className="bg-[rgba(255,255,255,0.02)]">
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Year</th>
-          <th className="text-left px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Age</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Baseline</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Strategy</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Roth</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Total</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-[rgba(255,255,255,0.65)] tracking-[1px] font-medium">Difference</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Year</th>
+          <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Age</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Baseline</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Strategy</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Roth</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Total</th>
+          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Difference</th>
         </tr>
       </thead>
       <tbody>
@@ -1230,28 +1230,28 @@ function ComparisonTable({
           return (
             <tr
               key={stratRow.year}
-              className="border-b border-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.02)] transition-colors"
+              className="border-b border-border-default/50 hover:bg-bg-card transition-colors"
             >
-              <td className="px-4 py-3 text-sm font-mono text-[rgba(255,255,255,0.6)]">{stratRow.year}</td>
-              <td className="px-4 py-3 text-sm text-[rgba(255,255,255,0.65)]">{stratRow.age}</td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.55)]">
+              <td className="px-4 py-3 text-sm font-mono text-text-dim">{stratRow.year}</td>
+              <td className="px-4 py-3 text-sm text-text-muted">{stratRow.age}</td>
+              <td className="px-4 py-3 text-sm font-mono text-right text-text-dim">
                 {toUSD(baseRow.traditionalBalance)}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-[rgba(255,255,255,0.65)]">
+              <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
                 {toUSD(stratRow.traditionalBalance)}
               </td>
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right",
-                stratRow.rothBalance > 0 ? "text-[#4ade80]" : "text-[rgba(255,255,255,0.55)]"
+                stratRow.rothBalance > 0 ? "text-green" : "text-text-dim"
               )}>
                 {stratRow.rothBalance > 0 ? toUSD(stratRow.rothBalance) : "—"}
               </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-white">
+              <td className="px-4 py-3 text-sm font-mono text-right text-foreground">
                 {toUSD(strategyTotal)}
               </td>
               <td className={cn(
                 "px-4 py-3 text-sm font-mono text-right font-medium",
-                diff >= 0 ? "text-[#4ade80]" : "text-[#f87171]"
+                diff >= 0 ? "text-green" : "text-red"
               )}>
                 {diff >= 0 ? "+" : ""}{toUSD(diff)}
               </td>

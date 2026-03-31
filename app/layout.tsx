@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, DM_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 
 const cormorantGaramond = Cormorant_Garamond({
   variable: "--font-display",
@@ -32,11 +33,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${dmSans.variable} ${cormorantGaramond.variable} ${ibmPlexMono.variable} dark`}>
+    <html lang="en" className={`${dmSans.variable} ${cormorantGaramond.variable} ${ibmPlexMono.variable} dark`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{
+          __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.remove('dark')}}catch(e){}})();`
+        }} />
+      </head>
       <body className="antialiased font-sans">
-        <QueryProvider>
-          {children}
-        </QueryProvider>
+        <ThemeProvider>
+          <QueryProvider>
+            {children}
+          </QueryProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

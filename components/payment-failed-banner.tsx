@@ -42,10 +42,10 @@ export function PaymentFailedBanner({ subscriptionStatus, isTeamMember }: Paymen
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <AlertCircle className="h-5 w-5 text-[#f59e0b] flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white">
+              <p className="text-sm font-medium text-foreground">
                 Payment Failed
               </p>
-              <p className="text-xs text-[rgba(255,255,255,0.7)] mt-0.5">
+              <p className="text-xs text-text-muted mt-0.5">
                 Your recent payment failed. Please update your payment method to restore access.
               </p>
             </div>
@@ -64,7 +64,7 @@ export function PaymentFailedBanner({ subscriptionStatus, isTeamMember }: Paymen
 
             <button
               onClick={() => setDismissed(true)}
-              className="p-1 rounded hover:bg-[rgba(255,255,255,0.1)] text-[rgba(255,255,255,0.6)] hover:text-white transition-colors"
+              className="p-1 rounded hover:bg-secondary text-text-dim hover:text-foreground transition-colors"
               title="Dismiss"
             >
               <X className="h-4 w-4" />

@@ -48,12 +48,12 @@ export default function PricingPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('monthly')
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-[#0c0c0c] px-4 py-12">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
       <div className="mb-4">
         <img src="/logo.png" alt="Retirement Expert" className="h-10 w-auto" />
       </div>
 
-      <h1 className="mb-2 text-center text-3xl font-semibold text-white">
+      <h1 className="mb-2 text-center text-3xl font-semibold text-foreground">
         Choose Your Plan
       </h1>
       <p className="mb-8 text-center text-muted-foreground">
@@ -61,7 +61,7 @@ export default function PricingPage() {
       </p>
 
       {/* Cycle Toggle */}
-      <div className="mb-10 flex items-center gap-3 rounded-full border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] p-1">
+      <div className="mb-10 flex items-center gap-3 rounded-full border border-border-default bg-bg-card p-1">
         <button
           onClick={() => setCycle('monthly')}
           className={`rounded-full px-5 py-2 text-sm font-medium transition-all ${
@@ -96,7 +96,7 @@ export default function PricingPage() {
               <CardHeader className="text-center">
                 <CardTitle className="text-xl">{plan.name}</CardTitle>
                 <div className="mt-2">
-                  <span className="text-4xl font-bold text-white">
+                  <span className="text-4xl font-bold text-foreground">
                     ${cycle === 'monthly' ? plan.monthly : plan.annual}
                   </span>
                   <span className="text-muted-foreground">
@@ -115,7 +115,7 @@ export default function PricingPage() {
                       className="flex items-start gap-2 text-sm"
                     >
                       <Check className="mt-0.5 size-4 shrink-0 text-gold" />
-                      <span className="text-[rgba(255,255,255,0.7)]">
+                      <span className="text-text-muted">
                         {feature}
                       </span>
                     </li>

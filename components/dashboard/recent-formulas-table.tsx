@@ -25,8 +25,8 @@ function DeltaBadge({ value }: { value: number }) {
     <span
       className={`inline-block px-3 py-1 rounded-[20px] text-sm font-mono font-medium ${
         isPositive
-          ? "bg-[rgba(74,222,128,0.08)] text-[#4ade80]"
-          : "bg-[rgba(248,113,113,0.08)] text-[#f87171]"
+          ? "bg-green-bg text-green"
+          : "bg-red-bg text-red"
       }`}
     >
       {isPositive ? "+" : ""}
@@ -37,28 +37,28 @@ function DeltaBadge({ value }: { value: number }) {
 
 export function RecentFormulasTable({ data }: RecentFormulasTableProps) {
   return (
-    <div className="bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] rounded-[14px] p-6 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] hover:border-[rgba(212,175,55,0.3)]">
-      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)] mb-5">
+    <div className="bg-bg-card border border-border-default rounded-[14px] p-6 transition-all duration-250 hover:bg-bg-card-hover hover:border-border-hover">
+      <h3 className="text-xs font-medium uppercase tracking-[1.5px] text-text-muted mb-5">
         Recent Scenarios
       </h3>
 
       {data.length === 0 ? (
-        <p className="text-sm text-[rgba(255,255,255,0.6)] text-center py-8">No scenarios yet</p>
+        <p className="text-sm text-text-dim text-center py-8">No scenarios yet</p>
       ) : (
         <>
           <table className="w-full">
             <thead>
               <tr>
-                <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.65)] border-b border-[rgba(255,255,255,0.07)]">
+                <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-text-muted border-b border-border-default">
                   Client
                 </th>
-                <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.65)] border-b border-[rgba(255,255,255,0.07)]">
+                <th className="text-left pb-2 text-xs font-normal uppercase tracking-[0.5px] text-text-muted border-b border-border-default">
                   Product
                 </th>
-                <th className="text-right pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.65)] border-b border-[rgba(255,255,255,0.07)]">
+                <th className="text-right pb-2 text-xs font-normal uppercase tracking-[0.5px] text-text-muted border-b border-border-default">
                   Change
                 </th>
-                <th className="text-right pb-2 text-xs font-normal uppercase tracking-[0.5px] text-[rgba(255,255,255,0.65)] border-b border-[rgba(255,255,255,0.07)]">
+                <th className="text-right pb-2 text-xs font-normal uppercase tracking-[0.5px] text-text-muted border-b border-border-default">
                   Date
                 </th>
               </tr>
@@ -67,24 +67,24 @@ export function RecentFormulasTable({ data }: RecentFormulasTableProps) {
               {data.map((item) => (
                 <tr
                   key={item.id}
-                  className="cursor-pointer transition-colors hover:bg-[rgba(255,255,255,0.045)]"
+                  className="cursor-pointer transition-colors hover:bg-bg-card-hover"
                 >
                   <td className="py-2.5">
                     <Link
                       href={`/clients/${item.id}`}
-                      className="text-sm text-[rgba(255,255,255,0.7)] hover:text-gold transition-colors"
+                      className="text-sm text-text-muted hover:text-gold transition-colors"
                     >
                       {item.clientName}
                     </Link>
                   </td>
                   <td className="py-2.5">
-                    <span className="text-sm text-[rgba(255,255,255,0.65)]">{item.productLabel}</span>
+                    <span className="text-sm text-text-muted">{item.productLabel}</span>
                   </td>
                   <td className="py-2.5 text-right">
                     <DeltaBadge value={item.percentChange} />
                   </td>
                   <td className="py-2.5 text-right">
-                    <span className="text-sm font-mono text-[rgba(255,255,255,0.6)]">
+                    <span className="text-sm font-mono text-text-dim">
                       {formatDate(item.createdAt)}
                     </span>
                   </td>

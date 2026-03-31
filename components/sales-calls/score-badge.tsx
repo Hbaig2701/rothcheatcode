@@ -55,7 +55,7 @@ export function ScoreBadge({ score, size = 'sm' }: ScoreBadgeProps) {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-4xl font-mono font-semibold text-white">{score}</span>
+            <span className="text-4xl font-mono font-semibold text-foreground">{score}</span>
             <span
               className="text-xs font-semibold uppercase tracking-[1.5px]"
               style={{ color: strokeColor }}

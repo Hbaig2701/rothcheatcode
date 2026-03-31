@@ -37,7 +37,7 @@ function ProgressBar({ value, max }: { value: number; max: number }) {
   const pct = Math.min((value / max) * 100, 100);
   const isNearLimit = pct >= 80;
   return (
-    <div className="h-2 w-full rounded-full bg-[rgba(255,255,255,0.08)]">
+    <div className="h-2 w-full rounded-full bg-secondary">
       <div
         className={`h-full rounded-full transition-all ${
           isNearLimit ? "bg-[#f59e0b]" : "bg-gold"
@@ -145,7 +145,7 @@ export function BillingTab() {
         <CardContent>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-2xl font-semibold text-white">{planLabel}</p>
+              <p className="text-2xl font-semibold text-foreground">{planLabel}</p>
               {data.isGrandfathered && (
                 <span className="mt-1 inline-block rounded-full bg-[rgba(212,175,55,0.15)] px-2.5 py-0.5 text-xs font-medium text-gold">
                   Grandfathered
@@ -182,7 +182,7 @@ export function BillingTab() {
               <span
                 className={`rounded-full px-3 py-1 text-xs font-medium ${
                   data.subscriptionStatus === "active"
-                    ? "bg-[rgba(74,222,128,0.15)] text-[#4ade80]"
+                    ? "bg-[rgba(74,222,128,0.15)] text-green"
                     : data.subscriptionStatus === "trialing"
                       ? "bg-[rgba(96,165,250,0.15)] text-[#60a5fa]"
                       : data.subscriptionStatus === "past_due"
@@ -208,7 +208,7 @@ export function BillingTab() {
               <div>
                 <div className="mb-1.5 flex justify-between text-sm">
                   <span className="text-muted-foreground">Active Clients</span>
-                  <span className="font-mono text-white">
+                  <span className="font-mono text-foreground">
                     {data.usage.clients}/{data.limits.clients}
                   </span>
                 </div>
@@ -222,7 +222,7 @@ export function BillingTab() {
               <div>
                 <div className="mb-1.5 flex justify-between text-sm">
                   <span className="text-muted-foreground">Scenario Runs</span>
-                  <span className="font-mono text-white">
+                  <span className="font-mono text-foreground">
                     {data.usage.scenarioRuns}/{data.limits.scenarioRuns}
                   </span>
                 </div>
@@ -236,7 +236,7 @@ export function BillingTab() {
               <div>
                 <div className="mb-1.5 flex justify-between text-sm">
                   <span className="text-muted-foreground">PDF Exports</span>
-                  <span className="font-mono text-white">
+                  <span className="font-mono text-foreground">
                     {data.usage.pdfExports}/{data.limits.pdfExports}
                   </span>
                 </div>

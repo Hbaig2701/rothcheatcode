@@ -23,9 +23,9 @@ const navItems = [
 export function AppSidebar({ user, displayName, userRole }: { user: User; displayName: string; userRole: string | null }) {
 
   return (
-    <Sidebar collapsible="none" className="border-r border-[rgba(255,255,255,0.07)] bg-[rgba(0,0,0,0.3)]">
+    <Sidebar collapsible="none" className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="px-4 py-7">
-        <img src="/logo.png" alt="Retirement Expert" className="h-8 w-auto" />
+        <img src="/logo.png" alt="Retirement Expert" className="h-8 w-auto dark:brightness-100 brightness-0" />
       </SidebarHeader>
 
       <SidebarContent className="px-4 pt-6">
@@ -34,7 +34,7 @@ export function AppSidebar({ user, displayName, userRole }: { user: User; displa
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton
                 render={<a href={item.href} />}
-                className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-medium text-[rgba(255,255,255,0.7)] transition-all hover:bg-[rgba(212,175,55,0.08)] hover:text-gold data-active:bg-[rgba(212,175,55,0.08)] data-active:text-gold data-active:border data-active:border-[rgba(212,175,55,0.2)] data-active:font-medium"
+                className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-medium text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground data-active:bg-accent data-active:text-accent-foreground data-active:border data-active:border-gold-border data-active:font-medium"
               >
                 <item.icon className="size-4 opacity-80" />
                 <span>{item.title}</span>
@@ -50,7 +50,7 @@ export function AppSidebar({ user, displayName, userRole }: { user: User; displa
           <SidebarMenuItem>
             <SidebarMenuButton
               render={<a href="/settings" />}
-              className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-medium text-[rgba(255,255,255,0.7)] transition-all hover:bg-[rgba(212,175,55,0.08)] hover:text-gold data-active:bg-[rgba(212,175,55,0.08)] data-active:text-gold data-active:border data-active:border-[rgba(212,175,55,0.2)] data-active:font-medium"
+              className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-medium text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground data-active:bg-accent data-active:text-accent-foreground data-active:border data-active:border-gold-border data-active:font-medium"
             >
               <Settings className="size-4 opacity-80" />
               <span>Settings</span>
@@ -58,13 +58,13 @@ export function AppSidebar({ user, displayName, userRole }: { user: User; displa
           </SidebarMenuItem>
         </SidebarMenu>
 
-        <SidebarSeparator className="my-3 bg-[rgba(255,255,255,0.07)]" />
+        <SidebarSeparator className="my-3 bg-border" />
 
         <div className="px-3.5 space-y-1">
-          <p className="text-sm text-[rgba(255,255,255,0.7)] truncate">
+          <p className="text-sm text-text-muted truncate">
             {displayName}
           </p>
-          <p className="text-xs text-[rgba(255,255,255,0.6)] truncate">
+          <p className="text-xs text-text-dim truncate">
             {user.email}
           </p>
         </div>

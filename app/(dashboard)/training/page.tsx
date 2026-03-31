@@ -40,12 +40,12 @@ export default async function TrainingPage() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-[rgba(212,175,55,0.1)] border border-[rgba(212,175,55,0.2)]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-accent border border-gold-border">
             <GraduationCap className="h-6 w-6 text-gold" />
           </div>
           <div>
-            <h1 className="text-[28px] font-display font-bold text-white leading-tight">Training Centre</h1>
-            <p className="text-base text-[rgba(255,255,255,0.6)] mt-0.5">
+            <h1 className="text-[28px] font-display font-bold text-foreground leading-tight">Training Centre</h1>
+            <p className="text-base text-text-dim mt-0.5">
               Step-by-step video guides to help you get the most out of Retirement Expert
             </p>
           </div>
@@ -57,7 +57,7 @@ export default async function TrainingPage() {
         {videos.map((video, index) => (
           <div
             key={video.loomId}
-            className="rounded-[14px] bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] overflow-hidden transition-all hover:border-[rgba(212,175,55,0.2)]"
+            className="rounded-[14px] bg-bg-card border border-border-default overflow-hidden transition-all hover:border-gold-border"
           >
             {/* Video embed — 16:9 aspect ratio */}
             <div className="relative w-full aspect-video">
@@ -72,23 +72,23 @@ export default async function TrainingPage() {
             {/* Video info */}
             <div className="px-5 py-4">
               <div className="flex items-center gap-2.5 mb-1.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-[rgba(212,175,55,0.1)] border border-[rgba(212,175,55,0.15)]">
+                <div className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-accent border border-gold-border">
                   <Play className="h-3.5 w-3.5 text-gold" />
                 </div>
-                <span className="text-xs font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.45)]">
+                <span className="text-xs font-semibold uppercase tracking-[1.5px] text-text-dimmer">
                   Lesson {index + 1}
                 </span>
               </div>
-              <h2 className="text-lg font-semibold text-white mb-1">{video.title}</h2>
-              <p className="text-sm text-[rgba(255,255,255,0.55)] leading-relaxed">{video.description}</p>
+              <h2 className="text-lg font-semibold text-foreground mb-1">{video.title}</h2>
+              <p className="text-sm text-text-dim leading-relaxed">{video.description}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* More coming soon */}
-      <div className="mt-8 rounded-[14px] bg-[rgba(255,255,255,0.025)] border border-[rgba(255,255,255,0.07)] px-6 py-5 text-center">
-        <p className="text-sm text-[rgba(255,255,255,0.45)]">
+      <div className="mt-8 rounded-[14px] bg-bg-card border border-border-default px-6 py-5 text-center">
+        <p className="text-sm text-text-dimmer">
           More training videos coming soon
         </p>
       </div>

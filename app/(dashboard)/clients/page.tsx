@@ -15,7 +15,7 @@ export default function ClientsPage() {
     return (
       <div className="p-9">
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-[rgba(255,255,255,0.55)]" />
+          <Loader2 className="h-8 w-8 animate-spin text-text-dim" />
         </div>
       </div>
     );
@@ -25,10 +25,10 @@ export default function ClientsPage() {
     return (
       <div className="p-9">
         <div className="flex flex-col items-center justify-center h-64 text-center">
-          <h2 className="text-lg font-semibold text-[#f87171] mb-2">
+          <h2 className="text-lg font-semibold text-red mb-2">
             Failed to load clients
           </h2>
-          <p className="text-[rgba(255,255,255,0.65)] mb-4">
+          <p className="text-text-muted mb-4">
             {error?.message || "An unexpected error occurred"}
           </p>
           <Button variant="outline" onClick={() => window.location.reload()}>
@@ -53,15 +53,15 @@ export default function ClientsPage() {
       {/* Page header */}
       <div className="flex items-center justify-between mb-9">
         <div>
-          <h1 className="font-display text-[30px] font-normal text-white">Clients</h1>
-          <p className="text-base text-[rgba(255,255,255,0.6)] mt-1.5">
+          <h1 className="font-display text-[30px] font-normal text-foreground">Clients</h1>
+          <p className="text-base text-text-dim mt-1.5">
             {clients?.length || 0} clients total
           </p>
         </div>
         {hasClients && (
           <a
             href="/clients/new"
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-[#0c0c0c] bg-gold rounded-[10px] hover:bg-[rgba(212,175,55,0.9)] transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-primary-foreground bg-gold rounded-[10px] hover:bg-[rgba(212,175,55,0.9)] transition-colors"
           >
             <Plus className="h-4 w-4" />
             Add Client
@@ -72,13 +72,13 @@ export default function ClientsPage() {
       {/* Search */}
       {hasClients && (
         <div className="relative mb-6 max-w-sm">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-[rgba(255,255,255,0.55)]" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-dim" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search clients..."
-            className="w-full pl-11 pr-4 py-3 bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.1)] rounded-[10px] text-base text-white placeholder:text-[rgba(255,255,255,0.5)] focus:outline-none focus:border-[rgba(212,175,55,0.3)] transition-colors"
+            className="w-full pl-11 pr-4 py-3 bg-bg-input border border-border-default rounded-[10px] text-base text-foreground placeholder:text-text-dim focus:outline-none focus:border-border-hover transition-colors"
           />
         </div>
       )}
@@ -101,7 +101,7 @@ export default function ClientsPage() {
       {/* No results message */}
       {hasClients && filteredClients.length === 0 && search && (
         <div className="text-center py-16">
-          <p className="text-[rgba(255,255,255,0.65)]">
+          <p className="text-text-muted">
             No clients found matching &quot;{search}&quot;
           </p>
         </div>

@@ -154,7 +154,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                     ? 'border-gold bg-[rgba(212,175,55,0.05)]'
                     : file
                       ? 'border-green-500/30 bg-green-500/5'
-                      : 'border-[rgba(255,255,255,0.1)] hover:border-[rgba(255,255,255,0.2)] bg-[rgba(255,255,255,0.02)]'
+                      : 'border-border-default hover:border-border bg-bg-card'
                   }
                 `}
               >
@@ -164,25 +164,25 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                       <Upload className="h-5 w-5 text-green-400" />
                     </div>
                     <div className="text-left">
-                      <p className="text-sm font-medium text-white">{file.name}</p>
-                      <p className="text-xs text-[rgba(255,255,255,0.5)]">
+                      <p className="text-sm font-medium text-foreground">{file.name}</p>
+                      <p className="text-xs text-text-dim">
                         {(file.size / (1024 * 1024)).toFixed(1)} MB
                       </p>
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                      className="ml-2 p-1 rounded hover:bg-[rgba(255,255,255,0.1)]"
+                      className="ml-2 p-1 rounded hover:bg-secondary"
                     >
-                      <X className="h-4 w-4 text-[rgba(255,255,255,0.5)]" />
+                      <X className="h-4 w-4 text-text-dim" />
                     </button>
                   </div>
                 ) : (
                   <>
-                    <Upload className="h-8 w-8 text-[rgba(255,255,255,0.3)] mb-3" />
-                    <p className="text-sm text-[rgba(255,255,255,0.6)] mb-1">
+                    <Upload className="h-8 w-8 text-text-dimmer mb-3" />
+                    <p className="text-sm text-text-dim mb-1">
                       Drag & drop or click to upload
                     </p>
-                    <p className="text-xs text-[rgba(255,255,255,0.4)]">
+                    <p className="text-xs text-text-dimmer">
                       MP4, MP3, WAV, M4A, WebM (max {MAX_SIZE_MB}MB)
                     </p>
                   </>
@@ -218,7 +218,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
               <Button
                 onClick={handleSubmitUpload}
                 disabled={!file || isSubmitting}
-                className="w-full bg-gold text-[#0c0c0c] hover:bg-[rgba(212,175,55,0.9)]"
+                className="w-full bg-gold text-primary-foreground hover:bg-[rgba(212,175,55,0.9)]"
               >
                 {isSubmitting ? (
                   <>
@@ -238,7 +238,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                 value={transcript}
                 onChange={(e) => setTranscript(e.target.value)}
                 placeholder="Paste your sales call transcript here..."
-                className="w-full h-48 rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-3 py-2.5 text-sm text-white placeholder:text-[rgba(255,255,255,0.3)] focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold resize-none"
+                className="w-full h-48 rounded-lg border border-border-default bg-bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-text-dimmer focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold resize-none"
               />
               {transcript.length > 0 && transcript.length < 50 && (
                 <p className="text-xs text-yellow-400">
@@ -262,7 +262,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
               <Button
                 onClick={handleSubmitTranscript}
                 disabled={transcript.length < 50 || isSubmitting}
-                className="w-full bg-gold text-[#0c0c0c] hover:bg-[rgba(212,175,55,0.9)]"
+                className="w-full bg-gold text-primary-foreground hover:bg-[rgba(212,175,55,0.9)]"
               >
                 {isSubmitting ? (
                   <>
@@ -299,31 +299,31 @@ function SharedFields({
   return (
     <div className="space-y-3">
       <div>
-        <label className="text-xs font-medium text-[rgba(255,255,255,0.6)] mb-1 block">
+        <label className="text-xs font-medium text-text-dim mb-1 block">
           Title (optional)
         </label>
         <Input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="e.g., Meeting with John Smith"
-          className="bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.1)]"
+          className="bg-bg-card border-border-default"
         />
       </div>
       <div className="flex gap-3">
         <div className="flex-1">
-          <label className="text-xs font-medium text-[rgba(255,255,255,0.6)] mb-1 block">
+          <label className="text-xs font-medium text-text-dim mb-1 block">
             Call Date (optional)
           </label>
           <Input
             type="date"
             value={callDate}
             onChange={(e) => setCallDate(e.target.value)}
-            className="bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.1)]"
+            className="bg-bg-card border-border-default"
           />
         </div>
       </div>
       <div>
-        <label className="text-xs font-medium text-[rgba(255,255,255,0.6)] mb-1 block">
+        <label className="text-xs font-medium text-text-dim mb-1 block">
           Notes (optional)
         </label>
         <textarea
@@ -331,7 +331,7 @@ function SharedFields({
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Any context about this call..."
           rows={2}
-          className="w-full rounded-lg border border-[rgba(255,255,255,0.1)] bg-[rgba(255,255,255,0.03)] px-3 py-2 text-sm text-white placeholder:text-[rgba(255,255,255,0.3)] focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold resize-none"
+          className="w-full rounded-lg border border-border-default bg-bg-card px-3 py-2 text-sm text-foreground placeholder:text-text-dimmer focus:border-gold focus:outline-none focus:ring-1 focus:ring-gold resize-none"
         />
       </div>
     </div>

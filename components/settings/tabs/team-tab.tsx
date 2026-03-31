@@ -134,10 +134,10 @@ export function TeamTab({ plan, isTeamAdmin = false }: TeamTabProps) {
       <div className="space-y-6">
         <Card>
           <CardContent className="py-12 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(255,255,255,0.05)]">
-              <Lock className="h-6 w-6 text-[rgba(255,255,255,0.65)]" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-bg-card-hover">
+              <Lock className="h-6 w-6 text-text-muted" />
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">
+            <h3 className="text-lg font-semibold text-foreground mb-2">
               Team Members
             </h3>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
@@ -236,16 +236,16 @@ export function TeamTab({ plan, isTeamAdmin = false }: TeamTabProps) {
               {members.map((member) => (
                 <div
                   key={member.id}
-                  className="flex items-center justify-between rounded-lg border border-[rgba(255,255,255,0.07)] p-3"
+                  className="flex items-center justify-between rounded-lg border border-border-default p-3"
                 >
                   <div className="flex-1">
-                    <p className="text-sm text-white">{member.email}</p>
+                    <p className="text-sm text-foreground">{member.email}</p>
                     <div className="mt-1 flex items-center gap-2">
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                           member.status === "active"
-                            ? "bg-[rgba(74,222,128,0.15)] text-[#4ade80]"
-                            : "bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.55)]"
+                            ? "bg-[rgba(74,222,128,0.15)] text-green"
+                            : "bg-secondary text-text-dim"
                         }`}
                       >
                         {member.status.charAt(0).toUpperCase() + member.status.slice(1)}

@@ -11,17 +11,17 @@ interface AnalysisCardProps {
 
 const VARIANT_STYLES = {
   default: {
-    border: 'border-[rgba(255,255,255,0.07)]',
-    hoverBorder: 'hover:border-[rgba(212,175,55,0.3)]',
-    iconBg: 'bg-[rgba(212,175,55,0.08)]',
-    iconBorder: 'border-[rgba(212,175,55,0.2)]',
+    border: 'border-border-default',
+    hoverBorder: 'hover:border-border-hover',
+    iconBg: 'bg-accent',
+    iconBorder: 'border-gold-border',
     iconColor: 'text-gold',
   },
   success: {
     border: 'border-green-500/20',
     hoverBorder: 'hover:border-green-500/30',
-    iconBg: 'bg-[rgba(74,222,128,0.08)]',
-    iconBorder: 'border-[rgba(74,222,128,0.2)]',
+    iconBg: 'bg-green-bg',
+    iconBorder: 'border-green/20',
     iconColor: 'text-green-400',
   },
   warning: {
@@ -34,8 +34,8 @@ const VARIANT_STYLES = {
   danger: {
     border: 'border-red-500/20',
     hoverBorder: 'hover:border-red-500/30',
-    iconBg: 'bg-[rgba(248,113,113,0.08)]',
-    iconBorder: 'border-[rgba(248,113,113,0.2)]',
+    iconBg: 'bg-red-bg',
+    iconBorder: 'border-red/20',
     iconColor: 'text-red-400',
   },
 };
@@ -44,12 +44,12 @@ export function AnalysisCard({ title, icon: Icon, children, variant = 'default' 
   const styles = VARIANT_STYLES[variant];
 
   return (
-    <div className={`rounded-[14px] ${styles.border} bg-[rgba(255,255,255,0.025)] p-8 transition-all duration-250 hover:bg-[rgba(255,255,255,0.045)] ${styles.hoverBorder}`}>
+    <div className={`rounded-[14px] ${styles.border} bg-bg-card p-8 transition-all duration-250 hover:bg-bg-card-hover ${styles.hoverBorder}`}>
       <div className="flex items-center gap-3 mb-6">
         <div className={`w-9 h-9 rounded-[10px] flex items-center justify-center ${styles.iconBg} border ${styles.iconBorder}`}>
           <Icon className={`w-[18px] h-[18px] ${styles.iconColor}`} />
         </div>
-        <h3 className="text-sm font-semibold uppercase tracking-[1.5px] text-[rgba(255,255,255,0.65)]">{title}</h3>
+        <h3 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted">{title}</h3>
       </div>
       {children}
     </div>

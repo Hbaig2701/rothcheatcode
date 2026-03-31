@@ -369,11 +369,11 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
     <div ref={containerRef} className="fixed inset-0 pointer-events-none" style={{ zIndex: 50 }}>
       {/* Toolbar - Fixed at top */}
       <div
-        className="pointer-events-auto fixed top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[#1a1a1a] border border-[rgba(255,255,255,0.1)] rounded-xl p-1.5 shadow-2xl"
+        className="pointer-events-auto fixed top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-surface-elevated border border-border-default rounded-xl p-1.5 shadow-2xl"
         style={{ zIndex: 60 }}
       >
         {/* Tools */}
-        <div className="flex items-center gap-0.5 pr-2 border-r border-[rgba(255,255,255,0.1)]">
+        <div className="flex items-center gap-0.5 pr-2 border-r border-border-default">
           {tools.map((t) => (
             <button
               key={t.id}
@@ -381,8 +381,8 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
               className={cn(
                 "p-2 rounded-lg transition-colors",
                 tool === t.id
-                  ? "bg-gold text-[#0c0c0c]"
-                  : "text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.08)]"
+                  ? "bg-gold text-primary-foreground"
+                  : "text-text-dim hover:bg-secondary"
               )}
               title={t.label}
             >
@@ -392,14 +392,14 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
         </div>
 
         {/* Colors */}
-        <div className="flex items-center gap-1 px-2 border-r border-[rgba(255,255,255,0.1)]">
+        <div className="flex items-center gap-1 px-2 border-r border-border-default">
           {COLORS.map((c) => (
             <button
               key={c}
               onClick={() => setColor(c)}
               className={cn(
                 "w-6 h-6 rounded-full transition-all",
-                color === c && "ring-2 ring-offset-2 ring-offset-[#1a1a1a] ring-white"
+                color === c && "ring-2 ring-offset-2 ring-offset-background ring-white"
               )}
               style={{ backgroundColor: c }}
             />
@@ -407,7 +407,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
         </div>
 
         {/* Stroke Width */}
-        <div className="flex items-center gap-1 px-2 border-r border-[rgba(255,255,255,0.1)]">
+        <div className="flex items-center gap-1 px-2 border-r border-border-default">
           {STROKE_WIDTHS.map((sw) => (
             <button
               key={sw}
@@ -416,7 +416,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
                 "w-8 h-8 rounded-lg flex items-center justify-center transition-colors",
                 strokeWidth === sw
                   ? "bg-[rgba(255,255,255,0.15)]"
-                  : "hover:bg-[rgba(255,255,255,0.08)]"
+                  : "hover:bg-secondary"
               )}
               title={`${sw}px`}
             >
@@ -429,15 +429,15 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
         </div>
 
         {/* Undo/Redo */}
-        <div className="flex items-center gap-0.5 px-2 border-r border-[rgba(255,255,255,0.1)]">
+        <div className="flex items-center gap-0.5 px-2 border-r border-border-default">
           <button
             onClick={undo}
             disabled={historyIndex <= 0}
             className={cn(
               "p-2 rounded-lg transition-colors",
               historyIndex <= 0
-                ? "text-[rgba(255,255,255,0.5)] cursor-not-allowed"
-                : "text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.08)]"
+                ? "text-text-dim cursor-not-allowed"
+                : "text-text-dim hover:bg-secondary"
             )}
             title="Undo"
           >
@@ -449,8 +449,8 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
             className={cn(
               "p-2 rounded-lg transition-colors",
               historyIndex >= history.length - 1
-                ? "text-[rgba(255,255,255,0.5)] cursor-not-allowed"
-                : "text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.08)]"
+                ? "text-text-dim cursor-not-allowed"
+                : "text-text-dim hover:bg-secondary"
             )}
             title="Redo"
           >
@@ -461,7 +461,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
         {/* Trash */}
         <button
           onClick={clearAll}
-          className="p-2 rounded-lg text-[rgba(255,255,255,0.6)] hover:bg-[rgba(248,113,113,0.15)] hover:text-[#f87171] transition-colors"
+          className="p-2 rounded-lg text-text-dim hover:bg-[rgba(248,113,113,0.15)] hover:text-red transition-colors"
           title="Clear All"
         >
           <Trash2 className="h-4 w-4" />
@@ -470,7 +470,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
         {/* Exit */}
         <button
           onClick={onExit}
-          className="ml-1 p-2 rounded-lg bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.8)] hover:bg-[rgba(255,255,255,0.12)] transition-colors"
+          className="ml-1 p-2 rounded-lg bg-secondary text-foreground/80 hover:bg-secondary transition-colors"
           title="Exit Annotation Mode"
         >
           <X className="h-4 w-4" />
@@ -522,7 +522,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
               }
             }}
             onBlur={handleTextSubmit}
-            className="bg-[rgba(0,0,0,0.8)] border border-[rgba(255,255,255,0.2)] rounded px-2 py-1 text-white outline-none min-w-[150px]"
+            className="bg-background/90 border border-border rounded px-2 py-1 text-foreground outline-none min-w-[150px]"
             style={{
               fontSize: strokeWidth * 5,
               color: color,
@@ -534,7 +534,7 @@ export function AnnotationOverlay({ onExit }: AnnotationOverlayProps) {
 
       {/* Select mode hint */}
       {tool === "select" && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-[rgba(0,0,0,0.8)] text-white text-sm px-4 py-2 rounded-lg" style={{ zIndex: 60 }}>
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-background/90 text-foreground text-sm px-4 py-2 rounded-lg" style={{ zIndex: 60 }}>
           Select mode: Click and scroll normally. Switch to a drawing tool to annotate.
         </div>
       )}
