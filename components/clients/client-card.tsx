@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Trash2 } from "lucide-react";
 import type { Client } from "@/lib/types/client";
+import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -132,15 +133,17 @@ export function ClientCard({ client, delta = 0, onDelete }: ClientCardProps) {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel onClick={(e) => e.stopPropagation()}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-red hover:bg-red/90 text-white"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(client.id);
-                      }}
-                    >
-                      Delete
-                    </AlertDialogAction>
+                    <AlertDialogPrimitive.Close render={
+                      <AlertDialogAction
+                        className="bg-red hover:bg-red/90 text-white"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(client.id);
+                        }}
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    } />
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
