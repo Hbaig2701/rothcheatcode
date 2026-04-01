@@ -287,7 +287,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
             {/* Conversion Timeline */}
             <div className="flex gap-3 mb-6 overflow-x-auto pb-2">
-              {conversionYears.slice(0, 8).map((year, idx) => (
+              {conversionYears.map((year) => (
                 <div
                   key={year.year}
                   className="bg-accent border border-gold-border rounded-[10px] py-4 px-5 text-center min-w-[110px] shrink-0"
@@ -300,11 +300,6 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   <p className="text-xs text-text-dim">Bracket</p>
                 </div>
               ))}
-              {conversionYears.length > 8 && (
-                <div className="flex items-center justify-center min-w-[80px] text-text-dim text-sm">
-                  +{conversionYears.length - 8} more
-                </div>
-              )}
             </div>
 
             {/* Summary Row */}
