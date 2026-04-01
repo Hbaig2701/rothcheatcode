@@ -270,7 +270,7 @@ export const clientFullBaseSchema = z.object({
   anniversary_bonus_years: z.number().int().min(0).max(10).optional().nullable().default(null),
 
   // Tax Configuration
-  federal_bracket: z.string().default("auto"),
+  federal_bracket: z.string().nullable().default("auto"),
   state_tax_rate: z.number().min(0).max(100).optional().nullable(),
   include_niit: z.boolean().default(true),
   include_aca: z.boolean().default(false),
@@ -436,7 +436,7 @@ export type ClientFormData = {
   life_expectancy?: number | null;
   traditional_ira?: number;
   other_retirement?: number;
-  federal_bracket?: string;
+  federal_bracket?: string | null;
   include_niit?: boolean;
   include_aca?: boolean;
   ss_self?: number;

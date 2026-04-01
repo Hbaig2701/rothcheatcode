@@ -153,13 +153,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Map scenario_name to federal_bracket
+  // Map scenario_name to federal_bracket (DB column is NOT NULL, default to "auto")
   const { scenario_name, ...clientData } = parsed.data;
 
   // Insert client with user_id from authenticated user
   const { data, error } = await supabase
     .from("clients")
-    .insert({ ...clientData, federal_bracket: scenario_name || null, user_id: user.id })
+    .insert({ ...clientData, federal_bracket: scenario_name || clientData.federal_bracket || "auto", user_id: user.id })
     .select()
     .single();
 

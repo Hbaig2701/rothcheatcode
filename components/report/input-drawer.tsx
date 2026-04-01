@@ -151,7 +151,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
         start_age: data.age + data.years_to_defer_conversion,
         projection_years: data.end_age - data.age,
         heir_bracket: String(data.heir_tax_rate),
-        federal_bracket: String(data.tax_rate),
+        federal_bracket: data.scenario_name || String(data.tax_rate),
         inflation_rate: 2.5,
         include_niit: false,
         include_aca: false,
@@ -170,6 +170,10 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
     } catch (error) {
       console.error("Form submission error:", error);
     }
+  };
+
+  const onValidationError = (errors: Record<string, unknown>) => {
+    console.error("Input drawer validation errors:", errors);
   };
 
   const formulaType = form.watch("blueprint_type") as FormulaType;
@@ -243,7 +247,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
         <FormProvider {...form}>
           <form
             id="formula-form"
-            onSubmit={form.handleSubmit(onSubmit)}
+            onSubmit={form.handleSubmit(onSubmit, onValidationError)}
             className={cn(
               "space-y-6",
               // Force stacked layout
@@ -275,7 +279,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       {/* Footer */}
       <div className="px-7 py-5 border-t border-border-default shrink-0">
         <button
-          onClick={form.handleSubmit(onSubmit)}
+          onClick={form.handleSubmit(onSubmit, onValidationError)}
           className="w-full h-11 bg-gold hover:bg-[rgba(212,175,55,0.9)] text-primary-foreground font-semibold text-sm rounded-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           disabled={isPending}
         >

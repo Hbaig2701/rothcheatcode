@@ -60,6 +60,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   // Validate with partial schema (all fields optional for updates)
   const parsed = clientFullPartialSchema.safeParse(body);
   if (!parsed.success) {
+    console.error("Client update validation errors:", JSON.stringify(parsed.error.flatten(), null, 2));
     return NextResponse.json(
       { error: "Validation failed", details: parsed.error.flatten() },
       { status: 400 }
@@ -67,15 +68,20 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 
   const { scenario_name, ...clientData } = parsed.data;
-  
+
   // Create update payload handling scenario_name to federal_bracket
   const updatePayload = {
     ...clientData,
     updated_at: new Date().toISOString()
   };
-  
-  if (scenario_name !== undefined) {
-    (updatePayload as any).federal_bracket = scenario_name || null;
+
+  // Only overwrite federal_bracket if scenario_name was explicitly provided with a value
+  if (scenario_name) {
+    (updatePayload as any).federal_bracket = scenario_name;
+  }
+  // Ensure federal_bracket is never null (DB NOT NULL constraint)
+  if ((updatePayload as any).federal_bracket == null) {
+    delete (updatePayload as any).federal_bracket;
   }
 
   // Update client and set updated_at timestamp
