@@ -24,7 +24,7 @@ interface Tab {
 
 const TABS: Tab[] = [
   { id: "account", label: "Account Values", showAlways: true },
-  { id: "taxable", label: "Taxable Income", showAlways: true },
+  { id: "taxable", label: "Income Breakdown", showAlways: true },
   { id: "irmaa", label: "IRMAA", showAlways: true },
   { id: "netIncome", label: "Net Income", showAlways: true },
   { id: "conversion", label: "Conversion Details", showAlways: false },
