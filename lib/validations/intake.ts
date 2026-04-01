@@ -42,6 +42,8 @@ export type IntakeFormData = z.infer<typeof intakeFormSchema>;
 /**
  * Convert intake form data (dollar amounts) to full client record data (cents)
  * with sensible defaults for all advisor-configured fields.
+ *
+ * This must match the columns in the `clients` table exactly.
  */
 export function intakeToClientData(intake: IntakeFormData) {
   const stateInfo = getStateByCode(intake.state);
@@ -65,6 +67,7 @@ export function intakeToClientData(intake: IntakeFormData) {
     spouse_ssi_annual_amount: intake.spouse_ssi_annual_amount
       ? Math.round(intake.spouse_ssi_annual_amount * 100)
       : null,
+    non_ssi_income: [],
 
     // Default product settings (Generic Growth)
     blueprint_type: "fia",
@@ -84,20 +87,44 @@ export function intakeToClientData(intake: IntakeFormData) {
     protect_initial_premium: true,
     withdrawal_type: "no_withdrawals",
 
+    // Default GI settings
+    payout_type: "individual",
+    income_start_age: 65,
+    guaranteed_rate_of_return: 0,
+    roll_up_option: null,
+    payout_option: null,
+    gi_conversion_years: 5,
+    gi_conversion_bracket: 24,
+
     // Default advanced settings
     end_age: 95,
     heir_tax_rate: 40,
     surrender_years: 7,
+    surrender_schedule: null,
     penalty_free_percent: 10,
     baseline_comparison_rate: 7,
     post_contract_rate: 7,
     years_to_defer_conversion: 0,
     widow_analysis: false,
     rmd_treatment: "reinvested",
+    anniversary_bonus_percent: null,
+    anniversary_bonus_years: null,
+    fixed_conversion_amount: null,
 
-    // Legacy fields (set to safe defaults)
+    // Legacy fields (required by DB, set to safe defaults)
     traditional_ira: Math.round(intake.qualified_account_value * 100),
     other_retirement: 0,
-    non_ssi_income: [],
+    pension: 0,
+    other_income: 0,
+    ss_self: Math.round(intake.ssi_annual_amount * 100),
+    ss_spouse: intake.spouse_ssi_annual_amount
+      ? Math.round(intake.spouse_ssi_annual_amount * 100)
+      : 0,
+    ss_start_age: intake.ssi_payout_age,
+    growth_rate: 7,
+    start_age: intake.age,
+    sensitivity: false,
+    include_niit: false,
+    include_aca: false,
   };
 }
