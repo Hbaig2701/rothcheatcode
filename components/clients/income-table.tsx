@@ -5,30 +5,34 @@ import type { ClientFormData } from "@/lib/validations/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { Plus, Trash2 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { Plus, Trash2, Repeat } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 export function IncomeTable() {
   const form = useFormContext<ClientFormData>();
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "non_ssi_income",
   });
 
   const currentAge = form.watch("age") || 62;
+  const endAge = form.watch("end_age") || 95;
   const spouseAge = form.watch("spouse_age");
   const filingStatus = form.watch("filing_status");
   const isMarried = filingStatus === "married_filing_jointly";
   const currentYear = new Date().getFullYear();
 
-  // Helper to calculate age string "62" or "62/60" for a given year
+  const [showRecurring, setShowRecurring] = useState(false);
+  const [recurringEndAge, setRecurringEndAge] = useState(endAge);
+  const [recurringGross, setRecurringGross] = useState<number | null>(null);
+  const [recurringExempt, setRecurringExempt] = useState<number | null>(null);
+
+  // Helper to calculate age string for a given year
   const calculateAgeStr = (targetYear: number) => {
     const delta = targetYear - currentYear;
     const clientAgeAtYear = currentAge + delta;
-
     if (isMarried && spouseAge) {
-      const spouseAgeAtYear = spouseAge + delta;
-      return `${clientAgeAtYear}/${spouseAgeAtYear}`;
+      return `${clientAgeAtYear}/${spouseAge + delta}`;
     }
     return String(clientAgeAtYear);
   };
@@ -48,19 +52,112 @@ export function IncomeTable() {
     });
   };
 
+  const applyRecurring = () => {
+    const startYear = currentYear;
+    const yearsToFill = recurringEndAge - currentAge;
+    if (yearsToFill <= 0) return;
+
+    const gross = recurringGross ?? 0;
+    const exempt = recurringExempt ?? 0;
+
+    // Keep existing entries that are outside the recurring range, replace those inside
+    const existingOutside = fields
+      .map((_, i) => {
+        const vals = form.getValues(`non_ssi_income.${i}`);
+        return vals;
+      })
+      .filter((entry) => {
+        const endYear = startYear + yearsToFill;
+        return entry.year < startYear || entry.year >= endYear;
+      });
+
+    const newEntries = [];
+    for (let i = 0; i <= yearsToFill; i++) {
+      const year = startYear + i;
+      newEntries.push({
+        year,
+        age: calculateAgeStr(year),
+        gross_taxable: gross,
+        tax_exempt: exempt,
+      });
+    }
+
+    replace([...existingOutside, ...newEntries].sort((a, b) => a.year - b.year));
+    setShowRecurring(false);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-medium">Non-SSI Income</h4>
-        <Button type="button" variant="outline" size="sm" onClick={addEntry}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add Entry
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowRecurring(!showRecurring)}
+            className={showRecurring ? "border-primary text-primary" : ""}
+          >
+            <Repeat className="h-4 w-4 mr-1" />
+            Recurring
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={addEntry}>
+            <Plus className="h-4 w-4 mr-1" />
+            Add Entry
+          </Button>
+        </div>
       </div>
+
+      {/* Recurring income panel */}
+      {showRecurring && (
+        <div className="border border-primary/30 bg-accent rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-1">
+          <p className="text-sm text-foreground font-medium">Fill recurring income</p>
+          <p className="text-xs text-muted-foreground">
+            Automatically create entries from now until a target age with the same amounts.
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Until Age</label>
+              <Input
+                type="number"
+                min={currentAge + 1}
+                max={120}
+                value={recurringEndAge}
+                onChange={(e) => setRecurringEndAge(parseInt(e.target.value) || endAge)}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Annual Gross Taxable</label>
+              <CurrencyInput
+                value={recurringGross}
+                onChange={(v) => setRecurringGross(v ?? null)}
+                className="h-8"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Annual Tax Exempt</label>
+              <CurrencyInput
+                value={recurringExempt}
+                onChange={(v) => setRecurringExempt(v ?? null)}
+                className="h-8"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 pt-1">
+            <Button type="button" size="sm" onClick={applyRecurring} className="bg-gold hover:bg-primary/90 text-primary-foreground">
+              Fill {recurringEndAge - currentAge + 1} years
+            </Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setShowRecurring(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       {fields.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-md">
-          No income entries. Click &quot;Add Entry&quot; to add annual income data.
+          No income entries. Click &quot;Add Entry&quot; to add annual income data, or use &quot;Recurring&quot; to bulk fill.
         </p>
       ) : (
         <div className="border rounded-md overflow-x-auto">
@@ -97,7 +194,7 @@ interface IncomeTableRowProps {
   index: number;
   onRemove: () => void;
   currentAge: number;
-  spouseAge: number | undefined;
+  spouseAge: number | undefined | null;
   currentYear: number;
 }
 
@@ -126,7 +223,6 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
   }, [displayAge, index, form]);
 
   const handleRemove = () => {
-    // Mark as removing to prevent useEffect from re-creating the entry
     removingRef.current = true;
     onRemove();
   };
