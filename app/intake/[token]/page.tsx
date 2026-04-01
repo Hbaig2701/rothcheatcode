@@ -210,12 +210,14 @@ export default function IntakeFormPage() {
 
               <FieldGroup label="Age" error={fieldErrors.age} required>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={form.age}
-                  onChange={(e) => updateField("age", e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 3);
+                    updateField("age", v);
+                  }}
                   placeholder="62"
-                  min={18}
-                  max={100}
                 />
               </FieldGroup>
             </div>
@@ -242,12 +244,14 @@ export default function IntakeFormPage() {
                 </FieldGroup>
                 <FieldGroup label="Spouse Age" error={fieldErrors.spouse_age} required>
                   <Input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={form.spouse_age}
-                    onChange={(e) => updateField("spouse_age", e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, "").slice(0, 3);
+                      updateField("spouse_age", v);
+                    }}
                     placeholder="60"
-                    min={18}
-                    max={100}
                   />
                 </FieldGroup>
               </div>
@@ -310,13 +314,16 @@ export default function IntakeFormPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FieldGroup label="Expected SSI Start Age" error={fieldErrors.ssi_payout_age} required>
                 <Input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={form.ssi_payout_age}
-                  onChange={(e) => updateField("ssi_payout_age", e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                    updateField("ssi_payout_age", v);
+                  }}
                   placeholder="67"
-                  min={62}
-                  max={70}
                 />
+                <p className="text-xs text-muted-foreground mt-1">Between 62 and 70</p>
               </FieldGroup>
 
               <FieldGroup label="Expected Annual SSI Amount" error={fieldErrors.ssi_annual_amount} required>
@@ -332,13 +339,16 @@ export default function IntakeFormPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
                 <FieldGroup label="Spouse SSI Start Age" error={fieldErrors.spouse_ssi_payout_age}>
                   <Input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
                     value={form.spouse_ssi_payout_age}
-                    onChange={(e) => updateField("spouse_ssi_payout_age", e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(/\D/g, "").slice(0, 2);
+                      updateField("spouse_ssi_payout_age", v);
+                    }}
                     placeholder="67"
-                    min={62}
-                    max={70}
                   />
+                  <p className="text-xs text-muted-foreground mt-1">Between 62 and 70</p>
                 </FieldGroup>
 
                 <FieldGroup label="Spouse Annual SSI Amount" error={fieldErrors.spouse_ssi_annual_amount}>
@@ -421,6 +431,16 @@ function FieldGroup({
   );
 }
 
+function formatWithCommas(raw: string): string {
+  if (!raw) return "";
+  // Strip existing commas, split on decimal
+  const stripped = raw.replace(/,/g, "");
+  const parts = stripped.split(".");
+  // Add commas to integer part
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return parts.join(".");
+}
+
 function DollarInput({
   value,
   onChange,
@@ -431,8 +451,12 @@ function DollarInput({
   placeholder?: string;
 }) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^0-9.,]/g, "");
-    onChange(raw);
+    // Strip everything except digits and decimal point
+    const raw = e.target.value.replace(/[^0-9.]/g, "");
+    // Only allow one decimal point, max 2 decimal places
+    if (raw === "" || /^\d*\.?\d{0,2}$/.test(raw)) {
+      onChange(formatWithCommas(raw));
+    }
   };
 
   return (
