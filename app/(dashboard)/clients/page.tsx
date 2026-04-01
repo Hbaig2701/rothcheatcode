@@ -4,13 +4,21 @@ import { useState } from "react";
 import { useClients, useDeleteClient } from "@/lib/queries/clients";
 import { ClientCard } from "@/components/clients/client-card";
 import { ClientsEmptyState } from "@/components/clients/clients-empty-state";
+import { IntakeLinkModal } from "@/components/clients/intake-link-modal";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2, Search } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Plus, Loader2, Search, UserPlus, Link2, ChevronDown } from "lucide-react";
 
 export default function ClientsPage() {
   const { data: clients, isLoading, isError, error } = useClients();
   const deleteClient = useDeleteClient();
   const [search, setSearch] = useState("");
+  const [intakeModalOpen, setIntakeModalOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -60,13 +68,27 @@ export default function ClientsPage() {
           </p>
         </div>
         {hasClients && (
-          <a
-            href="/clients/new"
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-primary-foreground bg-gold rounded-[10px] hover:bg-[rgba(212,175,55,0.9)] transition-colors"
-          >
-            <Plus className="h-4 w-4" />
-            Add Client
-          </a>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              render={
+                <button className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-primary-foreground bg-gold rounded-[10px] hover:bg-primary/90 transition-colors cursor-pointer">
+                  <Plus className="h-4 w-4" />
+                  Add Client
+                  <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+                </button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => window.location.href = "/clients/new"}>
+                <UserPlus className="h-4 w-4 mr-2" />
+                Create client manually
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIntakeModalOpen(true)}>
+                <Link2 className="h-4 w-4 mr-2" />
+                Generate client questionnaire
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
@@ -108,6 +130,11 @@ export default function ClientsPage() {
           </p>
         </div>
       )}
+
+      <IntakeLinkModal
+        open={intakeModalOpen}
+        onClose={() => setIntakeModalOpen(false)}
+      />
     </div>
   );
 }

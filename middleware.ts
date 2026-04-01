@@ -7,6 +7,14 @@ export async function middleware(request: NextRequest) {
     return;
   }
 
+  // Skip session refresh for public intake questionnaire routes
+  if (
+    request.nextUrl.pathname.startsWith("/intake/") ||
+    request.nextUrl.pathname.match(/^\/api\/intake\/[^/]+$/)
+  ) {
+    return;
+  }
+
   return await updateSession(request);
 }
 
