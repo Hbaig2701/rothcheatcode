@@ -66,7 +66,7 @@ export function intakeToClientData(intake: IntakeFormData) {
     spouse_ssi_payout_age: intake.spouse_ssi_payout_age || null,
     spouse_ssi_annual_amount: intake.spouse_ssi_annual_amount
       ? Math.round(intake.spouse_ssi_annual_amount * 100)
-      : null,
+      : 0,
     non_ssi_income: [],
 
     // Default product settings (Generic Growth)
@@ -111,7 +111,7 @@ export function intakeToClientData(intake: IntakeFormData) {
     anniversary_bonus_years: null,
     fixed_conversion_amount: null,
 
-    // Legacy fields (required by DB, set to safe defaults)
+    // Legacy fields (required by DB NOT NULL constraints)
     traditional_ira: Math.round(intake.qualified_account_value * 100),
     other_retirement: 0,
     pension: 0,
@@ -126,5 +126,12 @@ export function intakeToClientData(intake: IntakeFormData) {
     sensitivity: false,
     include_niit: false,
     include_aca: false,
+    date_of_birth: `${new Date().getFullYear() - intake.age}-01-01`,
+    federal_bracket: "22",
+    heir_bracket: "40",
+    inflation_rate: 2.5,
+    life_expectancy: 95,
+    projection_years: 95 - intake.age,
+    strategy: "moderate",
   };
 }

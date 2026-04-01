@@ -118,7 +118,7 @@ export async function POST(
   if (clientError) {
     console.error("Error creating client from intake:", clientError.message, clientError.details, clientError.hint);
     return NextResponse.json(
-      { error: "Failed to save your information. Please try again.", debug: clientError.message },
+      { error: "Failed to save your information. Please try again." },
       { status: 500 }
     );
   }
