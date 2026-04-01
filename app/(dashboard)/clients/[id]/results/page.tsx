@@ -144,7 +144,9 @@ export default function ResultsPage({ params }: ResultsPageProps) {
           </a>
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="text-base font-medium text-foreground">{client.name}</span>
+              <span className="text-base font-medium text-foreground">
+                {client.name} <span className="text-text-muted font-normal mx-1">/</span> {client.scenario_name || client.product_name}
+              </span>
               <span
                 className={`inline-block px-3 py-0.5 rounded-[20px] text-sm font-mono font-medium ${
                   delta >= 0

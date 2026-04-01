@@ -42,6 +42,18 @@ export function ClientDataSection() {
 
   return (
     <FormSection title="1. Client Data">
+      {/* Scenario Name (Optional) */}
+      <Field data-invalid={!!form.formState.errors.scenario_name}>
+        <FieldLabel htmlFor="scenario_name">Scenario Name (Optional)</FieldLabel>
+        <Input
+          id="scenario_name"
+          placeholder="e.g. Aggressive Strategy"
+          {...form.register("scenario_name", { setValueAs: v => v === "" ? null : v })}
+          aria-invalid={!!form.formState.errors.scenario_name}
+        />
+        <FieldError errors={[form.formState.errors.scenario_name]} />
+      </Field>
+
       {/* Filing Status */}
       <Controller
         name="filing_status"

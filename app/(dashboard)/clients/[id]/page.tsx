@@ -1,10 +1,24 @@
 "use client";
 
 import { use, useMemo } from "react";
-import { useClient } from "@/lib/queries/clients";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useClient, useClientScenarios, useDuplicateClient, useUpdateClient, useDeleteClient, clientKeys } from "@/lib/queries/clients";
+import { useQueryClient } from "@tanstack/react-query";
 import { useProjection } from "@/lib/queries/projections";
 import { Button } from "@/components/ui/button";
-import { Loader2, Pencil, ArrowLeft, BarChart3 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, Pencil, ArrowLeft, Plus, Check, X, Copy, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import type { YearlyResult } from "@/lib/calculations";
 
@@ -59,8 +73,25 @@ function DeltaBadge({ value, size = "md" }: { value: number; size?: "md" | "lg" 
 
 export default function ClientDetailPage({ params }: ClientDetailPageProps) {
   const { id } = use(params);
+  const router = useRouter();
   const { data: client, isLoading: clientLoading, isError, error } = useClient(id);
+  const { data: scenarios, isLoading: scenariosLoading } = useClientScenarios(id);
+  const duplicateScenario = useDuplicateClient();
+  const updateClient = useUpdateClient();
   const { data: projectionResponse, isLoading: projectionLoading } = useProjection(id);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const deleteClient = useDeleteClient();
+  const queryClient = useQueryClient();
+
+  const [actionType, setActionType] = useState<"duplicate" | "delete" | null>(null);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+
+  const handleCloseDialog = () => {
+    setActionType(null);
+    setSelectedScenarioId(null);
+  };
 
   // Calculate percentage improvement from projection
   const delta = useMemo(() => {
@@ -76,29 +107,29 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
       return Math.round(projection.gi_percent_improvement ?? 0);
     }
 
-    // For Growth products, calculate the traditional way
-    const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
-      years.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
+    // For Growth products, use same logic as results/page.tsx
+    const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
+    const rmdTreatment = client.rmd_treatment ?? 'reinvested';
 
-    const heirTaxRate = 0.40;
-    const totalRMDs = sum(projection.baseline_years, 'rmdAmount');
-    const totalBaselineTaxes = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
-    const totalBaselineIRMAA = sum(projection.baseline_years, 'irmaaSurcharge');
-    const afterTaxDistributions = totalRMDs - totalBaselineTaxes;
-    const netBaselineLegacy = projection.baseline_final_net_worth * (1 - heirTaxRate);
-    const baseLifetime = netBaselineLegacy + afterTaxDistributions - totalBaselineIRMAA;
+    // Baseline: heir tax only on traditional portion
+    const baseHeirTax = Math.round(projection.baseline_final_traditional * heirTaxRate);
+    const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
+    const lastBaselineYear = projection.baseline_years[projection.baseline_years.length - 1];
+    const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
+    const baseLifetime = rmdTreatment === 'spent'
+      ? baseNetLegacy + baseCumulativeDistributions
+      : baseNetLegacy;
 
-    const totalTaxes = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
-    const totalIRMAA = sum(projection.blueprint_years, 'irmaaSurcharge');
-    const netLegacy = Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) + projection.blueprint_final_roth;
-    const blueLifetime = netLegacy - totalTaxes - totalIRMAA;
+    // Strategy
+    const blueHeirTax = Math.round(projection.blueprint_final_traditional * heirTaxRate);
+    const blueLifetime = projection.blueprint_final_net_worth - blueHeirTax;
 
     const diff = blueLifetime - baseLifetime;
-    const pct = baseLifetime !== 0 ? (diff / Math.abs(baseLifetime)) * 100 : 0;
-    return Math.round(pct);
+    const pct = baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;
+    return Math.round(pct * 100);
   }, [projectionResponse, client]);
 
-  const isLoading = clientLoading || projectionLoading;
+  const isLoading = clientLoading || projectionLoading || scenariosLoading;
 
   if (isLoading) {
     return (
@@ -144,22 +175,6 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             Client since {formatDate(client.created_at)}
           </p>
         </div>
-        <div className="flex gap-2">
-          <a
-            href={`/clients/${client.id}/edit`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-text-muted bg-transparent border border-border-default rounded-[10px] hover:bg-secondary hover:border-border-hover transition-all"
-          >
-            <Pencil className="h-4 w-4" />
-            Edit
-          </a>
-          <a
-            href={`/clients/${client.id}/results`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-primary-foreground bg-gold rounded-[10px] hover:bg-[rgba(212,175,55,0.9)] transition-colors"
-          >
-            View Results
-            <BarChart3 className="h-4 w-4" />
-          </a>
-        </div>
       </div>
 
       {/* Two-column layout */}
@@ -195,29 +210,187 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             Compare strategies and find the optimal approach for this client.
           </p>
 
-          {/* Scenario Card */}
-          <a
-            href={`/clients/${client.id}/results`}
-            className="block bg-accent border border-gold-border rounded-[12px] p-5 mb-4 hover:bg-[rgba(212,175,55,0.12)] transition-colors cursor-pointer"
-          >
-            <div className="flex justify-between items-center">
-              <div>
-                <p className="text-[14px] font-medium text-foreground mb-1">
-                  {client.product_name} · {client.carrier_name}
-                </p>
-                <p className="text-sm text-text-dim">
-                  Optimized conversion · Max {client.max_tax_rate}% bracket
-                </p>
-              </div>
-              <DeltaBadge value={delta} size="lg" />
-            </div>
-          </a>
+          {/* Scenario Cards */}
+          {scenarios?.map((scenario) => {
+            // Use API returned delta or fallback to currently viewed client delta if they are the exact same ID
+            const scenarioDelta = scenario.id === client.id ? delta : ((scenario as any).delta ?? 0);
+            
+            const isEditing = editingId === scenario.id;
+            const displayName = scenario.scenario_name || scenario.product_name;
 
-          <button className="w-full py-2.5 px-4 text-sm font-medium text-text-muted bg-transparent border border-border-default rounded-[10px] hover:bg-secondary hover:border-border-hover transition-all">
-            + New Scenario
+            const CardWrapper = isEditing ? "div" : "a";
+            const wrapperProps = isEditing ? {} : { href: `/clients/${scenario.id}/results` };
+
+            return (
+              <CardWrapper
+                key={scenario.id}
+                {...wrapperProps}
+                className={`group block bg-accent border rounded-[12px] p-5 mb-4 transition-colors relative ${
+                  scenario.id === client.id ? 'border-gold-border' : 'border-border-default hover:bg-[rgba(212,175,55,0.12)]'
+                }`}
+              >
+                <div className="flex justify-between items-center relative z-10">
+                  <div className="flex-1 mr-4">
+                    {/* Title / Edit Area */}
+                    <div className="flex items-center gap-2 mb-1 min-h-[28px]">
+                      {isEditing ? (
+                        <div className="flex items-center gap-1 w-full max-w-[300px]">
+                          <Input 
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                updateClient.mutate({ id: scenario.id, data: { scenario_name: editName }});
+                                setEditingId(null);
+                              } else if (e.key === 'Escape') setEditingId(null);
+                            }}
+                            autoFocus
+                            className="h-7 text-[14px] font-medium px-2 py-0 bg-background flex-1 focus-visible:ring-1"
+                          />
+                          <button 
+                            onClick={() => {
+                              updateClient.mutate({ id: scenario.id, data: { scenario_name: editName }});
+                              setEditingId(null);
+                            }}
+                            className="p-1 rounded bg-gold text-primary-foreground hover:bg-[rgba(212,175,55,0.9)] transition-colors"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                          <button 
+                            onClick={() => setEditingId(null)} 
+                            className="p-1 text-text-dim hover:text-text-muted transition-colors rounded hover:bg-secondary"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 w-full">
+                          <p className="text-[14px] font-medium text-foreground">
+                            {displayName}
+                          </p>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setEditName(displayName);
+                              setEditingId(scenario.id);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-text-dim hover:text-gold rounded hover:bg-[rgba(212,175,55,0.1)]"
+                            aria-label="Rename scenario"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedScenarioId(scenario.id);
+                              setActionType("duplicate");
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-text-dim hover:text-gold rounded hover:bg-[rgba(212,175,55,0.1)] pointer-events-auto"
+                            aria-label="Duplicate scenario"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+
+                          {scenario.id !== client.id && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSelectedScenarioId(scenario.id);
+                                setActionType("delete");
+                              }}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-text-dim hover:text-red rounded hover:bg-red-bg pointer-events-auto"
+                              aria-label="Delete scenario"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-sm text-text-dim">
+                      {isEditing ? (
+                        `${scenario.product_name} · ${scenario.carrier_name}`
+                      ) : (
+                        scenario.scenario_name ? (
+                          `${scenario.product_name} · ${scenario.carrier_name}`
+                        ) : (
+                          `Optimized conversion · Max ${scenario.max_tax_rate}% bracket`
+                        )
+                      )}
+                    </p>
+                  </div>
+                  <DeltaBadge value={scenarioDelta} size="lg" />
+                </div>
+              </CardWrapper>
+            );
+          })}
+
+          <button 
+            onClick={() => duplicateScenario.mutate(client.id, { onSuccess: (data) => router.push(`/clients/${data.id}/edit`) })}
+            disabled={duplicateScenario.isPending}
+            className="w-full h-[42px] flex items-center justify-center gap-2 px-4 text-sm font-medium text-text-muted bg-transparent border border-border-default rounded-[10px] hover:bg-secondary hover:border-border-hover transition-all disabled:opacity-50"
+          >
+            {duplicateScenario.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <Plus className="h-3.5 w-3.5" />
+                New Scenario
+              </>
+            )}
           </button>
         </div>
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={actionType !== null} onOpenChange={(open) => !open && handleCloseDialog()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {actionType === "duplicate" ? "Duplicate Scenario" : "Delete Scenario"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {actionType === "duplicate"
+                ? "Are you sure you want to duplicate this scenario? This will create a carbon copy that you can edit."
+                : "Are you sure you want to delete this scenario? This action cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className={actionType === "delete" ? "bg-red text-white hover:bg-red/90" : "bg-gold text-white hover:bg-gold/90"}
+              onClick={(e) => {
+                e.preventDefault();
+                if (actionType === "duplicate" && selectedScenarioId) {
+                  duplicateScenario.mutate(selectedScenarioId, {
+                    onSuccess: () => {
+                      queryClient.invalidateQueries({ queryKey: clientKeys.scenarios(client.id) });
+                    }
+                  });
+                } else if (actionType === "delete" && selectedScenarioId) {
+                  deleteClient.mutate(selectedScenarioId, {
+                    onSuccess: () => {
+                      queryClient.invalidateQueries({ queryKey: clientKeys.scenarios(client.id) });
+                    }
+                  });
+                }
+                handleCloseDialog();
+              }}
+            >
+              {deleteClient.isPending || duplicateScenario.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Confirm"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

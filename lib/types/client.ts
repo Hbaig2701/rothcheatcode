@@ -20,6 +20,7 @@ export interface Client {
     | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income";
 
   // ===== Section 1: Client Data =====
+  scenario_name: string | null;
   filing_status: "single" | "married_filing_jointly" | "married_filing_separately" | "head_of_household";
   name: string;
   age: number;
@@ -122,6 +123,7 @@ export interface FormulaFormData {
   blueprint_type: Client["blueprint_type"];
 
   // Section 1: Client Data
+  scenario_name: string | null;
   filing_status: Client["filing_status"];
   name: string;
   age: number;

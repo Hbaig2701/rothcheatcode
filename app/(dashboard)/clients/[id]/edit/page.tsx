@@ -16,7 +16,7 @@ export default function EditClientPage({ params }: EditClientPageProps) {
 
   if (isLoading) {
     return (
-      <div className="container py-8 max-w-2xl">
+      <div className="p-9 max-w-[800px] mx-auto w-full">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -26,7 +26,7 @@ export default function EditClientPage({ params }: EditClientPageProps) {
 
   if (isError || !client) {
     return (
-      <div className="container py-8 max-w-2xl">
+      <div className="p-9 max-w-[800px] mx-auto w-full">
         <div className="flex flex-col items-center justify-center h-64 text-center">
           <h2 className="text-lg font-semibold text-red-600 mb-2">
             Failed to load client
@@ -43,7 +43,7 @@ export default function EditClientPage({ params }: EditClientPageProps) {
   }
 
   return (
-    <div className="container py-8 max-w-2xl">
+    <div className="p-9 max-w-[800px] mx-auto w-full">
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight">Edit Client</h1>
         <p className="text-muted-foreground">

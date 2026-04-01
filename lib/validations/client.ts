@@ -83,6 +83,7 @@ export const clientFormulaBaseSchema = z.object({
   blueprint_type: formulaTypeEnum.default("fia"),
 
   // Section 1: Client Data
+  scenario_name: z.string().max(100).optional().nullable().default(null),
   filing_status: filingStatusEnum,
   name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
   age: z.number().int().min(18, "Age must be at least 18").max(100, "Age must be 100 or less"),
@@ -220,6 +221,7 @@ export type ClientUpdateInput = z.infer<typeof clientUpdateSchema>;
 
 export const clientFullBaseSchema = z.object({
   // Personal Information
+  scenario_name: z.string().max(100).optional().nullable().default(null),
   name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
   date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format").optional().nullable(),
   age: z.number().int().min(18).max(100).default(62),
@@ -357,6 +359,7 @@ export type ClientFormData = {
     | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income";
 
   // Section 1: Client Data
+  scenario_name: string | null;
   filing_status: "single" | "married_filing_jointly" | "married_filing_separately" | "head_of_household";
   name: string;
   age: number;

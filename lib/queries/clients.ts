@@ -11,6 +11,7 @@ export const clientKeys = {
   list: (filters?: string) => [...clientKeys.lists(), filters] as const,
   details: () => [...clientKeys.all, "detail"] as const,
   detail: (id: string) => [...clientKeys.details(), id] as const,
+  scenarios: (id: string) => [...clientKeys.detail(id), "scenarios"] as const,
 };
 
 // Fetch all clients for the current user
@@ -44,6 +45,22 @@ export function useClient(id: string) {
   });
 }
 
+// Fetch a single client and all its scenarios
+export function useClientScenarios(id: string) {
+  return useQuery({
+    queryKey: clientKeys.scenarios(id),
+    queryFn: async (): Promise<Client[]> => {
+      const res = await fetch(`/api/clients/${id}/scenarios`);
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "Failed to fetch scenarios" }));
+        throw new Error(error.error || "Failed to fetch scenarios");
+      }
+      return res.json();
+    },
+    enabled: !!id,
+  });
+}
+
 // Create a new client (supports both simple 4-field form and full 28-field form)
 export function useCreateClient() {
   const queryClient = useQueryClient();
@@ -64,6 +81,29 @@ export function useCreateClient() {
     onSuccess: () => {
       // Invalidate the clients list to trigger refetch
       queryClient.invalidateQueries({ queryKey: clientKeys.lists() });
+    },
+  });
+}
+
+// Duplicate a client (create a new scenario based on it)
+export function useDuplicateClient() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string): Promise<Client> => {
+      const res = await fetch(`/api/clients/${id}/duplicate`, {
+        method: "POST",
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "Failed to duplicate client" }));
+        throw new Error(error.error || "Failed to duplicate client");
+      }
+      return res.json();
+    },
+    onSuccess: (data, originalId) => {
+      queryClient.invalidateQueries({ queryKey: clientKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: clientKeys.scenarios(originalId) });
+      queryClient.invalidateQueries({ queryKey: clientKeys.scenarios(data.id) });
     },
   });
 }

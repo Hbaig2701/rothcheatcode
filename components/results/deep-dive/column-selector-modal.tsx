@@ -131,7 +131,7 @@ export function ColumnSelectorModal({
     <Dialog.Root open={open} onOpenChange={(newOpen) => { if (!newOpen) handleCancel(); }}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
-        <Dialog.Popup className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-surface-elevated rounded-xl shadow-2xl border border-border-default w-[650px] max-h-[85vh] overflow-hidden">
+        <Dialog.Popup className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-surface-elevated rounded-xl shadow-2xl border border-border-default w-[650px] max-w-[95vw] max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-6 py-5 border-b border-border-default">
           <Dialog.Title className="text-xl font-semibold text-foreground">
@@ -154,7 +154,7 @@ export function ColumnSelectorModal({
         </div>
 
         {/* Content */}
-        <div className="px-6 py-4 overflow-y-auto max-h-[60vh]">
+        <div className="px-6 py-4 overflow-y-auto flex-1">
           {Object.keys(groupedColumns).length === 0 ? (
             <div className="py-12 text-center text-sm text-text-dim">
               No columns found matching "{searchQuery}"
@@ -220,7 +220,7 @@ export function ColumnSelectorModal({
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-border-default flex items-center justify-between">
+        <div className="px-6 py-4 border-t border-border-default flex items-center justify-between shrink-0 bg-surface-elevated">
           <div className="text-sm text-text-dim">
             <span className="font-medium text-foreground">{nonFrozenSelectedCount}</span> / 10 columns selected
           </div>

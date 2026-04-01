@@ -48,6 +48,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       blueprint_type: client?.blueprint_type ?? (ud.blueprint_type as ClientFormData["blueprint_type"]) ?? "fia",
 
       // Section 1: Client Data
+      scenario_name: client?.scenario_name ?? null,
       filing_status: client?.filing_status ?? "single",
       name: client?.name ?? "",
       age: client?.age ?? 62,
@@ -127,6 +128,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
 
     // Human-readable field name mapping
     const fieldLabels: Record<string, string> = {
+      scenario_name: "Scenario Name",
       name: "Name",
       age: "Age",
       spouse_name: "Spouse Name",
@@ -229,7 +231,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
         start_age: data.age + data.years_to_defer_conversion,
         projection_years: data.end_age - data.age,
         heir_bracket: String(data.heir_tax_rate),
-        federal_bracket: String(data.tax_rate),
+        federal_bracket: data.scenario_name || undefined,
         inflation_rate: 2.5,
         include_niit: false,
         include_aca: false,

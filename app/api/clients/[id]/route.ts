@@ -29,7 +29,15 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  const extractScenarioName = (val: any) => {
+    if (!val || typeof val !== "string") return null;
+    if (val === "auto") return null;
+    if (!isNaN(Number(val)) && Number(val) <= 100) return null;
+    return val;
+  };
+
+  const mappedClient = { ...data, scenario_name: extractScenarioName(data.federal_bracket) };
+  return NextResponse.json(mappedClient);
 }
 
 // PUT /api/clients/[id] - Update a client
@@ -58,10 +66,22 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     );
   }
 
+  const { scenario_name, ...clientData } = parsed.data;
+  
+  // Create update payload handling scenario_name to federal_bracket
+  const updatePayload = {
+    ...clientData,
+    updated_at: new Date().toISOString()
+  };
+  
+  if (scenario_name !== undefined) {
+    (updatePayload as any).federal_bracket = scenario_name || null;
+  }
+
   // Update client and set updated_at timestamp
   const { data, error } = await supabase
     .from("clients")
-    .update({ ...parsed.data, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq("id", id)
     .select()
     .single();
@@ -74,7 +94,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  const extractScenarioName = (val: any) => {
+    if (!val || typeof val !== "string") return null;
+    if (val === "auto") return null;
+    if (!isNaN(Number(val)) && Number(val) <= 100) return null;
+    return val;
+  };
+
+  const mappedClient = { ...data, scenario_name: extractScenarioName(data.federal_bracket) };
+  return NextResponse.json(mappedClient);
 }
 
 // DELETE /api/clients/[id] - Delete a client
