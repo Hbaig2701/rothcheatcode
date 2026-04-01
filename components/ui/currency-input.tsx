@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/input-group";
 
 interface CurrencyInputProps {
-  value: number | undefined; // value in cents
-  onChange: (cents: number | undefined) => void;
+  value: number | undefined | null; // value in cents
+  onChange: (cents: number | undefined | null) => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -50,8 +50,8 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
     ref
   ) => {
     // Convert cents to dollar string for display
-    const centsToDisplay = (cents: number | undefined): string => {
-      if (cents === undefined) return "";
+    const centsToDisplay = (cents: number | undefined | null): string => {
+      if (cents == null) return "";
       return formatWithCommas((cents / 100).toString());
     };
 
@@ -82,8 +82,8 @@ export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
           lastReported.current = cents;
           onChange(cents);
         } else {
-          lastReported.current = undefined;
-          onChange(undefined);
+          lastReported.current = null;
+          onChange(null);
         }
       }
     };

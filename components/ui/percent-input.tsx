@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/input-group";
 
 interface PercentInputProps {
-  value: number | undefined; // value as percentage (e.g., 6 for 6%)
-  onChange: (percent: number | undefined) => void;
+  value: number | undefined | null; // value as percentage (e.g., 6 for 6%)
+  onChange: (percent: number | undefined | null) => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -53,8 +53,8 @@ export const PercentInput = forwardRef<HTMLInputElement, PercentInputProps>(
           lastReported.current = num;
           onChange(num);
         } else {
-          lastReported.current = undefined;
-          onChange(undefined);
+          lastReported.current = null;
+          onChange(null);
         }
       }
     };
