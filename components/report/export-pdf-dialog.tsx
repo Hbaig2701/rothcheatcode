@@ -16,6 +16,7 @@ import { Loader2, Lock, Zap, Upload, ImageIcon, X } from "lucide-react";
 import type { Client } from "@/lib/types/client";
 import type { Projection } from "@/lib/types/projection";
 import { hasFullAccess, type PlanId } from "@/lib/config/plans";
+import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 
 interface ExportPdfDialogProps {
   open: boolean;
@@ -61,8 +62,17 @@ export function ExportPdfDialog({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [sections, setSections] = useState({
+    baselineIncome: true,
+    strategyIncome: true,
+    rothGrowth: true,
+    conversionPayback: true,
+    legacyComparison: true,
+    rmdAvoidance: true,
+  });
 
   const isPro = plan ? hasFullAccess(plan as PlanId) : false;
+  const isGI = client.blueprint_type ? isGuaranteedIncomeProduct(client.blueprint_type as FormulaType) : false;
 
   // Fetch settings and plan on open
   useEffect(() => {
@@ -163,6 +173,7 @@ export function ExportPdfDialog({
           reportData: { client, projection },
           brandingOverrides,
           title: title.trim() || undefined,
+          sections: !isGI ? sections : undefined,
         }),
       });
 
@@ -255,6 +266,40 @@ export function ExportPdfDialog({
                 Helps identify this report in your history
               </p>
             </div>
+
+            {/* Report Sections (Growth only) */}
+            {!isGI && (
+              <div className="mb-6">
+                <label className="text-sm font-medium mb-3 block">Report Sections</label>
+                <p className="text-xs text-muted-foreground mb-3">Choose which tables to include in the PDF.</p>
+                <div className="space-y-2">
+                  {[
+                    { key: "baselineIncome" as const, label: "Baseline Income During RMD Phase", desc: "Income breakdown during required distributions" },
+                    { key: "strategyIncome" as const, label: "Strategy Income During Conversion Phase", desc: "Income breakdown during Roth conversions" },
+                    { key: "rothGrowth" as const, label: "Tax-Free Roth Growth", desc: "Annual & cumulative tax-free growth" },
+                    { key: "conversionPayback" as const, label: "Conversion Cost & Payback", desc: "Tax cost vs. Roth value gained" },
+                    { key: "legacyComparison" as const, label: "Legacy to Heirs Comparison", desc: "After-tax inheritance comparison" },
+                    { key: "rmdAvoidance" as const, label: "RMD Avoidance Analysis", desc: "Forced distributions avoided & tax saved" },
+                  ].map((item) => (
+                    <label
+                      key={item.key}
+                      className="flex items-start gap-3 p-2.5 rounded-lg border border-border hover:bg-bg-card-hover cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={sections[item.key]}
+                        onChange={(e) => setSections((prev) => ({ ...prev, [item.key]: e.target.checked }))}
+                        className="mt-0.5 rounded accent-primary"
+                      />
+                      <div>
+                        <span className="text-sm font-medium text-foreground">{item.label}</span>
+                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Starter overlay */}
             {!isPro && (

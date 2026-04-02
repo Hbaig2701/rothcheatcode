@@ -587,6 +587,7 @@
     {{{brandingFooter}}}
   </div>
 
+  {{#if sections.baselineIncome}}
   <div class="page">
     {{{pageHeader "Baseline - Income During RMD Phase"}}}
     <h1 class="section-title">Baseline Income During RMD Phase</h1>
@@ -618,6 +619,7 @@
     </table>
     {{{brandingFooter}}}
   </div>
+  {{/if}}
 
   <!-- Strategy Account Overview -->
   <div class="page">
@@ -655,6 +657,7 @@
   </div>
 
   <!-- Strategy Income During Conversion Phase -->
+  {{#if sections.strategyIncome}}
   <div class="page">
     {{{pageHeader "Strategy - Income During Conversion Phase"}}}
     <h1 class="section-title">Strategy Income During Conversion Phase</h1>
@@ -686,6 +689,123 @@
     </table>
     {{{brandingFooter}}}
   </div>
+  {{/if}}
+
+  <!-- Tax-Free Roth Growth (optional) -->
+  {{#if sections.rothGrowth}}
+  <div class="page">
+    {{{pageHeader "Tax-Free Roth Growth"}}}
+    <h1 class="section-title">Tax-Free Roth Growth</h1>
+    <p style="font-size: 9pt; color: #666; margin-bottom: 12px;">Annual tax-free growth inside your Roth IRA. This growth is never taxed — not now, not when withdrawn, and not when passed to heirs.</p>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th style="text-align: right;">Roth Balance</th>
+        <th style="text-align: right;">Annual Growth</th>
+        <th style="text-align: right;">Cumulative Growth</th>
+      </tr>
+      {{#each rothGrowthTable}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td style="text-align: right;">{{this.rothBalance}}</td>
+        <td style="text-align: right; color: #16a34a;">{{this.annualGrowth}}</td>
+        <td style="text-align: right; color: #16a34a; font-weight: 600;">{{this.cumulativeGrowth}}</td>
+      </tr>
+      {{/each}}
+    </table>
+    {{{brandingFooter}}}
+  </div>
+  {{/if}}
+
+  <!-- Conversion Cost & Payback (optional) -->
+  {{#if sections.conversionPayback}}
+  <div class="page">
+    {{{pageHeader "Conversion Cost & Payback"}}}
+    <h1 class="section-title">Conversion Cost & Payback</h1>
+    <p style="font-size: 9pt; color: #666; margin-bottom: 12px;">Shows the tax cost of each conversion and how quickly the Roth value gained exceeds the cumulative taxes paid.</p>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th style="text-align: right;">Converted</th>
+        <th style="text-align: right;">Tax Paid</th>
+        <th style="text-align: right;">Cumulative Tax</th>
+        <th style="text-align: right;">Roth Value Gained</th>
+      </tr>
+      {{#each conversionPaybackTable}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td style="text-align: right;">{{this.conversionAmount}}</td>
+        <td style="text-align: right; color: #dc2626;">{{this.taxPaid}}</td>
+        <td style="text-align: right; color: #dc2626;">{{this.cumulativeTaxPaid}}</td>
+        <td style="text-align: right; color: #16a34a; font-weight: 600;">{{this.rothValueGained}}</td>
+      </tr>
+      {{/each}}
+    </table>
+    {{{brandingFooter}}}
+  </div>
+  {{/if}}
+
+  <!-- Legacy Comparison (optional) -->
+  {{#if sections.legacyComparison}}
+  <div class="page">
+    {{{pageHeader "Legacy Comparison"}}}
+    <h1 class="section-title">Legacy to Heirs Comparison</h1>
+    <p style="font-size: 9pt; color: #666; margin-bottom: 12px;">What your heirs would actually receive after taxes on inherited IRA balances. Roth balances pass tax-free.</p>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th style="text-align: right;">Baseline Legacy</th>
+        <th style="text-align: right;">Strategy Legacy</th>
+        <th style="text-align: right;">Difference</th>
+      </tr>
+      {{#each legacyComparisonTable}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td style="text-align: right;">{{this.baselineLegacy}}</td>
+        <td style="text-align: right;">{{this.strategyLegacy}}</td>
+        <td style="text-align: right; color: {{#if this.isPositive}}#16a34a{{else}}#dc2626{{/if}}; font-weight: 600;">{{this.difference}}</td>
+      </tr>
+      {{/each}}
+    </table>
+    {{{brandingFooter}}}
+  </div>
+  {{/if}}
+
+  <!-- RMD Avoidance (optional) -->
+  {{#if sections.rmdAvoidance}}
+  <div class="page">
+    {{{pageHeader "RMD Avoidance"}}}
+    <h1 class="section-title">RMD Avoidance Analysis</h1>
+    <p style="font-size: 9pt; color: #666; margin-bottom: 12px;">By converting to Roth before age 73, you reduce or eliminate Required Minimum Distributions — avoiding forced taxable income.</p>
+    <table class="data-table">
+      <tr>
+        <th>Year</th>
+        <th>Age</th>
+        <th style="text-align: right;">Baseline RMD</th>
+        <th style="text-align: right;">Strategy RMD</th>
+        <th style="text-align: right;">RMD Avoided</th>
+        <th style="text-align: right;">Est. Tax Saved</th>
+      </tr>
+      {{#each rmdAvoidanceTable}}
+      <tr>
+        <td>{{this.year}}</td>
+        <td>{{this.age}}</td>
+        <td style="text-align: right;">{{this.baselineRMD}}</td>
+        <td style="text-align: right;">{{this.strategyRMD}}</td>
+        <td style="text-align: right; color: #16a34a;">{{this.rmdAvoided}}</td>
+        <td style="text-align: right; color: #16a34a; font-weight: 600;">{{this.taxSaved}}</td>
+      </tr>
+      {{/each}}
+    </table>
+    {{{brandingFooter}}}
+  </div>
+  {{/if}}
 
   <!-- Disclaimer -->
   <div class="page">

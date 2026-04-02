@@ -144,6 +144,41 @@ interface BrandingData {
   hasContactInfo: boolean;
 }
 
+interface RothGrowthRow {
+  year: number;
+  age: number;
+  rothBalance: string;
+  annualGrowth: string;
+  cumulativeGrowth: string;
+}
+
+interface ConversionPaybackRow {
+  year: number;
+  age: number;
+  conversionAmount: string;
+  taxPaid: string;
+  cumulativeTaxPaid: string;
+  rothValueGained: string;
+}
+
+interface LegacyComparisonRow {
+  year: number;
+  age: number;
+  baselineLegacy: string;
+  strategyLegacy: string;
+  difference: string;
+  isPositive: boolean;
+}
+
+interface RMDAvoidanceRow {
+  year: number;
+  age: number;
+  baselineRMD: string;
+  strategyRMD: string;
+  rmdAvoided: string;
+  taxSaved: string;
+}
+
 interface TemplateData {
   clientName: string;
   clientAge: number;
@@ -173,6 +208,17 @@ interface TemplateData {
   };
   conversionDetails: ConversionDetail[];
   branding: BrandingData;
+  // New optional table sections
+  sections?: {
+    rothGrowth?: boolean;
+    conversionPayback?: boolean;
+    legacyComparison?: boolean;
+    rmdAvoidance?: boolean;
+  };
+  rothGrowthTable?: RothGrowthRow[];
+  conversionPaybackTable?: ConversionPaybackRow[];
+  legacyComparisonTable?: LegacyComparisonRow[];
+  rmdAvoidanceTable?: RMDAvoidanceRow[];
 }
 
 function formatCurrency(cents: number): string {
@@ -642,6 +688,77 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     },
     conversionDetails,
     branding,
+    // New table data (generated regardless, conditionally shown via sections flags)
+    rothGrowthTable: (() => {
+      let cumulativeGrowth = 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return projection.blueprint_years.map((year: any) => {
+        const annualGrowth = year.rothGrowth || 0;
+        cumulativeGrowth += annualGrowth;
+        return {
+          year: year.year,
+          age: year.age,
+          rothBalance: formatCurrency(year.rothBalance),
+          annualGrowth: formatCurrency(annualGrowth),
+          cumulativeGrowth: formatCurrency(cumulativeGrowth),
+        };
+      });
+    })(),
+    conversionPaybackTable: (() => {
+      let cumulativeTax = 0;
+      const initialRoth = client.roth_ira ?? 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return projection.blueprint_years.map((year: any) => {
+        cumulativeTax += year.totalTax || 0;
+        const rothValueGained = year.rothBalance - initialRoth;
+        return {
+          year: year.year,
+          age: year.age,
+          conversionAmount: formatCurrency(year.conversionAmount),
+          taxPaid: formatCurrency(year.totalTax),
+          cumulativeTaxPaid: formatCurrency(cumulativeTax),
+          rothValueGained: formatCurrency(rothValueGained),
+        };
+      });
+    })(),
+    legacyComparisonTable: (() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return projection.blueprint_years.map((year: any, idx: number) => {
+        const baseYear = projection.baseline_years[idx];
+        if (!baseYear) return null;
+        const baseLegacy = Math.round(baseYear.traditionalBalance * (1 - heirTaxRate)) + (baseYear.rothBalance || 0);
+        const stratLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + (year.rothBalance || 0);
+        const diff = stratLegacy - baseLegacy;
+        return {
+          year: year.year,
+          age: year.age,
+          baselineLegacy: formatCurrency(baseLegacy),
+          strategyLegacy: formatCurrency(stratLegacy),
+          difference: formatCurrency(Math.abs(diff)),
+          isPositive: diff >= 0,
+        };
+      }).filter(Boolean);
+    })(),
+    rmdAvoidanceTable: (() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return projection.baseline_years.filter((y: any) => y.rmdAmount > 0).map((baseYear: any, _: number) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stratYear = projection.blueprint_years.find((y: any) => y.year === baseYear.year);
+        const baseRMD = baseYear.rmdAmount || 0;
+        const stratRMD = stratYear?.rmdAmount || 0;
+        const avoided = baseRMD - stratRMD;
+        const taxRate = (client.tax_rate ?? 22) / 100;
+        const taxSaved = Math.round(avoided * taxRate);
+        return {
+          year: baseYear.year,
+          age: baseYear.age,
+          baselineRMD: formatCurrency(baseRMD),
+          strategyRMD: formatCurrency(stratRMD),
+          rmdAvoided: formatCurrency(avoided),
+          taxSaved: formatCurrency(taxSaved),
+        };
+      });
+    })(),
   };
 }
 
@@ -977,7 +1094,7 @@ export async function POST(request: NextRequest) {
     const showPoweredBy = !hasFeature(effectivePlan, 'whiteLabel');
 
     const body = await request.json();
-    const { reportData, brandingOverrides, title } = body;
+    const { reportData, brandingOverrides, title, sections } = body;
 
     if (!reportData || !reportData.client || !reportData.projection) {
       return NextResponse.json(
@@ -1037,6 +1154,20 @@ export async function POST(request: NextRequest) {
 
     // Add white-label flag
     (templateData as unknown as Record<string, unknown>).showPoweredBy = showPoweredBy;
+
+    // Add section visibility flags
+    // Default all to true so existing pages render when sections aren't specified
+    const defaultSections = {
+      baselineIncome: true,
+      strategyIncome: true,
+      rothGrowth: false,
+      conversionPayback: false,
+      legacyComparison: false,
+      rmdAvoidance: false,
+    };
+    (templateData as unknown as Record<string, unknown>).sections = !isGI
+      ? { ...defaultSections, ...(sections || {}) }
+      : defaultSections;
 
     // Generate HTML
     const html = template(templateData);
