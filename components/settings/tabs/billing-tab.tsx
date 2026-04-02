@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, CreditCard, Zap, Crown, Shield, Clock } from "lucide-react";
+import { Loader2, CreditCard, Crown, Shield, Clock } from "lucide-react";
 
 interface BillingData {
   plan: string;
@@ -52,7 +52,6 @@ export function BillingTab() {
   const [data, setData] = useState<BillingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [upgradeLoading, setUpgradeLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/billing/usage")
@@ -107,23 +106,6 @@ export function BillingTab() {
     }
   };
 
-  const handleUpgrade = async () => {
-    setUpgradeLoading(true);
-    try {
-      const res = await fetch("/api/billing/upgrade");
-      const data = await res.json();
-      if (data.url) {
-        window.open(data.url, "_blank");
-        setUpgradeLoading(false);
-      } else {
-        alert(data.error || "Failed to start upgrade");
-        setUpgradeLoading(false);
-      }
-    } catch {
-      alert("Failed to start upgrade");
-      setUpgradeLoading(false);
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -253,21 +235,6 @@ export function BillingTab() {
       {/* Actions */}
       <Card>
         <CardContent className="space-y-3 pt-6">
-          {/* ARCHIVED: Upgrade button — was for Starter plan users only */}
-          {/* {data.plan === "starter" && data.hasStripeSubscription && (
-            <Button
-              className="w-full"
-              onClick={handleUpgrade}
-              disabled={upgradeLoading}
-            >
-              {upgradeLoading && (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              )}
-              <Zap className="mr-2 size-4" />
-              Upgrade to Pro — $197/mo
-            </Button>
-          )} */}
-
           {/* Manage subscription — only for paying users */}
           {data.hasStripeSubscription && !data.isTeamMember && (
             <>
