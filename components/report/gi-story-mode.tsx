@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { ArrowLeft, Rocket, TrendingUp, MapPin, Shield, Target, Flag, DollarSign, Gift } from "lucide-react";
+import { ArrowLeft, Rocket, TrendingUp, MapPin, Shield, Target, Flag, DollarSign, Gift, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
@@ -354,7 +354,7 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
   const isShield = entry.trigger === "account_depletion" || entry.trigger === "gi_purchase";
 
   const cardStyles = cn(
-    "relative ml-16 mb-6 rounded-2xl p-7 border transition-all",
+    "relative ml-16 mb-6 rounded-2xl p-7 border transition-all break-inside-avoid",
     isCelebration && "bg-[rgba(212,175,55,0.05)] border-gold-border",
     isLegacy && "bg-[rgba(74,222,128,0.05)] border-green/20",
     isShield && !isCelebration && "bg-[rgba(59,130,246,0.05)] border-[rgba(59,130,246,0.2)]",
@@ -477,13 +477,20 @@ export function GIStoryMode({ client, projection, onClose }: GIStoryModeProps) {
   return (
     <div className="fixed inset-0 z-50 bg-background overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="shrink-0 flex items-center justify-between px-8 py-4 border-b border-border-default bg-sidebar">
+      <div className="shrink-0 flex items-center justify-between px-8 py-4 border-b border-border-default bg-sidebar print:hidden">
         <button
           onClick={onClose}
           className="flex items-center gap-2 text-text-dim hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Exit Story Mode</span>
+        </button>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground bg-bg-card border border-border-default rounded-lg hover:bg-bg-card-hover transition-colors"
+        >
+          <Printer className="h-4 w-4" />
+          Print / Save as PDF
         </button>
       </div>
 

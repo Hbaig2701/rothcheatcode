@@ -221,3 +221,21 @@
 .bg-gold-subtle {
   background-color: var(--gold-bg);
 }
+
+/* Print styles for Story Mode */
+@media print {
+  @page { margin: 0.6in; }
+  body { background: white !important; color: black !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .print\:hidden { display: none !important; }
+  /* Hide sidebar and make main content full width */
+  [data-slot="sidebar"], [data-slot="sidebar-wrapper"] > [data-slot="sidebar"],
+  [data-slot="sidebar-gap"], [data-slot="sidebar-container"] { display: none !important; }
+  [data-slot="sidebar-wrapper"] { display: block !important; }
+  /* Fix story mode layout for print */
+  .fixed { position: static !important; }
+  * { overflow: visible !important; }
+  /* Prevent cards from being cut across pages */
+  [data-slot="sidebar-wrapper"] main,
+  [data-slot="sidebar-wrapper"] > * { width: 100% !important; }
+  .break-inside-avoid, article, section { break-inside: avoid; page-break-inside: avoid; }
+}

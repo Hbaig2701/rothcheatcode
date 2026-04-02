@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { X, ArrowLeft, Rocket, TrendingUp, MapPin, AlertTriangle, Target, Flag } from "lucide-react";
+import { X, ArrowLeft, Rocket, TrendingUp, MapPin, AlertTriangle, Target, Flag, Printer } from "lucide-react";
 import type { Client } from "@/lib/types/client";
 import type { Projection } from "@/lib/types/projection";
 import { generateStory, type StoryEntry, type StoryIcon, type StorySentiment } from "@/lib/calculations/story-generator";
@@ -44,7 +44,7 @@ export function StoryMode({ client, projection, onExit }: StoryModeProps) {
   return (
     <div className="fixed inset-0 z-50 bg-background overflow-hidden flex flex-col">
       {/* Header */}
-      <div className="shrink-0 flex items-center justify-between px-8 py-4 border-b border-border-default bg-sidebar">
+      <div className="shrink-0 flex items-center justify-between px-8 py-4 border-b border-border-default bg-sidebar print:hidden">
         <button
           onClick={onExit}
           className="flex items-center gap-2 text-text-dim hover:text-foreground transition-colors"
@@ -52,9 +52,13 @@ export function StoryMode({ client, projection, onExit }: StoryModeProps) {
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Exit Story Mode</span>
         </button>
-        <div className="flex items-center gap-3">
-          {/* Future: Export PDF button */}
-        </div>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground bg-bg-card border border-border-default rounded-lg hover:bg-bg-card-hover transition-colors print:hidden"
+        >
+          <Printer className="h-4 w-4" />
+          Print / Save as PDF
+        </button>
       </div>
 
       {/* Story Content */}
@@ -112,7 +116,7 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
 
   // Determine styling based on sentiment and type
   const cardStyles = cn(
-    "relative ml-16 mb-6 rounded-2xl p-7",
+    "relative ml-16 mb-6 rounded-2xl p-7 break-inside-avoid",
     "border transition-all",
     isCelebration && "bg-[rgba(212,175,55,0.05)] border-gold-border",
     isLegacy && "bg-[rgba(74,222,128,0.05)] border-green/20",
