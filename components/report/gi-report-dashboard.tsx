@@ -5,7 +5,8 @@ import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
 import type { YearlyResult } from "@/lib/calculations";
 import { GIIncomeChart } from "@/components/results/gi-income-chart";
-import { transformToGIIncomeChartData } from "@/lib/calculations/transforms";
+import { transformToGIIncomeChartData, transformToChartData } from "@/lib/calculations/transforms";
+import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
 import { Check, ChevronDown, ChevronUp, ArrowRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
@@ -41,6 +42,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const [productDetailsOpen, setProductDetailsOpen] = useState(false);
 
   const incomeChartData = transformToGIIncomeChartData(projection);
+  const chartData = transformToChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
 
   // Get product config
@@ -918,7 +920,10 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
           )}
         </div>
 
-        {/* Section 9: Disclaimer */}
+        {/* Section 9: Advanced Analysis */}
+        <AdvancedFeaturesSection client={client} chartData={chartData} />
+
+        {/* Section 10: Disclaimer */}
         <p className="text-sm text-text-dim italic text-center max-w-[800px] mx-auto py-6">
           This optimized plan is for educational purposes only. Before making a Roth conversion or purchasing an annuity, discuss your final plan with a tax professional and licensed insurance agent.
         </p>

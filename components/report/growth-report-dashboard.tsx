@@ -13,6 +13,7 @@ import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
 import { ColumnSelectorModal } from "@/components/results/deep-dive/column-selector-modal";
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
 import { loadColumnPreferences, saveColumnPreferences, getDefaultColumns } from "@/lib/table-columns/storage";
+import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
 
 interface GrowthReportDashboardProps {
   client: Client;
@@ -505,7 +506,10 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           productType="growth"
         />
 
-        {/* Section 7: Disclaimer */}
+        {/* Section 7: Advanced Analysis (Widow's Penalty, Breakeven, Audit) */}
+        <AdvancedFeaturesSection client={client} chartData={chartData} />
+
+        {/* Section 8: Disclaimer */}
         <p className="text-sm text-text-dim italic text-center max-w-[900px] mx-auto py-6">
           Projections use an assumed average annual return of {client.rate_of_return}% and do not represent guaranteed performance.
           Actual index-linked interest will vary based on market conditions and is subject to caps, participation rates, or spreads
