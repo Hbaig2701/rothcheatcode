@@ -114,6 +114,19 @@ export async function POST(request: NextRequest) {
           `*Plan:* ${planLabel} — ${cycleLabel}`
         );
 
+        // Send to LeadConnector webhook (fire-and-forget)
+        fetch("https://services.leadconnectorhq.com/hooks/TtqzfDopIsW7PyVfjxid/webhook-trigger/84594985-7fe4-4f3f-9c41-435cb3e45062", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: customerName || "",
+            email: customerEmail || "",
+            plan: plan || "",
+            cycle: cycle || "",
+            stripe_customer_id: customerId || "",
+          }),
+        }).catch(() => {});
+
         if (customerId) {
           let profile: { id: string; stripe_customer_id: string | null } | null = null;
 
