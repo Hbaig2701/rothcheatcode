@@ -36,7 +36,7 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
         // Get user's profile and subscription info
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role, stripe_customer_id, stripe_subscription_id, email')
+          .select('role, stripe_customer_id, stripe_subscription_id, email, team_owner_id')
           .eq('id', user.id)
           .single();
 
@@ -47,6 +47,12 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
 
         // Don't block admins
         if (profile.role === 'admin') {
+          setLoading(false);
+          return;
+        }
+
+        // Don't block team members — they use the owner's subscription
+        if (profile.team_owner_id) {
           setLoading(false);
           return;
         }
