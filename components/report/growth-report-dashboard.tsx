@@ -144,6 +144,42 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const conversionYears = projection.blueprint_years.filter(y => y.conversionAmount > 0);
   const avgTaxRate = blueConversions > 0 ? (blueTax / blueConversions) * 100 : 0;
 
+  // Penalty-free withdrawal check — only if client has a surrender schedule
+  const penaltyFreePercent = (client.penalty_free_percent ?? 10) / 100;
+  const surrenderYears = client.surrender_years ?? 0;
+  const surrenderSchedule = client.surrender_schedule ?? [];
+  const hasSurrenderSchedule = surrenderSchedule.length > 0 && surrenderSchedule.some(v => v > 0);
+  const penaltyFreeViolations = !hasSurrenderSchedule ? [] : projection.blueprint_years
+    .map((year, idx) => {
+      if (year.conversionAmount <= 0) return null;
+      const yearOffset = idx;
+      if (yearOffset >= surrenderYears) return null; // Past surrender period
+      // BOY IRA balance: previous year's end balance, or initial deposit + bonus for year 0
+      const boyIRA = idx > 0
+        ? projection.blueprint_years[idx - 1].traditionalBalance
+        : Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100));
+      const penaltyFreeLimit = Math.round(boyIRA * penaltyFreePercent);
+      if (year.conversionAmount > penaltyFreeLimit) {
+        const excess = year.conversionAmount - penaltyFreeLimit;
+        const chargePercent = yearOffset < surrenderSchedule.length ? surrenderSchedule[yearOffset] : 0;
+        const estimatedCharge = Math.round(excess * chargePercent / 100);
+        return {
+          year: year.year,
+          age: year.age,
+          conversion: year.conversionAmount,
+          limit: penaltyFreeLimit,
+          excess,
+          chargePercent,
+          estimatedCharge,
+        };
+      }
+      return null;
+    })
+    .filter(Boolean) as Array<{
+      year: number; age: number; conversion: number;
+      limit: number; excess: number; chargePercent: number; estimatedCharge: number;
+    }>;
+
   // Determine target tax bracket from conversions
   const getTargetBracket = () => {
     if (conversionYears.length === 0) return "N/A";
@@ -313,6 +349,57 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 Avg Tax Rate: <span className="font-mono text-foreground">{avgTaxRate.toFixed(1)}%</span>
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Penalty-Free Withdrawal Warning */}
+        {penaltyFreeViolations.length > 0 && (
+          <div className="bg-[rgba(250,204,21,0.06)] border border-[rgba(250,204,21,0.25)] rounded-[14px] p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="shrink-0 mt-0.5 w-8 h-8 rounded-full bg-[rgba(250,204,21,0.15)] flex items-center justify-center">
+                <span className="text-base">⚠️</span>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Penalty-Free Withdrawal Limit Exceeded
+                </p>
+                <p className="text-xs text-text-muted mt-1">
+                  The following conversions exceed the {client.penalty_free_percent ?? 10}% annual penalty-free withdrawal allowance during the surrender period.
+                  Surrender charges may apply to the excess amount.
+                </p>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[rgba(250,204,21,0.2)]">
+                    <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Year</th>
+                    <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Age</th>
+                    <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Conversion</th>
+                    <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Penalty-Free Limit</th>
+                    <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Excess</th>
+                    <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Surrender %</th>
+                    <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Est. Charge</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {penaltyFreeViolations.map((v) => (
+                    <tr key={v.year} className="border-b border-border-default/30">
+                      <td className="py-2 px-3 font-mono text-text-dim">{v.year}</td>
+                      <td className="py-2 px-3 text-text-dim">{v.age}</td>
+                      <td className="py-2 px-3 font-mono text-right text-foreground">{toUSD(v.conversion)}</td>
+                      <td className="py-2 px-3 font-mono text-right text-green">{toUSD(v.limit)}</td>
+                      <td className="py-2 px-3 font-mono text-right text-red">{toUSD(v.excess)}</td>
+                      <td className="py-2 px-3 font-mono text-right text-text-muted">{v.chargePercent}%</td>
+                      <td className="py-2 px-3 font-mono text-right text-red font-medium">{toUSD(v.estimatedCharge)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-xs text-text-dimmer mt-3 italic">
+              Consider adjusting conversion amounts or using a fixed conversion within the penalty-free limit to avoid surrender charges.
+            </p>
           </div>
         )}
 
