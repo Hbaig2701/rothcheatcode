@@ -8,6 +8,7 @@ import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { calculateIRMAAWithLookback } from '../modules/irmaa';
 import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier } from '../tax-helpers';
+import { ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
 
 /**
  * Run Growth FIA Formula scenario: Roth conversions with FIA product features
@@ -49,6 +50,11 @@ export function runGrowthFormulaScenario(
 
   // Surrender schedule (array of charge percentages by year)
   const surrenderSchedule = client.surrender_schedule ?? null;
+
+  // Rider fee (from product preset, only applied during surrender period)
+  const productConfig = ALL_PRODUCTS[client.blueprint_type as FormulaType];
+  const riderFeePercent = (productConfig?.defaults.riderFee ?? 0) / 100;
+  const surrenderYears = client.surrender_years ?? 0;
 
   // Tax rates
   const maxTaxRate = client.max_tax_rate ?? 24;
@@ -140,6 +146,13 @@ export function runGrowthFormulaScenario(
     // Update balances
     iraBalance = iraAfterConversion + iraInterest;
     rothBalance = rothAfterConversion + rothInterest;
+
+    // Step 2.5: Apply annual rider fee (only during surrender period, applied to IRA balance)
+    // Rider fees are charged on the annuity (IRA) — Roth side has already been moved out
+    if (riderFeePercent > 0 && yearOffset < surrenderYears) {
+      const riderFeeAmount = Math.round(iraBalance * riderFeePercent);
+      iraBalance = iraBalance - riderFeeAmount;
+    }
 
     // Step 3: Apply anniversary bonus to IRA (annuity AV) if within bonus years
     // yearOffset is 0-indexed: yearOffset 0 = first year of policy

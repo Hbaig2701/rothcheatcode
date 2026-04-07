@@ -395,6 +395,16 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-[rgba(250,204,21,0.3)]">
+                    <td className="py-3 px-3 text-xs font-semibold text-text-muted uppercase tracking-wider" colSpan={2}>Total</td>
+                    <td className="py-3 px-3 font-mono text-right text-foreground font-semibold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.conversion, 0))}</td>
+                    <td className="py-3 px-3 font-mono text-right text-green font-semibold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.limit, 0))}</td>
+                    <td className="py-3 px-3 font-mono text-right text-red font-semibold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.excess, 0))}</td>
+                    <td className="py-3 px-3"></td>
+                    <td className="py-3 px-3 font-mono text-right text-red font-bold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.estimatedCharge, 0))}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
             <p className="text-xs text-text-dimmer mt-3 italic">

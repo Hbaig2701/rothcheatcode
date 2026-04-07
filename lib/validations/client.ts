@@ -40,6 +40,7 @@ export const formulaTypeEnum = z.enum([
   "short-term-cap-growth",
   "phased-bonus-growth",
   "vesting-bonus-growth",
+  "high-bonus-long-term-growth",
   "simple-rollup-income",
   "compound-rollup-income",
   "flat-rate-compound-income",
@@ -355,7 +356,7 @@ export type ClientFullFormData = z.infer<typeof clientFullSchema>;
 // Explicit form type with all fields required for form defaultValues
 export type ClientFormData = {
   // Product Preset
-  blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth"
+  blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth" | "high-bonus-long-term-growth"
     | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income";
 
   // Section 1: Client Data

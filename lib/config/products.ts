@@ -1,7 +1,7 @@
 // Product preset configuration for Product Preset dropdown
 // This file ONLY defines UI presets - it does NOT modify any calculation formulas
 
-export type GrowthFormulaType = 'fia' | 'short-term-cap-growth' | 'phased-bonus-growth' | 'vesting-bonus-growth';
+export type GrowthFormulaType = 'fia' | 'short-term-cap-growth' | 'phased-bonus-growth' | 'vesting-bonus-growth' | 'high-bonus-long-term-growth';
 
 export type GuaranteedIncomeFormulaType =
   | 'simple-rollup-income'
@@ -18,7 +18,7 @@ export interface ProductDefaults {
   surrenderSchedule?: number[]; // Surrender charge percentages by year (e.g., [16, 14.5, 13, ...])
   penaltyFreePercent: number;
   rateOfReturn: number;
-  riderFee?: number; // Annual rider fee percentage (GI products only)
+  riderFee?: number; // Annual rider fee percentage (deducted from AV during surrender period)
   anniversaryBonus?: number; // Anniversary bonus % applied at end of each bonus year
   anniversaryBonusYears?: number; // Number of years anniversary bonus is applied (e.g., 3)
 }
@@ -108,6 +108,24 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
       surrenderYears: 10,
       penaltyFreePercent: 10,
       rateOfReturn: 0,
+    },
+  },
+
+  'high-bonus-long-term-growth': {
+    id: 'high-bonus-long-term-growth',
+    label: 'High-Bonus Long-Term Growth',
+    category: 'Growth',
+    description: '22% premium bonus, 15-year surrender, 0.95% annual rider fee',
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
+    defaults: {
+      carrierName: 'Insurance Carrier',
+      productName: 'High-Bonus Long-Term Growth',
+      bonus: 22,
+      surrenderYears: 15,
+      surrenderSchedule: [15, 14, 14, 13, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 0],
+      penaltyFreePercent: 10,
+      rateOfReturn: 7,
+      riderFee: 0.95,
     },
   },
 };

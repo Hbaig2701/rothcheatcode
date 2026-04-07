@@ -16,7 +16,7 @@ export interface Client {
   updated_at: string;
 
   // ===== Product Preset =====
-  blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth"
+  blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth" | "high-bonus-long-term-growth"
     | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income";
 
   // ===== Section 1: Client Data =====
