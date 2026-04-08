@@ -71,10 +71,12 @@ export function runGrowthBaselineScenario(
 
     const ssIncome = primarySsIncome + spouseSsIncome;
 
+    const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : null;
+
     results.push({
       year,
       age,
-      spouseAge: null,
+      spouseAge: currentSpouseAge,
       traditionalBalance: iraBalance,
       rothBalance: 0,
       taxableBalance: 0,

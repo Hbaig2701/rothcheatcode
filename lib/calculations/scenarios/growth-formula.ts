@@ -297,10 +297,12 @@ export function runGrowthFormulaScenario(
       : 0;
     const stateTaxOnOrdinaryIncome = stateTax - stateTaxOnConversions;
 
+    const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : null;
+
     results.push({
       year,
       age,
-      spouseAge: null,
+      spouseAge: currentSpouseAge,
       traditionalBalance: iraBalance,
       rothBalance,
       taxableBalance,

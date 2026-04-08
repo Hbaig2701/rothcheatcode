@@ -270,17 +270,6 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     minWidth: 120,
   },
   {
-    id: 'pensionIncome',
-    label: 'Pension',
-    category: 'income',
-    description: 'Annual pension income, adjusted for inflation. Included as ordinary taxable income.',
-    formatter: formatCurrency,
-    defaultVisible: false,
-    visibleForProducts: ['all'],
-    defaultWidth: 120,
-    minWidth: 100,
-  },
-  {
     id: 'otherIncome',
     label: 'Other Income',
     category: 'income',
