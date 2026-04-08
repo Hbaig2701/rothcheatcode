@@ -74,6 +74,10 @@ export function runGrowthFormulaScenario(
   // RMD treatment for remaining IRA balance when conversions don't fully deplete
   const rmdTreatment = client.rmd_treatment ?? 'reinvested';
 
+  // Tax payment source: 'from_ira' means the IRA pays its own taxes
+  // (conversion is grossed down); 'from_taxable' means taxes are paid externally
+  const payTaxFromIRA = client.tax_payment_source === 'from_ira';
+
   // Tax rates
   const maxTaxRate = client.max_tax_rate ?? 24;
   const stateTaxRateDecimal = client.state_tax_rate !== undefined && client.state_tax_rate !== null
@@ -161,6 +165,16 @@ export function runGrowthFormulaScenario(
         );
       }
 
+      // Handle tax payment from IRA (gross-down)
+      // When taxes are paid from IRA, the total IRA withdrawal is (conversion + tax).
+      // To keep the total withdrawal within the target amount, reduce the portion
+      // that actually converts to Roth so there's room for the tax to be paid from the IRA.
+      if (payTaxFromIRA && conversionAmount > 0) {
+        const effectiveRate = maxTaxRate / 100 + stateTaxRateDecimal;
+        conversionAmount = Math.round(conversionAmount * (1 - effectiveRate));
+        conversionAmount = Math.min(conversionAmount, iraAfterRmd);
+      }
+
       // Calculate taxes on conversion
       if (conversionAmount > 0) {
         federalTax = calculateConversionFederalTax(
@@ -179,7 +193,9 @@ export function runGrowthFormulaScenario(
     }
 
     // Execute conversion (on IRA balance already reduced by RMD)
-    const iraAfterConversion = iraAfterRmd - conversionAmount;
+    // When payTaxFromIRA, the IRA also pays the tax, so deduct both from IRA
+    const conversionTaxFromIRA = payTaxFromIRA ? (federalTax + stateTax) : 0;
+    const iraAfterConversion = iraAfterRmd - conversionAmount - conversionTaxFromIRA;
     const rothAfterConversion = boyRoth + conversionAmount;
 
     // Step 2: Calculate interest AFTER conversion
@@ -260,14 +276,21 @@ export function runGrowthFormulaScenario(
     // Taxes paid from external funds (taxable account goes negative)
     const totalTax = federalTax + stateTax + irmaaSurcharge;
 
+    // When payTaxFromIRA, the conversion tax portion was already deducted from
+    // the IRA balance above (via conversionTaxFromIRA). Only the non-conversion
+    // taxes (RMD tax + IRMAA) should reduce the taxable account.
+    const taxFromTaxableAccount = payTaxFromIRA
+      ? Math.max(0, totalTax - conversionTaxFromIRA)
+      : totalTax;
+
     // Cash flow: RMD proceeds flow INTO taxable account (per rmd_treatment)
     // Conversion taxes flow OUT (paid from external funds, reducing taxable balance)
     if (rmdTreatment === 'spent') {
       // RMDs spent on living expenses — don't accumulate
-      taxableBalance = boyTaxable - totalTax;
+      taxableBalance = boyTaxable - taxFromTaxableAccount;
     } else {
       // 'reinvested' or 'cash': RMD proceeds (minus tax attributable to them) go to taxable
-      taxableBalance = boyTaxable + rmdAmount - totalTax;
+      taxableBalance = boyTaxable + rmdAmount - taxFromTaxableAccount;
     }
 
     // Product bonus applied this year (anniversary bonus if within bonus years)
