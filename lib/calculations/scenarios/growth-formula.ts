@@ -1,13 +1,14 @@
 import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
 import { getAgeAtYearOffset } from '../utils/age';
-import { calculateOptimalConversion, calculateConversionFederalTax } from '../modules/federal-tax';
-import { calculateConversionStateTax } from '../modules/state-tax';
+import { calculateOptimalConversion, calculateConversionFederalTax, calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
+import { calculateConversionStateTax, calculateStateTax } from '../modules/state-tax';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { calculateIRMAAWithLookback } from '../modules/irmaa';
 import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier } from '../tax-helpers';
+import { calculateRMD } from '../modules/rmd';
 import { ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
 
 /**
@@ -56,6 +57,23 @@ export function runGrowthFormulaScenario(
   const riderFeePercent = (productConfig?.defaults.riderFee ?? 0) / 100;
   const surrenderYears = client.surrender_years ?? 0;
 
+  // SSI parameters (per spec, SSI is treated as tax-exempt but still displayed)
+  const primarySsStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
+  const primarySsAmount = client.ssi_annual_amount ?? client.ss_self ?? 0;
+  const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
+  const spouseSsAmount = client.spouse_ssi_annual_amount ?? client.ss_spouse ?? 0;
+  const initialSpouseAge = client.spouse_age ?? null;
+  const ssiColaRate = 0.02;
+
+  // Birth year for RMD calculation (SECURE 2.0: RMD age depends on birth year)
+  const currentYear = new Date().getFullYear();
+  const birthYear = client.date_of_birth
+    ? new Date(client.date_of_birth).getFullYear()
+    : currentYear - clientAge;
+
+  // RMD treatment for remaining IRA balance when conversions don't fully deplete
+  const rmdTreatment = client.rmd_treatment ?? 'reinvested';
+
   // Tax rates
   const maxTaxRate = client.max_tax_rate ?? 24;
   const stateTaxRateDecimal = client.state_tax_rate !== undefined && client.state_tax_rate !== null
@@ -81,16 +99,41 @@ export function runGrowthFormulaScenario(
     const boyRoth = rothBalance;
     const boyTaxable = taxableBalance;
 
+    // Primary SSI income (with COLA)
+    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
+    const primarySsIncome = primaryYearsCollecting >= 0
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
+      : 0;
+
+    // Spouse SSI income (with COLA) — MFJ only
+    let spouseSsIncome = 0;
+    if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
+      const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : 0;
+      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
+      spouseSsIncome = spouseYearsCollecting >= 0
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
+        : 0;
+    }
+
+    const ssIncome = primarySsIncome + spouseSsIncome;
+
     // Other income for bracket calculations (year-specific from income table)
     const otherIncome = getNonSSIIncomeForYear(client, year);
 
     // Standard deduction (age-adjusted)
     const deductions = getStandardDeduction(client.filing_status, age, undefined, year);
 
-    // Existing taxable income (before conversion)
-    const existingTaxableIncome = Math.max(0, otherIncome - deductions);
+    // Step 0: Calculate RMD if client is old enough and still has a traditional IRA balance
+    // This handles the case where conversions don't fully deplete the IRA before RMD age
+    const rmdResult = calculateRMD({ age, traditionalBalance: boyIRA, birthYear });
+    const rmdAmount = Math.min(rmdResult.rmdAmount, boyIRA);
+    const iraAfterRmd = boyIRA - rmdAmount;
 
-    // Step 1: Handle Roth conversions BEFORE interest (so conversion is based on BOY balance)
+    // Existing taxable income (RMD + other non-SSI income)
+    // RMD is taxable; SSI is tax-exempt per spec
+    const existingTaxableIncome = Math.max(0, rmdAmount + otherIncome - deductions);
+
+    // Step 1: Handle Roth conversions (on IRA balance AFTER RMD has been taken)
     let conversionAmount = 0;
     let federalTax = 0;
     let stateTax = 0;
@@ -98,19 +141,19 @@ export function runGrowthFormulaScenario(
     const shouldConvert = conversionType !== 'no_conversion' &&
                           age >= conversionStartAge &&
                           age <= conversionEndAge &&
-                          boyIRA > 0;
+                          iraAfterRmd > 0;
 
     if (shouldConvert) {
       // Determine conversion amount based on type
       if (conversionType === 'full_conversion') {
-        conversionAmount = boyIRA;
+        conversionAmount = iraAfterRmd;
       } else if (conversionType === 'fixed_amount' && fixedConversionAmount > 0) {
         // Fixed amount: convert specified amount per year (or remaining balance if less)
-        conversionAmount = Math.min(fixedConversionAmount, boyIRA);
+        conversionAmount = Math.min(fixedConversionAmount, iraAfterRmd);
       } else {
         // optimized_amount: fill up to target bracket ceiling
         conversionAmount = calculateOptimalConversion(
-          boyIRA,
+          iraAfterRmd,
           existingTaxableIncome,
           maxTaxRate,
           client.filing_status,
@@ -135,8 +178,8 @@ export function runGrowthFormulaScenario(
       }
     }
 
-    // Execute conversion
-    const iraAfterConversion = boyIRA - conversionAmount;
+    // Execute conversion (on IRA balance already reduced by RMD)
+    const iraAfterConversion = iraAfterRmd - conversionAmount;
     const rothAfterConversion = boyRoth + conversionAmount;
 
     // Step 2: Calculate interest AFTER conversion
@@ -173,13 +216,35 @@ export function runGrowthFormulaScenario(
     }
 
     // Calculate tax calculation details (needed for IRMAA before totalTax)
-    const totalIncome = conversionAmount + otherIncome;
-    const agi = calculateAGI(totalIncome);
+    // Per spec: SS is tax-exempt (not in taxable income), but IS in MAGI for IRMAA
+    const grossTaxableIncome = conversionAmount + rmdAmount + otherIncome;
+    const totalIncome = grossTaxableIncome + ssIncome; // For display only
+    const agi = calculateAGI(grossTaxableIncome);
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
-    const magi = calculateMAGI(totalIncome, taxExemptNonSSI);
+    const magi = calculateMAGI(grossTaxableIncome, taxExemptNonSSI) + ssIncome;
     const standardDeduction = deductions;
-    const taxableIncome = Math.max(0, totalIncome - standardDeduction);
-    const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status);
+    const taxableIncomeForTax = calculateTaxableIncome(grossTaxableIncome, deductions);
+    const federalTaxBracket = getMarginalBracket(taxableIncomeForTax, client.filing_status);
+
+    // Recalculate federal tax on TOTAL taxable income (RMD + conversion + other)
+    // This replaces the conversion-only tax calculated earlier
+    const totalFederalTax = calculateFederalTax({
+      taxableIncome: taxableIncomeForTax,
+      filingStatus: client.filing_status,
+      taxYear: year,
+    }).totalTax;
+
+    // State tax on total taxable income
+    const totalStateTax = calculateStateTax({
+      taxableIncome: taxableIncomeForTax,
+      state: client.state ?? 'CA',
+      filingStatus: client.filing_status,
+      overrideRate: stateTaxRateDecimal,
+    }).totalTax;
+
+    // Override the conversion-only taxes with full total taxes
+    federalTax = totalFederalTax;
+    stateTax = totalStateTax;
 
     // Store MAGI for IRMAA 2-year lookback
     incomeHistory.set(year, magi);
@@ -194,7 +259,16 @@ export function runGrowthFormulaScenario(
 
     // Taxes paid from external funds (taxable account goes negative)
     const totalTax = federalTax + stateTax + irmaaSurcharge;
-    taxableBalance = boyTaxable - totalTax;
+
+    // Cash flow: RMD proceeds flow INTO taxable account (per rmd_treatment)
+    // Conversion taxes flow OUT (paid from external funds, reducing taxable balance)
+    if (rmdTreatment === 'spent') {
+      // RMDs spent on living expenses — don't accumulate
+      taxableBalance = boyTaxable - totalTax;
+    } else {
+      // 'reinvested' or 'cash': RMD proceeds (minus tax attributable to them) go to taxable
+      taxableBalance = boyTaxable + rmdAmount - totalTax;
+    }
 
     // Product bonus applied this year (anniversary bonus if within bonus years)
     const productBonusApplied = anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears
@@ -206,9 +280,22 @@ export function runGrowthFormulaScenario(
     const rothGrowth = rothInterest;
     const taxableGrowth = 0; // No growth on taxable (just pays taxes)
 
-    // Tax component breakdown (all conversion tax, no SS or ordinary income in Growth FIA)
-    const federalTaxOnConversions = federalTax;
-    const stateTaxOnConversions = stateTax;
+    // Tax component breakdown — split by income source (marginal allocation)
+    // Approach: conversion tax = marginal tax on conversion portion of income
+    // ordinary tax = remaining federal tax (attributable to RMD + other income)
+    const taxOnNonConversionIncome = conversionAmount > 0
+      ? calculateFederalTax({
+          taxableIncome: calculateTaxableIncome(rmdAmount + otherIncome, deductions),
+          filingStatus: client.filing_status,
+          taxYear: year,
+        }).totalTax
+      : federalTax;
+    const federalTaxOnConversions = Math.max(0, federalTax - taxOnNonConversionIncome);
+    const federalTaxOnOrdinaryIncome = taxOnNonConversionIncome;
+    const stateTaxOnConversions = conversionAmount > 0 && grossTaxableIncome > 0
+      ? Math.round(stateTax * (conversionAmount / grossTaxableIncome))
+      : 0;
+    const stateTaxOnOrdinaryIncome = stateTax - stateTaxOnConversions;
 
     results.push({
       year,
@@ -217,9 +304,9 @@ export function runGrowthFormulaScenario(
       traditionalBalance: iraBalance,
       rothBalance,
       taxableBalance,
-      rmdAmount: 0,
+      rmdAmount,
       conversionAmount,
-      ssIncome: 0,
+      ssIncome,
       pensionIncome: 0,
       otherIncome,
       totalIncome,
@@ -243,15 +330,15 @@ export function runGrowthFormulaScenario(
       magi,
       agi,
       standardDeduction,
-      taxableIncome,
+      taxableIncome: taxableIncomeForTax,
       federalTaxBracket,
       irmaaTier,
       federalTaxOnSS: 0,
       federalTaxOnConversions,
-      federalTaxOnOrdinaryIncome: 0,
+      federalTaxOnOrdinaryIncome,
       stateTaxOnSS: 0,
       stateTaxOnConversions,
-      stateTaxOnOrdinaryIncome: 0,
+      stateTaxOnOrdinaryIncome,
     });
   }
 

@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 11; // v11: Rider fee deduction in growth engine
+const PRODUCT_CONFIG_VERSION = 13; // v13: SSI + RMD in growth formula engine
 
 function generateInputHash(client: Client): string {
   const relevantFields = {

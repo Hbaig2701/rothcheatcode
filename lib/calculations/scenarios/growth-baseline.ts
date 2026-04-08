@@ -32,6 +32,14 @@ export function runGrowthBaselineScenario(
   const rothBalance = 0; // No Roth in baseline
   const taxableBalance = 0;
 
+  // SSI parameters (per spec, SSI is tax-exempt but still displayed)
+  const primarySsStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
+  const primarySsAmount = client.ssi_annual_amount ?? client.ss_self ?? 0;
+  const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
+  const spouseSsAmount = client.spouse_ssi_annual_amount ?? client.ss_spouse ?? 0;
+  const initialSpouseAge = client.spouse_age ?? null;
+  const ssiColaRate = 0.02;
+
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
     const age = getAgeAtYearOffset(clientAge, yearOffset);
@@ -45,6 +53,24 @@ export function runGrowthBaselineScenario(
     // End of Year balance
     iraBalance = boyIRA + interest;
 
+    // Primary SSI income (with COLA)
+    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
+    const primarySsIncome = primaryYearsCollecting >= 0
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
+      : 0;
+
+    // Spouse SSI income (with COLA) — MFJ only
+    let spouseSsIncome = 0;
+    if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
+      const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : 0;
+      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
+      spouseSsIncome = spouseYearsCollecting >= 0
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
+        : 0;
+    }
+
+    const ssIncome = primarySsIncome + spouseSsIncome;
+
     results.push({
       year,
       age,
@@ -52,12 +78,12 @@ export function runGrowthBaselineScenario(
       traditionalBalance: iraBalance,
       rothBalance: 0,
       taxableBalance: 0,
-      rmdAmount: 0, // No RMDs in Growth FIA baseline
+      rmdAmount: 0, // No RMDs in Growth FIA baseline (money stays in annuity until death)
       conversionAmount: 0, // No conversions in baseline
-      ssIncome: 0,
+      ssIncome,
       pensionIncome: 0,
       otherIncome: 0,
-      totalIncome: 0,
+      totalIncome: ssIncome, // Only SSI flows as income in baseline
       federalTax: 0, // No taxes during accumulation
       stateTax: 0,
       niitTax: 0,

@@ -304,6 +304,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             label={rmdTreatment === 'spent' ? "After-Tax Distributions" : "Gross Distributions"}
             baseline={rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs}
             strategy={0}
+            invertColor={rmdTreatment !== 'spent'}
             infoContent={
               <DistributionsInfo
                 client={client}
