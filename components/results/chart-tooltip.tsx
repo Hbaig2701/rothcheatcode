@@ -38,7 +38,7 @@ export function ChartTooltip({
         <div className="flex justify-between gap-6">
           <span className="text-[#F5B800] flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#F5B800]"></span>
-            Formula:
+            Strategy:
           </span>
           <span className="font-mono text-foreground">{formatCurrency(formula?.value ?? 0)}</span>
         </div>

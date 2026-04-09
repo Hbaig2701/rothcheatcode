@@ -21,9 +21,9 @@ export function SummarySection({ metrics }: SummarySectionProps) {
         className="border-gray-300"
       />
 
-      {/* Formula card - highlighted with blue border */}
+      {/* Strategy card - highlighted with blue border */}
       <StatCard
-        title="Formula Ending Wealth"
+        title="Strategy Ending Wealth"
         value={metrics.formulaEndWealth}
         prefix="$"
         trend={metrics.difference >= 0 ? 'up' : 'down'}

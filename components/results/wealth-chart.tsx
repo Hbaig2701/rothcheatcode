@@ -70,11 +70,11 @@ export function WealthChart({ data, breakEvenAge }: WealthChartProps) {
             domain={[0, 'auto']}
           />
           <Tooltip content={<ChartTooltip />} />
-          {/* Formula line - gold (Roth = no heir tax = higher wealth) */}
+          {/* Strategy line - gold (Roth = no heir tax = higher wealth) */}
           <Line
             type="monotone"
             dataKey="formula"
-            name="Formula Wealth Trajectory"
+            name="Strategy Wealth Trajectory"
             stroke="#F5B800"
             strokeWidth={3}
             dot={false}

@@ -353,65 +353,82 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           </div>
         )}
 
-        {/* Penalty-Free Withdrawal Warning */}
+        {/* Penalty-Free Withdrawal Warning — collapsed by default */}
         {penaltyFreeViolations.length > 0 && (
-          <div className="bg-[rgba(250,204,21,0.06)] border border-[rgba(250,204,21,0.25)] rounded-[14px] p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="shrink-0 mt-0.5 w-8 h-8 rounded-full bg-[rgba(250,204,21,0.15)] flex items-center justify-center">
+          <details className="group bg-[rgba(250,204,21,0.06)] border border-[rgba(250,204,21,0.25)] rounded-[14px]">
+            <summary className="flex items-center gap-3 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden p-6">
+              <div className="shrink-0 w-8 h-8 rounded-full bg-[rgba(250,204,21,0.15)] flex items-center justify-center">
                 <span className="text-base">⚠️</span>
               </div>
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-semibold text-foreground">
                   Penalty-Free Withdrawal Limit Exceeded
+                  <span className="ml-2 text-xs font-normal text-text-muted">
+                    ({penaltyFreeViolations.length} year{penaltyFreeViolations.length !== 1 ? "s" : ""} &middot; Est. {toUSD(penaltyFreeViolations.reduce((s, v) => s + v.estimatedCharge, 0))} in charges)
+                  </span>
                 </p>
-                <p className="text-xs text-text-muted mt-1">
-                  The following conversions exceed the {client.penalty_free_percent ?? 10}% annual penalty-free withdrawal allowance during the surrender period.
-                  Surrender charges may apply to the excess amount.
+                <p className="text-xs text-text-muted mt-0.5">
+                  Click to view details
                 </p>
               </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-[rgba(250,204,21,0.2)]">
-                    <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Year</th>
-                    <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Age</th>
-                    <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Conversion</th>
-                    <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Penalty-Free Limit</th>
-                    <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Excess</th>
-                    <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Surrender %</th>
-                    <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Est. Charge</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {penaltyFreeViolations.map((v) => (
-                    <tr key={v.year} className="border-b border-border-default/30">
-                      <td className="py-2 px-3 font-mono text-text-dim">{v.year}</td>
-                      <td className="py-2 px-3 text-text-dim">{v.age}</td>
-                      <td className="py-2 px-3 font-mono text-right text-foreground">{toUSD(v.conversion)}</td>
-                      <td className="py-2 px-3 font-mono text-right text-green">{toUSD(v.limit)}</td>
-                      <td className="py-2 px-3 font-mono text-right text-red">{toUSD(v.excess)}</td>
-                      <td className="py-2 px-3 font-mono text-right text-text-muted">{v.chargePercent}%</td>
-                      <td className="py-2 px-3 font-mono text-right text-red font-medium">{toUSD(v.estimatedCharge)}</td>
+              <svg
+                className="size-5 text-foreground/50 transition-transform group-open:rotate-180 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </summary>
+            <div className="px-6 pb-6 pt-0">
+              <p className="text-xs text-text-muted mb-4">
+                The following conversions exceed the {client.penalty_free_percent ?? 10}% annual penalty-free withdrawal allowance during the surrender period.
+                Surrender charges may apply to the excess amount.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[rgba(250,204,21,0.2)]">
+                      <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Year</th>
+                      <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Age</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Conversion</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Penalty-Free Limit</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Excess</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Surrender %</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Est. Charge</th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-[rgba(250,204,21,0.3)]">
-                    <td className="py-3 px-3 text-xs font-semibold text-text-muted uppercase tracking-wider" colSpan={2}>Total</td>
-                    <td className="py-3 px-3 font-mono text-right text-foreground font-semibold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.conversion, 0))}</td>
-                    <td className="py-3 px-3 font-mono text-right text-green font-semibold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.limit, 0))}</td>
-                    <td className="py-3 px-3 font-mono text-right text-red font-semibold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.excess, 0))}</td>
-                    <td className="py-3 px-3"></td>
-                    <td className="py-3 px-3 font-mono text-right text-red font-bold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.estimatedCharge, 0))}</td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </thead>
+                  <tbody>
+                    {penaltyFreeViolations.map((v) => (
+                      <tr key={v.year} className="border-b border-border-default/30">
+                        <td className="py-2 px-3 font-mono text-text-dim">{v.year}</td>
+                        <td className="py-2 px-3 text-text-dim">{v.age}</td>
+                        <td className="py-2 px-3 font-mono text-right text-foreground">{toUSD(v.conversion)}</td>
+                        <td className="py-2 px-3 font-mono text-right text-green">{toUSD(v.limit)}</td>
+                        <td className="py-2 px-3 font-mono text-right text-red">{toUSD(v.excess)}</td>
+                        <td className="py-2 px-3 font-mono text-right text-text-muted">{v.chargePercent}%</td>
+                        <td className="py-2 px-3 font-mono text-right text-red font-medium">{toUSD(v.estimatedCharge)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-[rgba(250,204,21,0.3)]">
+                      <td className="py-3 px-3 text-xs font-semibold text-text-muted uppercase tracking-wider" colSpan={2}>Total</td>
+                      <td className="py-3 px-3 font-mono text-right text-foreground font-semibold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.conversion, 0))}</td>
+                      <td className="py-3 px-3 font-mono text-right text-green font-semibold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.limit, 0))}</td>
+                      <td className="py-3 px-3 font-mono text-right text-red font-semibold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.excess, 0))}</td>
+                      <td className="py-3 px-3"></td>
+                      <td className="py-3 px-3 font-mono text-right text-red font-bold">{toUSD(penaltyFreeViolations.reduce((s, v) => s + v.estimatedCharge, 0))}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <p className="text-xs text-text-dimmer mt-3 italic">
+                Consider adjusting conversion amounts or using a fixed conversion within the penalty-free limit to avoid surrender charges.
+              </p>
             </div>
-            <p className="text-xs text-text-dimmer mt-3 italic">
-              Consider adjusting conversion amounts or using a fixed conversion within the penalty-free limit to avoid surrender charges.
-            </p>
-          </div>
+          </details>
         )}
 
         {/* Section 4: Legacy to Heirs Chart */}

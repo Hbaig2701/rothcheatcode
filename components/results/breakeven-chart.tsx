@@ -110,11 +110,11 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
               activeDot={{ r: 6 }}
             />
 
-            {/* Formula line - gold */}
+            {/* Strategy line - gold */}
             <Line
               type="monotone"
               dataKey="formula"
-              name="Formula (Roth Conversion)"
+              name="Strategy (Roth Conversion)"
               stroke="#F5B800"
               strokeWidth={3}
               dot={false}

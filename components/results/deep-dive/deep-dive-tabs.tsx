@@ -25,7 +25,7 @@ type TabValue = 'summary' | 'baseline' | 'formula' | 'schedule';
 const TABS: { value: TabValue; label: string }[] = [
   { value: 'summary', label: 'Summary' },
   { value: 'baseline', label: 'Baseline' },
-  { value: 'formula', label: 'Formula' },
+  { value: 'formula', label: 'Strategy' },
   { value: 'schedule', label: 'Schedule' },
 ];
 

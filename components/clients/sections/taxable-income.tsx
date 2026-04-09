@@ -33,41 +33,43 @@ export function TaxableIncomeSection() {
 
   return (
     <FormSection title="5. Taxable Income Calculation">
-      {/* Client SSI Block */}
-      <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Client SSI</h3>
-      <div className="grid grid-cols-2 gap-3 mb-2">
-        <Field data-invalid={!!form.formState.errors.ssi_payout_age}>
-          <FieldLabel htmlFor="ssi_payout_age">Next Payout Age</FieldLabel>
-          <Input
-            id="ssi_payout_age"
-            type="number"
-            min={62}
-            max={70}
-            {...form.register("ssi_payout_age", { valueAsNumber: true })}
-            aria-invalid={!!form.formState.errors.ssi_payout_age}
-          />
-          <FieldError errors={[form.formState.errors.ssi_payout_age]} />
-        </Field>
+      {/* Client SSI Block — spans full width of parent grid */}
+      <div className="sm:col-span-2 lg:col-span-3">
+        <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Client SSI</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <Field data-invalid={!!form.formState.errors.ssi_payout_age}>
+            <FieldLabel htmlFor="ssi_payout_age">Next Payout Age</FieldLabel>
+            <Input
+              id="ssi_payout_age"
+              type="number"
+              min={62}
+              max={70}
+              {...form.register("ssi_payout_age", { valueAsNumber: true })}
+              aria-invalid={!!form.formState.errors.ssi_payout_age}
+            />
+            <FieldError errors={[form.formState.errors.ssi_payout_age]} />
+          </Field>
 
-        <Controller
-          name="ssi_annual_amount"
-          control={form.control}
-          render={({ field: { ref, ...field }, fieldState }) => (
-            <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="ssi_annual_amount">Annual Amount</FieldLabel>
-              <CurrencyInput
-                {...field}
-                aria-invalid={fieldState.invalid}
-              />
-              <FieldError errors={[fieldState.error]} />
-            </Field>
-          )}
-        />
+          <Controller
+            name="ssi_annual_amount"
+            control={form.control}
+            render={({ field: { ref, ...field }, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="ssi_annual_amount">Annual Amount</FieldLabel>
+                <CurrencyInput
+                  {...field}
+                  aria-invalid={fieldState.invalid}
+                />
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+        </div>
       </div>
 
-      {/* Spouse SSI Block (Conditional) */}
+      {/* Spouse SSI Block (Conditional) — spans full width */}
       {isMarried && (
-        <div className="animate-in fade-in slide-in-from-top-1 mb-4">
+        <div className="sm:col-span-2 lg:col-span-3 animate-in fade-in slide-in-from-top-1">
           <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Spouse SSI</h3>
           <div className="grid grid-cols-2 gap-3">
             <Field data-invalid={!!form.formState.errors.spouse_ssi_payout_age}>
@@ -101,8 +103,8 @@ export function TaxableIncomeSection() {
         </div>
       )}
 
-      {/* Non-SSI Income Table */}
-      <div className="col-span-full pt-2">
+      {/* Non-SSI Income Table — spans full width */}
+      <div className="sm:col-span-2 lg:col-span-3 pt-2">
         <IncomeTable />
       </div>
     </FormSection>

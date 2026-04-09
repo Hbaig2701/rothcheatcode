@@ -1,9 +1,57 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, Video, Sun, PenTool, FileText } from 'lucide-react'
+import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield } from 'lucide-react'
 
 const updates = [
+  {
+    id: '11',
+    date: 'April 9, 2026',
+    title: 'Penalty-Free Withdrawal Warnings',
+    description: 'The report now flags years where Roth conversions exceed the annuity\'s penalty-free withdrawal allowance during the surrender period. A collapsible warning section shows each affected year, the excess amount, the applicable surrender charge percentage, and the estimated charge.\n\nThis helps you quickly spot potential surrender penalties and adjust conversion amounts accordingly.',
+    category: 'Enhancement',
+    icon: Shield,
+  },
+  {
+    id: '10',
+    date: 'April 9, 2026',
+    title: 'Story Mode Print & PDF Export',
+    description: 'You can now print or save the Story Mode narrative report as a PDF directly from your browser. Click the print icon at the top of the story view to generate a clean, client-ready document that walks through the retirement strategy in plain English.\n\nPerfect for handing off to clients who prefer a written summary over tables and charts.',
+    category: 'New Feature',
+    icon: Printer,
+  },
+  {
+    id: '9',
+    date: 'April 8, 2026',
+    title: 'Customizable PDF Report Sections',
+    description: 'When exporting a PDF report, you now get a checklist to pick exactly which tables to include. Choose from 6 sections: Baseline Income Projection, Strategy Income Projection, Tax-Free Roth Growth, Conversion Cost & Payback, Legacy Comparison, and RMD Avoidance.\n\nThis lets you tailor each report to the conversation you\'re having with a specific client, rather than overwhelming them with every table.',
+    category: 'New Feature',
+    icon: FileCheck,
+  },
+  {
+    id: '8',
+    date: 'April 7, 2026',
+    title: 'Recurring Income Fill',
+    description: 'Tired of adding non-SSI income entries one year at a time? The new "Recurring" button lets you bulk-fill income from now until a target age with a single click. Set the annual gross taxable and tax-exempt amounts, pick an end age, and hit Fill.\n\nExisting entries outside the range are preserved, so you can layer recurring income on top of one-off entries.',
+    category: 'Enhancement',
+    icon: DollarSign,
+  },
+  {
+    id: '7',
+    date: 'April 5, 2026',
+    title: 'Multi-Scenario Support & Client Duplication',
+    description: 'You can now duplicate any client to quickly model different strategies side by side. Change the conversion type, tax rate ceiling, or product preset on the copy and compare the projections without losing your original scenario.\n\nGreat for showing clients the impact of aggressive vs. conservative Roth conversion approaches.',
+    category: 'New Feature',
+    icon: Copy,
+  },
+  {
+    id: '6',
+    date: 'April 3, 2026',
+    title: 'Client Intake Questionnaire',
+    description: 'Generate a shareable link that your clients can use to submit their financial details directly into the platform. The intake form collects everything needed to build a projection — account balances, filing status, Social Security, and more.\n\nOnce submitted, a new client record is automatically created and ready for you to review and run scenarios on. No more back-and-forth data collection over email.',
+    category: 'New Feature',
+    icon: Users,
+  },
   {
     id: '5',
     date: 'March 31, 2026',

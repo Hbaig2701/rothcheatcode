@@ -578,7 +578,7 @@ export function GIYearOverYearTables({
                 scenario === "formula" ? "text-[#F5B800]" : "text-[#A0A0A0]"
               )}
             >
-              Formula
+              Strategy
             </span>
           </label>
         </div>

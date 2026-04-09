@@ -23,9 +23,12 @@ export function IncomeTable() {
   const currentYear = new Date().getFullYear();
 
   const [showRecurring, setShowRecurring] = useState(false);
-  const [recurringEndAge, setRecurringEndAge] = useState(endAge);
+  const [recurringEndAgeStr, setRecurringEndAgeStr] = useState(String(endAge));
   const [recurringGross, setRecurringGross] = useState<number | null>(null);
   const [recurringExempt, setRecurringExempt] = useState<number | null>(null);
+  const [recurringError, setRecurringError] = useState<string | null>(null);
+
+  const recurringEndAge = parseInt(recurringEndAgeStr) || 0;
 
   // Helper to calculate age string for a given year
   const calculateAgeStr = (targetYear: number) => {
@@ -55,7 +58,16 @@ export function IncomeTable() {
   const applyRecurring = () => {
     const startYear = currentYear;
     const yearsToFill = recurringEndAge - currentAge;
-    if (yearsToFill <= 0) return;
+
+    if (recurringEndAge <= currentAge) {
+      setRecurringError(`Must be greater than client's current age (${currentAge})`);
+      return;
+    }
+    if (recurringEndAge > 120) {
+      setRecurringError("Age cannot exceed 120");
+      return;
+    }
+    setRecurringError(null);
 
     const gross = recurringGross ?? 0;
     const exempt = recurringExempt ?? 0;
@@ -120,12 +132,16 @@ export function IncomeTable() {
               <label className="text-xs text-muted-foreground">Until Age</label>
               <Input
                 type="number"
-                min={currentAge + 1}
-                max={120}
-                value={recurringEndAge}
-                onChange={(e) => setRecurringEndAge(parseInt(e.target.value) || endAge)}
-                className="h-8"
+                value={recurringEndAgeStr}
+                onChange={(e) => {
+                  setRecurringEndAgeStr(e.target.value);
+                  setRecurringError(null);
+                }}
+                className={`h-8 ${recurringError ? "border-destructive" : ""}`}
               />
+              {recurringError && (
+                <p className="text-xs text-destructive">{recurringError}</p>
+              )}
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Annual Gross Taxable</label>
@@ -146,7 +162,7 @@ export function IncomeTable() {
           </div>
           <div className="flex gap-2 pt-1">
             <Button type="button" size="sm" onClick={applyRecurring} className="bg-gold hover:bg-primary/90 text-primary-foreground">
-              Fill {recurringEndAge - currentAge + 1} years
+              {recurringEndAge > currentAge ? `Fill ${recurringEndAge - currentAge + 1} years` : "Fill"}
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={() => setShowRecurring(false)}>
               Cancel
