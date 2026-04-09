@@ -134,12 +134,15 @@ export function TaxDataSection() {
         control={form.control}
         render={({ field: { ref, ...field }, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="tax_rate">Tax Rate</FieldLabel>
+            <FieldLabel htmlFor="tax_rate">Current Bracket (informational)</FieldLabel>
             <PercentInput
               {...field}
               aria-invalid={fieldState.invalid}
             />
-            <FieldDescription>Current federal tax rate</FieldDescription>
+            <FieldDescription>
+              Client&apos;s current marginal federal bracket. For reference only — not used in
+              the projection math. The Max Tax Rate below is what drives conversion decisions.
+            </FieldDescription>
             <FieldError errors={[fieldState.error]} />
           </Field>
         )}

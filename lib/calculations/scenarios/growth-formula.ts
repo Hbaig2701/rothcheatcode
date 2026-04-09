@@ -6,7 +6,7 @@ import { calculateConversionStateTax, calculateStateTax } from '../modules/state
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
-import { calculateIRMAAWithLookback } from '../modules/irmaa';
+import { calculateIRMAAWithLookback, calculateIRMAAHeadroom } from '../modules/irmaa';
 import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier } from '../tax-helpers';
 import { calculateRMD } from '../modules/rmd';
 import { ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
@@ -36,11 +36,22 @@ export function runGrowthFormulaScenario(
   const results: YearlyResult[] = [];
 
   const clientAge = client.age ?? 62;
-  const growthRate = (client.rate_of_return ?? 7) / 100;
+  const contractRate = (client.rate_of_return ?? 7) / 100;
+  // Post-contract rate: rate applied after the surrender period ends.
+  // Defaults to the contract rate if not set (renewal rate assumption).
+  const postContractRate = ((client.post_contract_rate ?? client.rate_of_return ?? 7)) / 100;
 
   // Apply upfront premium bonus at issue
   const bonusPercent = client.bonus_percent ?? 0;
   const initialValue = client.qualified_account_value ?? 0;
+  // Principal protection floor: if enabled, the annuity AV can never drop
+  // below the initial premium (less any cumulative withdrawals/conversions).
+  // This is the standard FIA principal-protection guarantee.
+  const protectInitialPremium = client.protect_initial_premium === true;
+  // Industry standard FIA guarantee protects premium + upfront bonus, not just
+  // the pre-bonus deposit. This matches the iraBalance starting value below.
+  const initialPremium = Math.round(initialValue * (1 + bonusPercent / 100));
+  let cumulativeWithdrawn = 0; // conversions + RMDs + taxes taken from IRA
   let iraBalance = Math.round(initialValue * (1 + bonusPercent / 100));
   let rothBalance = 0;
   let taxableBalance = 0; // Track taxes paid externally
@@ -123,6 +134,9 @@ export function runGrowthFormulaScenario(
 
     // Other income for bracket calculations (year-specific from income table)
     const otherIncome = getNonSSIIncomeForYear(client, year);
+    // Tax-exempt non-SSI income (hoisted so it can be reused by the IRMAA
+    // constraint block below without recomputing).
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
     // Standard deduction (age-adjusted)
     const deductions = getStandardDeduction(client.filing_status, age, undefined, year);
@@ -147,10 +161,40 @@ export function runGrowthFormulaScenario(
                           age <= conversionEndAge &&
                           iraAfterRmd > 0;
 
+    // Flag: when we've already solved the from-IRA tax math exactly (e.g. for
+    // full_conversion), skip the generic gross-down below to avoid shrinking
+    // the conversion twice.
+    let skipGrossDown = false;
+
     if (shouldConvert) {
       // Determine conversion amount based on type
       if (conversionType === 'full_conversion') {
-        conversionAmount = iraAfterRmd;
+        if (payTaxFromIRA) {
+          // Special case: "empty the IRA" when taxes are paid from the IRA.
+          // We want conversion + tax = iraAfterRmd. The generic gross-down
+          // uses maxTaxRate as an upper bound and leaves a remainder because
+          // real marginal tax is lower. Solve iteratively using the actual
+          // tax calculation (converges in 2-3 iterations).
+          let solved = iraAfterRmd * (1 - (maxTaxRate / 100 + stateTaxRateDecimal));
+          for (let i = 0; i < 4; i++) {
+            const fTax = calculateConversionFederalTax(
+              solved,
+              existingTaxableIncome,
+              client.filing_status,
+              year
+            );
+            const sTax = calculateConversionStateTax(
+              solved,
+              client.state,
+              stateTaxRateDecimal
+            );
+            solved = iraAfterRmd - fTax - sTax;
+          }
+          conversionAmount = Math.max(0, Math.round(solved));
+          skipGrossDown = true;
+        } else {
+          conversionAmount = iraAfterRmd;
+        }
       } else if (conversionType === 'fixed_amount' && fixedConversionAmount > 0) {
         // Fixed amount: convert specified amount per year (or remaining balance if less)
         conversionAmount = Math.min(fixedConversionAmount, iraAfterRmd);
@@ -165,11 +209,40 @@ export function runGrowthFormulaScenario(
         );
       }
 
+      // IRMAA threshold constraint (applies to ALL conversion methods as a
+      // global ceiling). When enabled AND client is 63+, cap conversion so
+      // MAGI doesn't push into a higher IRMAA tier. IRMAA uses a 2-year
+      // lookback and kicks in at 65, so conversions at 63+ are the ones that
+      // matter. Before 63, no IRMAA constraint.
+      if (client.constraint_type === 'irmaa_threshold' && age >= 63 && conversionAmount > 0) {
+        // All values here are in CENTS (engine operates in cents throughout).
+        // Pre-conversion MAGI = baseline taxable + tax-exempt + SSI (no conversion yet)
+        const preConversionGrossTaxable = rmdAmount + otherIncome;
+        const preConversionMagi =
+          calculateMAGI(preConversionGrossTaxable, taxExemptNonSSI) +
+          primarySsIncome + spouseSsIncome;
+
+        const irmaaHeadroom = calculateIRMAAHeadroom(
+          preConversionMagi,
+          client.filing_status,
+          year
+        );
+
+        // If headroom is Infinity, client is past the top IRMAA tier —
+        // further conversions don't increase IRMAA, so don't cap.
+        if (Number.isFinite(irmaaHeadroom) && irmaaHeadroom > 0) {
+          // Leave 1-cent buffer since IRMAA uses cliff thresholds.
+          const irmaaCap = Math.max(0, irmaaHeadroom - 1);
+          conversionAmount = Math.min(conversionAmount, irmaaCap);
+        }
+      }
+
       // Handle tax payment from IRA (gross-down)
       // When taxes are paid from IRA, the total IRA withdrawal is (conversion + tax).
       // To keep the total withdrawal within the target amount, reduce the portion
       // that actually converts to Roth so there's room for the tax to be paid from the IRA.
-      if (payTaxFromIRA && conversionAmount > 0) {
+      // Skip when full_conversion already solved this exactly above.
+      if (payTaxFromIRA && conversionAmount > 0 && !skipGrossDown) {
         const effectiveRate = maxTaxRate / 100 + stateTaxRateDecimal;
         conversionAmount = Math.round(conversionAmount * (1 - effectiveRate));
         conversionAmount = Math.min(conversionAmount, iraAfterRmd);
@@ -198,9 +271,22 @@ export function runGrowthFormulaScenario(
     const iraAfterConversion = iraAfterRmd - conversionAmount - conversionTaxFromIRA;
     const rothAfterConversion = boyRoth + conversionAmount;
 
-    // Step 2: Calculate interest AFTER conversion
-    const iraInterest = Math.round(iraAfterConversion * growthRate);
-    const rothInterest = Math.round(rothAfterConversion * growthRate);
+    // Track cumulative withdrawals for the principal protection floor
+    cumulativeWithdrawn += rmdAmount + conversionAmount + conversionTaxFromIRA;
+
+    // Step 2: Calculate interest AFTER conversion.
+    // IRA (annuity) uses contract rate during the surrender period and the
+    // post-contract (renewal) rate afterward. When there's no surrender period
+    // configured, the contract rate applies forever (can't switch to renewal
+    // if there's no contract to expire).
+    // Roth is not part of the annuity — once converted, money lives in a
+    // standard Roth IRA and should always grow at the main `rate_of_return`,
+    // regardless of where the annuity is in its lifecycle.
+    const iraGrowthRate = surrenderYears === 0 || yearOffset < surrenderYears
+      ? contractRate
+      : postContractRate;
+    const iraInterest = Math.round(iraAfterConversion * iraGrowthRate);
+    const rothInterest = Math.round(rothAfterConversion * contractRate);
 
     // Update balances
     iraBalance = iraAfterConversion + iraInterest;
@@ -221,6 +307,20 @@ export function runGrowthFormulaScenario(
       iraBalance = iraBalance + anniversaryBonusAmount;
     }
 
+    // Step 3.5: Principal protection floor (FIA guarantee).
+    // The AV cannot fall below the initial premium minus any withdrawals taken.
+    // Applies for the life of the contract. We model this as the entire
+    // projection for simplicity — in practice the floor rarely binds because
+    // FIAs credit 0% on down years, but it protects against rider fees eating
+    // principal. Without this, a config with surrender_years=0 would silently
+    // skip the guarantee entirely.
+    if (protectInitialPremium) {
+      const protectedFloor = Math.max(0, initialPremium - cumulativeWithdrawn);
+      if (iraBalance < protectedFloor) {
+        iraBalance = protectedFloor;
+      }
+    }
+
     // Step 4: Calculate surrender value on IRA (annuity AV)
     let surrenderChargePercent: number | undefined;
     let surrenderValue: number | undefined;
@@ -233,10 +333,16 @@ export function runGrowthFormulaScenario(
 
     // Calculate tax calculation details (needed for IRMAA before totalTax)
     // Per spec: SS is tax-exempt (not in taxable income), but IS in MAGI for IRMAA
+    //
+    // KNOWN LIMITATION: when tax_payment_source='from_ira', the tax portion
+    // withdrawn from the IRA is itself ordinary income but is NOT added here.
+    // This slightly understates reported MAGI and future IRMAA lookback values
+    // by the tax-on-tax amount (~$500-1000/year). Fixing it properly requires
+    // iterative re-calculation of tax on (conversion + tax), which risks
+    // destabilizing other numbers. Revisit when engine tests exist.
     const grossTaxableIncome = conversionAmount + rmdAmount + otherIncome;
     const totalIncome = grossTaxableIncome + ssIncome; // For display only
     const agi = calculateAGI(grossTaxableIncome);
-    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
     const magi = calculateMAGI(grossTaxableIncome, taxExemptNonSSI) + ssIncome;
     const standardDeduction = deductions;
     const taxableIncomeForTax = calculateTaxableIncome(grossTaxableIncome, deductions);

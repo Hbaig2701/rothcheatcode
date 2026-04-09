@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 14; // v14: tax_payment_source (from_ira) now works in growth engine
+const PRODUCT_CONFIG_VERSION = 20; // v20: revert phantom "IRMAA unit mismatch" fixes — engine operates in cents throughout, earlier "fix" broke the cap
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
@@ -47,6 +47,11 @@ function generateInputHash(client: Client): string {
     years_to_defer_conversion: client.years_to_defer_conversion,
     heir_tax_rate: client.heir_tax_rate,
     rmd_treatment: client.rmd_treatment,
+    // Previously missing — caused stale cache when these fields changed
+    tax_payment_source: client.tax_payment_source,
+    state_tax_rate: client.state_tax_rate,
+    gross_taxable_non_ssi: client.gross_taxable_non_ssi,
+    tax_exempt_non_ssi: client.tax_exempt_non_ssi,
     // Legacy fields (kept for backwards compatibility)
     traditional_ira: client.traditional_ira,
     roth_ira: client.roth_ira,

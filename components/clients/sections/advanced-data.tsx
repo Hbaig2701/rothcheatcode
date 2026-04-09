@@ -121,7 +121,12 @@ export function AdvancedDataSection() {
                     {...field}
                     aria-invalid={fieldState.invalid}
                   />
-                  <FieldDescription>Return rate after contract period ends</FieldDescription>
+                  <FieldDescription>
+                    Annuity renewal rate applied after the surrender period ends.
+                    Only affects the strategy projection (the annuity&apos;s account value) —
+                    the baseline &quot;do nothing&quot; IRA continues to grow at its own rate.
+                    Defaults to the main Rate of Return if left blank.
+                  </FieldDescription>
                   <FieldError errors={[fieldState.error]} />
                 </Field>
               )}

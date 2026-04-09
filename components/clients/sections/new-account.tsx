@@ -217,7 +217,7 @@ export function NewAccountSection() {
         </Field>
       )}
 
-      {/* Surrender Schedule - Editable list of surrender charge percentages */}
+      {/* Surrender Schedule - Collapsible to save form real estate */}
       {form.watch("surrender_schedule") != null && (
         <Controller
           name="surrender_schedule"
@@ -227,28 +227,48 @@ export function NewAccountSection() {
             if (!schedule || schedule.length === 0) return <></>;
             return (
               <Field>
-                <FieldLabel>Surrender Schedule</FieldLabel>
-                <div className="grid grid-cols-5 gap-2">
-                  {schedule.map((charge, idx) => (
-                    <div key={idx} className="flex flex-col items-center gap-1">
-                      <span className="text-xs text-muted-foreground">Yr {idx + 1}</span>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        min="0"
-                        max="100"
-                        value={charge}
-                        onChange={(e) => {
-                          const newSchedule = [...schedule];
-                          newSchedule[idx] = parseFloat(e.target.value) || 0;
-                          field.onChange(newSchedule);
-                        }}
-                        className="text-center text-xs h-8 px-1"
-                      />
+                <details className="group border rounded-md">
+                  <summary className="flex items-center justify-between cursor-pointer px-3 py-2 text-sm font-medium select-none list-none [&::-webkit-details-marker]:hidden hover:bg-muted/50 rounded-md">
+                    <span className="flex items-center gap-2">
+                      Surrender Schedule
+                      <span className="text-xs text-muted-foreground font-normal">
+                        ({schedule.length} yrs)
+                      </span>
+                    </span>
+                    <svg
+                      className="size-4 text-muted-foreground transition-transform group-open:rotate-180"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </summary>
+                  <div className="px-3 pb-3 pt-1 space-y-2">
+                    <div className="grid grid-cols-5 gap-2">
+                      {schedule.map((charge, idx) => (
+                        <div key={idx} className="flex flex-col items-center gap-1">
+                          <span className="text-xs text-muted-foreground">Yr {idx + 1}</span>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={charge}
+                            onChange={(e) => {
+                              const newSchedule = [...schedule];
+                              newSchedule[idx] = parseFloat(e.target.value) || 0;
+                              field.onChange(newSchedule);
+                            }}
+                            className="text-center text-xs h-8 px-1"
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-                <FieldDescription>Surrender charge % for each policy year (0% = no charge)</FieldDescription>
+                    <FieldDescription>Surrender charge % for each policy year (0% = no charge)</FieldDescription>
+                  </div>
+                </details>
               </Field>
             );
           }}

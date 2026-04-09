@@ -122,9 +122,11 @@ export function AdvancedFeaturesSection({
         {/* Fallback for disabled/missing data */}
         {activeTab === 'sensitivity' && !analysis?.sensitivity && (
           <div className="text-center py-12 text-muted-foreground">
-            <p>Sensitivity analysis not enabled for this client.</p>
+            <p>Sensitivity analysis not available.</p>
             <p className="text-sm mt-2">
-              Enable &quot;Run sensitivity analysis&quot; in Advanced Options to see scenario comparisons.
+              Requires &quot;Run sensitivity analysis&quot; enabled in Advanced Options.
+              Not currently supported for FIA or Guaranteed Income products —
+              the underlying analyzer does not yet model product-specific features.
             </p>
           </div>
         )}
@@ -133,8 +135,10 @@ export function AdvancedFeaturesSection({
           <div className="text-center py-12 text-muted-foreground">
             <p>Widow&apos;s penalty analysis not available.</p>
             <p className="text-sm mt-2">
-              This analysis is only available for Married Filing Jointly clients
-              with &quot;Widow analysis&quot; enabled.
+              Requires Married Filing Jointly and &quot;Widow analysis&quot; enabled.
+              Not currently supported for FIA or Guaranteed Income products —
+              the underlying analyzer does not yet model product-specific features
+              like bonuses, surrender periods, or income riders.
             </p>
           </div>
         )}

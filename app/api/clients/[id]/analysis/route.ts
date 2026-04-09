@@ -4,8 +4,9 @@ import type { Client } from '@/lib/types/client';
 import { analyzeBreakEven } from '@/lib/calculations/analysis/breakeven';
 import { runSensitivityAnalysis } from '@/lib/calculations/analysis/sensitivity';
 import { analyzeWidowPenalty } from '@/lib/calculations/analysis/widow-penalty';
-import { runSimulation, createSimulationInput } from '@/lib/calculations/engine';
+import { runSimulation, createSimulationInput, runGrowthSimulation, runGuaranteedIncomeSimulation } from '@/lib/calculations';
 import { logCalculation } from '@/lib/audit/log';
+import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/lib/config/products';
 import type { BreakEvenAnalysis, SensitivityResult, WidowAnalysisResult } from '@/lib/calculations/analysis/types';
 
 interface AnalysisResponse {
@@ -51,9 +52,20 @@ export async function GET(
   // Track calculation time for audit
   const startTime = performance.now();
 
-  // Run base simulation for breakeven analysis
+  // Dispatch to the correct engine based on product type so breakeven,
+  // sensitivity and widow analysis all see the same numbers as the main
+  // projection. Previously this always used runSimulation (legacy engine),
+  // which produced misleading numbers for Growth FIA and GI products.
   const simulationInput = createSimulationInput(typedClient);
-  const baseResult = runSimulation(simulationInput);
+  const formulaType = typedClient.blueprint_type as FormulaType;
+  const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
+  const isGrowth = formulaType && isGrowthProduct(formulaType);
+
+  const baseResult = isGI
+    ? runGuaranteedIncomeSimulation(simulationInput)
+    : isGrowth
+      ? runGrowthSimulation(simulationInput)
+      : runSimulation(simulationInput);
 
   const response: AnalysisResponse = {
     breakeven: null,
@@ -61,18 +73,26 @@ export async function GET(
     widow: null,
   };
 
-  // Always compute breakeven analysis
+  // Breakeven analysis — operates on whichever engine's baseline/formula we ran
   response.breakeven = analyzeBreakEven(baseResult.baseline, baseResult.formula);
 
-  // Run sensitivity analysis if enabled
-  if (typedClient.sensitivity) {
+  // Run sensitivity analysis if enabled (legacy analyzer — known to use the
+  // standard engine; accurate for legacy clients only)
+  if (typedClient.sensitivity && !isGI && !isGrowth) {
     response.sensitivity = runSensitivityAnalysis(typedClient);
   }
 
-  // Run widow analysis if enabled and married
+  // Widow analysis: the analyzer uses the legacy baseline/widow scenarios,
+  // which do NOT model Growth FIA product features (bonuses, surrender,
+  // post-contract rate, principal protection) or GI income streams.
+  // Running it for those products would show numbers inconsistent with the
+  // main projection. Restrict to legacy/standard clients until the analyzer
+  // is refactored to be engine-aware.
   if (
     typedClient.widow_analysis &&
-    typedClient.filing_status === 'married_filing_jointly'
+    typedClient.filing_status === 'married_filing_jointly' &&
+    !isGI &&
+    !isGrowth
   ) {
     try {
       response.widow = analyzeWidowPenalty(typedClient);
