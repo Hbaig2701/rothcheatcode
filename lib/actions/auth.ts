@@ -15,7 +15,11 @@ export async function login(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+    const friendly =
+      error.message.includes('Invalid login') ? 'Invalid email or password.' :
+      error.message.includes('Email not confirmed') ? 'Please confirm your email before signing in.' :
+      'Something went wrong. Please try again or use the password reset option.';
+    redirect(`/login?error=${encodeURIComponent(friendly)}`)
   }
 
   // Check if account is deactivated
