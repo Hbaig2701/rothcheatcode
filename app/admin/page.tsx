@@ -3,23 +3,18 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
-import { ChevronUp, ChevronDown, Download } from 'lucide-react'
+import { ChevronUp, ChevronDown, Download, Calendar } from 'lucide-react'
 import { BulkActionsBar } from './_components/bulk-actions-bar'
 import { AnalyticsSection } from './_components/analytics-section'
 import { CostsSection } from './_components/costs-section'
 import { RevenueSection } from './_components/revenue-section'
 
 interface Stats {
-  totalAdvisors: number
-  totalClients: number
-  totalScenarioRuns: number
-  totalExports: number
-  trendsThisWeek: {
-    advisors: number
-    clients: number
-    scenarioRuns: number
-    exports: number
-  }
+  totalPayingAdvisors: number
+  newPayingAdvisors: number
+  clients: number
+  scenarioRuns: number
+  exports: number
 }
 
 interface Advisor {
@@ -33,8 +28,8 @@ interface Advisor {
   sessionCount: number
   lastLogin: string | null
   status: 'active' | 'inactive' | 'deactivated'
-  plan: string
-  subscriptionStatus: string | null
+  subscriptionStatus: string
+  billingCycle: string | null
 }
 
 interface ActivityPoint {
@@ -42,10 +37,24 @@ interface ActivityPoint {
   count: number
 }
 
-type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status' | 'plan'
+type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status' | 'subscriptionStatus'
 type SortDir = 'asc' | 'desc'
-type TimeFilter = 'all' | '1d' | '7d' | '30d'
-type PlanFilter = 'all' | 'paying' | 'trial'
+type DateRange = 'today' | '7d' | '30d' | 'mtd' | 'all' | 'custom'
+
+const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
+  { value: 'today', label: 'Today' },
+  { value: '7d', label: 'Last 7 Days' },
+  { value: '30d', label: 'Last 30 Days' },
+  { value: 'mtd', label: 'Month to Date' },
+  { value: 'all', label: 'All Time' },
+  { value: 'custom', label: 'Custom' },
+]
+
+const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  scenario_runs: 'Scenarios',
+  exports: 'PDF Exports',
+  logins: 'Logins',
+}
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
@@ -54,25 +63,49 @@ export default function AdminDashboard() {
   const [activityType, setActivityType] = useState<'scenario_runs' | 'exports' | 'logins'>('scenario_runs')
   const [activityRange, setActivityRange] = useState<'7d' | '30d' | '90d'>('30d')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'deactivated'>('all')
-  const [planFilter, setPlanFilter] = useState<PlanFilter>('all')
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all')
+  const [showChurned, setShowChurned] = useState(false)
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [sortKey, setSortKey] = useState<SortKey>('createdAt')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [dateRange, setDateRange] = useState<DateRange>('all')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+
+  // Fetch stats with date range
+  const fetchStats = useCallback(() => {
+    let url = `/api/admin/stats?range=${dateRange}`
+    if (dateRange === 'custom' && customFrom) {
+      url += `&from=${customFrom}`
+      if (customTo) url += `&to=${customTo}`
+    }
+    fetch(url).then(r => r.json()).then(s => setStats(s)).catch(console.error)
+  }, [dateRange, customFrom, customTo])
+
+  const fetchAdvisors = useCallback(() => {
+    fetch(`/api/admin/advisors?churned=${showChurned}`).then(r => r.json()).then(a => setAdvisors(a.advisors ?? [])).catch(console.error)
+  }, [showChurned])
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/admin/stats').then(r => r.json()),
-      fetch('/api/admin/advisors').then(r => r.json()),
+      fetch(`/api/admin/stats?range=${dateRange}`).then(r => r.json()),
+      fetch(`/api/admin/advisors?churned=${showChurned}`).then(r => r.json()),
     ]).then(([s, a]) => {
       setStats(s)
       setAdvisors(a.advisors ?? [])
       setLoading(false)
     }).catch(console.error)
   }, [])
+
+  useEffect(() => {
+    fetchStats()
+  }, [fetchStats])
+
+  useEffect(() => {
+    fetchAdvisors()
+  }, [showChurned])
 
   useEffect(() => {
     fetch(`/api/admin/activity?type=${activityType}&range=${activityRange}`)
@@ -82,9 +115,9 @@ export default function AdminDashboard() {
   }, [activityType, activityRange])
 
   const refetchAdvisors = useCallback(() => {
-    fetch('/api/admin/advisors').then(r => r.json()).then(a => setAdvisors(a.advisors ?? [])).catch(console.error)
-    fetch('/api/admin/stats').then(r => r.json()).then(s => setStats(s)).catch(console.error)
-  }, [])
+    fetchAdvisors()
+    fetchStats()
+  }, [fetchAdvisors, fetchStats])
 
   const advisorEmails = useMemo(() => {
     const map = new Map<string, string>()
@@ -130,21 +163,13 @@ export default function AdminDashboard() {
     }
   }
 
-  // Filter and sort advisors client-side
   const filtered = useMemo(() => {
     let result = advisors.filter(a => {
       if (statusFilter !== 'all' && a.status !== statusFilter) return false
-      if (planFilter !== 'all' && a.plan !== planFilter) return false
+      if (!showChurned && a.subscriptionStatus === 'canceled') return false
       if (search) {
         const q = search.toLowerCase()
         if (!a.email.toLowerCase().includes(q) && !(a.name && a.name.toLowerCase().includes(q))) return false
-      }
-      if (timeFilter !== 'all') {
-        const now = Date.now()
-        const ms = timeFilter === '1d' ? 86400000 : timeFilter === '7d' ? 604800000 : 2592000000
-        const cutoff = new Date(now - ms).toISOString()
-        const signupDate = a.createdAt
-        if (signupDate < cutoff) return false
       }
       return true
     })
@@ -166,13 +191,13 @@ export default function AdminDashboard() {
           break
         }
         case 'status': cmp = a.status.localeCompare(b.status); break
-        case 'plan': cmp = (a.plan ?? '').localeCompare(b.plan ?? ''); break
+        case 'subscriptionStatus': cmp = a.subscriptionStatus.localeCompare(b.subscriptionStatus); break
       }
       return sortDir === 'asc' ? cmp : -cmp
     })
 
     return result
-  }, [advisors, statusFilter, planFilter, search, timeFilter, sortKey, sortDir])
+  }, [advisors, statusFilter, showChurned, search, sortKey, sortDir])
 
   const toggleSelectAll = useCallback(() => {
     if (selectedIds.size === filtered.length) {
@@ -183,12 +208,13 @@ export default function AdminDashboard() {
   }, [filtered, selectedIds.size])
 
   const exportToCSV = useCallback(() => {
-    const headers = ['Email', 'Name', 'Plan', 'Status', 'Signup Date', 'Clients', 'Scenarios', 'Exports', 'Sessions', 'Last Login']
+    const headers = ['Email', 'Name', 'Status', 'Subscription', 'Billing', 'Signup Date', 'Clients', 'Scenarios', 'Exports', 'Sessions', 'Last Login']
     const rows = filtered.map(a => [
       a.email,
       a.name ?? '',
-      a.plan ?? 'none',
       a.status,
+      a.subscriptionStatus,
+      a.billingCycle ?? '',
       new Date(a.createdAt).toLocaleDateString(),
       a.clientCount,
       a.scenarioRunCount,
@@ -223,12 +249,50 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Date Range Filter */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Calendar className="h-4 w-4 text-text-muted" />
+        <div className="flex gap-1 bg-bg-card border border-border-default rounded-lg p-1">
+          {DATE_RANGE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setDateRange(opt.value)}
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
+                dateRange === opt.value
+                  ? 'bg-[#d4af37] text-black font-medium'
+                  : 'text-text-muted hover:text-foreground'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        {dateRange === 'custom' && (
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={customFrom}
+              onChange={e => setCustomFrom(e.target.value)}
+              className="px-2 py-1 text-xs bg-bg-card border border-border-default rounded-lg text-foreground outline-none focus:border-[#d4af37]"
+            />
+            <span className="text-xs text-text-muted">to</span>
+            <input
+              type="date"
+              value={customTo}
+              onChange={e => setCustomTo(e.target.value)}
+              className="px-2 py-1 text-xs bg-bg-card border border-border-default rounded-lg text-foreground outline-none focus:border-[#d4af37]"
+            />
+          </div>
+        )}
+      </div>
+
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total Advisors" value={stats?.totalAdvisors ?? 0} trend={stats?.trendsThisWeek.advisors} />
-        <StatCard label="Total Clients" value={stats?.totalClients ?? 0} trend={stats?.trendsThisWeek.clients} />
-        <StatCard label="Scenario Runs" value={stats?.totalScenarioRuns ?? 0} trend={stats?.trendsThisWeek.scenarioRuns} />
-        <StatCard label="PDF Exports" value={stats?.totalExports ?? 0} trend={stats?.trendsThisWeek.exports} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <StatCard label="Paying Advisors" value={stats?.totalPayingAdvisors ?? 0} subtitle={dateRange !== 'all' ? `+${stats?.newPayingAdvisors ?? 0} in period` : undefined} />
+        <StatCard label="Clients Created" value={stats?.clients ?? 0} />
+        <StatCard label="Scenario Runs" value={stats?.scenarioRuns ?? 0} />
+        <StatCard label="PDF Exports" value={stats?.exports ?? 0} />
+        <StatCard label="New Signups" value={stats?.newPayingAdvisors ?? 0} subtitle="in selected period" />
       </div>
 
       {/* Revenue Section */}
@@ -252,7 +316,7 @@ export default function AdminDashboard() {
                       : 'text-text-muted hover:text-foreground'
                   }`}
                 >
-                  {t === 'scenario_runs' ? 'Scenarios' : t === 'exports' ? 'Exports' : 'Logins'}
+                  {ACTIVITY_TYPE_LABELS[t]}
                 </button>
               ))}
             </div>
@@ -285,14 +349,23 @@ export default function AdminDashboard() {
                   return `${d.getMonth() + 1}/${d.getDate()}`
                 }}
                 interval={activityRange === '7d' ? 0 : activityRange === '30d' ? 4 : 14}
+                label={{ value: 'Date', position: 'insideBottom', offset: -5, style: { fill: 'rgba(255,255,255,0.4)', fontSize: 11 } }}
               />
-              <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} allowDecimals={false} />
+              <YAxis
+                tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                allowDecimals={false}
+                label={{ value: 'Count', angle: -90, position: 'insideLeft', offset: 10, style: { fill: 'rgba(255,255,255,0.4)', fontSize: 11 } }}
+              />
               <Tooltip
                 contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }}
                 labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
-                itemStyle={{ color: '#d4af37' }}
+                labelFormatter={(label) => {
+                  const d = new Date(label)
+                  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                }}
+                formatter={(value: number | undefined) => [value ?? 0, ACTIVITY_TYPE_LABELS[activityType]]}
               />
-              <Bar dataKey="count" fill="#d4af37" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="count" fill="#d4af37" radius={[3, 3, 0, 0]} name={ACTIVITY_TYPE_LABELS[activityType]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -308,7 +381,7 @@ export default function AdminDashboard() {
       <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted">
-            Advisors
+            Paying Advisors
           </h2>
           <div className="flex gap-3 flex-wrap">
             <input
@@ -318,21 +391,6 @@ export default function AdminDashboard() {
               onChange={e => setSearch(e.target.value)}
               className="px-3 py-1.5 text-xs bg-bg-card-hover border border-border-default rounded-lg text-foreground placeholder:text-text-muted outline-none focus:border-[#d4af37]"
             />
-            <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
-              {([['all', 'All'], ['1d', '1 Day'], ['7d', '7 Days'], ['30d', '30 Days']] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  onClick={() => setTimeFilter(value as TimeFilter)}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                    timeFilter === value
-                      ? 'bg-[#d4af37] text-black font-medium'
-                      : 'text-text-muted hover:text-foreground'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
             <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
               {(['all', 'active', 'inactive', 'deactivated'] as const).map(s => (
                 <button
@@ -348,21 +406,16 @@ export default function AdminDashboard() {
                 </button>
               ))}
             </div>
-            <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
-              {([['all', 'All'], ['paying', 'Paying'], ['trial', 'Trial']] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  onClick={() => setPlanFilter(value as PlanFilter)}
-                  className={`px-3 py-1 text-xs rounded-md transition-colors ${
-                    planFilter === value
-                      ? 'bg-[#d4af37] text-black font-medium'
-                      : 'text-text-muted hover:text-foreground'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            <button
+              onClick={() => setShowChurned(!showChurned)}
+              className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
+                showChurned
+                  ? 'bg-[rgba(239,68,68,0.15)] border-[rgba(239,68,68,0.3)] text-[#ef4444]'
+                  : 'bg-bg-card-hover border-border-default text-text-muted hover:text-foreground'
+              }`}
+            >
+              {showChurned ? 'Showing Churned' : 'Show Churned'}
+            </button>
             <button
               onClick={exportToCSV}
               className="px-3 py-1.5 text-xs bg-bg-card-hover border border-border-default rounded-lg text-foreground hover:bg-secondary transition-colors flex items-center gap-1.5"
@@ -394,7 +447,7 @@ export default function AdminDashboard() {
               </th>
               <SortableHeader label="Name" sortKey="name" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Email" sortKey="email" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-              <SortableHeader label="Plan" sortKey="plan" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Subscription" sortKey="subscriptionStatus" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Signup" sortKey="createdAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Clients" sortKey="clientCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Scenarios" sortKey="scenarioRunCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
@@ -426,11 +479,15 @@ export default function AdminDashboard() {
                 <td className="px-4 py-3 text-sm text-foreground">{a.email}</td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    a.plan === 'paying'
+                    a.subscriptionStatus === 'active'
                       ? 'bg-[rgba(74,222,128,0.15)] text-green'
-                      : 'bg-[rgba(245,158,11,0.15)] text-[#f59e0b]'
+                      : a.subscriptionStatus === 'canceled'
+                        ? 'bg-[rgba(239,68,68,0.15)] text-[#ef4444]'
+                        : a.subscriptionStatus === 'past_due'
+                          ? 'bg-[rgba(245,158,11,0.15)] text-[#f59e0b]'
+                          : 'bg-secondary text-text-dim'
                   }`}>
-                    {a.plan === 'paying' ? 'Paying' : 'Trial'}
+                    {a.subscriptionStatus}{a.billingCycle ? ` (${a.billingCycle})` : ''}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-sm text-text-muted">
@@ -504,13 +561,13 @@ function SortableHeader({ label, sortKey: key, align, currentSort, currentDir, o
   )
 }
 
-function StatCard({ label, value, trend }: { label: string; value: number; trend?: number }) {
+function StatCard({ label, value, subtitle }: { label: string; value: number; subtitle?: string }) {
   return (
     <div className="bg-bg-card border border-border-default rounded-[14px] p-5">
       <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-semibold mb-2">{label}</p>
       <p className="text-2xl font-semibold text-foreground font-mono">{value.toLocaleString()}</p>
-      {trend != null && trend > 0 && (
-        <p className="text-xs text-green mt-1">+{trend} this week</p>
+      {subtitle && (
+        <p className="text-xs text-text-dim mt-1">{subtitle}</p>
       )}
     </div>
   )

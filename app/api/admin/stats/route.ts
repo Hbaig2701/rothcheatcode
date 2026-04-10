@@ -1,11 +1,40 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // Test accounts to exclude from all metrics
 const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
 
-export async function GET() {
+function getDateRange(range: string, from?: string, to?: string): { start: Date; end: Date } {
+  const now = new Date();
+  const end = new Date(now);
+
+  switch (range) {
+    case 'today': {
+      const start = new Date(now);
+      start.setHours(0, 0, 0, 0);
+      return { start, end };
+    }
+    case '7d':
+      return { start: new Date(now.getTime() - 7 * 86400000), end };
+    case '30d':
+      return { start: new Date(now.getTime() - 30 * 86400000), end };
+    case 'mtd': {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { start, end };
+    }
+    case 'custom': {
+      const start = from ? new Date(from) : new Date(now.getTime() - 30 * 86400000);
+      const customEnd = to ? new Date(to) : end;
+      return { start, end: customEnd };
+    }
+    case 'all':
+    default:
+      return { start: new Date('2020-01-01'), end };
+  }
+}
+
+export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -23,63 +52,81 @@ export async function GET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Use admin client (bypasses RLS) for cross-user queries
     const admin = createAdminClient();
+    const { searchParams } = new URL(request.url);
+    const range = searchParams.get('range') ?? 'all';
+    const from = searchParams.get('from') ?? undefined;
+    const to = searchParams.get('to') ?? undefined;
+    const { start, end } = getDateRange(range, from, to);
+    const startIso = start.toISOString();
+    const endIso = end.toISOString();
 
-    // Get test account IDs to exclude from all metrics
+    // Get test account IDs to exclude
     const { data: testProfiles } = await admin
       .from('profiles')
       .select('id')
       .in('email', TEST_EMAILS);
     const testIds = (testProfiles ?? []).map(p => p.id);
 
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    // Get paying advisor IDs (have Stripe subscription)
+    const { data: payingProfiles } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('role', 'advisor')
+      .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
+      .not('stripe_customer_id', 'is', null);
 
-    // Run all queries in parallel (excluding test accounts)
-    const advisorQuery = admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'advisor').not('email', 'in', `(${TEST_EMAILS.join(',')})`);
-    const weekAdvisorQuery = admin.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'advisor').not('email', 'in', `(${TEST_EMAILS.join(',')})`).gte('created_at', weekAgo);
+    const payingIds = (payingProfiles ?? []).map(p => p.id);
 
-    // For clients/projections/exports, exclude by user_id if test accounts exist
-    let clientQuery = admin.from('clients').select('id', { count: 'exact', head: true });
-    let runQuery = admin.from('projections').select('id', { count: 'exact', head: true });
-    let exportQuery = admin.from('export_log').select('id', { count: 'exact', head: true });
-    let weekClientQuery = admin.from('clients').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo);
-    let weekRunQuery = admin.from('projections').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo);
-    let weekExportQuery = admin.from('export_log').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo);
+    // Count paying advisors who signed up in range
+    const payingSignupsInRange = (payingProfiles ?? []).length; // total paying
 
-    if (testIds.length > 0) {
-      const excludeList = `(${testIds.join(',')})`;
-      clientQuery = clientQuery.not('user_id', 'in', excludeList);
-      runQuery = runQuery.not('user_id', 'in', excludeList);
-      exportQuery = exportQuery.not('user_id', 'in', excludeList);
-      weekClientQuery = weekClientQuery.not('user_id', 'in', excludeList);
-      weekRunQuery = weekRunQuery.not('user_id', 'in', excludeList);
-      weekExportQuery = weekExportQuery.not('user_id', 'in', excludeList);
-    }
+    // For filtered counts, use date range
+    const buildQuery = (table: string) => {
+      let q = admin.from(table).select('id', { count: 'exact', head: true })
+        .gte('created_at', startIso)
+        .lte('created_at', endIso);
+      if (testIds.length > 0) {
+        q = q.not('user_id', 'in', `(${testIds.join(',')})`);
+      }
+      // Only count activity from paying users
+      if (payingIds.length > 0) {
+        q = q.in('user_id', payingIds);
+      }
+      return q;
+    };
 
-    const [advisors, clients, scenarioRuns, exports, weekAdvisors, weekClients, weekRuns, weekExports] = await Promise.all([
+    // Count paying advisors signed up in the range
+    let advisorQuery = admin.from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'advisor')
+      .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
+      .not('stripe_customer_id', 'is', null)
+      .gte('created_at', startIso)
+      .lte('created_at', endIso);
+
+    // All-time totals for paying customers
+    let totalAdvisorsQuery = admin.from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'advisor')
+      .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
+      .not('stripe_customer_id', 'is', null);
+
+    const [advisorsInRange, totalAdvisors, clients, scenarioRuns, exports] = await Promise.all([
       advisorQuery,
-      clientQuery,
-      runQuery,
-      exportQuery,
-      weekAdvisorQuery,
-      weekClientQuery,
-      weekRunQuery,
-      weekExportQuery,
+      totalAdvisorsQuery,
+      buildQuery('clients'),
+      buildQuery('projections'),
+      buildQuery('export_log'),
     ]);
 
     return NextResponse.json({
-      totalAdvisors: advisors.count ?? 0,
-      totalClients: clients.count ?? 0,
-      totalScenarioRuns: scenarioRuns.count ?? 0,
-      totalExports: exports.count ?? 0,
-      trendsThisWeek: {
-        advisors: weekAdvisors.count ?? 0,
-        clients: weekClients.count ?? 0,
-        scenarioRuns: weekRuns.count ?? 0,
-        exports: weekExports.count ?? 0,
-      },
+      totalPayingAdvisors: totalAdvisors.count ?? 0,
+      newPayingAdvisors: advisorsInRange.count ?? 0,
+      clients: clients.count ?? 0,
+      scenarioRuns: scenarioRuns.count ?? 0,
+      exports: exports.count ?? 0,
+      range,
     });
   } catch (error) {
     console.error('Admin stats error:', error);

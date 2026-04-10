@@ -30,13 +30,21 @@ export async function GET(request: NextRequest) {
     const statusFilter = searchParams.get('status') ?? 'all';
     const search = searchParams.get('search') ?? '';
 
-    // Fetch all advisor profiles (exclude test accounts)
-    const { data: profiles, error: profilesError } = await admin
+    // Fetch paying + churned advisor profiles (exclude test accounts and non-paying)
+    const showChurned = searchParams.get('churned') === 'true';
+    let profilesQuery = admin
       .from('profiles')
-      .select('id, email, created_at, role, is_active, plan, subscription_status, stripe_customer_id, stripe_subscription_id')
+      .select('id, email, created_at, role, is_active, plan, subscription_status, billing_cycle, stripe_customer_id, stripe_subscription_id')
       .eq('role', 'advisor')
       .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
+      .not('stripe_customer_id', 'is', null)
       .order('created_at', { ascending: false });
+
+    if (!showChurned) {
+      // By default show active/trialing only; when churned=true show all including canceled
+    }
+
+    const { data: profiles, error: profilesError } = await profilesQuery;
 
     if (profilesError) throw profilesError;
     if (!profiles || profiles.length === 0) {
@@ -87,9 +95,6 @@ export async function GET(request: NextRequest) {
       const isRecentlyActive = lastActivity > fourteenDaysAgo;
       const isDeactivated = p.is_active === false;
 
-      // Determine payment status: paying if they have a Stripe subscription, trial otherwise
-      const hasPaid = !!(p.stripe_customer_id || p.stripe_subscription_id);
-
       return {
         id: p.id,
         name: nameMap.get(p.id) ?? null,
@@ -101,8 +106,8 @@ export async function GET(request: NextRequest) {
         sessionCount: sessionCounts.get(p.id) ?? 0,
         lastLogin,
         status: isDeactivated ? 'deactivated' as const : (isRecentlyActive ? 'active' as const : 'inactive' as const),
-        plan: hasPaid ? 'paying' : 'trial',
-        subscriptionStatus: p.subscription_status ?? null,
+        subscriptionStatus: p.subscription_status ?? 'active',
+        billingCycle: p.billing_cycle ?? null,
       };
     });
 

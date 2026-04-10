@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
-import { DollarSign, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts'
+import { TrendingUp, TrendingDown, AlertCircle } from 'lucide-react'
 
 interface RevenueData {
   current: {
@@ -10,29 +10,21 @@ interface RevenueData {
     arr: number
     activeSubscriptions: number
     avgRevenuePerUser: number
+    totalCashCollected: number
   }
   growth: {
     mrrGrowth: number
-    subscriptionGrowth: number
   }
-  byPlan: {
-    plan: string
-    monthlyRevenue: number
-    annualRevenue: number
-    count: number
-  }[]
-  byMonth: {
+  breakdown: {
+    monthly: { count: number; revenue: number }
+    annual: { count: number; revenue: number }
+  }
+  mrrTrend: {
     month: string
     mrr: number
-    newSubs: number
-    churned: number
+    arr: number
+    subscribers: number
   }[]
-  trials: {
-    active: number
-    converted: number
-    conversionRate: number
-    avgDaysToConvert: number
-  }
   health: {
     pastDue: number
     canceled: number
@@ -70,7 +62,7 @@ export function RevenueSection() {
         <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
           Revenue Overview
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <RevenueStat
             label="MRR"
             value={`$${data.current.mrr.toLocaleString()}`}
@@ -83,9 +75,13 @@ export function RevenueSection() {
             subtext="Annual Run Rate"
           />
           <RevenueStat
+            label="Total Cash Collected"
+            value={`$${data.current.totalCashCollected.toLocaleString()}`}
+            subtext="Lifetime revenue"
+          />
+          <RevenueStat
             label="Active Subscriptions"
             value={data.current.activeSubscriptions}
-            trend={data.growth.subscriptionGrowth}
             subtext="Paying customers"
           />
           <RevenueStat
@@ -114,9 +110,9 @@ export function RevenueSection() {
             )}
             {data.health.canceled > 0 && (
               <HealthAlert
-                label="Canceled"
+                label="Churned"
                 count={data.health.canceled}
-                description="Recently canceled subscriptions"
+                description="Canceled subscriptions"
                 severity="danger"
               />
             )}
@@ -133,81 +129,64 @@ export function RevenueSection() {
       )}
 
       {/* Revenue Breakdown */}
-      {data.byPlan.length > 0 && (
-        <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
-            Revenue Breakdown
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {data.byPlan.map(p => {
-              const monthlyCount = p.monthlyRevenue > 0 ? Math.round(p.monthlyRevenue / 197) : 0;
-              const annualCount = p.annualRevenue > 0 ? Math.round(p.annualRevenue / 1970) : 0;
-              return (
-                <div key={p.plan}>
-                  {monthlyCount > 0 && (
-                    <div className="bg-bg-card rounded-xl p-4 mb-2">
-                      <p className="text-xs text-text-muted mb-1">Monthly Subscribers</p>
-                      <p className="text-xl font-semibold text-foreground font-mono">
-                        ${p.monthlyRevenue.toLocaleString()}
-                        <span className="text-xs text-text-dim">/mo</span>
-                      </p>
-                      <p className="text-xs text-text-dim mt-1">
-                        {monthlyCount} {monthlyCount === 1 ? 'subscriber' : 'subscribers'}
-                      </p>
-                    </div>
-                  )}
-                  {annualCount > 0 && (
-                    <div className="bg-bg-card rounded-xl p-4">
-                      <p className="text-xs text-text-muted mb-1">Annual Subscribers</p>
-                      <p className="text-xl font-semibold text-foreground font-mono">
-                        ${p.annualRevenue.toLocaleString()}
-                        <span className="text-xs text-text-dim">/yr</span>
-                      </p>
-                      <p className="text-xs text-text-dim mt-1">
-                        {annualCount} {annualCount === 1 ? 'subscriber' : 'subscribers'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Conversion Performance */}
       <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
         <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
-          Conversion Performance
+          Revenue Breakdown
         </h2>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          <TrialStat label="Trial Users" value={data.trials.active} subtext="haven't paid yet" />
-          <TrialStat label="Paying Users" value={data.trials.converted} subtext="active subscriptions" />
-          <TrialStat
-            label="Conversion Rate"
-            value={`${data.trials.conversionRate.toFixed(1)}%`}
-            highlight={data.trials.conversionRate >= 50}
-            subtext="trial → paying"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {data.breakdown.monthly.count > 0 && (
+            <div className="bg-bg-card rounded-xl p-4">
+              <p className="text-xs text-text-muted mb-1">Monthly Subscribers</p>
+              <p className="text-xl font-semibold text-foreground font-mono">
+                ${data.breakdown.monthly.revenue.toLocaleString()}
+                <span className="text-xs text-text-dim">/mo</span>
+              </p>
+              <p className="text-xs text-text-dim mt-1">
+                {data.breakdown.monthly.count} {data.breakdown.monthly.count === 1 ? 'subscriber' : 'subscribers'}
+              </p>
+            </div>
+          )}
+          {data.breakdown.annual.count > 0 && (
+            <div className="bg-bg-card rounded-xl p-4">
+              <p className="text-xs text-text-muted mb-1">Annual Subscribers</p>
+              <p className="text-xl font-semibold text-foreground font-mono">
+                ${data.breakdown.annual.revenue.toLocaleString()}
+                <span className="text-xs text-text-dim">/yr</span>
+              </p>
+              <p className="text-xs text-text-dim mt-1">
+                {data.breakdown.annual.count} {data.breakdown.annual.count === 1 ? 'subscriber' : 'subscribers'}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* MRR Trend */}
+      {/* MRR & ARR Growth Trend (Line Chart) */}
       <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
         <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
-          MRR Trend (Last 6 Months)
+          MRR & ARR Growth (Last 6 Months)
         </h2>
-        <div className="h-[250px]">
+        <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.byMonth}>
+            <LineChart data={data.mrrTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis
                 dataKey="month"
                 tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                label={{ value: 'Month', position: 'insideBottom', offset: -5, style: { fill: 'rgba(255,255,255,0.4)', fontSize: 11 } }}
               />
               <YAxis
+                yAxisId="mrr"
                 tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
-                tickFormatter={(val) => `$${val}`}
+                tickFormatter={(val) => `$${val.toLocaleString()}`}
+                label={{ value: 'MRR ($)', angle: -90, position: 'insideLeft', offset: 10, style: { fill: 'rgba(255,255,255,0.4)', fontSize: 11 } }}
+              />
+              <YAxis
+                yAxisId="arr"
+                orientation="right"
+                tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
+                label={{ value: 'ARR ($)', angle: 90, position: 'insideRight', offset: 10, style: { fill: 'rgba(255,255,255,0.4)', fontSize: 11 } }}
               />
               <Tooltip
                 contentStyle={{
@@ -217,13 +196,43 @@ export function RevenueSection() {
                   fontSize: 12
                 }}
                 labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
-                formatter={(value: number | undefined) => value != null ? [`$${value}`, 'MRR'] : ['$0', 'MRR']}
+                formatter={(value, name) => {
+                  const v = (value as number) ?? 0
+                  if (name === 'Subscribers') return [v, name]
+                  return [`$${v.toLocaleString()}`, name]
+                }}
               />
               <Legend wrapperStyle={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }} />
-              <Bar dataKey="mrr" name="MRR" fill="#d4af37" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="newSubs" name="New Subs" fill="#4ade80" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="churned" name="Churned" fill="#ef4444" radius={[3, 3, 0, 0]} />
-            </BarChart>
+              <Line
+                yAxisId="mrr"
+                type="monotone"
+                dataKey="mrr"
+                name="MRR"
+                stroke="#d4af37"
+                strokeWidth={2.5}
+                dot={{ fill: '#d4af37', r: 4 }}
+                activeDot={{ r: 6 }}
+              />
+              <Line
+                yAxisId="arr"
+                type="monotone"
+                dataKey="arr"
+                name="ARR"
+                stroke="#4ade80"
+                strokeWidth={2}
+                dot={{ fill: '#4ade80', r: 3 }}
+                strokeDasharray="5 5"
+              />
+              <Line
+                yAxisId="mrr"
+                type="monotone"
+                dataKey="subscribers"
+                name="Subscribers"
+                stroke="#3b82f6"
+                strokeWidth={1.5}
+                dot={{ fill: '#3b82f6', r: 3 }}
+              />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -279,30 +288,6 @@ function HealthAlert({
       <p className="text-xs opacity-80 mb-1">{label}</p>
       <p className="text-2xl font-semibold font-mono mb-1">{count}</p>
       <p className="text-xs opacity-70">{description}</p>
-    </div>
-  )
-}
-
-function TrialStat({
-  label,
-  value,
-  subtext,
-  highlight
-}: {
-  label: string
-  value: number | string
-  subtext?: string
-  highlight?: boolean
-}) {
-  return (
-    <div className="bg-bg-card rounded-xl p-4">
-      <p className="text-xs text-text-muted mb-1">{label}</p>
-      <p className={`text-xl font-semibold font-mono ${highlight ? 'text-green' : 'text-foreground'}`}>
-        {value}
-      </p>
-      {subtext && (
-        <p className="text-xs text-text-dim mt-1">{subtext}</p>
-      )}
     </div>
   )
 }
