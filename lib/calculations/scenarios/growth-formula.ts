@@ -139,7 +139,8 @@ export function runGrowthFormulaScenario(
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
     // Standard deduction (age-adjusted)
-    const deductions = getStandardDeduction(client.filing_status, age, undefined, year);
+    const currentSpouseAgeForDeduction = initialSpouseAge !== null ? initialSpouseAge + yearOffset : undefined;
+    const deductions = getStandardDeduction(client.filing_status, age, currentSpouseAgeForDeduction, year);
 
     // Step 0: Calculate RMD if client is old enough and still has a traditional IRA balance
     // This handles the case where conversions don't fully deplete the IRA before RMD age

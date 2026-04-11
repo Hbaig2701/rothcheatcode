@@ -80,10 +80,10 @@ export function runWidowScenario(
     // Social Security - ONLY client's benefit, no spouse
     // Support both new ssi_* fields and legacy ss_* fields
     const ssStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
-    // For widow scenario, take half of total SSI (assuming single-survivor benefit)
-    const annualSSI = client.ssi_annual_amount
-      ? Math.round(client.ssi_annual_amount / 2)  // Take half for survivor
-      : (client.ss_self ?? 0);
+    // For widow scenario, survivor receives the HIGHER of their own benefit or
+    // the deceased spouse's benefit (not half). Use full amount as approximation
+    // since we don't track individual benefits separately.
+    const annualSSI = client.ssi_annual_amount ?? (client.ss_self ?? 0);
     const ssIncome = age >= ssStartAge
       ? adjustForInflation(annualSSI, totalYearsFromNow, inflationRate)
       : 0;

@@ -115,10 +115,10 @@ function calculateGIFormulaLifetimeWealth(
       // Before GI purchase: Track Traditional + Roth + Taxable
       netLegacy = Math.round(giYear.traditionalBalance * (1 - heirTaxRate))
                 + giYear.rothBalance
-                + (year.taxableBalance || 0);
+                + Math.max(0, year.taxableBalance || 0);
     } else if (giYear && (giYear.phase === 'deferral' || giYear.phase === 'income')) {
       // After GI purchase: Account value (in Roth, so no heir tax) + Taxable
-      netLegacy = giYear.accountValue + (year.taxableBalance || 0);
+      netLegacy = giYear.accountValue + Math.max(0, year.taxableBalance || 0);
     } else {
       // Fallback
       netLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + year.rothBalance;

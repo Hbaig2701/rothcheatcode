@@ -364,7 +364,9 @@ function runGIStrategyScenario(
       totalConversionTax += conversionTax;
 
       // Execute conversion
-      traditionalBalance = boyTraditional - conversionAmount;
+      // When payTaxFromIRA, the IRA also pays the tax — deduct both
+      const conversionTaxFromIRA = payTaxFromIRA ? conversionTax : 0;
+      traditionalBalance = boyTraditional - conversionAmount - conversionTaxFromIRA;
       rothBalance = boyRoth + conversionAmount;
 
       // Apply growth

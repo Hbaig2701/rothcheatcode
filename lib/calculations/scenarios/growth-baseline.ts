@@ -92,7 +92,7 @@ export function runGrowthBaselineScenario(
       irmaaSurcharge: 0,
       totalTax: 0,
       taxableSS: 0,
-      netWorth: iraBalance, // Just the traditional IRA balance
+      netWorth: iraBalance, // No Roth or taxable in baseline (no conversions, no RMDs)
       // Extended fields for adjustable columns
       traditionalBOY: boyIRA,
       rothBOY: 0,
