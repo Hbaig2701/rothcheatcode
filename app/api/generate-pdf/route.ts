@@ -135,6 +135,7 @@ interface BrandingData {
   companyName: string;
   tagline: string;
   logoUrl: string;
+  logoLightUrl: string;
   phone: string;
   email: string;
   website: string;
@@ -1106,7 +1107,7 @@ export async function POST(request: NextRequest) {
     // Fetch user settings for branding
     const { data: settings } = await supabase
       .from('user_settings')
-      .select('company_name, tagline, company_phone, company_email, company_website, logo_url, primary_color, secondary_color')
+      .select('company_name, tagline, company_phone, company_email, company_website, logo_url, logo_light_url, primary_color, secondary_color')
       .eq('user_id', user.id)
       .single();
 
@@ -1114,6 +1115,7 @@ export async function POST(request: NextRequest) {
       companyName: settings?.company_name || '',
       tagline: settings?.tagline || '',
       logoUrl: settings?.logo_url || '',
+      logoLightUrl: settings?.logo_light_url || settings?.logo_url || '',
       phone: settings?.company_phone || '',
       email: settings?.company_email || '',
       website: settings?.company_website || '',

@@ -336,8 +336,8 @@
 <body>
   <!-- Page 1: Cover -->
   <div class="page cover-page">
-    {{#if branding.logoUrl}}
-    <img class="logo-image" src="{{branding.logoUrl}}" alt="{{branding.companyName}}" />
+    {{#if branding.logoLightUrl}}
+    <img class="logo-image" src="{{branding.logoLightUrl}}" alt="{{branding.companyName}}" />
     {{else if branding.hasBranding}}
     <div class="company-name">{{branding.companyName}}</div>
     {{#if branding.tagline}}

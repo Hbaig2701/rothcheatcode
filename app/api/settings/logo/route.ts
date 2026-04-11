@@ -11,6 +11,7 @@ const ALLOWED_TYPES = [
 ];
 
 // POST /api/settings/logo - Upload logo
+// Query param: ?variant=light for cover page logo, otherwise default (inner pages)
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const {
@@ -21,6 +22,10 @@ export async function POST(request: NextRequest) {
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const { searchParams } = new URL(request.url);
+  const variant = searchParams.get("variant"); // "light" or null (default)
+  const isLight = variant === "light";
 
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
@@ -45,7 +50,8 @@ export async function POST(request: NextRequest) {
 
   const mimeToExt: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
   const ext = mimeToExt[file.type] || "png";
-  const path = `${user.id}/logo.${ext}`;
+  const filename = isLight ? `logo-light.${ext}` : `logo.${ext}`;
+  const path = `${user.id}/${filename}`;
 
   // Upload to storage (upsert to replace existing)
   const { error: uploadError } = await supabase.storage
@@ -67,9 +73,10 @@ export async function POST(request: NextRequest) {
 
   // Update settings with logo URL (append cache-buster)
   const logoUrl = `${publicUrl}?t=${Date.now()}`;
+  const column = isLight ? "logo_light_url" : "logo_url";
   const { error: updateError } = await supabase
     .from("user_settings")
-    .update({ logo_url: logoUrl })
+    .update({ [column]: logoUrl })
     .eq("user_id", user.id);
 
   if (updateError) {
@@ -80,11 +87,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  return NextResponse.json({ url: logoUrl });
+  return NextResponse.json({ url: logoUrl, variant: isLight ? "light" : "default" });
 }
 
 // DELETE /api/settings/logo - Remove logo
-export async function DELETE() {
+// Query param: ?variant=light for cover page logo
+export async function DELETE(request: NextRequest) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -95,26 +103,32 @@ export async function DELETE() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // List and remove all files in the user's logo folder
-  const { data: files } = await supabase.storage.from("logos").list(user.id);
+  const { searchParams } = new URL(request.url);
+  const variant = searchParams.get("variant");
+  const isLight = variant === "light";
 
-  if (files && files.length > 0) {
-    const paths = files.map((f) => `${user.id}/${f.name}`);
-    await supabase.storage.from("logos").remove(paths);
-  }
-
-  // Clear logo URL in settings
-  const { error: updateError } = await supabase
-    .from("user_settings")
-    .update({ logo_url: null })
-    .eq("user_id", user.id);
-
-  if (updateError) {
-    console.error("Error clearing logo URL:", updateError);
-    return NextResponse.json(
-      { error: updateError.message },
-      { status: 500 }
-    );
+  if (isLight) {
+    // Remove only the light logo
+    const { data: files } = await supabase.storage.from("logos").list(user.id);
+    const lightFiles = (files ?? []).filter(f => f.name.startsWith("logo-light"));
+    if (lightFiles.length > 0) {
+      await supabase.storage.from("logos").remove(lightFiles.map(f => `${user.id}/${f.name}`));
+    }
+    await supabase
+      .from("user_settings")
+      .update({ logo_light_url: null })
+      .eq("user_id", user.id);
+  } else {
+    // Remove the default logo
+    const { data: files } = await supabase.storage.from("logos").list(user.id);
+    const defaultFiles = (files ?? []).filter(f => f.name.startsWith("logo."));
+    if (defaultFiles.length > 0) {
+      await supabase.storage.from("logos").remove(defaultFiles.map(f => `${user.id}/${f.name}`));
+    }
+    await supabase
+      .from("user_settings")
+      .update({ logo_url: null })
+      .eq("user_id", user.id);
   }
 
   return NextResponse.json({ success: true });

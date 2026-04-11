@@ -36,6 +36,8 @@ export function BusinessTab({ settings }: BusinessTabProps) {
   const updateSettings = useUpdateSettings();
   const uploadLogo = useUploadLogo();
   const removeLogo = useRemoveLogo();
+  const uploadLightLogo = useUploadLogo("light");
+  const removeLightLogo = useRemoveLogo("light");
   const [saved, setSaved] = useState(false);
 
   const {
@@ -76,20 +78,40 @@ export function BusinessTab({ settings }: BusinessTabProps) {
           {/* Logo Upload */}
           <div>
             <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Company Logo
+              Company Logo (Dark)
             </h3>
             <p className="mb-3 text-sm text-muted-foreground">
-              This logo will appear on the cover page and footer of your PDF
-              reports.
+              Used on inner pages of your PDF reports (white background).
+              Use a dark-colored logo.
             </p>
             <ImageUpload
               currentUrl={settings.logo_url}
               onUpload={(file) => uploadLogo.mutate(file)}
               onRemove={() => removeLogo.mutate()}
               shape="rectangle"
-              label="Company Logo"
-              hint="Recommended: PNG with transparent background, 400x100px. Max 2MB."
+              label="Dark Logo (Inner Pages)"
+              hint="Recommended: Dark PNG with transparent background, 400x100px. Max 2MB."
               isUploading={uploadLogo.isPending}
+            />
+          </div>
+
+          {/* Light Logo Upload (for cover page) */}
+          <div>
+            <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Company Logo (Light) — Cover Page
+            </h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              Optional: A white or light-colored version for the cover page
+              (dark background). If not set, your dark logo will be used.
+            </p>
+            <ImageUpload
+              currentUrl={settings.logo_light_url}
+              onUpload={(file) => uploadLightLogo.mutate(file)}
+              onRemove={() => removeLightLogo.mutate()}
+              shape="rectangle"
+              label="Light Logo (Cover Page)"
+              hint="Recommended: White PNG with transparent background, 400x100px. Max 2MB."
+              isUploading={uploadLightLogo.isPending}
             />
           </div>
 

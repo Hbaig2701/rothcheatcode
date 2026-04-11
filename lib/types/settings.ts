@@ -18,6 +18,7 @@ export interface UserSettings {
   company_website: string | null;
   address: string | null;
   logo_url: string | null;
+  logo_light_url: string | null;
   primary_color: string;
   secondary_color: string;
 

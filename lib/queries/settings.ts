@@ -162,15 +162,16 @@ export function useRemoveAvatar() {
   });
 }
 
-// Upload logo
-export function useUploadLogo() {
+// Upload logo (variant: undefined = default logo for inner pages, "light" = cover page logo)
+export function useUploadLogo(variant?: "light") {
   const queryClient = useQueryClient();
+  const qs = variant ? `?variant=${variant}` : "";
 
   return useMutation({
     mutationFn: async (file: File): Promise<{ url: string }> => {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/settings/logo", {
+      const res = await fetch(`/api/settings/logo${qs}`, {
         method: "POST",
         body: formData,
       });
@@ -188,13 +189,14 @@ export function useUploadLogo() {
   });
 }
 
-// Remove logo
-export function useRemoveLogo() {
+// Remove logo (variant: undefined = default, "light" = cover page logo)
+export function useRemoveLogo(variant?: "light") {
   const queryClient = useQueryClient();
+  const qs = variant ? `?variant=${variant}` : "";
 
   return useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/settings/logo", {
+      const res = await fetch(`/api/settings/logo${qs}`, {
         method: "DELETE",
       });
       if (!res.ok) {

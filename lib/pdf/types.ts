@@ -76,6 +76,7 @@ export interface PDFDataProps {
  */
 export interface PDFBranding {
   logoUrl?: string | null;
+  logoLightUrl?: string | null;
   companyName?: string | null;
   tagline?: string | null;
   phone?: string | null;

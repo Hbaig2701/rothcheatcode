@@ -141,13 +141,14 @@ export async function POST(request: Request, context: RouteContext) {
     let branding: PDFBranding | undefined;
     const { data: settings } = await supabase
       .from('user_settings')
-      .select('company_name, tagline, company_phone, company_email, company_website, address, logo_url, primary_color, secondary_color')
+      .select('company_name, tagline, company_phone, company_email, company_website, address, logo_url, logo_light_url, primary_color, secondary_color')
       .eq('user_id', user.id)
       .single();
 
     if (settings) {
       branding = {
         logoUrl: settings.logo_url,
+        logoLightUrl: settings.logo_light_url,
         companyName: settings.company_name,
         tagline: settings.tagline,
         phone: settings.company_phone,
