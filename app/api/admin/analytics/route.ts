@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getStripe } from "@/lib/stripe";
 
 // Test accounts to exclude
 const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
@@ -32,7 +33,7 @@ export async function GET() {
     // Only get paying advisors
     const { data: payingProfiles } = await admin
       .from("profiles")
-      .select("id, email, created_at, subscription_status, plan, billing_cycle")
+      .select("id, email, created_at, subscription_status, plan, billing_cycle, stripe_subscription_id")
       .eq("role", "advisor")
       .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
       .not('stripe_customer_id', 'is', null);
@@ -177,28 +178,50 @@ export async function GET() {
       })
       .sort((a, b) => a.score - b.score); // Lowest scores first
 
-    // Revenue at risk: paying advisors who haven't logged in for 7+ days OR have declining usage
-    const revenueAtRisk = healthScores
-      .filter(h => h.daysSinceLogin >= 7 || h.score < 30)
-      .map(h => {
-        const profile = profiles.find(p => p.id === h.id);
-        const plan = profile?.plan as keyof typeof import('@/lib/config/plans').PLAN_PRICES | undefined;
-        const cycle = profile?.billing_cycle as 'monthly' | 'annual' | undefined;
-        let mrr = 0;
-        if (plan === 'standard' && cycle) {
-          const { PLAN_PRICES } = require('@/lib/config/plans');
-          const price = PLAN_PRICES[plan]?.[cycle]?.amount ?? 0;
-          mrr = cycle === 'monthly' ? price : Math.round(price / 12);
-        }
+    // Fetch actual subscription amounts from Stripe for at-risk MRR
+    const stripe = getStripe();
+    const atRiskCandidates = healthScores.filter(h => h.daysSinceLogin >= 7 || h.score < 30);
+    const subAmountMap = new Map<string, number>();
 
-        return {
-          ...h,
-          mrr,
-          risk: h.daysSinceLogin >= 30 ? 'high' as const
-            : h.daysSinceLogin >= 14 ? 'medium' as const
-            : 'low' as const,
-        };
-      })
+    const subFetches = atRiskCandidates.map(async (h) => {
+      const profile = profiles.find(p => p.id === h.id);
+      if (!profile?.stripe_subscription_id) return;
+      try {
+        const sub = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
+        const item = sub.items?.data?.[0];
+        if (item) {
+          let amount = (item.price?.unit_amount ?? 0) / 100;
+          const interval = item.price?.recurring?.interval ?? 'month';
+          // Apply subscription-level discounts
+          const discounts = sub.discounts ?? [];
+          for (const d of discounts) {
+            if (typeof d === 'string') continue;
+            const coupon = typeof d.source?.coupon === 'object' ? d.source.coupon : null;
+            if (coupon?.percent_off) {
+              amount *= (1 - coupon.percent_off / 100);
+            }
+            if (coupon?.amount_off) {
+              amount = Math.max(0, amount - coupon.amount_off / 100);
+            }
+          }
+          const mrr = interval === 'year' ? Math.round(amount / 12) : Math.round(amount);
+          subAmountMap.set(h.id, mrr);
+        }
+      } catch {
+        // Skip if fetch fails
+      }
+    });
+    await Promise.all(subFetches);
+
+    // Revenue at risk: paying advisors who haven't logged in for 7+ days OR have declining usage
+    const revenueAtRisk = atRiskCandidates
+      .map(h => ({
+        ...h,
+        mrr: subAmountMap.get(h.id) ?? 0,
+        risk: h.daysSinceLogin >= 30 ? 'high' as const
+          : h.daysSinceLogin >= 14 ? 'medium' as const
+          : 'low' as const,
+      }))
       .sort((a, b) => b.mrr - a.mrr); // Highest revenue at risk first
 
     return NextResponse.json({

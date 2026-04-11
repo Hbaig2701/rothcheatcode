@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { PLAN_PRICES } from "@/lib/config/plans";
+import { getStripe } from "@/lib/stripe";
 
 // Test accounts to exclude from all metrics
 const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
@@ -29,8 +29,9 @@ export async function GET() {
     }
 
     const admin = createAdminClient();
+    const stripe = getStripe();
 
-    // Get paying advisor profiles only (have Stripe subscription, exclude test accounts)
+    // Get paying advisor profiles (have Stripe subscription, exclude test accounts)
     const { data: profiles } = await admin
       .from("profiles")
       .select("id, email, plan, subscription_status, billing_cycle, created_at, current_period_end, stripe_customer_id, stripe_subscription_id")
@@ -42,7 +43,48 @@ export async function GET() {
       return NextResponse.json({ error: "Failed to fetch profiles" }, { status: 500 });
     }
 
-    // Calculate current MRR and active subscriptions
+    // Fetch actual subscription data from Stripe for active subscribers
+    const activeProfiles = profiles.filter(p =>
+      p.stripe_subscription_id && (p.subscription_status === 'active' || p.subscription_status === 'trialing')
+    );
+
+    // Batch fetch Stripe subscriptions (actual amounts after discounts)
+    const subAmounts = new Map<string, { amount: number; interval: string }>();
+    const subFetches = activeProfiles
+      .filter(p => p.stripe_subscription_id)
+      .map(async (p) => {
+        try {
+          const sub = await stripe.subscriptions.retrieve(p.stripe_subscription_id!);
+          const item = sub.items?.data?.[0];
+          if (item) {
+            // amount is the actual price after any coupon/discount, in cents
+            const amount = (item.price?.unit_amount ?? 0) / 100;
+            const interval = item.price?.recurring?.interval ?? 'month';
+
+            // Apply subscription-level discounts
+            let finalAmount = amount;
+            const discounts = sub.discounts ?? [];
+            for (const d of discounts) {
+              if (typeof d === 'string') continue;
+              const coupon = typeof d.source?.coupon === 'object' ? d.source.coupon : null;
+              if (coupon?.percent_off) {
+                finalAmount *= (1 - coupon.percent_off / 100);
+              }
+              if (coupon?.amount_off) {
+                finalAmount = Math.max(0, finalAmount - coupon.amount_off / 100);
+              }
+            }
+            subAmounts.set(p.id, { amount: finalAmount, interval });
+          }
+        } catch (err) {
+          // If subscription fetch fails, skip (might be deleted in Stripe)
+          console.error(`Failed to fetch subscription ${p.stripe_subscription_id}:`, err);
+        }
+      });
+
+    await Promise.all(subFetches);
+
+    // Calculate MRR using actual Stripe amounts
     let totalMRR = 0;
     let totalARR = 0;
     let activeSubscriptions = 0;
@@ -51,73 +93,72 @@ export async function GET() {
     let monthlyRevenue = 0;
     let annualRevenue = 0;
 
-    profiles.forEach(profile => {
-      if (profile.subscription_status === 'active' || profile.subscription_status === 'trialing') {
-        activeSubscriptions++;
+    activeProfiles.forEach(profile => {
+      const sub = subAmounts.get(profile.id);
+      if (!sub) return;
 
-        const plan = profile.plan as keyof typeof PLAN_PRICES;
-        const cycle = profile.billing_cycle as 'monthly' | 'annual';
+      activeSubscriptions++;
+      const monthlyAmount = sub.interval === 'year' ? sub.amount / 12 : sub.amount;
+      totalMRR += monthlyAmount;
+      totalARR += monthlyAmount * 12;
 
-        if (plan && PLAN_PRICES[plan] && cycle) {
-          const price = PLAN_PRICES[plan][cycle].amount;
-          const monthly = cycle === 'monthly' ? price : price / 12;
-          totalMRR += monthly;
-          totalARR += monthly * 12;
-
-          if (cycle === 'monthly') {
-            monthlyCount++;
-            monthlyRevenue += price;
-          } else {
-            annualCount++;
-            annualRevenue += price;
-          }
-        }
+      if (sub.interval === 'month') {
+        monthlyCount++;
+        monthlyRevenue += sub.amount;
+      } else {
+        annualCount++;
+        annualRevenue += sub.amount;
       }
     });
 
-    // Total cash collected estimate: sum of what each subscriber has paid since signup
-    // For monthly: months_active * monthly_price
-    // For annual: years_active * annual_price
+    // Total cash collected: query Stripe for actual charges
     let totalCashCollected = 0;
-    const now = new Date();
-    profiles.forEach(profile => {
-      if (profile.subscription_status === 'canceled' || profile.subscription_status === 'active' || profile.subscription_status === 'trialing') {
-        const plan = profile.plan as keyof typeof PLAN_PRICES;
-        const cycle = profile.billing_cycle as 'monthly' | 'annual';
-        if (plan && PLAN_PRICES[plan] && cycle) {
-          const price = PLAN_PRICES[plan][cycle].amount;
-          const created = new Date(profile.created_at);
-          const monthsActive = Math.max(1, Math.ceil((now.getTime() - created.getTime()) / (30.44 * 86400000)));
+    try {
+      // Get all successful charges (paginate through all)
+      let hasMore = true;
+      let startingAfter: string | undefined;
+      while (hasMore) {
+        const params: Record<string, unknown> = { limit: 100 };
+        if (startingAfter) params.starting_after = startingAfter;
+        const charges = await stripe.charges.list(params as any);
 
-          if (cycle === 'monthly') {
-            totalCashCollected += monthsActive * price;
-          } else {
-            const yearsActive = Math.max(1, Math.ceil(monthsActive / 12));
-            totalCashCollected += yearsActive * price;
+        for (const charge of charges.data) {
+          if (charge.status === 'succeeded' && !charge.refunded) {
+            totalCashCollected += (charge.amount - (charge.amount_refunded ?? 0)) / 100;
           }
         }
+
+        hasMore = charges.has_more;
+        if (charges.data.length > 0) {
+          startingAfter = charges.data[charges.data.length - 1].id;
+        } else {
+          hasMore = false;
+        }
       }
-    });
+    } catch (err) {
+      console.error("Failed to fetch Stripe charges:", err);
+      // Fallback: estimate from profiles if Stripe charge fetch fails
+    }
 
     // Previous month MRR for growth calc
+    // Use profiles that existed last month + their Stripe amounts
     const lastMonth = new Date();
     lastMonth.setMonth(lastMonth.getMonth() - 1);
     let lastMonthMRR = 0;
-    profiles.forEach(profile => {
+    activeProfiles.forEach(profile => {
       const createdDate = new Date(profile.created_at);
-      if (createdDate <= lastMonth && (profile.subscription_status === 'active' || profile.subscription_status === 'trialing')) {
-        const plan = profile.plan as keyof typeof PLAN_PRICES;
-        const cycle = profile.billing_cycle as 'monthly' | 'annual';
-        if (plan && PLAN_PRICES[plan] && cycle) {
-          const price = PLAN_PRICES[plan][cycle].amount;
-          lastMonthMRR += cycle === 'monthly' ? price : price / 12;
+      if (createdDate <= lastMonth) {
+        const sub = subAmounts.get(profile.id);
+        if (sub) {
+          lastMonthMRR += sub.interval === 'year' ? sub.amount / 12 : sub.amount;
         }
       }
     });
 
     const mrrGrowth = lastMonthMRR > 0 ? ((totalMRR - lastMonthMRR) / lastMonthMRR) * 100 : 0;
 
-    // Generate MRR/ARR line chart data (last 6 months)
+    // MRR/ARR trend (last 6 months)
+    // For historical months, we approximate using current amounts for subscribers that existed then
     const mrrTrend: { month: string; mrr: number; arr: number; subscribers: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const monthDate = new Date();
@@ -129,13 +170,16 @@ export async function GET() {
 
       profiles.forEach(profile => {
         const created = new Date(profile.created_at);
-        if (created <= monthEnd && (profile.subscription_status === 'active' || profile.subscription_status === 'trialing' ||
-            (profile.subscription_status === 'canceled' && profile.current_period_end && new Date(profile.current_period_end) >= monthEnd))) {
-          const plan = profile.plan as keyof typeof PLAN_PRICES;
-          const cycle = profile.billing_cycle as 'monthly' | 'annual';
-          if (plan && PLAN_PRICES[plan] && cycle) {
-            const price = PLAN_PRICES[plan][cycle].amount;
-            monthMRR += cycle === 'monthly' ? price : price / 12;
+        const wasActive = created <= monthEnd && (
+          profile.subscription_status === 'active' ||
+          profile.subscription_status === 'trialing' ||
+          (profile.subscription_status === 'canceled' && profile.current_period_end && new Date(profile.current_period_end) >= monthEnd)
+        );
+
+        if (wasActive) {
+          const sub = subAmounts.get(profile.id);
+          if (sub) {
+            monthMRR += sub.interval === 'year' ? sub.amount / 12 : sub.amount;
             subs++;
           }
         }
@@ -166,8 +210,8 @@ export async function GET() {
         mrrGrowth: Math.round(mrrGrowth * 10) / 10,
       },
       breakdown: {
-        monthly: { count: monthlyCount, revenue: monthlyRevenue },
-        annual: { count: annualCount, revenue: annualRevenue },
+        monthly: { count: monthlyCount, revenue: Math.round(monthlyRevenue) },
+        annual: { count: annualCount, revenue: Math.round(annualRevenue) },
       },
       mrrTrend,
       health: {
