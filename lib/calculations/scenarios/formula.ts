@@ -191,7 +191,9 @@ export function runFormulaScenario(
     }
 
     // Execute conversion
-    const iraAfterConversion = boyIRA - conversionAmount;
+    // When payTaxFromIRA, the IRA also pays the tax — deduct both from IRA
+    const conversionTaxFromIRA = payTaxFromIRA ? (federalConversionTax + stateConversionTax) : 0;
+    const iraAfterConversion = boyIRA - conversionAmount - conversionTaxFromIRA;
     const rothAfterConversion = boyRoth + conversionAmount;
 
     // Calculate interest AFTER conversion

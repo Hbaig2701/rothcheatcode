@@ -296,7 +296,8 @@ export function runGrowthFormulaScenario(
       ? contractRate
       : postContractRate;
     const iraInterest = Math.round(iraAfterConversion * iraGrowthRate);
-    const rothInterest = Math.round(rothAfterConversion * contractRate);
+    const rothGrowthRate = (client.rate_of_return ?? 7) / 100;
+    const rothInterest = Math.round(rothAfterConversion * rothGrowthRate);
 
     // Update balances
     iraBalance = iraAfterConversion + iraInterest;

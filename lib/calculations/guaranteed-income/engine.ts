@@ -335,9 +335,20 @@ function runGIStrategyScenario(
         }
 
         // Handle tax payment from IRA
+        // When paying taxes internally, cap so conversion + tax fits in the IRA.
+        // For fixed amounts, don't reduce the conversion — the user specified
+        // what they want converted; taxes are additional.
+        // For last-year full conversion, solve so conversion + tax = balance.
         if (payTaxFromIRA && conversionAmount > 0) {
           const effectiveRate = conversionBracket / 100 + stateTaxRateDecimal;
-          conversionAmount = Math.round(conversionAmount * (1 - effectiveRate));
+          if (isLastConversionYear) {
+            // Full conversion: solve conversion + tax = balance
+            conversionAmount = Math.round(boyTraditional / (1 + effectiveRate));
+          } else {
+            // Fixed amount: cap so conversion + tax <= balance
+            const maxConvWithTax = Math.floor(boyTraditional / (1 + effectiveRate));
+            conversionAmount = Math.min(conversionAmount, maxConvWithTax);
+          }
           conversionAmount = Math.min(conversionAmount, boyTraditional);
         }
 
