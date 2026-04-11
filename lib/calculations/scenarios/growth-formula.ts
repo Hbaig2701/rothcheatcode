@@ -196,8 +196,18 @@ export function runGrowthFormulaScenario(
           conversionAmount = iraAfterRmd;
         }
       } else if (conversionType === 'fixed_amount' && fixedConversionAmount > 0) {
-        // Fixed amount: convert specified amount per year (or remaining balance if less)
-        conversionAmount = Math.min(fixedConversionAmount, iraAfterRmd);
+        // Fixed amount: convert specified amount per year (or remaining balance if less).
+        // When paying tax from IRA, ensure the IRA can cover both the conversion AND
+        // the tax. The user specified the amount they want converted to Roth, so we
+        // don't gross-down. Instead, cap so that conversion + estimated tax <= iraAfterRmd.
+        if (payTaxFromIRA) {
+          const estEffRate = maxTaxRate / 100 + stateTaxRateDecimal;
+          const maxConvWithTax = Math.floor(iraAfterRmd / (1 + estEffRate));
+          conversionAmount = Math.min(fixedConversionAmount, maxConvWithTax, iraAfterRmd);
+          skipGrossDown = true; // tax is handled separately below, don't shrink conversion
+        } else {
+          conversionAmount = Math.min(fixedConversionAmount, iraAfterRmd);
+        }
       } else {
         // optimized_amount: fill up to target bracket ceiling
         conversionAmount = calculateOptimalConversion(
