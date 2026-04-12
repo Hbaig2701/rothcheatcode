@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 20; // v20: revert phantom "IRMAA unit mismatch" fixes — engine operates in cents throughout, earlier "fix" broke the cap
+const PRODUCT_CONFIG_VERSION = 21; // v21: fixed internal tax gross-down bugs, Roth growth rate, GI tax deduction — must invalidate all cached projections
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
