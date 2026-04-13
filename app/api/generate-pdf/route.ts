@@ -677,7 +677,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       ...formulaData,
     },
     diff: {
-      // Raw values for use with formatDiff helper (cents)
+      // Raw values for use with formatDiff helper (dollars, converted from cents)
       distributions: (blueConversions - baseRMDs) / 100,
       taxes: (blueTax - baseTax) / 100,
       afterTax: (0 - (rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseTax)) / 100,
@@ -724,8 +724,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     })(),
     legacyComparisonTable: (() => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return projection.blueprint_years.map((year: any, idx: number) => {
-        const baseYear = projection.baseline_years[idx];
+      return projection.blueprint_years.map((year: any) => {
+        const baseYear = projection.baseline_years.find((y: any) => y.year === year.year);
         if (!baseYear) return null;
         const baseLegacy = Math.round(baseYear.traditionalBalance * (1 - heirTaxRate)) + (baseYear.rothBalance || 0);
         const stratLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + (year.rothBalance || 0);
