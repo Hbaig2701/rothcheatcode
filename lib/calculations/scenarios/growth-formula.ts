@@ -160,7 +160,7 @@ export function runGrowthFormulaScenario(
     const shouldConvert = conversionType !== 'no_conversion' &&
                           age >= conversionStartAge &&
                           age <= conversionEndAge &&
-                          iraAfterRmd > 50000; // Skip dust balances under $500
+                          iraAfterRmd > 100; // Skip dust balances under $1 (residuals absorbed by solver)
 
     // Flag: when we've already solved the from-IRA tax math exactly (e.g. for
     // full_conversion), skip the generic gross-down below to avoid shrinking
@@ -177,21 +177,19 @@ export function runGrowthFormulaScenario(
           // real marginal tax is lower. Solve iteratively using the actual
           // tax calculation (converges in 2-3 iterations).
           let solved = iraAfterRmd * (1 - (maxTaxRate / 100 + stateTaxRateDecimal));
-          for (let i = 0; i < 4; i++) {
-            const fTax = calculateConversionFederalTax(
-              solved,
-              existingTaxableIncome,
-              client.filing_status,
-              year
-            );
-            const sTax = calculateConversionStateTax(
-              solved,
-              client.state,
-              stateTaxRateDecimal
-            );
+          for (let i = 0; i < 5; i++) {
+            const fTax = calculateConversionFederalTax(solved, existingTaxableIncome, client.filing_status, year);
+            const sTax = calculateConversionStateTax(solved, client.state, stateTaxRateDecimal);
             solved = iraAfterRmd - fTax - sTax;
           }
           conversionAmount = Math.max(0, Math.round(solved));
+          // Absorb rounding residual to fully drain the IRA
+          const fcVerifyF = calculateConversionFederalTax(conversionAmount, existingTaxableIncome, client.filing_status, year);
+          const fcVerifyS = calculateConversionStateTax(conversionAmount, client.state, stateTaxRateDecimal);
+          const fcResidual = iraAfterRmd - conversionAmount - fcVerifyF - fcVerifyS;
+          if (fcResidual > 0 && fcResidual < 50000) {
+            conversionAmount += fcResidual;
+          }
           skipGrossDown = true;
         } else {
           conversionAmount = iraAfterRmd;
@@ -208,12 +206,20 @@ export function runGrowthFormulaScenario(
             // Remaining balance can't cover a full fixed conversion + tax.
             // Empty the IRA: solve iteratively for conversion where conv + tax = balance.
             let solved = iraAfterRmd * (1 - estEffRate);
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < 5; i++) {
               const fTax = calculateConversionFederalTax(solved, existingTaxableIncome, client.filing_status, year);
               const sTax = calculateConversionStateTax(solved, client.state, stateTaxRateDecimal);
               solved = iraAfterRmd - fTax - sTax;
             }
             conversionAmount = Math.max(0, Math.round(solved));
+            // Verify: if conversion + final tax still leaves a residual, absorb it
+            const verifyFTax = calculateConversionFederalTax(conversionAmount, existingTaxableIncome, client.filing_status, year);
+            const verifySTax = calculateConversionStateTax(conversionAmount, client.state, stateTaxRateDecimal);
+            const residual = iraAfterRmd - conversionAmount - verifyFTax - verifySTax;
+            if (residual > 0 && residual < 50000) {
+              // Small residual from rounding — add to conversion to fully drain
+              conversionAmount += residual;
+            }
           } else {
             conversionAmount = fixedConversionAmount;
           }

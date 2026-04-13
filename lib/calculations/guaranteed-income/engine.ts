@@ -344,6 +344,12 @@ function runGIStrategyScenario(
           if (isLastConversionYear) {
             // Full conversion: solve conversion + tax = balance
             conversionAmount = Math.round(boyTraditional / (1 + effectiveRate));
+            // Absorb rounding residual
+            const giTax = Math.round(conversionAmount * effectiveRate);
+            const giResidual = boyTraditional - conversionAmount - giTax;
+            if (giResidual > 0 && giResidual < 50000) {
+              conversionAmount += giResidual;
+            }
           } else {
             // Fixed amount: cap so conversion + tax <= balance
             const maxConvWithTax = Math.floor(boyTraditional / (1 + effectiveRate));

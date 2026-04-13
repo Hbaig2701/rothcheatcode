@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 25; // v25: raise dust threshold to $500 to catch rounding residuals
+const PRODUCT_CONFIG_VERSION = 26; // v26: iterative solvers now absorb rounding residuals to fully drain IRA
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
