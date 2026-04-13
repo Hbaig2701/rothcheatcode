@@ -218,6 +218,33 @@ export function runGrowthFormulaScenario(
           client.filing_status,
           year
         );
+
+        // When paying taxes from IRA, the conversion + tax must both fit within
+        // the IRA balance. Solve iteratively to find the conversion amount where
+        // conversion + actual_tax(conversion) <= iraAfterRmd.
+        if (payTaxFromIRA && conversionAmount > 0) {
+          let solved = conversionAmount;
+          for (let iter = 0; iter < 4; iter++) {
+            const fTax = calculateConversionFederalTax(
+              solved,
+              existingTaxableIncome,
+              client.filing_status,
+              year
+            );
+            const sTax = calculateConversionStateTax(
+              solved,
+              client.state,
+              stateTaxRateDecimal
+            );
+            const totalNeeded = solved + fTax + sTax;
+            if (totalNeeded <= iraAfterRmd) break;
+            // Shrink: solve for conversion where conv + tax = iraAfterRmd
+            solved = iraAfterRmd - fTax - sTax;
+            solved = Math.max(0, solved);
+          }
+          conversionAmount = Math.min(solved, conversionAmount);
+          skipGrossDown = true;
+        }
       }
 
       // IRMAA threshold constraint (applies to ALL conversion methods as a
