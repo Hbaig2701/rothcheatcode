@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 22; // v22: fixed optimized_amount gross-down with internal taxes — was over-shrinking conversions
+const PRODUCT_CONFIG_VERSION = 23; // v23: fixed_amount with internal taxes now empties IRA cleanly in final year instead of long tail
 
 function generateInputHash(client: Client): string {
   const relevantFields = {

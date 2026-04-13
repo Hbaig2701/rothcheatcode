@@ -204,8 +204,20 @@ export function runGrowthFormulaScenario(
         if (payTaxFromIRA) {
           const estEffRate = maxTaxRate / 100 + stateTaxRateDecimal;
           const maxConvWithTax = Math.floor(iraAfterRmd / (1 + estEffRate));
-          conversionAmount = Math.min(fixedConversionAmount, maxConvWithTax, iraAfterRmd);
-          skipGrossDown = true; // tax is handled separately below, don't shrink conversion
+          if (maxConvWithTax < fixedConversionAmount) {
+            // Remaining balance can't cover a full fixed conversion + tax.
+            // Empty the IRA: solve iteratively for conversion where conv + tax = balance.
+            let solved = iraAfterRmd * (1 - estEffRate);
+            for (let i = 0; i < 4; i++) {
+              const fTax = calculateConversionFederalTax(solved, existingTaxableIncome, client.filing_status, year);
+              const sTax = calculateConversionStateTax(solved, client.state, stateTaxRateDecimal);
+              solved = iraAfterRmd - fTax - sTax;
+            }
+            conversionAmount = Math.max(0, Math.round(solved));
+          } else {
+            conversionAmount = fixedConversionAmount;
+          }
+          skipGrossDown = true;
         } else {
           conversionAmount = Math.min(fixedConversionAmount, iraAfterRmd);
         }
