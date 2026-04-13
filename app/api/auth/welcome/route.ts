@@ -85,18 +85,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Update their profile with Stripe info
+    // The profile is created by a DB trigger on auth.users insert, but there's
+    // a potential race condition. Retry the update a few times to handle this.
     const periodEndIso = getSubscriptionPeriodEnd(subscription);
-    await admin
-      .from("profiles")
-      .update({
-        stripe_customer_id: stripeCustomerId,
-        stripe_subscription_id: subscription?.id,
-        plan,
-        billing_cycle: cycle,
-        subscription_status: "active",
-        current_period_end: periodEndIso,
-      })
-      .eq("id", authData.user.id);
+    const profileData = {
+      email,
+      stripe_customer_id: stripeCustomerId,
+      stripe_subscription_id: subscription?.id,
+      plan,
+      billing_cycle: cycle,
+      subscription_status: "active",
+      current_period_end: periodEndIso,
+    };
+
+    let profileUpdated = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { count } = await admin
+        .from("profiles")
+        .update(profileData)
+        .eq("id", authData.user.id);
+
+      if (count && count > 0) {
+        profileUpdated = true;
+        break;
+      }
+      // Trigger may not have fired yet — wait briefly
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    // If trigger never created the profile, insert it directly
+    if (!profileUpdated) {
+      await admin.from("profiles").insert({
+        id: authData.user.id,
+        ...profileData,
+      });
+    }
 
     // Initialize usage tracking
     const now = new Date();
