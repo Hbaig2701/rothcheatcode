@@ -199,7 +199,7 @@ export function ResizableTable({
       )}
       {/* Single scrollable container */}
       <div className="max-h-[600px] overflow-auto w-full">
-        <table className="w-max" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
+        <table className="w-max min-w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
               {frozenColumns.map((col, i) => renderHeader(col, true, i))}
