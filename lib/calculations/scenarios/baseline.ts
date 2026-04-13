@@ -251,6 +251,7 @@ export function runBaselineScenario(
       stateTaxOnSS: 0, // SS is tax-exempt
       stateTaxOnConversions: 0, // No conversions in baseline
       stateTaxOnOrdinaryIncome,
+      totalIRAWithdrawal: rmdAmount, // Baseline only has RMD withdrawals
     });
   }
 

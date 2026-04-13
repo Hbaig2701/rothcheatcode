@@ -113,6 +113,7 @@ export function runGrowthBaselineScenario(
       stateTaxOnSS: 0,
       stateTaxOnConversions: 0,
       stateTaxOnOrdinaryIncome: 0,
+      totalIRAWithdrawal: 0, // No withdrawals in growth baseline
     });
   }
 

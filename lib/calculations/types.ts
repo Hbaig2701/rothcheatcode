@@ -208,6 +208,9 @@ export interface YearlyResult {
   stateTaxOnConversions?: number;
   stateTaxOnOrdinaryIncome?: number;
 
+  // Total IRA withdrawal: conversion + taxes paid from IRA (in cents)
+  totalIRAWithdrawal?: number;
+
   // Guaranteed Income-specific (optional, for GI products)
   incomeRiderValue?: number; // Income benefit base (in cents)
   accumulationValue?: number; // Account accumulation value (in cents)

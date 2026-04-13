@@ -527,6 +527,7 @@ export function runGrowthFormulaScenario(
       stateTaxOnSS: 0,
       stateTaxOnConversions,
       stateTaxOnOrdinaryIncome,
+      totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + rmdAmount,
     });
   }
 

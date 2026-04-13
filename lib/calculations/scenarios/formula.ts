@@ -302,6 +302,7 @@ export function runFormulaScenario(
       stateTaxOnSS: 0,
       stateTaxOnConversions: stateConversionTax,
       stateTaxOnOrdinaryIncome: 0,
+      totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA,
     });
   }
 

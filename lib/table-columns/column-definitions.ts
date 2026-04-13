@@ -254,6 +254,17 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     defaultWidth: 130,
     minWidth: 110,
   },
+  {
+    id: 'totalIRAWithdrawal',
+    label: 'Total IRA Withdrawal',
+    category: 'distributions',
+    description: 'Total amount withdrawn from the Traditional IRA this year: conversions + taxes paid from IRA + RMDs. This is the number to give the annuity carrier.',
+    formatter: formatCurrency,
+    defaultVisible: true,
+    visibleForProducts: ['growth'],
+    defaultWidth: 160,
+    minWidth: 130,
+  },
 
   // ============================================================
   // INCOME
