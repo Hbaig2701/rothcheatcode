@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 24; // v24: skip dust balances under $1 to prevent ghost $0 conversion years
+const PRODUCT_CONFIG_VERSION = 25; // v25: raise dust threshold to $500 to catch rounding residuals
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
