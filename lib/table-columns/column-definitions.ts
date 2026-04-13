@@ -265,6 +265,17 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     defaultWidth: 160,
     minWidth: 130,
   },
+  {
+    id: 'taxesPaidFromIRA',
+    label: 'Taxes Paid from IRA',
+    category: 'distributions',
+    description: 'The specific amount withdrawn from the IRA to pay federal and state taxes on the Roth conversion. This is the portion of the Total IRA Withdrawal that goes directly to the IRS.',
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['all'],
+    defaultWidth: 170,
+    minWidth: 130,
+  },
 
   // ============================================================
   // INCOME

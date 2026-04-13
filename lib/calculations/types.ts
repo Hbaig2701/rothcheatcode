@@ -211,6 +211,9 @@ export interface YearlyResult {
   // Total IRA withdrawal: conversion + taxes paid from IRA (in cents)
   totalIRAWithdrawal?: number;
 
+  // Taxes paid from IRA: portion of IRA withdrawn to cover conversion taxes (in cents)
+  taxesPaidFromIRA?: number;
+
   // Guaranteed Income-specific (optional, for GI products)
   incomeRiderValue?: number; // Income benefit base (in cents)
   accumulationValue?: number; // Account accumulation value (in cents)

@@ -453,6 +453,8 @@ function runGIStrategyScenario(
         stateTaxOnSS: 0,
         stateTaxOnConversions: stateConversionTax,
         stateTaxOnOrdinaryIncome: 0,
+        totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA,
+        taxesPaidFromIRA: conversionTaxFromIRA,
         // GI-specific fields
         incomeRiderValue: 0,
         accumulationValue: 0,
