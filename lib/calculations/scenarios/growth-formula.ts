@@ -160,7 +160,7 @@ export function runGrowthFormulaScenario(
     const shouldConvert = conversionType !== 'no_conversion' &&
                           age >= conversionStartAge &&
                           age <= conversionEndAge &&
-                          iraAfterRmd > 0;
+                          iraAfterRmd > 100; // Skip dust balances under $1
 
     // Flag: when we've already solved the from-IRA tax math exactly (e.g. for
     // full_conversion), skip the generic gross-down below to avoid shrinking
