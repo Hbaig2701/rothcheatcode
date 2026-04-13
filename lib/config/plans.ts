@@ -42,8 +42,8 @@ export const PLAN_LIMITS: Record<PlanId, PlanLimits> = {
 
 export const PLAN_PRICES = {
   standard: {
-    monthly: { amount: 197, label: "$197/month" },
-    annual: { amount: 1970, label: "$1,970/year (save $394)" },
+    monthly: { amount: 297, label: "$297/month" },
+    annual: { amount: 2970, label: "$2,970/year (save $594)" },
   },
   // ARCHIVED: Legacy plans — can be re-enabled if needed
   // starter: {

@@ -88,7 +88,7 @@ export function UpgradeModal({
           </Button>
           <Button onClick={handleUpgrade} disabled={loading}>
             {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Subscribe Now — $197/mo
+            Subscribe Now — $297/mo
           </Button>
         </DialogFooter>
       </DialogContent>

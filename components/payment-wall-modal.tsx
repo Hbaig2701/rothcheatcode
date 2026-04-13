@@ -137,7 +137,7 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
             ) : (
               <>
                 <span className="text-lg">Monthly</span>
-                <span className="text-sm text-text-muted font-normal">$197/month</span>
+                <span className="text-sm text-text-muted font-normal">$297/month</span>
               </>
             )}
           </Button>
@@ -155,10 +155,10 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
             ) : (
               <>
                 <span className="absolute top-1 right-2 text-[10px] bg-black/20 px-2 py-0.5 rounded-full">
-                  Save $394
+                  Save $594
                 </span>
                 <span className="text-lg">Annual</span>
-                <span className="text-sm text-black/70 font-normal">$1,970/year</span>
+                <span className="text-sm text-black/70 font-normal">$2,970/year</span>
               </>
             )}
           </Button>

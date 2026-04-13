@@ -8,8 +8,8 @@ import Link from 'next/link'
 const PLANS = {
   standard: {
     name: 'Full Access',
-    monthly: 197,
-    annual: 1970,
+    monthly: 297,
+    annual: 2970,
     features: [
       'Unlimited clients',
       'Unlimited scenario runs',
