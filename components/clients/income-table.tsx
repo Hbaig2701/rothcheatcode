@@ -98,11 +98,14 @@ export function IncomeTable() {
     // creates an entry for every year up to and including endYear.
     const endYear = startYear + yearsToFill;
     const existingOutside = fields
-      .map((_, i) => {
-        const vals = form.getValues(`non_ssi_income.${i}`);
-        return vals;
-      })
-      .filter((entry) => entry.year < startYear || entry.year > endYear);
+      .map((_, i) => form.getValues(`non_ssi_income.${i}`))
+      .filter(
+        (entry) =>
+          entry &&
+          typeof entry.year === "number" &&
+          !Number.isNaN(entry.year) &&
+          (entry.year < startYear || entry.year > endYear)
+      );
 
     const newEntries = [];
     for (let i = 0; i <= yearsToFill; i++) {

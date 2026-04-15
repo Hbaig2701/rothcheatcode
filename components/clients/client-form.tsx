@@ -186,19 +186,20 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
     try {
       // Filter out any invalid/ghost income entries (e.g., from failed deletes)
       // and recompute age from year so it's always consistent with the year field.
+      // Match the display logic in IncomeTableRow (MFJ only shows spouse age).
       if (data.non_ssi_income) {
         const currentYearForAge = new Date().getFullYear();
         const clientAge = data.age;
-        const isMarriedForAge =
-          data.filing_status === "married_filing_jointly" ||
-          data.filing_status === "married_filing_separately";
-        const spouseAgeForAge = isMarriedForAge ? data.spouse_age : null;
+        const showsSpouseAge =
+          data.filing_status === "married_filing_jointly" && data.spouse_age
+            ? data.spouse_age
+            : null;
         data.non_ssi_income = data.non_ssi_income
           .filter((entry) => entry.year && !Number.isNaN(entry.year) && entry.year >= 2024)
           .map((entry) => {
             const delta = entry.year - currentYearForAge;
             const cAge = clientAge + delta;
-            const sAge = spouseAgeForAge ? spouseAgeForAge + delta : null;
+            const sAge = showsSpouseAge ? showsSpouseAge + delta : null;
             return {
               ...entry,
               age: sAge ? `${cAge}/${sAge}` : String(cAge),
