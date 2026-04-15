@@ -23,28 +23,39 @@ export function IncomeTable() {
   const currentYear = new Date().getFullYear();
 
   const [showRecurring, setShowRecurring] = useState(false);
+  const [recurringStartAgeStr, setRecurringStartAgeStr] = useState(String(currentAge));
   const [recurringEndAgeStr, setRecurringEndAgeStr] = useState(String(endAge));
   const [recurringGross, setRecurringGross] = useState<number | null>(null);
   const [recurringExempt, setRecurringExempt] = useState<number | null>(null);
   const [recurringError, setRecurringError] = useState<string | null>(null);
 
+  const recurringStartAge = parseInt(recurringStartAgeStr) || 0;
   const recurringEndAge = parseInt(recurringEndAgeStr) || 0;
 
   // When opening the recurring panel, prefill with existing entry values so users
   // can see and adjust the current recurring amounts instead of starting blank
   // (which would wipe data to $0 if they click Fill without re-entering).
   const openRecurringPanel = () => {
-    if (!showRecurring && fields.length > 0) {
-      const firstEntry = form.getValues("non_ssi_income.0");
-      if (firstEntry) {
-        setRecurringGross(firstEntry.gross_taxable ?? 0);
-        setRecurringExempt(firstEntry.tax_exempt ?? 0);
-      }
-      // Sync Until Age to the last entry's age
-      const lastEntry = form.getValues(`non_ssi_income.${fields.length - 1}`);
-      if (lastEntry?.year) {
-        const lastAge = currentAge + (lastEntry.year - currentYear);
-        setRecurringEndAgeStr(String(lastAge));
+    if (!showRecurring) {
+      if (fields.length > 0) {
+        const firstEntry = form.getValues("non_ssi_income.0");
+        if (firstEntry) {
+          setRecurringGross(firstEntry.gross_taxable ?? 0);
+          setRecurringExempt(firstEntry.tax_exempt ?? 0);
+          if (firstEntry.year) {
+            const firstAge = currentAge + (firstEntry.year - currentYear);
+            setRecurringStartAgeStr(String(firstAge));
+          }
+        }
+        const lastEntry = form.getValues(`non_ssi_income.${fields.length - 1}`);
+        if (lastEntry?.year) {
+          const lastAge = currentAge + (lastEntry.year - currentYear);
+          setRecurringEndAgeStr(String(lastAge));
+        }
+      } else {
+        // No entries yet — reset to sensible defaults based on current client data
+        setRecurringStartAgeStr(String(currentAge));
+        setRecurringEndAgeStr(String(endAge));
       }
     }
     setShowRecurring(!showRecurring);
@@ -77,11 +88,13 @@ export function IncomeTable() {
   };
 
   const applyRecurring = () => {
-    const startYear = currentYear;
-    const yearsToFill = recurringEndAge - currentAge;
-
-    if (recurringEndAge <= currentAge) {
-      setRecurringError(`Must be greater than client's current age (${currentAge})`);
+    // Validate inputs
+    if (!recurringStartAge || recurringStartAge < currentAge) {
+      setRecurringError(`Start age must be at least ${currentAge} (current age)`);
+      return;
+    }
+    if (!recurringEndAge || recurringEndAge < recurringStartAge) {
+      setRecurringError(`Until age must be at least ${recurringStartAge} (start age)`);
       return;
     }
     if (recurringEndAge > 120) {
@@ -90,13 +103,15 @@ export function IncomeTable() {
     }
     setRecurringError(null);
 
+    // Translate ages to years using the client's age-year relationship.
+    // Example: current age 60 in 2026, start age 67 => startYear = 2033.
+    const startYear = currentYear + (recurringStartAge - currentAge);
+    const endYear = currentYear + (recurringEndAge - currentAge);
+
     const gross = recurringGross ?? 0;
     const exempt = recurringExempt ?? 0;
 
-    // Keep existing entries that are outside the recurring range, replace those inside.
-    // The recurring range is [startYear, endYear] inclusive, since the loop below
-    // creates an entry for every year up to and including endYear.
-    const endYear = startYear + yearsToFill;
+    // Keep existing entries that are outside the recurring range [startYear, endYear].
     const existingOutside = fields
       .map((_, i) => form.getValues(`non_ssi_income.${i}`))
       .filter(
@@ -108,8 +123,7 @@ export function IncomeTable() {
       );
 
     const newEntries = [];
-    for (let i = 0; i <= yearsToFill; i++) {
-      const year = startYear + i;
+    for (let year = startYear; year <= endYear; year++) {
       newEntries.push({
         year,
         age: calculateAgeStr(year),
@@ -165,9 +179,21 @@ export function IncomeTable() {
         <div className="border border-primary/30 bg-accent rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-1">
           <p className="text-sm text-foreground font-medium">Fill recurring income</p>
           <p className="text-xs text-muted-foreground">
-            Automatically create entries from now until a target age with the same amounts.
+            Automatically create entries from a start age to a target age with the same amounts.
           </p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Start Age</label>
+              <Input
+                type="number"
+                value={recurringStartAgeStr}
+                onChange={(e) => {
+                  setRecurringStartAgeStr(e.target.value);
+                  setRecurringError(null);
+                }}
+                className={`h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${recurringError ? "border-destructive" : ""}`}
+              />
+            </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Until Age</label>
               <Input
@@ -177,18 +203,15 @@ export function IncomeTable() {
                   setRecurringEndAgeStr(e.target.value);
                   setRecurringError(null);
                 }}
-                className={`h-8 ${recurringError ? "border-destructive" : ""}`}
+                className={`h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${recurringError ? "border-destructive" : ""}`}
               />
-              {recurringError && (
-                <p className="text-xs text-destructive">{recurringError}</p>
-              )}
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Annual Gross Taxable</label>
               <CurrencyInput
                 value={recurringGross}
                 onChange={(v) => setRecurringGross(v ?? null)}
-                className="h-8"
+                className="h-9"
               />
             </div>
             <div className="space-y-1">
@@ -196,13 +219,18 @@ export function IncomeTable() {
               <CurrencyInput
                 value={recurringExempt}
                 onChange={(v) => setRecurringExempt(v ?? null)}
-                className="h-8"
+                className="h-9"
               />
             </div>
           </div>
+          {recurringError && (
+            <p className="text-xs text-destructive">{recurringError}</p>
+          )}
           <div className="flex gap-2 pt-1">
             <Button type="button" size="sm" onClick={applyRecurring} className="bg-gold hover:bg-primary/90 text-primary-foreground">
-              {recurringEndAge > currentAge ? `Fill ${recurringEndAge - currentAge + 1} years` : "Fill"}
+              {recurringEndAge >= recurringStartAge && recurringStartAge > 0
+                ? `Fill ${recurringEndAge - recurringStartAge + 1} years`
+                : "Fill"}
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={() => setShowRecurring(false)}>
               Cancel
