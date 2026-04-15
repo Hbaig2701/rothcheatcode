@@ -177,37 +177,64 @@ export function IncomeTable() {
       {/* Recurring income panel */}
       {showRecurring && (
         <div className="border border-primary/30 bg-accent rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-1">
-          <p className="text-sm text-foreground font-medium">Fill recurring income</p>
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="text-sm text-foreground font-medium">Fill recurring income</p>
+            {(() => {
+              const valid =
+                recurringStartAge >= currentAge &&
+                recurringEndAge >= recurringStartAge &&
+                recurringStartAge > 0 &&
+                recurringEndAge <= 120;
+              if (!valid) return null;
+              const startYear = currentYear + (recurringStartAge - currentAge);
+              const endYear = currentYear + (recurringEndAge - currentAge);
+              const yearCount = endYear - startYear + 1;
+              return (
+                <p className="text-xs text-muted-foreground whitespace-nowrap">
+                  {yearCount} {yearCount === 1 ? "year" : "years"} ({startYear}–{endYear})
+                </p>
+              );
+            })()}
+          </div>
           <p className="text-xs text-muted-foreground">
-            Automatically create entries from a start age to a target age with the same amounts.
+            Fills the same annual amount from a start age through a target age — useful for
+            pensions, rental income, or part-time work.
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Start Age</label>
+              <label htmlFor="recurring-start-age" className="text-xs text-muted-foreground">Start Age</label>
               <Input
+                id="recurring-start-age"
                 type="number"
+                min={currentAge}
+                max={120}
                 value={recurringStartAgeStr}
                 onChange={(e) => {
                   setRecurringStartAgeStr(e.target.value);
                   setRecurringError(null);
                 }}
-                className={`h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${recurringError ? "border-destructive" : ""}`}
+                aria-invalid={!!recurringError && recurringError.toLowerCase().includes("start")}
+                className="h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none aria-invalid:border-destructive aria-invalid:ring-destructive/20"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Until Age</label>
+              <label htmlFor="recurring-end-age" className="text-xs text-muted-foreground">Until Age</label>
               <Input
+                id="recurring-end-age"
                 type="number"
+                min={recurringStartAge || currentAge}
+                max={120}
                 value={recurringEndAgeStr}
                 onChange={(e) => {
                   setRecurringEndAgeStr(e.target.value);
                   setRecurringError(null);
                 }}
-                className={`h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${recurringError ? "border-destructive" : ""}`}
+                aria-invalid={!!recurringError && (recurringError.toLowerCase().includes("until") || recurringError.toLowerCase().includes("cannot exceed"))}
+                className="h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none aria-invalid:border-destructive aria-invalid:ring-destructive/20"
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Annual Gross Taxable</label>
+              <label htmlFor="recurring-gross" className="text-xs text-muted-foreground">Annual Gross Taxable</label>
               <CurrencyInput
                 value={recurringGross}
                 onChange={(v) => setRecurringGross(v ?? null)}
@@ -215,7 +242,7 @@ export function IncomeTable() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Annual Tax Exempt</label>
+              <label htmlFor="recurring-exempt" className="text-xs text-muted-foreground">Annual Tax Exempt</label>
               <CurrencyInput
                 value={recurringExempt}
                 onChange={(v) => setRecurringExempt(v ?? null)}
@@ -224,12 +251,12 @@ export function IncomeTable() {
             </div>
           </div>
           {recurringError && (
-            <p className="text-xs text-destructive">{recurringError}</p>
+            <p className="text-xs text-destructive" role="alert">{recurringError}</p>
           )}
           <div className="flex gap-2 pt-1">
             <Button type="button" size="sm" onClick={applyRecurring} className="bg-gold hover:bg-primary/90 text-primary-foreground">
               {recurringEndAge >= recurringStartAge && recurringStartAge > 0
-                ? `Fill ${recurringEndAge - recurringStartAge + 1} years`
+                ? `Fill ${recurringEndAge - recurringStartAge + 1} ${recurringEndAge - recurringStartAge + 1 === 1 ? "year" : "years"}`
                 : "Fill"}
             </Button>
             <Button type="button" variant="ghost" size="sm" onClick={() => setShowRecurring(false)}>
