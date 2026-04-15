@@ -124,9 +124,9 @@ export function IncomeTable() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">Non-SSI Income</h4>
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h4 className="text-sm font-medium whitespace-nowrap">Non-SSI Income</h4>
+        <div className="flex flex-wrap gap-2">
           {fields.length > 0 && (
             <Button
               type="button"
@@ -217,14 +217,14 @@ export function IncomeTable() {
         </p>
       ) : (
         <div className="border rounded-md overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="text-sm min-w-full" style={{ minWidth: "440px" }}>
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-2 py-2 text-left font-medium">Year</th>
-                <th className="px-2 py-2 text-left font-medium">Age(s)</th>
-                <th className="px-2 py-2 text-left font-medium">Gross Taxable</th>
-                <th className="px-2 py-2 text-left font-medium">Tax Exempt</th>
-                <th className="px-1 py-2 w-8"></th>
+                <th className="px-3 py-2 text-left font-medium w-[88px]">Year</th>
+                <th className="px-3 py-2 text-left font-medium w-[72px]">Age(s)</th>
+                <th className="px-3 py-2 text-left font-medium">Gross Taxable</th>
+                <th className="px-3 py-2 text-left font-medium">Tax Exempt</th>
+                <th className="px-2 py-2 w-10"></th>
               </tr>
             </thead>
             <tbody>
@@ -276,21 +276,21 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
 
   return (
     <tr className="border-t">
-      <td className="px-2 py-1.5">
+      <td className="px-3 py-2 align-middle">
         <Input
           type="number"
           min={2024}
           max={2100}
-          className="w-[4.5rem] h-8"
+          className="h-9 w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           {...form.register(`non_ssi_income.${index}.year`, { valueAsNumber: true })}
         />
       </td>
-      <td className="px-2 py-1.5">
-        <div className="h-8 flex items-center px-2 bg-muted/20 rounded-sm text-muted-foreground font-mono text-xs whitespace-nowrap">
+      <td className="px-3 py-2 align-middle">
+        <div className="text-muted-foreground font-mono text-xs whitespace-nowrap">
           {displayAge}
         </div>
       </td>
-      <td className="px-2 py-1.5">
+      <td className="px-3 py-2 align-middle">
         <Controller
           name={`non_ssi_income.${index}.gross_taxable`}
           control={form.control}
@@ -299,12 +299,12 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
               {...field}
               value={field.value ?? 0}
               onChange={(value) => field.onChange(value ?? 0)}
-              className="w-24 h-8"
+              className="h-9"
             />
           )}
         />
       </td>
-      <td className="px-2 py-1.5">
+      <td className="px-3 py-2 align-middle">
         <Controller
           name={`non_ssi_income.${index}.tax_exempt`}
           control={form.control}
@@ -313,18 +313,18 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
               {...field}
               value={field.value ?? 0}
               onChange={(value) => field.onChange(value ?? 0)}
-              className="w-24 h-8"
+              className="h-9"
             />
           )}
         />
       </td>
-      <td className="px-1 py-1.5">
+      <td className="px-2 py-2 align-middle">
         <Button
           type="button"
           variant="ghost"
           size="sm"
           onClick={onRemove}
-          className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive shrink-0"
+          className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive shrink-0"
         >
           <Trash2 className="h-4 w-4" />
         </Button>
