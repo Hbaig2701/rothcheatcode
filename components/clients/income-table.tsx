@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Plus, Trash2, Repeat } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 export function IncomeTable() {
   const form = useFormContext<ClientFormData>();
@@ -124,6 +124,22 @@ export function IncomeTable() {
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-medium">Non-SSI Income</h4>
         <div className="flex gap-2">
+          {fields.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (confirm(`Delete all ${fields.length} income ${fields.length === 1 ? "entry" : "entries"}?`)) {
+                  replace([]);
+                }
+              }}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Delete All
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
@@ -213,7 +229,12 @@ export function IncomeTable() {
                 <IncomeTableRow
                   key={field.id}
                   index={index}
-                  onRemove={() => remove(index)}
+                  onRemove={() => {
+                    // Look up current index by field id so stale closures over `index`
+                    // from earlier renders don't delete the wrong row.
+                    const currentIdx = fields.findIndex((f) => f.id === field.id);
+                    remove(currentIdx >= 0 ? currentIdx : index);
+                  }}
                   currentAge={currentAge}
                   spouseAge={spouseAge}
                   currentYear={currentYear}
@@ -237,32 +258,18 @@ interface IncomeTableRowProps {
 
 function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }: IncomeTableRowProps) {
   const form = useFormContext<ClientFormData>();
-  const removingRef = useRef(false);
 
   // Watch year for this row
   const rowYear = form.watch(`non_ssi_income.${index}.year`);
   const filingStatus = form.watch("filing_status");
   const isMarried = filingStatus === "married_filing_jointly";
 
-  // Calculate display age
+  // Calculate display age from year. Age is computed on submit in client-form.tsx,
+  // so we don't need to sync it to form state here (that pattern raced with delete).
   const delta = (rowYear || currentYear) - currentYear;
   const cAge = currentAge + delta;
   const sAge = (isMarried && spouseAge) ? (spouseAge + delta) : null;
   const displayAge = sAge ? `${cAge}/${sAge}` : `${cAge}`;
-
-  // Sync the calculated age to form state (only if not being removed)
-  useEffect(() => {
-    if (removingRef.current) return;
-    const currentVal = form.getValues(`non_ssi_income.${index}.age`);
-    if (currentVal !== displayAge) {
-      form.setValue(`non_ssi_income.${index}.age`, displayAge);
-    }
-  }, [displayAge, index, form]);
-
-  const handleRemove = () => {
-    removingRef.current = true;
-    onRemove();
-  };
 
   return (
     <tr className="border-t">
@@ -279,7 +286,6 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
         <div className="h-8 flex items-center px-2 bg-muted/20 rounded-sm text-muted-foreground font-mono text-xs whitespace-nowrap">
           {displayAge}
         </div>
-        <input type="hidden" {...form.register(`non_ssi_income.${index}.age`)} value={displayAge} />
       </td>
       <td className="px-2 py-1.5">
         <Controller
@@ -314,7 +320,7 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
           type="button"
           variant="ghost"
           size="sm"
-          onClick={handleRemove}
+          onClick={onRemove}
           className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive shrink-0"
         >
           <Trash2 className="h-4 w-4" />

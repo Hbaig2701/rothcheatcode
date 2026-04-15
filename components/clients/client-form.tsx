@@ -185,10 +185,25 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
     setSubmitError(null);
     try {
       // Filter out any invalid/ghost income entries (e.g., from failed deletes)
+      // and recompute age from year so it's always consistent with the year field.
       if (data.non_ssi_income) {
-        data.non_ssi_income = data.non_ssi_income.filter(
-          (entry) => entry.year && !Number.isNaN(entry.year) && entry.year >= 2024
-        );
+        const currentYearForAge = new Date().getFullYear();
+        const clientAge = data.age;
+        const isMarriedForAge =
+          data.filing_status === "married_filing_jointly" ||
+          data.filing_status === "married_filing_separately";
+        const spouseAgeForAge = isMarriedForAge ? data.spouse_age : null;
+        data.non_ssi_income = data.non_ssi_income
+          .filter((entry) => entry.year && !Number.isNaN(entry.year) && entry.year >= 2024)
+          .map((entry) => {
+            const delta = entry.year - currentYearForAge;
+            const cAge = clientAge + delta;
+            const sAge = spouseAgeForAge ? spouseAgeForAge + delta : null;
+            return {
+              ...entry,
+              age: sAge ? `${cAge}/${sAge}` : String(cAge),
+            };
+          });
       }
 
       // Calculate date_of_birth from age (assume Jan 1st of calculated birth year)
