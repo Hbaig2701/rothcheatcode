@@ -48,6 +48,10 @@ export default function IntakeFormPage() {
   const [form, setForm] = useState<FormData>(initialForm);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [branding, setBranding] = useState<{ logoUrl: string | null; companyName: string | null }>({
+    logoUrl: null,
+    companyName: null,
+  });
 
   const isMarried = form.filing_status === "married_filing_jointly";
 
@@ -57,6 +61,9 @@ export default function IntakeFormPage() {
       .then(({ ok, data }) => {
         if (ok) {
           setStatus("valid");
+          if (data.branding) {
+            setBranding(data.branding);
+          }
         } else {
           setStatus("error");
           setErrorMessage(data.error || "This link is no longer valid.");
@@ -174,11 +181,13 @@ export default function IntakeFormPage() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <img
-            src="/logo.png"
-            alt="Retirement Expert"
-            className="h-8 w-auto mx-auto mb-6 dark:brightness-100 brightness-0"
-          />
+          {branding.logoUrl && (
+            <img
+              src={branding.logoUrl}
+              alt={branding.companyName ?? ""}
+              className="h-12 w-auto mx-auto mb-6"
+            />
+          )}
           <h1 className="text-3xl font-display font-semibold text-foreground">
             Client Questionnaire
           </h1>

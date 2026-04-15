@@ -13,7 +13,7 @@ export async function GET(
 
   const { data: link, error } = await admin
     .from("intake_links")
-    .select("status, expires_at")
+    .select("status, expires_at, user_id")
     .eq("token", token)
     .single();
 
@@ -38,7 +38,20 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({ status: "valid" });
+  // Fetch advisor branding for white-labeling
+  const { data: settings } = await admin
+    .from("user_settings")
+    .select("logo_url, company_name")
+    .eq("user_id", link.user_id)
+    .single();
+
+  return NextResponse.json({
+    status: "valid",
+    branding: {
+      logoUrl: settings?.logo_url ?? null,
+      companyName: settings?.company_name ?? null,
+    },
+  });
 }
 
 // POST /api/intake/[token] - Submit intake form and create client
