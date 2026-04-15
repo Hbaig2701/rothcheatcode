@@ -30,6 +30,27 @@ export function IncomeTable() {
 
   const recurringEndAge = parseInt(recurringEndAgeStr) || 0;
 
+  // When opening the recurring panel, prefill with existing entry values so users
+  // can see and adjust the current recurring amounts instead of starting blank
+  // (which would wipe data to $0 if they click Fill without re-entering).
+  const openRecurringPanel = () => {
+    if (!showRecurring && fields.length > 0) {
+      const firstEntry = form.getValues("non_ssi_income.0");
+      if (firstEntry) {
+        setRecurringGross(firstEntry.gross_taxable ?? 0);
+        setRecurringExempt(firstEntry.tax_exempt ?? 0);
+      }
+      // Sync Until Age to the last entry's age
+      const lastEntry = form.getValues(`non_ssi_income.${fields.length - 1}`);
+      if (lastEntry?.year) {
+        const lastAge = currentAge + (lastEntry.year - currentYear);
+        setRecurringEndAgeStr(String(lastAge));
+      }
+    }
+    setShowRecurring(!showRecurring);
+    setRecurringError(null);
+  };
+
   // Helper to calculate age string for a given year
   const calculateAgeStr = (targetYear: number) => {
     const delta = targetYear - currentYear;
@@ -72,16 +93,16 @@ export function IncomeTable() {
     const gross = recurringGross ?? 0;
     const exempt = recurringExempt ?? 0;
 
-    // Keep existing entries that are outside the recurring range, replace those inside
+    // Keep existing entries that are outside the recurring range, replace those inside.
+    // The recurring range is [startYear, endYear] inclusive, since the loop below
+    // creates an entry for every year up to and including endYear.
+    const endYear = startYear + yearsToFill;
     const existingOutside = fields
       .map((_, i) => {
         const vals = form.getValues(`non_ssi_income.${i}`);
         return vals;
       })
-      .filter((entry) => {
-        const endYear = startYear + yearsToFill;
-        return entry.year < startYear || entry.year >= endYear;
-      });
+      .filter((entry) => entry.year < startYear || entry.year > endYear);
 
     const newEntries = [];
     for (let i = 0; i <= yearsToFill; i++) {
@@ -107,7 +128,7 @@ export function IncomeTable() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setShowRecurring(!showRecurring)}
+            onClick={openRecurringPanel}
             className={showRecurring ? "border-primary text-primary" : ""}
           >
             <Repeat className="h-4 w-4 mr-1" />
