@@ -88,6 +88,25 @@ export default function IntakeFormPage() {
     setSubmitting(true);
     setFieldErrors({});
 
+    // Client-side required-field checks so users see "This field is required"
+    // instead of cryptic Zod range errors when a field is empty.
+    const requiredErrors: Record<string, string> = {};
+    if (!form.name.trim()) requiredErrors.name = "Name is required";
+    if (!form.age) requiredErrors.age = "Age is required";
+    if (!form.state) requiredErrors.state = "State is required";
+    if (!form.qualified_account_value) requiredErrors.qualified_account_value = "Account value is required";
+    if (!form.ssi_payout_age) requiredErrors.ssi_payout_age = "SSI start age is required";
+    if (!form.ssi_annual_amount) requiredErrors.ssi_annual_amount = "SSI annual amount is required";
+    if (isMarried) {
+      if (!form.spouse_name.trim()) requiredErrors.spouse_name = "Spouse name is required";
+      if (!form.spouse_age) requiredErrors.spouse_age = "Spouse age is required";
+    }
+    if (Object.keys(requiredErrors).length > 0) {
+      setFieldErrors(requiredErrors);
+      setSubmitting(false);
+      return;
+    }
+
     // Build submission payload (convert strings to numbers, dollars to raw numbers)
     const payload = {
       name: form.name.trim(),
@@ -229,7 +248,7 @@ export default function IntakeFormPage() {
                     const v = e.target.value.replace(/\D/g, "").slice(0, 3);
                     updateField("age", v);
                   }}
-                  placeholder="62"
+                  placeholder="Enter age"
                 />
               </FieldGroup>
             </div>
@@ -263,7 +282,7 @@ export default function IntakeFormPage() {
                       const v = e.target.value.replace(/\D/g, "").slice(0, 3);
                       updateField("spouse_age", v);
                     }}
-                    placeholder="60"
+                    placeholder="Enter age"
                   />
                 </FieldGroup>
               </div>
@@ -335,7 +354,7 @@ export default function IntakeFormPage() {
                     const v = e.target.value.replace(/\D/g, "").slice(0, 2);
                     updateField("ssi_payout_age", v);
                   }}
-                  placeholder="67"
+                  placeholder="62–70"
                 />
                 <p className="text-xs text-muted-foreground mt-1">Between 62 and 70</p>
               </FieldGroup>
@@ -360,7 +379,7 @@ export default function IntakeFormPage() {
                       const v = e.target.value.replace(/\D/g, "").slice(0, 2);
                       updateField("spouse_ssi_payout_age", v);
                     }}
-                    placeholder="67"
+                    placeholder="62–70"
                   />
                   <p className="text-xs text-muted-foreground mt-1">Between 62 and 70</p>
                 </FieldGroup>
