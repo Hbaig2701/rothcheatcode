@@ -34,9 +34,12 @@ const initialForm: FormData = {
   qualified_account_value: "",
   roth_ira: "",
   taxable_accounts: "",
-  ssi_payout_age: "",
+  // Pre-fill SSI start ages with the most common value (67 = Full Retirement
+  // Age for most people). This avoids users mistaking the placeholder for an
+  // entered value and submitting 0, which fails the >=62 validation.
+  ssi_payout_age: "67",
   ssi_annual_amount: "",
-  spouse_ssi_payout_age: "",
+  spouse_ssi_payout_age: "67",
   spouse_ssi_annual_amount: "",
   other_income_notes: "",
 };

@@ -12,9 +12,18 @@ export const intakeFormSchema = z
     qualified_account_value: z.number().min(0, "Must be 0 or greater"),
     roth_ira: z.number().min(0).default(0),
     taxable_accounts: z.number().min(0).default(0),
-    ssi_payout_age: z.number().int().min(62).max(70),
-    ssi_annual_amount: z.number().min(0),
-    spouse_ssi_payout_age: z.number().int().min(62).max(70).optional(),
+    ssi_payout_age: z
+      .number({ message: "SSI start age is required" })
+      .int("SSI start age must be a whole number")
+      .min(62, "SSI start age must be between 62 and 70")
+      .max(70, "SSI start age must be between 62 and 70"),
+    ssi_annual_amount: z.number().min(0, "SSI annual amount must be 0 or greater"),
+    spouse_ssi_payout_age: z
+      .number()
+      .int("Spouse SSI start age must be a whole number")
+      .min(62, "Spouse SSI start age must be between 62 and 70")
+      .max(70, "Spouse SSI start age must be between 62 and 70")
+      .optional(),
     spouse_ssi_annual_amount: z.number().min(0).optional(),
     other_income_notes: z.string().max(1000).optional(),
   })
