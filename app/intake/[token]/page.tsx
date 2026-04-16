@@ -3,9 +3,17 @@
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { US_STATES } from "@/lib/data/states";
+import { INCOME_TYPES, type IncomeType } from "@/lib/types/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, Plus, Trash2 } from "lucide-react";
+
+type IncomeEntry = {
+  type: IncomeType;
+  annual_amount: string;
+  start_age: string;
+  end_age: string;
+};
 
 type FormData = {
   name: string;
@@ -22,6 +30,7 @@ type FormData = {
   spouse_ssi_payout_age: string;
   spouse_ssi_annual_amount: string;
   other_income_notes: string;
+  income_entries: IncomeEntry[];
 };
 
 const initialForm: FormData = {
@@ -42,6 +51,7 @@ const initialForm: FormData = {
   spouse_ssi_payout_age: "67",
   spouse_ssi_annual_amount: "",
   other_income_notes: "",
+  income_entries: [],
 };
 
 export default function IntakeFormPage() {
@@ -108,6 +118,33 @@ export default function IntakeFormPage() {
     }
 
     // Build submission payload (convert strings to numbers, dollars to raw numbers)
+    // Convert structured income entries into non_ssi_income array (year-by-year with type)
+    const clientAge = parseInt(form.age) || 0;
+    const thisYear = new Date().getFullYear();
+    const incomeEntries: Array<{ year: number; age: string; gross_taxable: number; tax_exempt: number; type: string }> = [];
+    for (const entry of form.income_entries) {
+      const amount = Math.round((parseFloat(entry.annual_amount.replace(/,/g, "")) || 0) * 100);
+      const startAge = parseInt(entry.start_age) || clientAge;
+      const endAge = parseInt(entry.end_age) || 95;
+      if (amount <= 0) continue;
+      for (let age = startAge; age <= endAge; age++) {
+        const year = thisYear + (age - clientAge);
+        const existing = incomeEntries.find((e) => e.year === year && e.type === entry.type);
+        if (existing) {
+          existing.gross_taxable += amount;
+        } else {
+          incomeEntries.push({
+            year,
+            age: String(age),
+            gross_taxable: amount,
+            tax_exempt: 0,
+            type: entry.type,
+          });
+        }
+      }
+    }
+    incomeEntries.sort((a, b) => a.year - b.year);
+
     const payload = {
       name: form.name.trim(),
       age: parseInt(form.age) || 0,
@@ -123,6 +160,7 @@ export default function IntakeFormPage() {
       spouse_ssi_payout_age: isMarried && form.spouse_ssi_payout_age ? parseInt(form.spouse_ssi_payout_age) : undefined,
       spouse_ssi_annual_amount: isMarried && form.spouse_ssi_annual_amount ? parseFloat(form.spouse_ssi_annual_amount.replace(/,/g, "")) : undefined,
       other_income_notes: form.other_income_notes.trim() || undefined,
+      non_ssi_income: incomeEntries.length > 0 ? incomeEntries : undefined,
     };
 
     try {
@@ -399,19 +437,113 @@ export default function IntakeFormPage() {
           <section className="bg-card border border-border rounded-2xl p-6 space-y-5">
             <h2 className="text-lg font-semibold text-foreground">Other Income</h2>
             <p className="text-sm text-muted-foreground -mt-2">
-              Describe any other income sources (pension, rental income, part-time work, etc.)
+              Add any non-Social Security income sources — pension, rental income, dividends, etc.
             </p>
 
-            <FieldGroup label="Other Income Details" error={fieldErrors.other_income_notes}>
-              <textarea
-                value={form.other_income_notes}
-                onChange={(e) => updateField("other_income_notes", e.target.value)}
-                placeholder="e.g., Pension of $12,000/year starting at age 65, rental income of $800/month..."
-                rows={3}
-                className="w-full rounded-md border border-border bg-white dark:bg-input/30 px-2.5 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none"
-                maxLength={1000}
-              />
-            </FieldGroup>
+            {form.income_entries.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-xl">
+                No income entries. Click &quot;Add Income&quot; below to add a source.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {form.income_entries.map((entry, idx) => (
+                  <div key={idx} className="border border-border rounded-xl p-4 space-y-3 bg-card">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">
+                        {INCOME_TYPES.find((t) => t.value === entry.type)?.label ?? "Other"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = form.income_entries.filter((_, i) => i !== idx);
+                          setForm((prev) => ({ ...prev, income_entries: next }));
+                        }}
+                        className="p-1 text-muted-foreground hover:text-red rounded hover:bg-red-bg transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Type</label>
+                        <select
+                          value={entry.type}
+                          onChange={(e) => {
+                            const next = [...form.income_entries];
+                            next[idx] = { ...next[idx], type: e.target.value as IncomeType };
+                            setForm((prev) => ({ ...prev, income_entries: next }));
+                          }}
+                          className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-2 text-sm text-foreground"
+                        >
+                          {INCOME_TYPES.map((t) => (
+                            <option key={t.value} value={t.value}>{t.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Annual Amount</label>
+                        <DollarInput
+                          value={entry.annual_amount}
+                          onChange={(v) => {
+                            const next = [...form.income_entries];
+                            next[idx] = { ...next[idx], annual_amount: v };
+                            setForm((prev) => ({ ...prev, income_entries: next }));
+                          }}
+                          placeholder="50,000"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">Start Age</label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={entry.start_age}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/\D/g, "").slice(0, 3);
+                            const next = [...form.income_entries];
+                            next[idx] = { ...next[idx], start_age: v };
+                            setForm((prev) => ({ ...prev, income_entries: next }));
+                          }}
+                          placeholder="Enter age"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">End Age</label>
+                        <Input
+                          type="text"
+                          inputMode="numeric"
+                          value={entry.end_age}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/\D/g, "").slice(0, 3);
+                            const next = [...form.income_entries];
+                            next[idx] = { ...next[idx], end_age: v };
+                            setForm((prev) => ({ ...prev, income_entries: next }));
+                          }}
+                          placeholder="Enter age"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setForm((prev) => ({
+                  ...prev,
+                  income_entries: [
+                    ...prev.income_entries,
+                    { type: "pension" as IncomeType, annual_amount: "", start_age: "", end_age: "95" },
+                  ],
+                }));
+              }}
+              className="w-full h-10 flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground bg-transparent border border-dashed border-border rounded-xl hover:bg-accent hover:border-border transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              Add Income
+            </button>
           </section>
 
           {/* Submit */}

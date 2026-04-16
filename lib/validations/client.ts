@@ -73,6 +73,7 @@ export const nonSSIIncomeEntrySchema = z.object({
     (v) => v === undefined || v === null ? 0 : v,
     z.number({ error: "Amount must be a number" }).int().min(0, "Amount must be positive")
   ),
+  type: z.enum(["pension", "rental", "dividends", "capital_gains", "wages", "annuity", "other"]).optional(),
 });
 
 // ============================================================================
@@ -396,6 +397,7 @@ export type ClientFormData = {
     age: number | string;
     gross_taxable: number;
     tax_exempt: number;
+    type?: "pension" | "rental" | "dividends" | "capital_gains" | "wages" | "annuity" | "other";
   }>;
 
   // Section 6: Conversion

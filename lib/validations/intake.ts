@@ -26,6 +26,13 @@ export const intakeFormSchema = z
       .optional(),
     spouse_ssi_annual_amount: z.number().min(0).optional(),
     other_income_notes: z.string().max(1000).optional(),
+    non_ssi_income: z.array(z.object({
+      year: z.number().int(),
+      age: z.union([z.number(), z.string()]),
+      gross_taxable: z.number().int().min(0),
+      tax_exempt: z.number().int().min(0),
+      type: z.enum(["pension", "rental", "dividends", "capital_gains", "wages", "annuity", "other"]).optional(),
+    })).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.filing_status === "married_filing_jointly") {
@@ -76,7 +83,7 @@ export function intakeToClientData(intake: IntakeFormData) {
     spouse_ssi_annual_amount: intake.spouse_ssi_annual_amount
       ? Math.round(intake.spouse_ssi_annual_amount * 100)
       : 0,
-    non_ssi_income: [],
+    non_ssi_income: intake.non_ssi_income ?? [],
 
     // Default product settings (Generic Growth)
     blueprint_type: "fia",

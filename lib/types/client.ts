@@ -1,11 +1,24 @@
 // Client type matching Supabase schema - Formula form design
 
 // Non-SSI Income entry for the JSONB array
+export const INCOME_TYPES = [
+  { value: "pension", label: "Pension" },
+  { value: "rental", label: "Rental Income" },
+  { value: "dividends", label: "Dividends & Interest" },
+  { value: "capital_gains", label: "Capital Gains" },
+  { value: "wages", label: "Part-Time Work / Wages" },
+  { value: "annuity", label: "Annuity Income" },
+  { value: "other", label: "Other" },
+] as const;
+
+export type IncomeType = (typeof INCOME_TYPES)[number]["value"];
+
 export interface NonSSIIncomeEntry {
   year: number;
   age: number | string;
   gross_taxable: number; // In cents
   tax_exempt: number;    // In cents
+  type?: IncomeType;     // Optional — existing data has no type (displays as "Other")
 }
 
 export interface Client {

@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Plus, Trash2, Repeat } from "lucide-react";
 import { useState } from "react";
+import { INCOME_TYPES, type IncomeType } from "@/lib/types/client";
 
 export function IncomeTable() {
   const form = useFormContext<ClientFormData>();
@@ -27,6 +28,7 @@ export function IncomeTable() {
   const [recurringEndAgeStr, setRecurringEndAgeStr] = useState(String(endAge));
   const [recurringGross, setRecurringGross] = useState<number | null>(null);
   const [recurringExempt, setRecurringExempt] = useState<number | null>(null);
+  const [recurringType, setRecurringType] = useState<IncomeType>("other");
   const [recurringError, setRecurringError] = useState<string | null>(null);
 
   const recurringStartAge = parseInt(recurringStartAgeStr) || 0;
@@ -42,6 +44,7 @@ export function IncomeTable() {
         if (firstEntry) {
           setRecurringGross(firstEntry.gross_taxable ?? 0);
           setRecurringExempt(firstEntry.tax_exempt ?? 0);
+          setRecurringType(firstEntry.type ?? "other");
           if (firstEntry.year) {
             const firstAge = currentAge + (firstEntry.year - currentYear);
             setRecurringStartAgeStr(String(firstAge));
@@ -84,6 +87,7 @@ export function IncomeTable() {
       age: nextAge,
       gross_taxable: 0,
       tax_exempt: 0,
+      type: "other",
     });
   };
 
@@ -129,6 +133,7 @@ export function IncomeTable() {
         age: calculateAgeStr(year),
         gross_taxable: gross,
         tax_exempt: exempt,
+        type: recurringType,
       });
     }
 
@@ -200,54 +205,71 @@ export function IncomeTable() {
             Fills the same annual amount from a start age through a target age — useful for
             pensions, rental income, or part-time work.
           </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label htmlFor="recurring-start-age" className="text-xs text-muted-foreground">Start Age</label>
-              <Input
-                id="recurring-start-age"
-                type="number"
-                min={currentAge}
-                max={120}
-                value={recurringStartAgeStr}
-                onChange={(e) => {
-                  setRecurringStartAgeStr(e.target.value);
-                  setRecurringError(null);
-                }}
-                aria-invalid={!!recurringError && recurringError.toLowerCase().includes("start")}
-                className="h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none aria-invalid:border-destructive aria-invalid:ring-destructive/20"
-              />
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <label htmlFor="recurring-type" className="text-xs text-muted-foreground">Income Type</label>
+                <select
+                  id="recurring-type"
+                  value={recurringType}
+                  onChange={(e) => setRecurringType(e.target.value as IncomeType)}
+                  className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-2 text-sm text-foreground"
+                >
+                  {INCOME_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="recurring-start-age" className="text-xs text-muted-foreground">Start Age</label>
+                <Input
+                  id="recurring-start-age"
+                  type="number"
+                  min={currentAge}
+                  max={120}
+                  value={recurringStartAgeStr}
+                  onChange={(e) => {
+                    setRecurringStartAgeStr(e.target.value);
+                    setRecurringError(null);
+                  }}
+                  aria-invalid={!!recurringError && recurringError.toLowerCase().includes("start")}
+                  className="h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="recurring-end-age" className="text-xs text-muted-foreground">Until Age</label>
+                <Input
+                  id="recurring-end-age"
+                  type="number"
+                  min={recurringStartAge || currentAge}
+                  max={120}
+                  value={recurringEndAgeStr}
+                  onChange={(e) => {
+                    setRecurringEndAgeStr(e.target.value);
+                    setRecurringError(null);
+                  }}
+                  aria-invalid={!!recurringError && (recurringError.toLowerCase().includes("until") || recurringError.toLowerCase().includes("cannot exceed"))}
+                  className="h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none aria-invalid:border-destructive aria-invalid:ring-destructive/20"
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <label htmlFor="recurring-end-age" className="text-xs text-muted-foreground">Until Age</label>
-              <Input
-                id="recurring-end-age"
-                type="number"
-                min={recurringStartAge || currentAge}
-                max={120}
-                value={recurringEndAgeStr}
-                onChange={(e) => {
-                  setRecurringEndAgeStr(e.target.value);
-                  setRecurringError(null);
-                }}
-                aria-invalid={!!recurringError && (recurringError.toLowerCase().includes("until") || recurringError.toLowerCase().includes("cannot exceed"))}
-                className="h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none aria-invalid:border-destructive aria-invalid:ring-destructive/20"
-              />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="recurring-gross" className="text-xs text-muted-foreground">Annual Gross Taxable</label>
-              <CurrencyInput
-                value={recurringGross}
-                onChange={(v) => setRecurringGross(v ?? null)}
-                className="h-9"
-              />
-            </div>
-            <div className="space-y-1">
-              <label htmlFor="recurring-exempt" className="text-xs text-muted-foreground">Annual Tax Exempt</label>
-              <CurrencyInput
-                value={recurringExempt}
-                onChange={(v) => setRecurringExempt(v ?? null)}
-                className="h-9"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label htmlFor="recurring-gross" className="text-xs text-muted-foreground">Annual Gross Taxable</label>
+                <CurrencyInput
+                  value={recurringGross}
+                  onChange={(v) => setRecurringGross(v ?? null)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="recurring-exempt" className="text-xs text-muted-foreground">Annual Tax Exempt</label>
+                <CurrencyInput
+                  value={recurringExempt}
+                  onChange={(v) => setRecurringExempt(v ?? null)}
+                  className="h-9"
+                />
+              </div>
             </div>
           </div>
           {recurringError && (
@@ -272,11 +294,12 @@ export function IncomeTable() {
         </p>
       ) : (
         <div className="border rounded-md overflow-x-auto">
-          <table className="text-sm min-w-full" style={{ minWidth: "440px" }}>
+          <table className="text-sm min-w-full" style={{ minWidth: "560px" }}>
             <thead className="bg-muted/50">
               <tr>
                 <th className="px-3 py-2 text-left font-medium w-[88px]">Year</th>
                 <th className="px-3 py-2 text-left font-medium w-[72px]">Age(s)</th>
+                <th className="px-3 py-2 text-left font-medium w-[140px]">Type</th>
                 <th className="px-3 py-2 text-left font-medium">Gross Taxable</th>
                 <th className="px-3 py-2 text-left font-medium">Tax Exempt</th>
                 <th className="px-2 py-2 w-10"></th>
@@ -344,6 +367,16 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
         <div className="text-muted-foreground font-mono text-xs whitespace-nowrap">
           {displayAge}
         </div>
+      </td>
+      <td className="px-3 py-2 align-middle">
+        <select
+          className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-1.5 text-xs text-foreground"
+          {...form.register(`non_ssi_income.${index}.type`)}
+        >
+          {INCOME_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
       </td>
       <td className="px-3 py-2 align-middle">
         <Controller
