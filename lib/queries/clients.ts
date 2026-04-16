@@ -126,9 +126,16 @@ export function useUpdateClient() {
       return res.json();
     },
     onSuccess: (data, variables) => {
-      // Invalidate both the specific client detail and the list
+      // Invalidate everything under ["clients"] so any scenarios list
+      // that contains this client also refreshes (e.g., the parent's
+      // scenarios list on the client detail page).
       queryClient.invalidateQueries({ queryKey: clientKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: clientKeys.lists() });
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "clients" &&
+          query.queryKey[query.queryKey.length - 1] === "scenarios",
+      });
     },
   });
 }

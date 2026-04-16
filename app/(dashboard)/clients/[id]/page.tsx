@@ -294,20 +294,22 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                             <Copy className="h-3.5 w-3.5" />
                           </button>
 
-                          {scenario.id !== client.id && (
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setSelectedScenarioId(scenario.id);
-                                setActionType("delete");
-                              }}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-text-dim hover:text-red rounded hover:bg-red-bg pointer-events-auto"
-                              aria-label="Delete scenario"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
+                          {/* Allow delete on every row. If the user deletes the
+                              scenario whose ID matches the URL (i.e. the one
+                              loading this page), the delete handler redirects
+                              to a remaining scenario or back to the clients list. */}
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSelectedScenarioId(scenario.id);
+                              setActionType("delete");
+                            }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-text-dim hover:text-red rounded hover:bg-red-bg pointer-events-auto"
+                            aria-label="Delete scenario"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
                       )}
                     </div>
@@ -373,10 +375,26 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
                     }
                   });
                 } else if (actionType === "delete" && selectedScenarioId) {
-                  deleteClient.mutate(selectedScenarioId, {
+                  // Remember the deleted ID and the remaining scenarios BEFORE
+                  // the cache is invalidated, so we can decide where to redirect.
+                  const deletedId = selectedScenarioId;
+                  const wasViewingDeleted = deletedId === client.id;
+                  const remaining = (scenarios ?? []).filter((s) => s.id !== deletedId);
+
+                  deleteClient.mutate(deletedId, {
                     onSuccess: () => {
                       queryClient.invalidateQueries({ queryKey: clientKeys.scenarios(client.id) });
-                    }
+                      // If the user deleted the scenario currently loaded by the
+                      // URL, redirect to a remaining scenario, or back to the
+                      // clients list if there are none left.
+                      if (wasViewingDeleted) {
+                        if (remaining.length > 0) {
+                          router.replace(`/clients/${remaining[0].id}`);
+                        } else {
+                          router.replace("/clients");
+                        }
+                      }
+                    },
                   });
                 }
                 handleCloseDialog();
