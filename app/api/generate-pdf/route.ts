@@ -268,11 +268,15 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const boyCombined = boyTraditional + boyRoth;
     const eoyCombined = year.traditionalBalance + year.rothBalance;
     const distIra = scenario === 'baseline' ? year.rmdAmount : year.conversionAmount;
-    // For baseline: RMDs leave the combined balance, so add back to get true interest
-    // For formula: conversions move within combined (Traditional→Roth), don't leave it
+    // True interest = EOY - BOY + (money that left the combined balance this year).
+    //  - Baseline: RMDs leave the combined balance (spent on living expenses).
+    //  - Strategy: conversions move within the combined balance (Traditional→Roth, no
+    //    net change), but taxes paid FROM the IRA leave the combined balance, as do
+    //    any RMDs (e.g., if conversions didn't fully drain the IRA before age 73).
+    const taxFromIRA = year.taxesPaidFromIRA ?? 0;
     const interest = scenario === 'baseline'
       ? eoyCombined - boyCombined + distIra
-      : eoyCombined - boyCombined;
+      : eoyCombined - boyCombined + taxFromIRA + (year.rmdAmount ?? 0);
     const grossIncome = year.otherIncome + distIra;
     const agi = grossIncome;
     const deduction = getStandardDeduction(client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
@@ -299,7 +303,14 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       ...baseRow,
       boyCombined: formatCurrency(boyCombined),
       distIra: formatCurrency(distIra),
-      taxesIra: formatCurrency(year.totalTax),
+      // "Taxes (IRA)" should reflect dollars actually withdrawn from the IRA to
+      // cover taxes — NOT the year's total tax bill (which would include taxes on
+      // SS, NQ withdrawals, IRMAA, etc. that aren't IRA-related).
+      // For baseline, the IRS still gets the year's total tax. For strategy,
+      // only conversion taxes paid from the IRA count.
+      taxesIra: scenario === 'baseline'
+        ? formatCurrency(year.totalTax)
+        : formatCurrency(year.taxesPaidFromIRA ?? 0),
       bracket: formatPercent(bracket),
       converted: formatCurrency(year.conversionAmount),
       distRoth: '$0',

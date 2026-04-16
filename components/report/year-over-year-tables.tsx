@@ -127,8 +127,18 @@ export function YearOverYearTables({
       // Distribution from IRA
       const distIra = scenario === "baseline" ? year.rmdAmount : year.conversionAmount;
 
-      // Interest = E.O.Y. - B.O.Y. + Dist (since E.O.Y. = B.O.Y. - Dist + Interest)
-      const interest = eoyCombined - boyCombined + distIra;
+      // True interest = EOY - BOY + (money that left the combined balance this year).
+      // - Baseline: RMDs leave the combined balance.
+      // - Strategy: conversions move within combined (Trad→Roth), but taxes paid
+      //   FROM the IRA leave the combined balance, as do any RMDs.
+      const taxFromIRA = year.taxesPaidFromIRA ?? 0;
+      const interest = scenario === "baseline"
+        ? eoyCombined - boyCombined + distIra
+        : eoyCombined - boyCombined + taxFromIRA + (year.rmdAmount ?? 0);
+
+      // Tax dollars that came from the IRA (vs. the year's total tax bill which
+      // includes tax on SS / NQ / IRMAA that aren't IRA-related).
+      const taxesIra = scenario === "baseline" ? year.totalTax : taxFromIRA;
 
       // AGI calculation
       const grossIncome = year.otherIncome + distIra;
@@ -177,6 +187,7 @@ export function YearOverYearTables({
         boyCombined,
         eoyCombined,
         distIra,
+        taxesIra,
         interest,
         agi,
         deduction,
@@ -280,7 +291,7 @@ export function YearOverYearTables({
             {renderCell(formatAge(row.age, row.spouseAge), { align: "left" })}
             {renderCell(formatCurrency(row.boyCombined))}
             {renderCell(formatCurrency(row.distIra))}
-            {renderCell(formatCurrency(row.totalTax), { color: "red" })}
+            {renderCell(formatCurrency(row.taxesIra), { color: "red" })}
             {renderCell(formatPercent(row.bracket))}
             {renderCell(formatCurrency(row.conversionAmount))}
             {renderCell("0")}
@@ -304,7 +315,7 @@ export function YearOverYearTables({
             ${formatCurrency(computedData.reduce((sum, row) => sum + row.distIra, 0))}
           </td>
           <td className="px-4 py-3 text-sm font-mono text-right text-red-400">
-            ${formatCurrency(computedData.reduce((sum, row) => sum + row.totalTax, 0))}
+            ${formatCurrency(computedData.reduce((sum, row) => sum + row.taxesIra, 0))}
           </td>
           <td className="px-4 py-3 text-sm font-mono text-right text-[#A0A0A0]">—</td>
           <td className="px-4 py-3 text-sm font-mono text-right text-foreground">
@@ -476,7 +487,12 @@ export function YearOverYearTables({
               {renderCell(formatCurrency(row.taxableIncome))}
               {renderCell(formatCurrency(row.conversionAmount))}
               {renderCell(formatCurrency(maxBracketCeiling))}
-              {renderCell(formatCurrency(row.totalTax), { color: "red" })}
+              {/* Show only the tax cost of the conversion itself, not the full
+                  year's tax bill (which would include tax on SS, NQ, etc.) */}
+              {renderCell(
+                formatCurrency((row.federalTaxOnConversions ?? 0) + (row.stateTaxOnConversions ?? 0)),
+                { color: "red" }
+              )}
               {renderCell(formatCurrency(row.conversionAmount))}
               {renderCell(formatCurrency(row.interest))}
               {renderCell(formatCurrency(row.traditionalBalance))}

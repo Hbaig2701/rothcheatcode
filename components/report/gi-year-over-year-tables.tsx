@@ -507,7 +507,12 @@ export function GIYearOverYearTables({
               {renderCell(formatCurrency(row.taxableIncome))}
               {renderCell(formatCurrency(row.conversionAmount))}
               {renderCell(formatCurrency(maxBracketCeiling))}
-              {renderCell(formatCurrency(row.totalTax), { color: "red" })}
+              {/* Show only the tax attributable to the conversion, not the year's
+                  full tax bill (which would include tax on SS, NQ, etc.) */}
+              {renderCell(
+                formatCurrency((row.federalTaxOnConversions ?? 0) + (row.stateTaxOnConversions ?? 0)),
+                { color: "red" }
+              )}
               {renderCell(formatCurrency(row.conversionAmount))}
               {renderCell(formatCurrency(row.traditionalBalance))}
               {renderCell(formatCurrency(row.rothBalance))}
