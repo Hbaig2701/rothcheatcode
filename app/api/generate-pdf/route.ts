@@ -625,7 +625,9 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       existingTaxable: formatCurrency(year.otherIncome),
       distribution: formatCurrency(year.conversionAmount),
       bracketCeiling: formatCurrency(getBracketCeiling(client.filing_status, client.max_tax_rate ?? 24, year.year)),
-      taxes: formatCurrency(year.totalTax),
+      // Tax cost of the conversion only — not the full year's tax bill which
+      // would include tax on SS, NQ, IRMAA, etc.
+      taxes: formatCurrency((year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0)),
       conversionAmount: formatCurrency(year.conversionAmount),
       interest: formatCurrency(interest),
       eoyIra: formatCurrency(year.traditionalBalance),
@@ -717,18 +719,23 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       });
     })(),
     conversionPaybackTable: (() => {
-      let cumulativeTax = 0;
+      let cumulativeConversionTax = 0;
       const initialRoth = client.roth_ira ?? 0;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return projection.blueprint_years.map((year: any) => {
-        cumulativeTax += year.totalTax || 0;
+        // Tax COST of the conversion itself = federal + state tax attributable
+        // to the conversion. NOT year.totalTax, which would include tax on SS,
+        // NQ withdrawals, IRMAA, etc. — those persist after conversions are done
+        // and would make the "Tax Paid" column non-zero in years with $0 conversion.
+        const conversionTax = (year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0);
+        cumulativeConversionTax += conversionTax;
         const rothValueGained = year.rothBalance - initialRoth;
         return {
           year: year.year,
           age: year.age,
           conversionAmount: formatCurrency(year.conversionAmount),
-          taxPaid: formatCurrency(year.totalTax),
-          cumulativeTaxPaid: formatCurrency(cumulativeTax),
+          taxPaid: formatCurrency(conversionTax),
+          cumulativeTaxPaid: formatCurrency(cumulativeConversionTax),
           rothValueGained: formatCurrency(rothValueGained),
         };
       });
