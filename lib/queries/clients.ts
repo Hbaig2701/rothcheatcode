@@ -160,6 +160,16 @@ export function useDeleteClient() {
       queryClient.removeQueries({ queryKey: clientKeys.detail(id) });
       // Invalidate the list to trigger refetch
       queryClient.invalidateQueries({ queryKey: clientKeys.lists() });
+      // Invalidate any scenarios list that might contain this client so the
+      // parent's scenarios list refreshes after a child scenario is deleted.
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          query.queryKey[0] === "clients" &&
+          query.queryKey[query.queryKey.length - 1] === "scenarios" &&
+          // Skip the deleted client's own scenarios query — it would 404 since
+          // the row is gone, and the page is navigating away anyway.
+          query.queryKey[2] !== id,
+      });
     },
   });
 }

@@ -383,10 +383,11 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
 
                   deleteClient.mutate(deletedId, {
                     onSuccess: () => {
-                      queryClient.invalidateQueries({ queryKey: clientKeys.scenarios(client.id) });
                       // If the user deleted the scenario currently loaded by the
                       // URL, redirect to a remaining scenario, or back to the
-                      // clients list if there are none left.
+                      // clients list if there are none left. (Cache invalidation
+                      // for the parent's scenarios list is handled inside
+                      // useDeleteClient.)
                       if (wasViewingDeleted) {
                         if (remaining.length > 0) {
                           router.replace(`/clients/${remaining[0].id}`);
