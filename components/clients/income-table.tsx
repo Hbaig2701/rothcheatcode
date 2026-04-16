@@ -369,14 +369,22 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
         </div>
       </td>
       <td className="px-3 py-2 align-middle">
-        <select
-          className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-1.5 text-xs text-foreground"
-          {...form.register(`non_ssi_income.${index}.type`)}
-        >
-          {INCOME_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>{t.label}</option>
-          ))}
-        </select>
+        <Controller
+          name={`non_ssi_income.${index}.type`}
+          control={form.control}
+          defaultValue="other"
+          render={({ field }) => (
+            <select
+              className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-1.5 text-xs text-foreground"
+              value={field.value ?? "other"}
+              onChange={field.onChange}
+            >
+              {INCOME_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          )}
+        />
       </td>
       <td className="px-3 py-2 align-middle">
         <Controller

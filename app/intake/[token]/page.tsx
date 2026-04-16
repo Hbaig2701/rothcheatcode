@@ -111,6 +111,24 @@ export default function IntakeFormPage() {
       if (!form.spouse_name.trim()) requiredErrors.spouse_name = "Spouse name is required";
       if (!form.spouse_age) requiredErrors.spouse_age = "Spouse age is required";
     }
+    // Validate income entries
+    for (let i = 0; i < form.income_entries.length; i++) {
+      const entry = form.income_entries[i];
+      const label = INCOME_TYPES.find((t) => t.value === entry.type)?.label ?? `Income #${i + 1}`;
+      if (!entry.annual_amount || parseFloat(entry.annual_amount.replace(/,/g, "")) <= 0) {
+        requiredErrors[`income_${i}`] = `${label}: Annual amount is required`;
+      }
+      if (!entry.start_age) {
+        requiredErrors[`income_${i}_start`] = `${label}: Start age is required`;
+      }
+      if (!entry.end_age) {
+        requiredErrors[`income_${i}_end`] = `${label}: End age is required`;
+      }
+      if (entry.start_age && entry.end_age && parseInt(entry.start_age) > parseInt(entry.end_age)) {
+        requiredErrors[`income_${i}_range`] = `${label}: Start age must be before end age`;
+      }
+    }
+
     if (Object.keys(requiredErrors).length > 0) {
       setFieldErrors(requiredErrors);
       setSubmitting(false);
@@ -435,10 +453,30 @@ export default function IntakeFormPage() {
 
           {/* Section 4: Other Income */}
           <section className="bg-card border border-border rounded-2xl p-6 space-y-5">
-            <h2 className="text-lg font-semibold text-foreground">Other Income</h2>
-            <p className="text-sm text-muted-foreground -mt-2">
-              Add any non-Social Security income sources — pension, rental income, dividends, etc.
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Other Income</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Add any non-Social Security income sources — pension, rental income, dividends, etc.
+                </p>
+              </div>
+              {form.income_entries.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, income_entries: [] }))}
+                  className="text-xs text-muted-foreground hover:text-red transition-colors"
+                >
+                  Remove All
+                </button>
+              )}
+            </div>
+
+            {/* Show any income entry validation errors */}
+            {Object.entries(fieldErrors)
+              .filter(([k]) => k.startsWith("income_"))
+              .map(([k, v]) => (
+                <p key={k} className="text-xs text-red">{v}</p>
+              ))}
 
             {form.income_entries.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-xl">

@@ -1,17 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { YearlyResult } from "@/lib/calculations/types";
+import type { NonSSIIncomeEntry } from "@/lib/types/client";
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
 import { loadColumnPreferences, saveColumnPreferences, getDefaultColumns } from "@/lib/table-columns/storage";
 import { ColumnSelectorModal } from "./column-selector-modal";
 import { ResizableTable } from "./resizable-table";
 import { Settings2 } from "lucide-react";
 
+const INCOME_TYPE_TO_COLUMN: Record<string, string> = {
+  pension: "incomePension",
+  rental: "incomeRental",
+  dividends: "incomeDividends",
+  capital_gains: "incomeCapitalGains",
+  wages: "incomeWages",
+  annuity: "incomeAnnuity",
+};
+
 interface YearByYearTableProps {
   years: YearlyResult[];
   scenario: "baseline" | "formula";
-  productType?: "growth" | "gi"; // Product type for column filtering
+  productType?: "growth" | "gi";
+  nonSsiIncome?: NonSSIIncomeEntry[];
 }
 
 /**
@@ -22,8 +33,28 @@ interface YearByYearTableProps {
  * - Horizontal scroll
  * - Preferences saved to localStorage
  */
-export function YearByYearTable({ years, scenario, productType = "growth" }: YearByYearTableProps) {
+export function YearByYearTable({ years, scenario, productType = "growth", nonSsiIncome }: YearByYearTableProps) {
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Inject per-type income breakdowns into each row so columns like
+  // "Pension", "Rental Income", etc. can display values. This is computed
+  // at the display layer — the engine doesn't track income by type.
+  const enrichedYears = useMemo(() => {
+    if (!nonSsiIncome || nonSsiIncome.length === 0) return years;
+    const byYear = new Map<number, Record<string, number>>();
+    for (const entry of nonSsiIncome) {
+      const colId = INCOME_TYPE_TO_COLUMN[entry.type ?? ""] ?? null;
+      if (!colId) continue;
+      const existing = byYear.get(entry.year) ?? {};
+      existing[colId] = (existing[colId] ?? 0) + entry.gross_taxable + entry.tax_exempt;
+      byYear.set(entry.year, existing);
+    }
+    if (byYear.size === 0) return years;
+    return years.map((y) => {
+      const typeBreakdown = byYear.get(y.year);
+      return typeBreakdown ? { ...y, ...typeBreakdown } : y;
+    });
+  }, [years, nonSsiIncome]);
 
   // Load column preferences from localStorage (or use defaults)
   const [selectedColumns, setSelectedColumns] = useState<string[]>(() => {
@@ -79,7 +110,7 @@ export function YearByYearTable({ years, scenario, productType = "growth" }: Yea
       {/* Resizable table */}
       <ResizableTable
         columns={activeColumns}
-        data={years}
+        data={enrichedYears}
         columnWidths={columnWidths}
         onColumnWidthChange={handleWidthChange}
         frozenColumnCount={3} // Year, Age, Spouse Age always frozen
