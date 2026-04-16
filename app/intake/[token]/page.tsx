@@ -276,11 +276,13 @@ export default function IntakeFormPage() {
                 className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-2.5 text-sm text-foreground"
               >
                 <option value="">Select your state</option>
-                {US_STATES.map((s) => (
-                  <option key={s.code} value={s.code}>
-                    {s.name}
-                  </option>
-                ))}
+                {[...US_STATES]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((s) => (
+                    <option key={s.code} value={s.code}>
+                      {s.name}
+                    </option>
+                  ))}
               </select>
             </FieldGroup>
           </section>

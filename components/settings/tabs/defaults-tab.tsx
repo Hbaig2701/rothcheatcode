@@ -174,11 +174,13 @@ export function DefaultsTab({ settings }: DefaultsTabProps) {
                           </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
-                          {US_STATES.map((state) => (
-                            <SelectItem key={state.code} value={state.code}>
-                              {state.code} - {state.name}
-                            </SelectItem>
-                          ))}
+                          {[...US_STATES]
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((state) => (
+                              <SelectItem key={state.code} value={state.code}>
+                                {state.code} - {state.name}
+                              </SelectItem>
+                            ))}
                         </SelectContent>
                       </Select>
                       <FieldError errors={[fieldState.error]} />

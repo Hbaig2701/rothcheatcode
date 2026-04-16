@@ -75,11 +75,13 @@ export function PersonalInfoSection() {
                 <SelectValue placeholder="Select state" />
               </SelectTrigger>
               <SelectContent>
-                {US_STATES.map((state) => (
-                  <SelectItem key={state.code} value={state.code}>
-                    {state.name}
-                  </SelectItem>
-                ))}
+                {[...US_STATES]
+                  .sort((a, b) => a.name.localeCompare(b.name))
+                  .map((state) => (
+                    <SelectItem key={state.code} value={state.code}>
+                      {state.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
             <FieldError errors={[fieldState.error]} />
