@@ -337,9 +337,9 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
-        <div className="h-[250px]">
+        <div className="h-[290px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={activity}>
+            <BarChart data={activity} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis
                 dataKey="date"
@@ -349,12 +349,18 @@ export default function AdminDashboard() {
                   return `${d.getMonth() + 1}/${d.getDate()}`
                 }}
                 interval={activityRange === '7d' ? 0 : activityRange === '30d' ? 4 : 14}
-                label={{ value: 'Date', position: 'insideBottom', offset: -5, style: { fill: 'rgba(255,255,255,0.4)', fontSize: 11 } }}
+                label={{ value: 'Date', position: 'insideBottom', offset: -15, style: { fill: 'rgba(255,255,255,0.5)', fontSize: 11 } }}
               />
               <YAxis
                 tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
                 allowDecimals={false}
-                label={{ value: 'Count', angle: -90, position: 'insideLeft', offset: 10, style: { fill: 'rgba(255,255,255,0.4)', fontSize: 11 } }}
+                label={{
+                  value: `${ACTIVITY_TYPE_LABELS[activityType]} (per day)`,
+                  angle: -90,
+                  position: 'insideLeft',
+                  offset: 5,
+                  style: { fill: 'rgba(255,255,255,0.5)', fontSize: 11, textAnchor: 'middle' },
+                }}
               />
               <Tooltip
                 contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }}

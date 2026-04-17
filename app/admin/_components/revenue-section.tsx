@@ -166,27 +166,27 @@ export function RevenueSection() {
         <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4">
           MRR & ARR Growth (Last 6 Months)
         </h2>
-        <div className="h-[300px]">
+        <div className="h-[340px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data.mrrTrend}>
+            <LineChart data={data.mrrTrend} margin={{ top: 10, right: 30, left: 30, bottom: 30 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis
                 dataKey="month"
                 tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
-                label={{ value: 'Month', position: 'insideBottom', offset: -5, style: { fill: 'rgba(255,255,255,0.4)', fontSize: 11 } }}
+                label={{ value: 'Month', position: 'insideBottom', offset: -15, style: { fill: 'rgba(255,255,255,0.5)', fontSize: 11 } }}
               />
               <YAxis
                 yAxisId="mrr"
                 tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
                 tickFormatter={(val) => `$${val.toLocaleString()}`}
-                label={{ value: 'MRR ($)', angle: -90, position: 'insideLeft', offset: 10, style: { fill: 'rgba(255,255,255,0.4)', fontSize: 11 } }}
+                label={{ value: 'MRR ($)', angle: -90, position: 'insideLeft', offset: 5, style: { fill: 'rgba(255,255,255,0.5)', fontSize: 11, textAnchor: 'middle' } }}
               />
               <YAxis
                 yAxisId="arr"
                 orientation="right"
                 tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
                 tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
-                label={{ value: 'ARR ($)', angle: 90, position: 'insideRight', offset: 10, style: { fill: 'rgba(255,255,255,0.4)', fontSize: 11 } }}
+                label={{ value: 'ARR ($)', angle: 90, position: 'insideRight', offset: 5, style: { fill: 'rgba(255,255,255,0.5)', fontSize: 11, textAnchor: 'middle' } }}
               />
               <Tooltip
                 contentStyle={{

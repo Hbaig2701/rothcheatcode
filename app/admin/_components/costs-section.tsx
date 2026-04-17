@@ -86,21 +86,34 @@ export function CostsSection() {
       </div>
 
       {/* Usage Chart */}
-      <div className="h-[220px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-            <XAxis dataKey="month" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} />
-            <YAxis tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }} allowDecimals={false} />
-            <Tooltip
-              contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }}
-              labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
-            />
-            <Legend wrapperStyle={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }} />
-            <Bar dataKey="exports" name="PDF Exports" fill="#d4af37" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="scenarios" name="Scenarios" fill="#60a5fa" radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+      <div>
+        <h3 className="text-xs uppercase tracking-[1px] text-text-muted mb-2">
+          PDF Exports &amp; Scenario Runs — Last 6 Months
+        </h3>
+        <div className="h-[260px]">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData} margin={{ top: 10, right: 20, left: 20, bottom: 30 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <XAxis
+                dataKey="month"
+                tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                label={{ value: 'Month', position: 'insideBottom', offset: -15, style: { fill: 'rgba(255,255,255,0.5)', fontSize: 11 } }}
+              />
+              <YAxis
+                tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                allowDecimals={false}
+                label={{ value: 'Count (per month)', angle: -90, position: 'insideLeft', offset: 5, style: { fill: 'rgba(255,255,255,0.5)', fontSize: 11, textAnchor: 'middle' } }}
+              />
+              <Tooltip
+                contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12 }}
+                labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }} />
+              <Bar dataKey="exports" name="PDF Exports" fill="#d4af37" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="scenarios" name="Scenarios" fill="#60a5fa" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
       {/* Cost Breakdown */}
