@@ -222,8 +222,17 @@ export interface YearlyResult {
   // Guaranteed Income-specific (optional, for GI products)
   incomeRiderValue?: number; // Income benefit base (in cents)
   accumulationValue?: number; // Account accumulation value (in cents)
-  incomePayoutAmount?: number; // Guaranteed income payout (in cents)
+  incomePayoutAmount?: number; // Guaranteed income payout gross (in cents)
   riderFee?: number; // Annual rider fee (in cents)
+
+  // Extended GI fields for adjustable columns on GI products
+  // 'waiting' = baseline-only pre-purchase period; 'conversion' = strategy-only Roth conversion phase
+  giPhase?: 'waiting' | 'conversion' | 'purchase' | 'deferral' | 'income';
+  giIncomeNet?: number; // After-tax GI payment (cents) — equals gross for Roth/strategy
+  giCumulativeIncome?: number; // Lifetime net GI income received to date (cents)
+  giRollUpGrowth?: number; // Roll-up increment added to income base this year (cents)
+  giPayoutRate?: number; // Payout rate used this year (percent, e.g. 6.60)
+  giConversionTax?: number; // Tax paid during conversion phase (federal + state, cents)
 }
 
 export interface SimulationInput {

@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 27; // v27: added 10% early withdrawal penalty for under-59.5 clients paying conversion tax from IRA
+const PRODUCT_CONFIG_VERSION = 28; // v28: GI engine populates giPhase/giIncomeNet/giCumulativeIncome/giRollUpGrowth/giPayoutRate/giConversionTax for adjustable GI columns
 
 function generateInputHash(client: Client): string {
   const relevantFields = {

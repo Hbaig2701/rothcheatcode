@@ -36,10 +36,11 @@ export const DEFAULT_PRESETS: Record<string, ColumnPreset> = {
     columns: [
       'year',
       'age',
+      'giPhase',
       'incomeRiderValue',
       'accumulationValue',
       'incomePayoutAmount',
-      'rothBalance',
+      'giIncomeNet',
       'totalTax',
       'netWorth',
     ],

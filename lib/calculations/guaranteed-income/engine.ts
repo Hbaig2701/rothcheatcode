@@ -469,6 +469,12 @@ function runGIStrategyScenario(
         accumulationValue: 0,
         incomePayoutAmount: 0,
         riderFee: 0,
+        giPhase: 'conversion',
+        giIncomeNet: 0,
+        giCumulativeIncome: 0,
+        giRollUpGrowth: 0,
+        giPayoutRate: 0,
+        giConversionTax: conversionTax,
       });
 
       giYearlyData.push({
@@ -528,6 +534,7 @@ function runGIStrategyScenario(
       // Apply FIRST year of roll-up during purchase phase
       // This ensures we get the full deferral period of roll-ups
       // (e.g., 10 years from age 60 to 70 = 10 roll-ups, not 9)
+      const incomeBasePrePurchaseRollUp = incomeBase;
       if (productData) {
         const rollUpInfo = getRollUpForYear(productId, 1, rollUpOption); // Year 1 roll-up
         if (rollUpInfo) {
@@ -538,6 +545,7 @@ function runGIStrategyScenario(
           }
         }
       }
+      const purchaseRollUpGrowth = incomeBase - incomeBasePrePurchaseRollUp;
 
       // Roth balance is now 0 (money moved into GI)
       rothBalance = 0;
@@ -615,6 +623,12 @@ function runGIStrategyScenario(
         accumulationValue: accountValue,
         incomePayoutAmount: 0,
         riderFee: 0,
+        giPhase: 'purchase',
+        giIncomeNet: 0,
+        giCumulativeIncome: 0,
+        giRollUpGrowth: purchaseRollUpGrowth,
+        giPayoutRate: 0,
+        giConversionTax: 0,
       });
 
       giYearlyData.push({
@@ -640,6 +654,7 @@ function runGIStrategyScenario(
       const deferralYear = age - purchaseAge + 1; // 1-indexed for roll-up tier lookup
 
       // Roll up Income Base using product-specific config
+      const incomeBasePreRollUp = incomeBase;
       if (productData) {
         const rollUpInfo = getRollUpForYear(productId, deferralYear, rollUpOption);
         if (rollUpInfo) {
@@ -653,6 +668,7 @@ function runGIStrategyScenario(
         const guaranteedRateOfReturn = (client.guaranteed_rate_of_return ?? 7) / 100;
         incomeBase = Math.round(incomeBase * (1 + guaranteedRateOfReturn));
       }
+      const deferralRollUpGrowth = incomeBase - incomeBasePreRollUp;
 
       // Account value grows
       const accountInterest = Math.round(accountValue * rateOfReturn);
@@ -746,6 +762,12 @@ function runGIStrategyScenario(
         accumulationValue: accountValue,
         incomePayoutAmount: 0,
         riderFee: yearRiderFee,
+        giPhase: 'deferral',
+        giIncomeNet: 0,
+        giCumulativeIncome: 0,
+        giRollUpGrowth: deferralRollUpGrowth,
+        giPayoutRate: 0,
+        giConversionTax: 0,
       });
 
       giYearlyData.push({
@@ -886,6 +908,12 @@ function runGIStrategyScenario(
         accumulationValue: accountValue,
         incomePayoutAmount: grossGI,
         riderFee: yearRiderFee,
+        giPhase: 'income',
+        giIncomeNet: netGI,
+        giCumulativeIncome: cumulativeIncome,
+        giRollUpGrowth: 0,
+        giPayoutRate: payoutPercent,
+        giConversionTax: 0,
       });
 
       giYearlyData.push({
@@ -1133,6 +1161,12 @@ function runGIBaselineScenario(
         accumulationValue: 0,
         incomePayoutAmount: 0,
         riderFee: 0,
+        giPhase: 'waiting',
+        giIncomeNet: 0,
+        giCumulativeIncome: 0,
+        giRollUpGrowth: 0,
+        giPayoutRate: 0,
+        giConversionTax: 0,
       });
 
       giYearlyData.push({
@@ -1187,6 +1221,7 @@ function runGIBaselineScenario(
       incomeBaseAtStart = incomeBase;
 
       // Apply FIRST year of roll-up during purchase phase (same as strategy)
+      const incomeBasePrePurchaseRollUp = incomeBase;
       if (productData) {
         const rollUpInfo = getRollUpForYear(productId, 1, rollUpOption);
         if (rollUpInfo) {
@@ -1197,6 +1232,7 @@ function runGIBaselineScenario(
           }
         }
       }
+      const purchaseRollUpGrowth = incomeBase - incomeBasePrePurchaseRollUp;
 
       // Taxable account grows
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
@@ -1271,6 +1307,12 @@ function runGIBaselineScenario(
         accumulationValue: accountValue,
         incomePayoutAmount: 0,
         riderFee: 0,
+        giPhase: 'purchase',
+        giIncomeNet: 0,
+        giCumulativeIncome: 0,
+        giRollUpGrowth: purchaseRollUpGrowth,
+        giPayoutRate: 0,
+        giConversionTax: 0,
       });
 
       giYearlyData.push({
@@ -1297,6 +1339,7 @@ function runGIBaselineScenario(
       const deferralYear = age - purchaseAge + 1; // 1-indexed to match strategy
 
       // Roll up Income Base
+      const incomeBasePreRollUp = incomeBase;
       if (productData) {
         const rollUpInfo = getRollUpForYear(productId, deferralYear, rollUpOption);
         if (rollUpInfo) {
@@ -1307,6 +1350,7 @@ function runGIBaselineScenario(
           }
         }
       }
+      const deferralRollUpGrowth = incomeBase - incomeBasePreRollUp;
 
       // At the year BEFORE income starts, lock in income base and payout
       if (age + 1 === effectiveIncomeStartAge) {
@@ -1399,6 +1443,12 @@ function runGIBaselineScenario(
         accumulationValue: accountValue,
         incomePayoutAmount: 0,
         riderFee: yearRiderFee,
+        giPhase: 'deferral',
+        giIncomeNet: 0,
+        giCumulativeIncome: 0,
+        giRollUpGrowth: deferralRollUpGrowth,
+        giPayoutRate: 0,
+        giConversionTax: 0,
       });
 
       giYearlyData.push({
@@ -1557,6 +1607,12 @@ function runGIBaselineScenario(
         accumulationValue: accountValue,
         incomePayoutAmount: grossGI,
         riderFee: yearRiderFee,
+        giPhase: 'income',
+        giIncomeNet: netGI,
+        giCumulativeIncome: cumulativeIncome,
+        giRollUpGrowth: 0,
+        giPayoutRate: payoutPercent,
+        giConversionTax: 0,
       });
 
       giYearlyData.push({

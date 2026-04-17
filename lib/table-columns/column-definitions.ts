@@ -31,6 +31,9 @@ export interface ColumnDefinition {
   visibleForProducts: ('growth' | 'gi' | 'all')[];
   defaultWidth?: number;                   // Default column width (px)
   minWidth?: number;                       // Minimum column width (px)
+  // Override default alignment. Core columns are left-aligned, others right-aligned (numeric).
+  // Use 'left' for text columns in non-core categories like Phase.
+  align?: 'left' | 'right';
 }
 
 /**
@@ -68,6 +71,21 @@ function formatTier(value: number | null | undefined): string {
   if (value === 0) return 'Standard';
   if (value === 5) return 'Tier 5 (Highest)';
   return `Tier ${value}`;
+}
+
+/**
+ * Format GI phase values
+ */
+function formatGIPhase(value: string | null | undefined): string {
+  if (!value) return '—';
+  const map: Record<string, string> = {
+    waiting: 'Wait',
+    conversion: 'Convert',
+    purchase: 'Purchase',
+    deferral: 'Grow',
+    income: 'Income',
+  };
+  return map[value] ?? value;
 }
 
 /**
@@ -549,10 +567,10 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     id: 'productBonusApplied',
     label: 'Product Bonus',
     category: 'product',
-    description: 'Annual product bonus credited by the insurance carrier during the bonus period (typically years 1-3). This is one of the key advantages of the FIA strategy over a standard IRA.',
+    description: 'Product bonus credited by the insurance carrier. For Growth FIA, applied annually during the bonus period (typically years 1-3). For Guaranteed Income, applied once at purchase to the income base and/or account value.',
     formatter: formatCurrency,
     defaultVisible: false,
-    visibleForProducts: ['growth'],
+    visibleForProducts: ['all'],
     defaultWidth: 140,
     minWidth: 110,
   },
@@ -625,6 +643,73 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     visibleForProducts: ['gi'],
     defaultWidth: 120,
     minWidth: 100,
+  },
+  {
+    id: 'giPhase',
+    label: 'Phase',
+    category: 'gi-income',
+    description: 'Current phase of the GI plan: Convert (strategy only — Roth conversions), Wait (baseline only — pre-purchase), Purchase (buy GI rider), Grow (income base rolls up during deferral), or Income (guaranteed payments begin).',
+    formatter: formatGIPhase,
+    defaultVisible: true,
+    visibleForProducts: ['gi'],
+    defaultWidth: 110,
+    minWidth: 90,
+    align: 'left',
+  },
+  {
+    id: 'giIncomeNet',
+    label: 'GI Income (Net)',
+    category: 'gi-income',
+    description: 'After-tax guaranteed income received this year. For the strategy (Roth GI), this equals the gross payment — all income is tax-free. For the baseline (Traditional GI), this is gross minus federal + state tax.',
+    formatter: formatCurrency,
+    defaultVisible: true,
+    visibleForProducts: ['gi'],
+    defaultWidth: 150,
+    minWidth: 120,
+  },
+  {
+    id: 'giCumulativeIncome',
+    label: 'Cumulative GI Income',
+    category: 'gi-income',
+    description: 'Lifetime running total of net GI income received. Useful for showing clients how much they have received by any given age, even after their account value depletes.',
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['gi'],
+    defaultWidth: 180,
+    minWidth: 140,
+  },
+  {
+    id: 'giRollUpGrowth',
+    label: 'Roll-Up Growth',
+    category: 'gi-income',
+    description: 'Growth added to the income base this year via the roll-up rate (e.g., +8% simple or compound). Only accrues during the deferral phase and on the purchase year. This is a guaranteed growth rate on the income base — not on the actual account value.',
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['gi'],
+    defaultWidth: 150,
+    minWidth: 120,
+  },
+  {
+    id: 'giPayoutRate',
+    label: 'Payout Rate',
+    category: 'gi-income',
+    description: 'Payout percentage applied to the income base to calculate the annual GI payment (e.g., 6.60%). Locked in at the start of the income phase and depends on the client\'s age and payout type.',
+    formatter: formatPercent,
+    defaultVisible: false,
+    visibleForProducts: ['gi'],
+    defaultWidth: 130,
+    minWidth: 100,
+  },
+  {
+    id: 'giConversionTax',
+    label: 'Conversion Tax',
+    category: 'gi-income',
+    description: 'Tax paid during the Roth conversion phase (federal + state combined). This is the one-time cost of the strategy — paid upfront in exchange for tax-free GI income for life. Zero during all non-conversion phases and in the baseline.',
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['gi'],
+    defaultWidth: 150,
+    minWidth: 120,
   },
 ];
 

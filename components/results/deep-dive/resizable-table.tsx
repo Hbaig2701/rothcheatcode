@@ -106,7 +106,8 @@ export function ResizableTable({
   const renderHeader = (col: ColumnDefinition, isFrozen: boolean, frozenIndex: number) => {
     const width = getColumnWidth(col);
     const isLastFrozen = isFrozen && frozenIndex === frozenColumns.length - 1;
-    const isNumeric = col.category !== 'core';
+    const effectiveAlign = col.align ?? (col.category === 'core' ? 'left' : 'right');
+    const isNumeric = effectiveAlign === 'right';
     const alignClass = isNumeric ? 'text-right' : 'text-left';
 
     // Frozen headers: sticky top + left (z-30)
@@ -154,7 +155,9 @@ export function ResizableTable({
     const isLastFrozen = isFrozen && frozenIndex === frozenColumns.length - 1;
     const bgClass = rowIndex % 2 === 0 ? 'bg-background' : 'bg-bg-card';
     // Right-align numeric columns for readability. Core (Year/Age) stays left-aligned.
-    const isNumeric = col.category !== 'core';
+    // Allow column definitions to override alignment via `align` (e.g. Phase is text).
+    const effectiveAlign = col.align ?? (col.category === 'core' ? 'left' : 'right');
+    const isNumeric = effectiveAlign === 'right';
     const alignClass = isNumeric ? 'text-right font-mono tabular-nums' : 'text-left';
 
     return (

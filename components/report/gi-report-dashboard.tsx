@@ -7,6 +7,7 @@ import type { YearlyResult } from "@/lib/calculations";
 import { GIIncomeChart } from "@/components/results/gi-income-chart";
 import { transformToGIIncomeChartData, transformToChartData } from "@/lib/calculations/transforms";
 import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
+import { YearByYearTable } from "@/components/results/deep-dive/year-by-year-table";
 import { Check, ChevronDown, ChevronUp, ArrowRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
@@ -38,7 +39,7 @@ const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
   years.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
 
 export function GIReportDashboard({ client, projection }: GIReportDashboardProps) {
-  const [tableView, setTableView] = useState<"summary" | "full" | "baseline">("summary");
+  const [tableView, setTableView] = useState<"strategy" | "baseline">("strategy");
   const [productDetailsOpen, setProductDetailsOpen] = useState(false);
 
   const incomeChartData = transformToGIIncomeChartData(projection);
@@ -575,7 +576,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
           </div>
         )}
 
-        {/* Section 7: Year-by-Year Table */}
+        {/* Section 7: Year-by-Year Table (Adjustable Columns) */}
         <div className="bg-bg-card border border-border-default rounded-[14px] overflow-hidden">
           {/* Table Header */}
           <div className="flex justify-between items-center px-6 py-5 border-b border-border-default">
@@ -584,21 +585,10 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
             </p>
             <div className="flex bg-bg-input rounded-lg p-1">
               <button
-                onClick={() => setTableView("summary")}
+                onClick={() => setTableView("strategy")}
                 className={cn(
                   "px-4 py-1.5 text-sm rounded-md transition-colors",
-                  tableView === "summary"
-                    ? "bg-gold text-primary-foreground font-medium"
-                    : "text-text-muted hover:text-foreground"
-                )}
-              >
-                Summary
-              </button>
-              <button
-                onClick={() => setTableView("full")}
-                className={cn(
-                  "px-4 py-1.5 text-sm rounded-md transition-colors",
-                  tableView === "full"
+                  tableView === "strategy"
                     ? "bg-gold text-primary-foreground font-medium"
                     : "text-text-muted hover:text-foreground"
                 )}
@@ -619,262 +609,14 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-[rgba(255,255,255,0.02)]">
-                  <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Year</th>
-                  <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Age</th>
-                  <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Phase</th>
-
-                  {/* Strategy (Full) columns */}
-                  {tableView === "full" && (
-                    <>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Trad (BOY)</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Conversion</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Conv. Tax</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Trad (EOY)</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Roth (EOY)</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Income Base</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Acct Value</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Rider Fee</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">GI Income</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Net</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Cumulative</th>
-                    </>
-                  )}
-
-                  {/* Summary columns */}
-                  {tableView === "summary" && (
-                    <>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Key Value</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">GI Income</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Taxes</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Net</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Cumulative</th>
-                    </>
-                  )}
-
-                  {/* Baseline columns - Traditional GI scenario */}
-                  {tableView === "baseline" && (
-                    <>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Income Base</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Acct Value</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">GI Income</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Tax ({client.tax_rate}%)</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Net Income</th>
-                      <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Cumulative</th>
-                    </>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {/* BASELINE VIEW - Show baseline scenario data */}
-                {tableView === "baseline" && baselineGIYearlyData.map((row, idx) => {
-                  const isDeferralPhase = row.phase === "deferral";
-                  const isIncomePhase = row.phase === "income";
-                  const isAccountZero = row.accountValue <= 0;
-
-                  // Calculate tax on this year's income using flat rate (consistent with chart)
-                  const grossIncome = row.guaranteedIncomeGross || 0;
-                  const taxOnIncome = isIncomePhase ? Math.round(grossIncome * (client.tax_rate / 100)) : 0;
-                  const netIncome = grossIncome - taxOnIncome;
-
-                  // Calculate cumulative net income using flat rate (must match chart)
-                  let cumulative = 0;
-                  for (let i = 0; i <= idx; i++) {
-                    const yearGross = baselineGIYearlyData[i].guaranteedIncomeGross || 0;
-                    const yearIsIncome = baselineGIYearlyData[i].phase === "income";
-                    const yearTax = yearIsIncome ? Math.round(yearGross * (client.tax_rate / 100)) : 0;
-                    cumulative += yearGross - yearTax;
-                  }
-
-                  // Phase display for baseline
-                  const phaseLabel = isDeferralPhase ? "Grow" : isIncomePhase ? "Income" : row.phase;
-                  const phaseColor = isDeferralPhase ? "text-[#3b82f6]" : isIncomePhase ? "text-text-muted" : "text-text-muted";
-
-                  return (
-                    <tr
-                      key={row.year}
-                      className="border-b border-border-default/50 hover:bg-bg-card transition-colors"
-                    >
-                      <td className="px-4 py-3 text-sm font-mono text-text-dim">{row.year}</td>
-                      <td className="px-4 py-3 text-sm text-text-muted">{row.age}</td>
-                      <td className={cn("px-4 py-3 text-sm font-medium uppercase tracking-wide", phaseColor)}>
-                        {phaseLabel}
-                      </td>
-                      <td className={cn(
-                        "px-4 py-3 text-sm font-mono text-right",
-                        isDeferralPhase ? "text-gold" : "text-text-muted"
-                      )}>
-                        {row.incomeBase > 0 ? toUSD(row.incomeBase) : "—"}
-                      </td>
-                      <td className={cn(
-                        "px-4 py-3 text-sm font-mono text-right",
-                        isAccountZero ? "text-text-dim" : "text-text-muted"
-                      )}>
-                        {isAccountZero ? "$0" : toUSD(row.accountValue)}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-mono text-right text-text-dim">
-                        {grossIncome > 0 ? toUSD(grossIncome) : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-mono text-right text-red">
-                        {taxOnIncome > 0 ? toUSD(taxOnIncome) : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
-                        {netIncome > 0 ? toUSD(netIncome) : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
-                        {cumulative > 0 ? toUSD(cumulative) : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                {/* STRATEGY VIEWS (Summary & Full) - Show strategy scenario data */}
-                {tableView !== "baseline" && giYearlyData.map((row, idx) => {
-                  const blueprintYear = projection.blueprint_years[idx];
-                  const isDepletionRow = depletionAge && row.age === depletionAge && row.accountValue <= 0;
-                  const isAccountZero = row.accountValue <= 0;
-                  const isConversionPhase = row.phase === "conversion";
-                  const isPurchasePhase = row.phase === "purchase";
-                  const isDeferralPhase = row.phase === "deferral";
-                  const isIncomePhase = row.phase === "income";
-
-                  // Calculate cumulative income up to this row
-                  let cumulative = 0;
-                  for (let i = 0; i <= idx; i++) {
-                    cumulative += giYearlyData[i].guaranteedIncomeNet;
-                  }
-
-                  // Get previous row for BOY values
-                  const prevRow = idx > 0 ? giYearlyData[idx - 1] : null;
-                  const boyTraditional = prevRow ? prevRow.traditionalBalance : (isConversionPhase ? client.qualified_account_value : 0);
-                  const eoyTraditional = row.traditionalBalance;
-
-                  // For purchase phase, get the Roth balance that was used (from previous row)
-                  const purchaseRothAmount = isPurchasePhase && prevRow ? prevRow.rothBalance : 0;
-
-                  // Key value based on phase (for summary view)
-                  const keyValue = isConversionPhase
-                    ? row.traditionalBalance
-                    : isPurchasePhase
-                      ? row.incomeBase  // Show income base for purchase phase
-                      : isDeferralPhase || isIncomePhase
-                        ? row.incomeBase
-                        : row.accountValue;
-
-                  // Phase display
-                  const phaseLabel = {
-                    conversion: "Convert",
-                    purchase: "Purchase",
-                    deferral: "Grow",
-                    income: "Income",
-                  }[row.phase] || row.phase;
-
-                  const phaseColor = {
-                    conversion: "text-[#f97316]",
-                    purchase: "text-[#a855f7]",
-                    deferral: "text-[#3b82f6]",
-                    income: "text-green",
-                  }[row.phase] || "text-text-muted";
-
-                  return (
-                    <tr
-                      key={row.year}
-                      className={cn(
-                        "border-b border-border-default/50 hover:bg-bg-card transition-colors",
-                        isDepletionRow && "bg-[rgba(212,175,55,0.03)] border-l-[3px] border-l-gold",
-                        isPurchasePhase && "bg-[rgba(168,85,247,0.05)]"
-                      )}
-                    >
-                      <td className="px-4 py-3 text-sm font-mono text-text-dim">{row.year}</td>
-                      <td className="px-4 py-3 text-sm text-text-muted">{row.age}</td>
-                      <td className={cn("px-4 py-3 text-sm font-medium uppercase tracking-wide", phaseColor)}>
-                        {phaseLabel}
-                      </td>
-
-                      {/* Strategy (Full) columns */}
-                      {tableView === "full" && (
-                        <>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
-                            {isConversionPhase && boyTraditional > 0 ? toUSD(boyTraditional) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-gold">
-                            {row.conversionAmount > 0 ? toUSD(row.conversionAmount) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-red">
-                            {row.conversionTax > 0 ? toUSD(row.conversionTax) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
-                            {isConversionPhase && eoyTraditional > 0 ? toUSD(eoyTraditional) : "—"}
-                          </td>
-                          <td className={cn(
-                            "px-4 py-3 text-sm font-mono text-right",
-                            isPurchasePhase ? "text-[#a855f7]" : "text-green"
-                          )}>
-                            {isPurchasePhase && purchaseRothAmount > 0
-                              ? toUSD(purchaseRothAmount)
-                              : row.rothBalance > 0 ? toUSD(row.rothBalance) : "—"}
-                          </td>
-                          <td className={cn(
-                            "px-4 py-3 text-sm font-mono text-right",
-                            (isPurchasePhase || isDeferralPhase || isIncomePhase) ? "text-gold" : "text-text-muted"
-                          )}>
-                            {row.incomeBase > 0 ? toUSD(row.incomeBase) : "—"}
-                          </td>
-                          <td className={cn(
-                            "px-4 py-3 text-sm font-mono text-right",
-                            isAccountZero ? "text-text-dim" : "text-text-muted"
-                          )}>
-                            {isConversionPhase ? "—" : (isAccountZero ? "$0" : toUSD(row.accountValue))}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-text-dim">
-                            {row.riderFee > 0 ? toUSD(row.riderFee) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-gold">
-                            {row.guaranteedIncomeGross > 0 ? toUSD(row.guaranteedIncomeGross) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-green">
-                            {row.guaranteedIncomeNet > 0 ? toUSD(row.guaranteedIncomeNet) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
-                            {cumulative > 0 ? toUSD(cumulative) : "—"}
-                          </td>
-                        </>
-                      )}
-
-                      {/* Summary columns */}
-                      {tableView === "summary" && (
-                        <>
-                          <td className={cn(
-                            "px-4 py-3 text-sm font-mono text-right",
-                            isIncomePhase ? "text-gold" : "text-text-muted"
-                          )}>
-                            {keyValue > 0 ? toUSD(keyValue) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-gold">
-                            {row.guaranteedIncomeGross > 0 ? toUSD(row.guaranteedIncomeGross) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-red">
-                            {(row.conversionTax > 0 || (blueprintYear && (blueprintYear.federalTax + blueprintYear.stateTax) > 0))
-                              ? toUSD(row.conversionTax || (blueprintYear?.federalTax || 0) + (blueprintYear?.stateTax || 0))
-                              : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-green">
-                            {row.guaranteedIncomeNet > 0 ? toUSD(row.guaranteedIncomeNet) : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
-                            {cumulative > 0 ? toUSD(cumulative) : "—"}
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="px-6 py-5">
+            <YearByYearTable
+              years={tableView === "strategy" ? projection.blueprint_years : projection.baseline_years}
+              scenario={tableView === "strategy" ? "formula" : "baseline"}
+              productType="gi"
+              nonSsiIncome={client.non_ssi_income}
+              clientId={client.id}
+            />
           </div>
 
           {/* Depletion note */}
