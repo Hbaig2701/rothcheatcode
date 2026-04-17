@@ -24,6 +24,7 @@ interface YearByYearTableProps {
   scenario: "baseline" | "formula";
   productType?: "growth" | "gi";
   nonSsiIncome?: NonSSIIncomeEntry[];
+  clientId?: string; // Per-client column preferences
 }
 
 /**
@@ -34,8 +35,12 @@ interface YearByYearTableProps {
  * - Horizontal scroll
  * - Preferences saved to localStorage
  */
-export function YearByYearTable({ years, scenario, productType = "growth", nonSsiIncome }: YearByYearTableProps) {
+export function YearByYearTable({ years, scenario, productType = "growth", nonSsiIncome, clientId }: YearByYearTableProps) {
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Storage key is per-client so each client keeps its own column preferences.
+  // Falls back to a global key if no clientId is provided.
+  const storageKey = clientId ? `year-by-year-${clientId}` : "year-by-year";
 
   // Inject per-type income breakdowns into each row so columns like
   // "Pension", "Rental Income", etc. can display values. This is computed
@@ -57,14 +62,15 @@ export function YearByYearTable({ years, scenario, productType = "growth", nonSs
     });
   }, [years, nonSsiIncome]);
 
-  // Load column preferences from localStorage (or use defaults)
+  // Load column preferences from localStorage (or use defaults).
+  // Key includes clientId so each client keeps its own column selection.
   const [selectedColumns, setSelectedColumns] = useState<string[]>(() => {
-    const saved = loadColumnPreferences("year-by-year");
+    const saved = loadColumnPreferences(storageKey);
     return saved?.selectedColumns || getDefaultColumns(productType);
   });
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
-    const saved = loadColumnPreferences("year-by-year");
+    const saved = loadColumnPreferences(storageKey);
     return saved?.columnWidths || {};
   });
 
@@ -75,7 +81,7 @@ export function YearByYearTable({ years, scenario, productType = "growth", nonSs
 
   const handleSaveColumns = (columns: string[]) => {
     setSelectedColumns(columns);
-    saveColumnPreferences("year-by-year", {
+    saveColumnPreferences(storageKey, {
       selectedColumns: columns,
       columnWidths,
       lastUpdated: new Date().toISOString(),
@@ -85,7 +91,7 @@ export function YearByYearTable({ years, scenario, productType = "growth", nonSs
   const handleWidthChange = (columnId: string, width: number) => {
     const newWidths = { ...columnWidths, [columnId]: width };
     setColumnWidths(newWidths);
-    saveColumnPreferences("year-by-year", {
+    saveColumnPreferences(storageKey, {
       selectedColumns,
       columnWidths: newWidths,
       lastUpdated: new Date().toISOString(),
