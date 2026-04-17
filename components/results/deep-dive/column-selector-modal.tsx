@@ -107,8 +107,8 @@ export function ColumnSelectorModal({
       setTempSelection(tempSelection.filter((id) => id !== columnId));
     } else {
       // Select - check max limit
-      if (nonFrozenSelectedCount >= 10) {
-        alert('Maximum 10 columns can be selected (excluding frozen Year/Age columns)');
+      if (nonFrozenSelectedCount >= 20) {
+        alert('Maximum 20 columns can be selected (excluding frozen Year/Age columns)');
         return;
       }
       setTempSelection([...tempSelection, columnId]);
@@ -138,7 +138,7 @@ export function ColumnSelectorModal({
             Adjust Columns
           </Dialog.Title>
           <p className="text-sm text-text-dim mt-1">
-            Select up to 10 columns to display (Year and Age are always visible)
+            Select up to 20 columns to display (Year and Age are always visible)
           </p>
 
           {/* Search Input */}
@@ -222,7 +222,7 @@ export function ColumnSelectorModal({
         {/* Footer */}
         <div className="px-6 py-4 border-t border-border-default flex items-center justify-between shrink-0 bg-surface-elevated">
           <div className="text-sm text-text-dim">
-            <span className="font-medium text-foreground">{nonFrozenSelectedCount}</span> / 10 columns selected
+            <span className="font-medium text-foreground">{nonFrozenSelectedCount}</span> / 20 columns selected
           </div>
           <div className="flex gap-3">
             <button

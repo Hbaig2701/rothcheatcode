@@ -106,6 +106,8 @@ export function ResizableTable({
   const renderHeader = (col: ColumnDefinition, isFrozen: boolean, frozenIndex: number) => {
     const width = getColumnWidth(col);
     const isLastFrozen = isFrozen && frozenIndex === frozenColumns.length - 1;
+    const isNumeric = col.category !== 'core';
+    const alignClass = isNumeric ? 'text-right' : 'text-left';
 
     // Frozen headers: sticky top + left (z-30)
     // Scrollable headers: sticky top only (z-20)
@@ -125,7 +127,7 @@ export function ResizableTable({
           ...stickyStyle,
         }}
         className={`
-          relative border-b border-border-default bg-surface-elevated px-3 py-2.5 text-left text-xs font-semibold text-text-muted uppercase tracking-wider
+          relative border-b border-border-default bg-surface-elevated px-3 py-2.5 ${alignClass} text-xs font-semibold text-text-muted uppercase tracking-wider
           ${isLastFrozen ? 'border-r-2 border-r-primary/30' : ''}
           ${col.description ? 'cursor-help' : ''}
         `}
@@ -151,6 +153,9 @@ export function ResizableTable({
     const formatted = col.formatter(value);
     const isLastFrozen = isFrozen && frozenIndex === frozenColumns.length - 1;
     const bgClass = rowIndex % 2 === 0 ? 'bg-background' : 'bg-bg-card';
+    // Right-align numeric columns for readability. Core (Year/Age) stays left-aligned.
+    const isNumeric = col.category !== 'core';
+    const alignClass = isNumeric ? 'text-right font-mono tabular-nums' : 'text-left';
 
     return (
       <td
@@ -164,6 +169,7 @@ export function ResizableTable({
         className={`
           border-b border-border-default/50 px-3 py-2 text-sm text-foreground/80
           ${bgClass}
+          ${alignClass}
           ${isLastFrozen ? 'border-r-2 border-r-primary/30' : ''}
         `}
       >

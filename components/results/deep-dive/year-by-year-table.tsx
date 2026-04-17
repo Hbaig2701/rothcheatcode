@@ -29,7 +29,7 @@ interface YearByYearTableProps {
 
 /**
  * Year-by-year projection table with adjustable columns
- * - Customizable column selection (up to 10 columns)
+ * - Customizable column selection (up to 20 columns)
  * - Resizable column widths
  * - Frozen Year/Age columns
  * - Horizontal scroll
