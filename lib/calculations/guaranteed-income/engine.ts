@@ -383,13 +383,6 @@ function runGIStrategyScenario(
       traditionalBalance += traditionalInterest;
       rothBalance += rothInterest;
 
-      // Handle tax payment
-      if (payTaxFromIRA) {
-        taxableBalance = boyTaxable + taxableInterest;
-      } else {
-        taxableBalance = boyTaxable + taxableInterest - conversionTax;
-      }
-
       // IRMAA
       const grossIncomeWithConversion = otherIncome + conversionAmount;
       const magi = grossIncomeWithConversion + taxExemptNonSSI + ssIncome;
@@ -408,6 +401,15 @@ function runGIStrategyScenario(
           : 0;
 
       const totalTax = conversionTax + irmaaSurcharge + earlyWithdrawalPenalty;
+
+      // Handle tax payment on taxable account.
+      // When payTaxFromIRA, conversion tax came from the IRA, but IRMAA and
+      // early withdrawal penalty are still paid externally.
+      if (payTaxFromIRA) {
+        taxableBalance = boyTaxable + taxableInterest - Math.max(0, totalTax - conversionTaxFromIRA);
+      } else {
+        taxableBalance = boyTaxable + taxableInterest - conversionTax - irmaaSurcharge - earlyWithdrawalPenalty;
+      }
 
       // Calculate tax details
       const totalIncome = grossIncomeWithConversion + ssIncome;

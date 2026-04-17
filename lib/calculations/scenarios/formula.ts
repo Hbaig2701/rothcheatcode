@@ -249,11 +249,12 @@ export function runFormulaScenario(
     rothBalance = rothAfterConversion + rothInterest;
 
     // Taxable account:
-    // - If tax paid from external (outside IRA), deduct tax from taxable account
-    // - If tax paid from IRA, already accounted for in conversion amount reduction
+    // - If tax paid from external (outside IRA), deduct full totalTax
+    // - If tax paid from IRA, conversion tax came from the IRA, but IRMAA and
+    //   early withdrawal penalty are still paid externally from the taxable account
     // NOTE: No interest applied - taxable represents taxes paid (fixed cost, not compounding debt)
     if (payTaxFromIRA) {
-      taxableBalance = boyTaxable;
+      taxableBalance = boyTaxable - Math.max(0, totalTax - conversionTaxFromIRA);
     } else {
       taxableBalance = boyTaxable - totalTax;
     }
