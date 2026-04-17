@@ -74,10 +74,19 @@ export function YearByYearTable({ years, scenario, productType = "growth", nonSs
     return saved?.columnWidths || {};
   });
 
-  // Get active column definitions for selected columns
-  const activeColumns = COLUMN_DEFINITIONS.filter((col) =>
-    selectedColumns.includes(col.id)
-  );
+  // Build active columns in the user-chosen order.
+  // Frozen columns (Year/Age/Spouse Age) are forced to the front — CSS-sticky positioning
+  // assumes they occupy the leftmost slots. Everything else honors the order the user
+  // set in the column selector modal.
+  const activeColumns = (() => {
+    const defMap = new Map(COLUMN_DEFINITIONS.map((c) => [c.id, c]));
+    const resolved = selectedColumns.map((id) => defMap.get(id)).filter(Boolean) as typeof COLUMN_DEFINITIONS;
+    const frozen = resolved.filter((c) => c.frozen);
+    const nonFrozen = resolved.filter((c) => !c.frozen);
+    return [...frozen, ...nonFrozen];
+  })();
+
+  const frozenColumnCount = activeColumns.filter((c) => c.frozen).length;
 
   const handleSaveColumns = (columns: string[]) => {
     setSelectedColumns(columns);
@@ -120,7 +129,7 @@ export function YearByYearTable({ years, scenario, productType = "growth", nonSs
         data={enrichedYears}
         columnWidths={columnWidths}
         onColumnWidthChange={handleWidthChange}
-        frozenColumnCount={3} // Year, Age, Spouse Age always frozen
+        frozenColumnCount={frozenColumnCount}
       />
 
       {/* Column selector modal */}
