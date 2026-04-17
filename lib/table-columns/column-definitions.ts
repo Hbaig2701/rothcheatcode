@@ -369,6 +369,17 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     minWidth: 110,
   },
   {
+    id: 'incomeOther',
+    label: 'Other (Uncategorized)',
+    category: 'income',
+    description: 'Income entries explicitly labeled as "Other" in the Non-SSI income table.',
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['all'],
+    defaultWidth: 170,
+    minWidth: 130,
+  },
+  {
     id: 'totalIncome',
     label: 'Total Income',
     category: 'income',

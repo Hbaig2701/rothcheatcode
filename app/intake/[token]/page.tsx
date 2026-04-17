@@ -93,6 +93,16 @@ export default function IntakeFormPage() {
     setFieldErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
+  const clearIncomeErrors = () => {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        if (key.startsWith("income_")) delete next[key];
+      }
+      return next;
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -463,7 +473,7 @@ export default function IntakeFormPage() {
               {form.income_entries.length > 1 && (
                 <button
                   type="button"
-                  onClick={() => setForm((prev) => ({ ...prev, income_entries: [] }))}
+                  onClick={() => { setForm((prev) => ({ ...prev, income_entries: [] })); clearIncomeErrors(); }}
                   className="text-xs text-muted-foreground hover:text-red transition-colors"
                 >
                   Remove All
@@ -495,6 +505,7 @@ export default function IntakeFormPage() {
                         onClick={() => {
                           const next = form.income_entries.filter((_, i) => i !== idx);
                           setForm((prev) => ({ ...prev, income_entries: next }));
+                          clearIncomeErrors();
                         }}
                         className="p-1 text-muted-foreground hover:text-red rounded hover:bg-red-bg transition-colors"
                       >
@@ -510,6 +521,7 @@ export default function IntakeFormPage() {
                             const next = [...form.income_entries];
                             next[idx] = { ...next[idx], type: e.target.value as IncomeType };
                             setForm((prev) => ({ ...prev, income_entries: next }));
+                            clearIncomeErrors();
                           }}
                           className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-2 text-sm text-foreground"
                         >
@@ -526,6 +538,7 @@ export default function IntakeFormPage() {
                             const next = [...form.income_entries];
                             next[idx] = { ...next[idx], annual_amount: v };
                             setForm((prev) => ({ ...prev, income_entries: next }));
+                            clearIncomeErrors();
                           }}
                           placeholder="50,000"
                         />
@@ -541,6 +554,7 @@ export default function IntakeFormPage() {
                             const next = [...form.income_entries];
                             next[idx] = { ...next[idx], start_age: v };
                             setForm((prev) => ({ ...prev, income_entries: next }));
+                            clearIncomeErrors();
                           }}
                           placeholder="Enter age"
                         />
@@ -556,6 +570,7 @@ export default function IntakeFormPage() {
                             const next = [...form.income_entries];
                             next[idx] = { ...next[idx], end_age: v };
                             setForm((prev) => ({ ...prev, income_entries: next }));
+                            clearIncomeErrors();
                           }}
                           placeholder="Enter age"
                         />

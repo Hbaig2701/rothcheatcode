@@ -16,6 +16,7 @@ const INCOME_TYPE_TO_COLUMN: Record<string, string> = {
   capital_gains: "incomeCapitalGains",
   wages: "incomeWages",
   annuity: "incomeAnnuity",
+  other: "incomeOther",
 };
 
 interface YearByYearTableProps {
@@ -43,7 +44,7 @@ export function YearByYearTable({ years, scenario, productType = "growth", nonSs
     if (!nonSsiIncome || nonSsiIncome.length === 0) return years;
     const byYear = new Map<number, Record<string, number>>();
     for (const entry of nonSsiIncome) {
-      const colId = INCOME_TYPE_TO_COLUMN[entry.type ?? ""] ?? null;
+      const colId = INCOME_TYPE_TO_COLUMN[entry.type ?? "other"] ?? "incomeOther";
       if (!colId) continue;
       const existing = byYear.get(entry.year) ?? {};
       existing[colId] = (existing[colId] ?? 0) + entry.gross_taxable + entry.tax_exempt;
