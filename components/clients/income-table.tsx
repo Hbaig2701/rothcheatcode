@@ -115,7 +115,9 @@ export function IncomeTable() {
     const gross = recurringGross ?? 0;
     const exempt = recurringExempt ?? 0;
 
-    // Keep existing entries that are outside the recurring range [startYear, endYear].
+    // Keep existing entries that are either outside the year range OR a different
+    // income type. This way filling "Rental Income" for ages 65-90 doesn't destroy
+    // existing "Pension" entries in the same range.
     const existingOutside = fields
       .map((_, i) => form.getValues(`non_ssi_income.${i}`))
       .filter(
@@ -123,7 +125,7 @@ export function IncomeTable() {
           entry &&
           typeof entry.year === "number" &&
           !Number.isNaN(entry.year) &&
-          (entry.year < startYear || entry.year > endYear)
+          (entry.year < startYear || entry.year > endYear || (entry.type ?? "other") !== recurringType)
       );
 
     const newEntries = [];
