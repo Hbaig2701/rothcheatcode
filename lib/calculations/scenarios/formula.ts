@@ -235,9 +235,14 @@ export function runFormulaScenario(
       overrideRate: stateTaxRateDecimal
     });
 
-    // Total tax = federal + state + IRMAA
-    // Note: For display, we use the conversion tax calculated above
-    const totalTax = conversionTax + irmaaSurcharge;
+    // 10% early withdrawal penalty on tax paid from IRA when under 59.5
+    const earlyWithdrawalPenalty =
+      conversionTaxFromIRA > 0 && age < 60
+        ? Math.round(conversionTaxFromIRA * 0.10)
+        : 0;
+
+    // Total tax = federal + state + IRMAA + early withdrawal penalty
+    const totalTax = conversionTax + irmaaSurcharge + earlyWithdrawalPenalty;
 
     // End of Year balances
     iraBalance = iraAfterConversion + iraInterest;
@@ -304,6 +309,7 @@ export function runFormulaScenario(
       stateTaxOnOrdinaryIncome: 0,
       totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA,
       taxesPaidFromIRA: conversionTaxFromIRA,
+      earlyWithdrawalPenalty,
     });
   }
 

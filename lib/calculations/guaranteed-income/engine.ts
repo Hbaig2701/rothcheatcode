@@ -401,7 +401,13 @@ function runGIStrategyScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
-      const totalTax = conversionTax + irmaaSurcharge;
+      // 10% early withdrawal penalty on tax paid from IRA when under 59.5
+      const earlyWithdrawalPenalty =
+        conversionTaxFromIRA > 0 && age < 60
+          ? Math.round(conversionTaxFromIRA * 0.10)
+          : 0;
+
+      const totalTax = conversionTax + irmaaSurcharge + earlyWithdrawalPenalty;
 
       // Calculate tax details
       const totalIncome = grossIncomeWithConversion + ssIncome;
@@ -455,6 +461,7 @@ function runGIStrategyScenario(
         stateTaxOnOrdinaryIncome: 0,
         totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA,
         taxesPaidFromIRA: conversionTaxFromIRA,
+        earlyWithdrawalPenalty,
         // GI-specific fields
         incomeRiderValue: 0,
         accumulationValue: 0,

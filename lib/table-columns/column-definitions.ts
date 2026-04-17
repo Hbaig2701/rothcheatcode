@@ -483,6 +483,17 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     minWidth: 130,
   },
   {
+    id: 'earlyWithdrawalPenalty',
+    label: 'Early W/D Penalty',
+    category: 'taxes',
+    description: '10% early withdrawal penalty on IRA distributions used to pay conversion taxes when the client is under 59½. Only applies when taxes are paid from the IRA (internal payment source). The conversion itself is penalty-exempt — only the extra withdrawal to cover taxes triggers the penalty.',
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['all'],
+    defaultWidth: 160,
+    minWidth: 120,
+  },
+  {
     id: 'stateTax',
     label: 'State Tax',
     category: 'taxes',

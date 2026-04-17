@@ -436,12 +436,22 @@ export function runGrowthFormulaScenario(
     }
     const irmaaTier = getIRMAATier(magi, client.filing_status);
 
+    // 10% early withdrawal penalty on tax paid from IRA when under 59.5.
+    // The conversion itself is penalty-exempt (IRC §72(t)(2)(A)(vi)), but the
+    // extra withdrawal to cover taxes IS a taxable distribution subject to the
+    // penalty. We use age < 60 as a proxy for "under 59.5" since we track
+    // integer ages. The penalty is paid from external funds (not from the IRA).
+    const earlyWithdrawalPenalty =
+      conversionTaxFromIRA > 0 && age < 60
+        ? Math.round(conversionTaxFromIRA * 0.10)
+        : 0;
+
     // Taxes paid from external funds (taxable account goes negative)
-    const totalTax = federalTax + stateTax + irmaaSurcharge;
+    const totalTax = federalTax + stateTax + irmaaSurcharge + earlyWithdrawalPenalty;
 
     // When payTaxFromIRA, the conversion tax portion was already deducted from
     // the IRA balance above (via conversionTaxFromIRA). Only the non-conversion
-    // taxes (RMD tax + IRMAA) should reduce the taxable account.
+    // taxes (RMD tax + IRMAA + penalty) should reduce the taxable account.
     const taxFromTaxableAccount = payTaxFromIRA
       ? Math.max(0, totalTax - conversionTaxFromIRA)
       : totalTax;
@@ -529,6 +539,7 @@ export function runGrowthFormulaScenario(
       stateTaxOnOrdinaryIncome,
       totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + rmdAmount,
       taxesPaidFromIRA: conversionTaxFromIRA,
+      earlyWithdrawalPenalty,
     });
   }
 

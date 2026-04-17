@@ -214,6 +214,11 @@ export interface YearlyResult {
   // Taxes paid from IRA: portion of IRA withdrawn to cover conversion taxes (in cents)
   taxesPaidFromIRA?: number;
 
+  // 10% early withdrawal penalty on IRA distributions used to pay conversion
+  // taxes when client is under 59.5 (in cents). Assessed on the taxesPaidFromIRA
+  // amount; paid from external funds, not from the IRA itself.
+  earlyWithdrawalPenalty?: number;
+
   // Guaranteed Income-specific (optional, for GI products)
   incomeRiderValue?: number; // Income benefit base (in cents)
   accumulationValue?: number; // Account accumulation value (in cents)
