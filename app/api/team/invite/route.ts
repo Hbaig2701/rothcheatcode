@@ -156,7 +156,7 @@ export async function POST(request: NextRequest) {
   const { error: emailError } = await admin.auth.admin.inviteUserByEmail(
     email.toLowerCase(),
     {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/invite/${invite.id}`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL || "https://app.retirementexpert.ai"}/invite/${invite.id}`,
     }
   );
 
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     success: true,
     invite,
-    inviteUrl: `${process.env.NEXT_PUBLIC_APP_URL}/invite/${invite.id}`,
+    inviteUrl: `${process.env.NEXT_PUBLIC_APP_URL || "https://app.retirementexpert.ai"}/invite/${invite.id}`,
     ...(emailError && {
       warning:
         "Email could not be sent. Please share the invite link manually.",

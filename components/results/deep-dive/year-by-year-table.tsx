@@ -47,7 +47,7 @@ export function YearByYearTable({ years, scenario, productType = "growth", nonSs
       const colId = INCOME_TYPE_TO_COLUMN[entry.type ?? "other"] ?? "incomeOther";
       if (!colId) continue;
       const existing = byYear.get(entry.year) ?? {};
-      existing[colId] = (existing[colId] ?? 0) + entry.gross_taxable + entry.tax_exempt;
+      existing[colId] = (existing[colId] ?? 0) + entry.gross_taxable;
       byYear.set(entry.year, existing);
     }
     if (byYear.size === 0) return years;
