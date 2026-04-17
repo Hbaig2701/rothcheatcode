@@ -169,24 +169,24 @@ export function RevenueSection() {
         <div className="h-[340px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data.mrrTrend} margin={{ top: 10, right: 30, left: 30, bottom: 30 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(100,116,139,0.2)" />
               <XAxis
                 dataKey="month"
-                tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
-                label={{ value: 'Month', position: 'insideBottom', offset: -15, style: { fill: 'rgba(255,255,255,0.5)', fontSize: 11 } }}
+                tick={{ fill: '#6b7280', fontSize: 12 }}
+                label={{ value: 'Month', position: 'insideBottom', offset: -15, style: { fill: '#6b7280', fontSize: 11 } }}
               />
               <YAxis
                 yAxisId="mrr"
-                tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                tick={{ fill: '#6b7280', fontSize: 12 }}
                 tickFormatter={(val) => `$${val.toLocaleString()}`}
-                label={{ value: 'MRR ($)', angle: -90, position: 'insideLeft', offset: 5, style: { fill: 'rgba(255,255,255,0.5)', fontSize: 11, textAnchor: 'middle' } }}
+                label={{ value: 'MRR ($)', angle: -90, position: 'insideLeft', offset: 5, style: { fill: '#6b7280', fontSize: 11, textAnchor: 'middle' } }}
               />
               <YAxis
                 yAxisId="arr"
                 orientation="right"
-                tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 12 }}
+                tick={{ fill: '#6b7280', fontSize: 12 }}
                 tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
-                label={{ value: 'ARR ($)', angle: 90, position: 'insideRight', offset: 5, style: { fill: 'rgba(255,255,255,0.5)', fontSize: 11, textAnchor: 'middle' } }}
+                label={{ value: 'ARR ($)', angle: 90, position: 'insideRight', offset: 5, style: { fill: '#6b7280', fontSize: 11, textAnchor: 'middle' } }}
               />
               <Tooltip
                 contentStyle={{
@@ -195,14 +195,14 @@ export function RevenueSection() {
                   borderRadius: 8,
                   fontSize: 12
                 }}
-                labelStyle={{ color: 'rgba(255,255,255,0.6)' }}
+                labelStyle={{ color: '#4b5563' }}
                 formatter={(value, name) => {
                   const v = (value as number) ?? 0
                   if (name === 'Subscribers') return [v, name]
                   return [`$${v.toLocaleString()}`, name]
                 }}
               />
-              <Legend wrapperStyle={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }} />
+              <Legend wrapperStyle={{ fontSize: 12, color: '#6b7280' }} />
               <Line
                 yAxisId="mrr"
                 type="monotone"
