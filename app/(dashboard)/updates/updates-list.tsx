@@ -1,9 +1,57 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield } from 'lucide-react'
+import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield, Table2, ArrowUpDown, MoveHorizontal, UserCog, Columns, Tags } from 'lucide-react'
 
 const updates = [
+  {
+    id: '17',
+    date: 'April 18, 2026',
+    title: 'Customizable Columns for Guaranteed Income Products',
+    description: 'Your Guaranteed Income reports now use the same adjustable year-by-year table as Growth FIA. Hit "Adjust Columns" to pick from 40+ data points, including seven GI-specific columns: Phase (Convert/Purchase/Grow/Income), GI Income (Net), Cumulative GI Income, Roll-Up Growth, Payout Rate, Conversion Tax, and Product Bonus.\n\nThe old fixed Summary/Strategy/Baseline layout is now a simpler Strategy/Baseline toggle — show whatever columns your client conversation actually needs.',
+    category: 'New Feature',
+    icon: Table2,
+  },
+  {
+    id: '16',
+    date: 'April 18, 2026',
+    title: 'Reorderable Columns with Drag & Drop',
+    description: 'The column selector now has a dedicated "Selected Columns" section at the top. Grab any column by its handle and drag it up or down to reorder how they appear in your table. Unchecking a selected column sends it back to the "Available Columns" pool below; checking one adds it to the end of your selection.\n\nYour custom order is saved per client, so each scenario keeps its own layout.',
+    category: 'Enhancement',
+    icon: ArrowUpDown,
+  },
+  {
+    id: '15',
+    date: 'April 17, 2026',
+    title: 'Expanded Column Limit & Excel-Style Horizontal Scroll',
+    description: 'Raised the maximum from 10 to 20 visible columns. When your selection exceeds the screen width, the table now scrolls horizontally like a spreadsheet — Year and Age stay pinned on the left while the rest of the columns slide under your cursor.\n\nNumeric columns are also now right-aligned with monospaced digits for easier scanning.',
+    category: 'Enhancement',
+    icon: MoveHorizontal,
+  },
+  {
+    id: '14',
+    date: 'April 17, 2026',
+    title: 'Per-Client Column Preferences',
+    description: 'Column selections and widths are now saved per client instead of globally. Customize one client\'s view for a tax deep dive and another\'s for an IRMAA focus — switching between them preserves each setup automatically.',
+    category: 'Enhancement',
+    icon: UserCog,
+  },
+  {
+    id: '13',
+    date: 'April 16, 2026',
+    title: 'Per-Income-Type Projection Columns',
+    description: 'Building on structured income categories, you can now add dedicated columns to your year-by-year table for each income type — Pension, Rental Income, Dividends & Interest, Capital Gains, Wages, Annuity, and Other. Break down exactly where each year\'s income is coming from at a glance.',
+    category: 'New Feature',
+    icon: Columns,
+  },
+  {
+    id: '12',
+    date: 'April 16, 2026',
+    title: 'Structured Income Categories',
+    description: 'Non-SSI income entries now carry a type: Pension, Rental, Dividends & Interest, Capital Gains, Wages / Part-Time, Annuity, or Other. Categorize each entry individually so the data flows through to both the client questionnaire and the year-by-year projection with proper categorization.',
+    category: 'Enhancement',
+    icon: Tags,
+  },
   {
     id: '11',
     date: 'April 9, 2026',
