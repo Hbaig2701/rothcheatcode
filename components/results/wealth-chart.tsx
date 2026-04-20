@@ -78,7 +78,7 @@ export function WealthChart({ data, breakEvenAge }: WealthChartProps) {
             stroke="#F5B800"
             strokeWidth={3}
             dot={false}
-            activeDot={{ r: 5, fill: '#F5B800', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: '#F5B800', stroke: 'var(--chart-dot-ring)', strokeWidth: 2 }}
             isAnimationActive={true}
             animationDuration={1200}
             animationEasing="ease-out"
@@ -92,7 +92,7 @@ export function WealthChart({ data, breakEvenAge }: WealthChartProps) {
             strokeWidth={2}
             strokeDasharray="6 4"
             dot={false}
-            activeDot={{ r: 5, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: '#ef4444', stroke: 'var(--chart-dot-ring)', strokeWidth: 2 }}
             isAnimationActive={true}
             animationDuration={1200}
             animationEasing="ease-out"

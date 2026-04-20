@@ -103,8 +103,8 @@ export function GIIncomeChart({ data, breakEvenAge, incomeStartAge }: GIIncomeCh
             </linearGradient>
             {/* Gradient for baseline area */}
             <linearGradient id="baselineGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(255,255,255,0.2)" stopOpacity={0.15} />
-              <stop offset="100%" stopColor="rgba(255,255,255,0.1)" stopOpacity={0.02} />
+              <stop offset="0%" stopColor="var(--chart-muted-lighter)" stopOpacity={0.15} />
+              <stop offset="100%" stopColor="var(--chart-muted-faint)" stopOpacity={0.02} />
             </linearGradient>
           </defs>
 
@@ -158,7 +158,7 @@ export function GIIncomeChart({ data, breakEvenAge, incomeStartAge }: GIIncomeCh
             type="monotone"
             dataKey="baselineNet"
             name="Baseline (after-tax)"
-            stroke="rgba(255,255,255,0.3)"
+            stroke="var(--chart-muted-lighter)"
             strokeWidth={2}
             strokeDasharray="4 4"
             fill="url(#baselineGradient)"
@@ -187,7 +187,7 @@ export function GIIncomeChart({ data, breakEvenAge, incomeStartAge }: GIIncomeCh
               y={breakEvenPoint.strategyNet}
               r={6}
               fill="#F5B800"
-              stroke="#fff"
+              stroke="var(--chart-dot-ring)"
               strokeWidth={2}
             />
           )}

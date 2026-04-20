@@ -374,7 +374,7 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
     isCelebration && "bg-gold",
     isLegacy && "bg-[#4ade80]",
     isShield && !isCelebration && "bg-[#3b82f6]",
-    !isCelebration && !isLegacy && !isShield && "bg-[rgba(255,255,255,0.2)]"
+    !isCelebration && !isLegacy && !isShield && "bg-foreground/20"
   );
 
   const iconBgColor = cn(
@@ -382,7 +382,7 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
     isCelebration && "bg-gold text-background",
     isLegacy && "bg-[#4ade80] text-background",
     isShield && !isCelebration && "bg-[#3b82f6] text-foreground",
-    !isCelebration && !isLegacy && !isShield && "bg-[rgba(255,255,255,0.1)] text-text-dim"
+    !isCelebration && !isLegacy && !isShield && "bg-foreground/10 text-text-dim"
   );
 
   return (
@@ -525,7 +525,7 @@ export function GIStoryMode({ client, projection, onClose }: GIStoryModeProps) {
               className="absolute left-8 top-0 bottom-0 w-0.5"
               style={{
                 backgroundImage:
-                  "repeating-linear-gradient(to bottom, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 8px, transparent 8px, transparent 16px)",
+                  "repeating-linear-gradient(to bottom, var(--chart-muted-faint) 0px, var(--chart-muted-faint) 8px, transparent 8px, transparent 16px)",
               }}
             />
 

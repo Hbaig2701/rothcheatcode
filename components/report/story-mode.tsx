@@ -88,8 +88,8 @@ export function StoryMode({ client, projection, onExit }: StoryModeProps) {
           {/* Story Cards */}
           <div className="relative">
             {/* Vertical connection line */}
-            <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-[rgba(255,255,255,0.1)]" style={{
-              backgroundImage: 'repeating-linear-gradient(to bottom, rgba(255,255,255,0.1) 0px, rgba(255,255,255,0.1) 8px, transparent 8px, transparent 16px)'
+            <div className="absolute left-8 top-0 bottom-0 w-0.5" style={{
+              backgroundImage: 'repeating-linear-gradient(to bottom, var(--chart-muted-faint) 0px, var(--chart-muted-faint) 8px, transparent 8px, transparent 16px)'
             }} />
 
             {storyEntries.map((entry, index) => (
@@ -136,7 +136,7 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
   const leftBorderStyle = cn(
     "absolute left-0 top-6 bottom-6 w-1 rounded-full",
     entry.sentiment === 'positive' && "bg-gold",
-    entry.sentiment === 'neutral' && "bg-[rgba(255,255,255,0.2)]",
+    entry.sentiment === 'neutral' && "bg-foreground/20",
     entry.sentiment === 'caution' && "bg-yellow-400"
   );
 
@@ -147,7 +147,7 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
         "absolute left-4 w-8 h-8 rounded-full flex items-center justify-center z-10",
         isCelebration && "bg-gold text-background",
         isLegacy && "bg-[#4ade80] text-background",
-        !isCelebration && !isLegacy && "bg-[rgba(255,255,255,0.1)] text-text-dim",
+        !isCelebration && !isLegacy && "bg-foreground/10 text-text-dim",
         entry.sentiment === 'caution' && "bg-yellow-400 text-background"
       )}>
         {iconMap[entry.icon]}

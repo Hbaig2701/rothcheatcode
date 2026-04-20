@@ -70,6 +70,11 @@
 
 :root {
   color-scheme: light;
+  --chart-dot-ring: #1a1a1a;
+  --chart-muted: rgba(26, 26, 26, 0.5);
+  --chart-muted-light: rgba(26, 26, 26, 0.4);
+  --chart-muted-lighter: rgba(26, 26, 26, 0.3);
+  --chart-muted-faint: rgba(26, 26, 26, 0.12);
   --background: #f8f7f4;
   --foreground: #1a1a1a;
   --card: #ffffff;
@@ -124,6 +129,11 @@
 
 .dark {
   color-scheme: dark;
+  --chart-dot-ring: #ffffff;
+  --chart-muted: rgba(255, 255, 255, 0.5);
+  --chart-muted-light: rgba(255, 255, 255, 0.4);
+  --chart-muted-lighter: rgba(255, 255, 255, 0.3);
+  --chart-muted-faint: rgba(255, 255, 255, 0.1);
   --background: #0c0c0c;
   --foreground: #ffffff;
   --card: rgba(255, 255, 255, 0.025);

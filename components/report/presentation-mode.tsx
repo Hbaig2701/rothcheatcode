@@ -264,7 +264,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
                   className="w-3.5 h-0.5 rounded"
                   style={{
                     backgroundImage:
-                      "repeating-linear-gradient(90deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 4px, transparent 4px, transparent 6px)",
+                      "repeating-linear-gradient(90deg, var(--chart-muted) 0px, var(--chart-muted) 4px, transparent 4px, transparent 6px)",
                   }}
                 />
                 Baseline (Traditional)

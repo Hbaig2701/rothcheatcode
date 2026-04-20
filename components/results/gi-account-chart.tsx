@@ -110,7 +110,7 @@ export function GIAccountChart({ projection }: GIAccountChartProps) {
             stroke="#F5B800"
             strokeWidth={2.5}
             dot={false}
-            activeDot={{ r: 5, fill: '#F5B800', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: '#F5B800', stroke: 'var(--chart-dot-ring)', strokeWidth: 2 }}
             isAnimationActive={true}
             animationDuration={1200}
             animationEasing="ease-out"
@@ -124,7 +124,7 @@ export function GIAccountChart({ projection }: GIAccountChartProps) {
             strokeWidth={2}
             strokeDasharray="6 4"
             dot={false}
-            activeDot={{ r: 5, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: '#ef4444', stroke: 'var(--chart-dot-ring)', strokeWidth: 2 }}
             isAnimationActive={true}
             animationDuration={1200}
             animationEasing="ease-out"
@@ -138,7 +138,7 @@ export function GIAccountChart({ projection }: GIAccountChartProps) {
             strokeWidth={2}
             strokeDasharray="2 4"
             dot={false}
-            activeDot={{ r: 5, fill: '#22c55e', stroke: '#fff', strokeWidth: 2 }}
+            activeDot={{ r: 5, fill: '#22c55e', stroke: 'var(--chart-dot-ring)', strokeWidth: 2 }}
             isAnimationActive={true}
             animationDuration={1200}
             animationEasing="ease-out"

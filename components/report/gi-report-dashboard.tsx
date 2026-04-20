@@ -529,7 +529,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                 Tax-Free (Strategy)
               </span>
               <span className="flex items-center gap-2 text-text-muted">
-                <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,0.4) 0px, rgba(255,255,255,0.4) 4px, transparent 4px, transparent 6px)" }} />
+                <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, var(--chart-muted-light) 0px, var(--chart-muted-light) 4px, transparent 4px, transparent 6px)" }} />
                 After-Tax (Baseline)
               </span>
             </div>

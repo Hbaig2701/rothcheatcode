@@ -443,7 +443,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 Strategy (Roth)
               </span>
               <span className="flex items-center gap-2 text-text-muted">
-                <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, rgba(255,255,255,0.5) 0px, rgba(255,255,255,0.5) 4px, transparent 4px, transparent 6px)" }} />
+                <span className="w-4 h-0.5 rounded" style={{ backgroundImage: "repeating-linear-gradient(90deg, var(--chart-muted) 0px, var(--chart-muted) 4px, transparent 4px, transparent 6px)" }} />
                 Baseline (Traditional)
               </span>
             </div>
@@ -538,7 +538,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               {/* Adjust Columns button */}
               <button
                 onClick={() => setColumnModalOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-bg-card-hover border border-border-default rounded-lg text-foreground hover:bg-[rgba(255,255,255,0.1)] transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-bg-card-hover border border-border-default rounded-lg text-foreground hover:bg-foreground/10 transition-colors"
               >
                 <Settings2 className="h-4 w-4" />
                 Adjust Columns
@@ -708,7 +708,7 @@ function ComparisonCard({
           {infoContent && (
             <button
               onClick={() => setShowInfo(true)}
-              className="p-0.5 rounded hover:bg-[rgba(255,255,255,0.1)] transition-colors"
+              className="p-0.5 rounded hover:bg-foreground/10 transition-colors"
               title="Learn how this is calculated"
             >
               <Info className="h-3.5 w-3.5 text-text-dim hover:text-gold" />

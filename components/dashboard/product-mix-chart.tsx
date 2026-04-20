@@ -60,12 +60,12 @@ export function ProductMixChart({ data }: ProductMixChartProps) {
               <Tooltip
                 contentStyle={{
                   backgroundColor: "var(--surface)",
-                  border: "1px solid rgba(255,255,255,0.07)",
+                  border: "1px solid var(--border-default)",
                   borderRadius: "10px",
-                  color: "#fff",
+                  color: "var(--foreground)",
                   fontSize: "13px",
                 }}
-                itemStyle={{ color: "rgba(255,255,255,0.85)" }}
+                itemStyle={{ color: "var(--foreground)" }}
                 formatter={(value: number | undefined, name: string | undefined) => [
                   `${value ?? 0} (${total > 0 && value ? Math.round((value / total) * 100) : 0}%)`,
                   name ?? "",
