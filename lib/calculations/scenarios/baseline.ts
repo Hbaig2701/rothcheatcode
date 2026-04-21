@@ -2,12 +2,12 @@ import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
 import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/age';
 import { calculateRMD } from '../modules/rmd';
-import { calculateFederalTax, calculateTaxableIncome, determineTaxBracket } from '../modules/federal-tax';
+import { calculateFederalTax, determineTaxBracket } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
-import { getMarginalBracket, getIRMAATier } from '../tax-helpers';
+import { getMarginalBracket, getIRMAATier, computeTaxableIncomeWithSS } from '../tax-helpers';
 
 /**
  * Run Baseline scenario: no Roth conversions, just RMDs
@@ -15,7 +15,9 @@ import { getMarginalBracket, getIRMAATier } from '../tax-helpers';
  * Per specification:
  * - Interest = (B.O.Y. Balance - Distribution) × Rate
  * - E.O.Y. Balance = B.O.Y. Balance - Distribution + Interest
- * - SSI is treated as tax-exempt (simplified model)
+ * - Social Security taxation follows the standard provisional-income formula
+ *   (up to 85% taxable). RMDs raise provisional income and can make more SS
+ *   taxable, which is the "SS tax torpedo" effect visible in the baseline.
  * - IRMAA uses 2-year lookback
  *
  * RMD Treatment Options:
@@ -110,16 +112,24 @@ export function runBaselineScenario(
 
     // Other taxable income (non-SSI) - year-specific from income table
     const otherIncome = getNonSSIIncomeForYear(client, year);
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
-    // Per specification: SSI is tax-exempt (simplified model)
-    // Gross taxable income = RMD + non-SSI taxable income
+    // Gross non-SSI income (drives provisional income for SS taxation).
     const grossTaxableIncome = rmdAmount + otherIncome;
 
     // Standard deduction (age-adjusted)
     const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
 
-    // Taxable income (cannot be negative)
-    const taxableIncome = calculateTaxableIncome(grossTaxableIncome, deductions);
+    // Compute taxable income with proper SS taxation (tax torpedo).
+    const taxInfo = computeTaxableIncomeWithSS({
+      otherIncome: grossTaxableIncome,
+      ssBenefits: ssIncome,
+      taxExemptInterest: taxExemptNonSSI,
+      deductions,
+      filingStatus: client.filing_status,
+    });
+    const taxableIncome = taxInfo.taxableIncome;
+    const agi = taxInfo.agi;
 
     // Federal tax
     const federalResult = calculateFederalTax({
@@ -136,12 +146,9 @@ export function runBaselineScenario(
       overrideRate: stateTaxRateOverride
     });
 
-    // Calculate AGI and MAGI for IRMAA
-    // AGI = Gross income - deductions (but for IRMAA we use full gross)
-    // MAGI for IRMAA = AGI + Tax-Exempt Interest Income
-    const agi = grossTaxableIncome;
-    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
-    const magi = agi + taxExemptNonSSI + ssIncome; // Include SSI in MAGI for IRMAA
+    // MAGI for IRMAA = AGI + tax-exempt interest + full SS (IRMAA uses gross SS,
+    // not just the taxable portion).
+    const magi = agi + taxExemptNonSSI + (ssIncome - taxInfo.taxableSS);
 
     // Store for IRMAA lookback
     incomeHistory.set(year, magi);
@@ -202,11 +209,19 @@ export function runBaselineScenario(
     const rothGrowth = rothInterest;
     const taxableGrowth = taxableInterest;
 
-    // Tax component breakdown
-    // In baseline: all tax is on ordinary income (RMD + other income)
-    // SS is tax-exempt per simplified model
-    const federalTaxOnOrdinaryIncome = federalResult.totalTax;
-    const stateTaxOnOrdinaryIncome = stateResult.totalTax;
+    // Tax component breakdown. Allocate federal/state tax proportionally
+    // between ordinary income (RMD + other) and the taxable-SS portion.
+    const ordinaryComponent = grossTaxableIncome;
+    const ssComponent = taxInfo.taxableSS;
+    const totalTaxableComponents = ordinaryComponent + ssComponent;
+    const federalTaxOnSS = totalTaxableComponents > 0 && ssComponent > 0
+      ? Math.round(federalResult.totalTax * ssComponent / totalTaxableComponents)
+      : 0;
+    const federalTaxOnOrdinaryIncome = federalResult.totalTax - federalTaxOnSS;
+    const stateTaxOnSS = totalTaxableComponents > 0 && ssComponent > 0
+      ? Math.round(stateResult.totalTax * ssComponent / totalTaxableComponents)
+      : 0;
+    const stateTaxOnOrdinaryIncome = stateResult.totalTax - stateTaxOnSS;
 
     const totalIncome = grossTaxableIncome + ssIncome;
 
@@ -228,7 +243,7 @@ export function runBaselineScenario(
       niitTax: 0, // Simplified - not included in basic model
       irmaaSurcharge,
       totalTax,
-      taxableSS: 0, // SSI is tax-exempt per simplified model
+      taxableSS: taxInfo.taxableSS,
       netWorth: iraBalance + rothBalance + taxableBalance,
       cumulativeDistributions: rmdTreatment === 'spent' ? cumulativeAfterTaxDistributions : undefined,
       // Extended fields for adjustable columns
@@ -245,10 +260,10 @@ export function runBaselineScenario(
       taxableIncome,
       federalTaxBracket,
       irmaaTier,
-      federalTaxOnSS: 0, // SS is tax-exempt
+      federalTaxOnSS,
       federalTaxOnConversions: 0, // No conversions in baseline
       federalTaxOnOrdinaryIncome,
-      stateTaxOnSS: 0, // SS is tax-exempt
+      stateTaxOnSS,
       stateTaxOnConversions: 0, // No conversions in baseline
       stateTaxOnOrdinaryIncome,
       totalIRAWithdrawal: rmdAmount, // Baseline only has RMD withdrawals

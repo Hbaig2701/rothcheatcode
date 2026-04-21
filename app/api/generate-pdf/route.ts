@@ -277,13 +277,16 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const interest = scenario === 'baseline'
       ? eoyCombined - boyCombined + distIra
       : eoyCombined - boyCombined + taxFromIRA + (year.rmdAmount ?? 0);
-    const grossIncome = year.otherIncome + distIra;
-    const agi = grossIncome;
-    const deduction = getStandardDeduction(client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
-    const taxableIncomeVal = Math.max(0, agi - deduction);
-    const bracket = determineTaxBracket(taxableIncomeVal, client.filing_status, year.year);
+    // Prefer engine-computed values so AGI/taxable-income reflect the true tax
+    // picture (including any Social Security that becomes taxable via the
+    // "tax torpedo"). Fall back to a local recompute only for legacy rows
+    // generated before the engine exposed these fields.
+    const deduction = year.standardDeduction ?? getStandardDeduction(client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year.year, client.tax_exempt_non_ssi ?? 0);
-    const magi = agi + taxExemptNonSSI + year.ssIncome;
+    const agi = year.agi ?? (year.otherIncome + distIra + (year.taxableSS ?? 0));
+    const taxableIncomeVal = year.taxableIncome ?? Math.max(0, agi - deduction);
+    const bracket = year.federalTaxBracket ?? determineTaxBracket(taxableIncomeVal, client.filing_status, year.year);
+    const magi = year.magi ?? (agi + taxExemptNonSSI + (year.ssIncome - (year.taxableSS ?? 0)));
     const netIncomeVal =
       year.otherIncome +
       taxExemptNonSSI +

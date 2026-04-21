@@ -46,7 +46,7 @@ import {
 } from '@/lib/config/gi-product-data';
 import type { GuaranteedIncomeFormulaType } from '@/lib/config/products';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
-import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier } from '../tax-helpers';
+import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier, computeTaxableIncomeWithSS } from '../tax-helpers';
 
 // ---------------------------------------------------------------------------
 // Helper Functions
@@ -299,7 +299,6 @@ function runGIStrategyScenario(
 
     // --- Standard deduction ---
     const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
-    const existingTaxableIncome = calculateTaxableIncome(otherIncome, deductions);
 
     // Determine current phase
     let currentPhase: 'conversion' | 'purchase' | 'deferral' | 'income';
@@ -411,10 +410,17 @@ function runGIStrategyScenario(
         taxableBalance = boyTaxable + taxableInterest - conversionTax - irmaaSurcharge - earlyWithdrawalPenalty;
       }
 
-      // Calculate tax details
+      // Calculate tax details with SS taxation awareness.
+      const convPhaseTaxInfo = computeTaxableIncomeWithSS({
+        otherIncome: grossIncomeWithConversion,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+      });
       const totalIncome = grossIncomeWithConversion + ssIncome;
-      const agi = calculateAGI(totalIncome);
-      const taxableIncome = Math.max(0, grossIncomeWithConversion - deductions);
+      const agi = convPhaseTaxInfo.agi;
+      const taxableIncome = convPhaseTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = getIRMAATier(magi, client.filing_status, year);
 
@@ -439,7 +445,7 @@ function runGIStrategyScenario(
         niitTax: 0,
         irmaaSurcharge,
         totalTax,
-        taxableSS: 0,
+        taxableSS: convPhaseTaxInfo.taxableSS,
         netWorth: traditionalBalance + rothBalance + taxableBalance,
         // Extended fields for adjustable columns
         traditionalBOY: boyTraditional,
@@ -565,10 +571,17 @@ function runGIStrategyScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
-      // Calculate tax details
+      // Calculate tax details (with SS taxation awareness for display)
+      const purchaseTaxInfo = computeTaxableIncomeWithSS({
+        otherIncome,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+      });
       const totalIncome = otherIncome + ssIncome;
-      const agi = calculateAGI(totalIncome);
-      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const agi = purchaseTaxInfo.agi;
+      const taxableIncome = purchaseTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = getIRMAATier(magi, client.filing_status, year);
 
@@ -596,7 +609,7 @@ function runGIStrategyScenario(
         niitTax: 0,
         irmaaSurcharge,
         totalTax: irmaaSurcharge,
-        taxableSS: 0,
+        taxableSS: purchaseTaxInfo.taxableSS,
         netWorth: accountValue + taxableBalance,
         // Extended fields for adjustable columns
         traditionalBOY: 0, // Purchased this year, was zero at BOY
@@ -707,10 +720,17 @@ function runGIStrategyScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
-      // Calculate tax details
+      // Calculate tax details (with SS taxation awareness)
+      const strategyDeferralTaxInfo = computeTaxableIncomeWithSS({
+        otherIncome,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+      });
       const totalIncome = otherIncome + ssIncome;
-      const agi = calculateAGI(totalIncome);
-      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const agi = strategyDeferralTaxInfo.agi;
+      const taxableIncome = strategyDeferralTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = getIRMAATier(magi, client.filing_status, year);
 
@@ -735,7 +755,7 @@ function runGIStrategyScenario(
         niitTax: 0,
         irmaaSurcharge,
         totalTax: irmaaSurcharge,
-        taxableSS: 0,
+        taxableSS: strategyDeferralTaxInfo.taxableSS,
         netWorth: accountValue + taxableBalance,
         // Extended fields for adjustable columns
         traditionalBOY: boyAccount,
@@ -853,10 +873,18 @@ function runGIStrategyScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
-      // Calculate tax details
+      // Calculate tax details. GI income itself is tax-free (Roth), but any
+      // otherIncome the client has can still trigger SS taxation.
+      const strategyIncomeTaxInfo = computeTaxableIncomeWithSS({
+        otherIncome,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+      });
       const totalIncome = grossGI + otherIncome + ssIncome;
-      const agi = calculateAGI(totalIncome);
-      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const agi = strategyIncomeTaxInfo.agi;
+      const taxableIncome = strategyIncomeTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = getIRMAATier(magi, client.filing_status, year);
 
@@ -876,12 +904,12 @@ function runGIStrategyScenario(
         pensionIncome: 0,
         otherIncome,
         totalIncome,
-        federalTax: 0, // TAX-FREE
-        stateTax: 0,   // TAX-FREE
+        federalTax: 0, // TAX-FREE (Roth GI)
+        stateTax: 0,   // TAX-FREE (Roth GI)
         niitTax: 0,
         irmaaSurcharge,
         totalTax: irmaaSurcharge,
-        taxableSS: 0,
+        taxableSS: strategyIncomeTaxInfo.taxableSS,
         netWorth: accountValue + taxableBalance,
         // Extended fields for adjustable columns
         traditionalBOY: boyAccount,
@@ -1106,10 +1134,17 @@ function runGIBaselineScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
-      // Calculate tax details
+      // Calculate tax details (with SS taxation awareness)
+      const waitingTaxInfo = computeTaxableIncomeWithSS({
+        otherIncome,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+      });
       const totalIncome = otherIncome + ssIncome;
-      const agi = calculateAGI(totalIncome);
-      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const agi = waitingTaxInfo.agi;
+      const taxableIncome = waitingTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = getIRMAATier(magi, client.filing_status, year);
 
@@ -1134,7 +1169,7 @@ function runGIBaselineScenario(
         niitTax: 0,
         irmaaSurcharge,
         totalTax: irmaaSurcharge,
-        taxableSS: 0,
+        taxableSS: waitingTaxInfo.taxableSS,
         netWorth: traditionalBalance + taxableBalance,
         // Extended fields for adjustable columns
         traditionalBOY: boyTraditional,
@@ -1248,10 +1283,17 @@ function runGIBaselineScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
-      // Calculate tax details
+      // Calculate tax details (with SS taxation awareness)
+      const baselinePurchaseTaxInfo = computeTaxableIncomeWithSS({
+        otherIncome,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+      });
       const totalIncome = otherIncome + ssIncome;
-      const agi = calculateAGI(totalIncome);
-      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const agi = baselinePurchaseTaxInfo.agi;
+      const taxableIncome = baselinePurchaseTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = getIRMAATier(magi, client.filing_status, year);
 
@@ -1280,7 +1322,7 @@ function runGIBaselineScenario(
         niitTax: 0,
         irmaaSurcharge,
         totalTax: irmaaSurcharge,
-        taxableSS: 0,
+        taxableSS: baselinePurchaseTaxInfo.taxableSS,
         netWorth: accountValue + taxableBalance,
         // Extended fields for adjustable columns
         traditionalBOY: boyTraditional,
@@ -1388,10 +1430,17 @@ function runGIBaselineScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
-      // Calculate tax details
+      // Calculate tax details (with SS taxation awareness)
+      const baselineDeferralTaxInfo = computeTaxableIncomeWithSS({
+        otherIncome,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+      });
       const totalIncome = otherIncome + ssIncome;
-      const agi = calculateAGI(totalIncome);
-      const taxableIncome = calculateTaxableIncome(otherIncome, deductions);
+      const agi = baselineDeferralTaxInfo.agi;
+      const taxableIncome = baselineDeferralTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = getIRMAATier(magi, client.filing_status, year);
 
@@ -1416,7 +1465,7 @@ function runGIBaselineScenario(
         niitTax: 0,
         irmaaSurcharge,
         totalTax: irmaaSurcharge,
-        taxableSS: 0,
+        taxableSS: baselineDeferralTaxInfo.taxableSS,
         netWorth: accountValue + taxableBalance,
         // Extended fields for adjustable columns
         traditionalBOY: boyAccount,
@@ -1490,9 +1539,17 @@ function runGIBaselineScenario(
         }
       }
 
-      // TAXABLE because it's inside a Traditional IRA!
+      // TAXABLE because it's inside a Traditional IRA — and GI income drives
+      // provisional income up, so Social Security taxation must be applied too.
       const grossTaxableIncome = grossGI + otherIncome;
-      const taxableIncome = calculateTaxableIncome(grossTaxableIncome, deductions);
+      const baselineIncomeTaxInfo = computeTaxableIncomeWithSS({
+        otherIncome: grossTaxableIncome,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+      });
+      const taxableIncome = baselineIncomeTaxInfo.taxableIncome;
 
       const federalResult = calculateFederalTax({
         taxableIncome,
@@ -1553,11 +1610,20 @@ function runGIBaselineScenario(
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
       taxableBalance = boyTaxable + grossGI + taxableInterest - totalTax;
 
-      // Calculate tax details
+      // Calculate tax details. AGI/taxable-SS already computed above.
       const totalIncome = grossTaxableIncome + ssIncome;
-      const agi = calculateAGI(totalIncome);
+      const agi = baselineIncomeTaxInfo.agi;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+
+      // Split federal/state tax between "on ordinary/GI" and "on taxable SS".
+      const ssPart = baselineIncomeTaxInfo.taxableSS;
+      const ordPart = grossTaxableIncome;
+      const denom = ssPart + ordPart;
+      const baselineFedTaxOnSS = denom > 0 && ssPart > 0
+        ? Math.round(federalResult.totalTax * ssPart / denom) : 0;
+      const baselineStateTaxOnSS = denom > 0 && ssPart > 0
+        ? Math.round(stateResult.totalTax * ssPart / denom) : 0;
 
       // Account growth this year (interest after payout, before rider fee)
       const traditionalGrowth = accountInterest;
@@ -1580,7 +1646,7 @@ function runGIBaselineScenario(
         niitTax: 0,
         irmaaSurcharge,
         totalTax,
-        taxableSS: 0,
+        taxableSS: baselineIncomeTaxInfo.taxableSS,
         netWorth: accountValue + taxableBalance,
         // Extended fields for adjustable columns
         traditionalBOY: boyAccount,
@@ -1596,12 +1662,12 @@ function runGIBaselineScenario(
         taxableIncome,
         federalTaxBracket,
         irmaaTier,
-        federalTaxOnSS: 0,
+        federalTaxOnSS: baselineFedTaxOnSS,
         federalTaxOnConversions: 0,
-        federalTaxOnOrdinaryIncome: federalResult.totalTax, // GI income is ordinary income (Traditional IRA)
-        stateTaxOnSS: 0,
+        federalTaxOnOrdinaryIncome: federalResult.totalTax - baselineFedTaxOnSS,
+        stateTaxOnSS: baselineStateTaxOnSS,
         stateTaxOnConversions: 0,
-        stateTaxOnOrdinaryIncome: stateResult.totalTax,
+        stateTaxOnOrdinaryIncome: stateResult.totalTax - baselineStateTaxOnSS,
         // GI-specific fields
         incomeRiderValue: incomeBaseAtIncomeAge,
         accumulationValue: accountValue,

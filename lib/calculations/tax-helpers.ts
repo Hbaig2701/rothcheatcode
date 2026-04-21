@@ -8,6 +8,170 @@
 import type { FilingStatus } from './types';
 import { getFederalBrackets } from '@/lib/data/federal-brackets-2026';
 import { getIRMAATier as getIRMAATierFromBrackets, getIRMAASurcharge } from '@/lib/data/irmaa-brackets';
+import { calculateSSTaxableAmount } from './modules/social-security';
+import { getBracketCeiling, calculateFederalTax } from './modules/federal-tax';
+import { calculateStateTax } from './modules/state-tax';
+
+/**
+ * Compute taxable income correctly accounting for Social Security taxation
+ * ("tax torpedo"). Up to 85% of SS becomes taxable once provisional income
+ * exceeds the applicable MFJ/single thresholds.
+ *
+ * This is the single source of truth for taxable-income computation across
+ * all engines. Do NOT compute `max(0, otherIncome - deductions)` directly
+ * in the scenario engines — it silently treats SS as tax-exempt and produces
+ * conversion recommendations that over-fill the target bracket.
+ */
+export function computeTaxableIncomeWithSS(params: {
+  otherIncome: number;        // RMD + conversion + pension + wages + etc. (cents)
+  ssBenefits: number;         // Annual SS benefits before taxation (cents)
+  taxExemptInterest: number;  // Municipal bond interest (included in provisional) (cents)
+  deductions: number;         // Standard or itemized deduction (cents)
+  filingStatus: FilingStatus;
+}): {
+  taxableSS: number;          // Portion of SS that becomes taxable (cents)
+  agi: number;                // otherIncome + taxableSS (cents)
+  taxableIncome: number;      // max(0, agi - deductions) (cents)
+  provisionalIncome: number;
+  ssTaxablePercent: number;   // 0, 50, or 85
+} {
+  const ssResult = calculateSSTaxableAmount({
+    ssBenefits: params.ssBenefits,
+    otherIncome: params.otherIncome,
+    taxExemptInterest: params.taxExemptInterest,
+    filingStatus: params.filingStatus,
+  });
+  const agi = params.otherIncome + ssResult.taxableAmount;
+  const taxableIncome = Math.max(0, agi - params.deductions);
+  return {
+    taxableSS: ssResult.taxableAmount,
+    agi,
+    taxableIncome,
+    provisionalIncome: ssResult.provisionalIncome,
+    ssTaxablePercent: ssResult.taxablePercent,
+  };
+}
+
+/**
+ * Find the Roth conversion amount that fills up to the target federal bracket
+ * ceiling while correctly accounting for the Social Security tax torpedo.
+ *
+ * As the conversion grows, more of the client's SS becomes taxable (up to 85%),
+ * which consumes bracket space. A naive "ceiling − existing taxable income"
+ * calculation (the previous simplified model) over-converts, pushing clients
+ * into higher brackets than promised. This binary search solves for the
+ * largest conversion X such that:
+ *
+ *     taxableIncome(otherIncome + X, ssBenefits) ≤ bracket ceiling
+ *
+ * Converges in ≤⌈log2(iraBalance)⌉ iterations (< 40 for any realistic IRA).
+ */
+export function calculateSSAwareOptimalConversion(params: {
+  iraBalance: number;
+  otherIncome: number;       // Non-SS, non-conversion income (cents)
+  ssBenefits: number;
+  taxExemptInterest: number;
+  deductions: number;
+  maxBracketRate: number;    // e.g. 12
+  filingStatus: FilingStatus;
+  taxYear: number;
+}): number {
+  if (params.iraBalance <= 0) return 0;
+
+  const ceiling = getBracketCeiling(params.filingStatus, params.maxBracketRate, params.taxYear);
+  if (ceiling === 0 || ceiling === Infinity) return params.iraBalance;
+
+  const taxableAt = (conversion: number) =>
+    computeTaxableIncomeWithSS({
+      otherIncome: params.otherIncome + conversion,
+      ssBenefits: params.ssBenefits,
+      taxExemptInterest: params.taxExemptInterest,
+      deductions: params.deductions,
+      filingStatus: params.filingStatus,
+    }).taxableIncome;
+
+  // If existing income alone already exceeds the ceiling, no room to convert.
+  if (taxableAt(0) >= ceiling) return 0;
+  // If converting the entire IRA still keeps us under the ceiling, convert all.
+  if (taxableAt(params.iraBalance) <= ceiling) return params.iraBalance;
+
+  let lo = 0;
+  let hi = params.iraBalance;
+  // Binary search for the largest conversion where taxable income stays ≤ ceiling.
+  while (hi - lo > 1) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (taxableAt(mid) <= ceiling) lo = mid;
+    else hi = mid;
+  }
+  return lo;
+}
+
+/**
+ * Marginal federal + state tax attributable to a Roth conversion, computed as
+ * the DELTA between the year's tax with the conversion and without it. This
+ * correctly captures extra tax from any additional SS that becomes taxable
+ * when the conversion pushes provisional income higher.
+ *
+ * Use this instead of `calculateConversionFederalTax` in any scenario where
+ * the client may have Social Security income.
+ */
+export function calculateConversionTaxWithSS(params: {
+  conversionAmount: number;
+  otherIncome: number;
+  ssBenefits: number;
+  taxExemptInterest: number;
+  deductions: number;
+  filingStatus: FilingStatus;
+  taxYear: number;
+  state: string;
+  stateTaxRateDecimal?: number;
+}): { federalTax: number; stateTax: number } {
+  if (params.conversionAmount <= 0) return { federalTax: 0, stateTax: 0 };
+
+  const noConv = computeTaxableIncomeWithSS({
+    otherIncome: params.otherIncome,
+    ssBenefits: params.ssBenefits,
+    taxExemptInterest: params.taxExemptInterest,
+    deductions: params.deductions,
+    filingStatus: params.filingStatus,
+  });
+  const withConv = computeTaxableIncomeWithSS({
+    otherIncome: params.otherIncome + params.conversionAmount,
+    ssBenefits: params.ssBenefits,
+    taxExemptInterest: params.taxExemptInterest,
+    deductions: params.deductions,
+    filingStatus: params.filingStatus,
+  });
+
+  const fedNoConv = calculateFederalTax({
+    taxableIncome: noConv.taxableIncome,
+    filingStatus: params.filingStatus,
+    taxYear: params.taxYear,
+  }).totalTax;
+  const fedWithConv = calculateFederalTax({
+    taxableIncome: withConv.taxableIncome,
+    filingStatus: params.filingStatus,
+    taxYear: params.taxYear,
+  }).totalTax;
+
+  const stateNoConv = calculateStateTax({
+    taxableIncome: noConv.taxableIncome,
+    state: params.state,
+    filingStatus: params.filingStatus,
+    overrideRate: params.stateTaxRateDecimal,
+  }).totalTax;
+  const stateWithConv = calculateStateTax({
+    taxableIncome: withConv.taxableIncome,
+    state: params.state,
+    filingStatus: params.filingStatus,
+    overrideRate: params.stateTaxRateDecimal,
+  }).totalTax;
+
+  return {
+    federalTax: Math.max(0, fedWithConv - fedNoConv),
+    stateTax: Math.max(0, stateWithConv - stateNoConv),
+  };
+}
 
 /**
  * Calculate Modified Adjusted Gross Income (MAGI)

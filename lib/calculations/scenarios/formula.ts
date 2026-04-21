@@ -4,27 +4,32 @@ import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/
 import { calculateRMD } from '../modules/rmd';
 import {
   calculateFederalTax,
-  calculateTaxableIncome,
-  calculateOptimalConversion,
-  calculateConversionFederalTax,
   determineTaxBracket
 } from '../modules/federal-tax';
-import { calculateStateTax, calculateConversionStateTax } from '../modules/state-tax';
+import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAAWithLookback, calculateIRMAAHeadroom } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
-import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier } from '../tax-helpers';
+import {
+  getMarginalBracket,
+  getIRMAATier,
+  computeTaxableIncomeWithSS,
+  calculateSSAwareOptimalConversion,
+} from '../tax-helpers';
 
 /**
  * Run Formula scenario: strategic Roth conversions
  *
  * Per specification:
  * - Initial value = qualified_account_value × (1 + bonus_rate)
- * - Optimal conversion fills up to target bracket ceiling
+ * - Optimal conversion fills up to target bracket ceiling WITH Social Security
+ *   taxation correctly accounted for (the "SS tax torpedo" — up to 85% of
+ *   benefits become taxable once provisional income exceeds thresholds).
  * - Interest = (B.O.Y. Balance - Distribution) × Rate
- * - Conversion tax = federal marginal tax + (conversion × state_rate)
- * - SSI is treated as tax-exempt (simplified model)
+ * - Conversion tax = (federal + state tax WITH conversion) − (federal + state
+ *   tax WITHOUT conversion). Captures any extra tax from more SS becoming
+ *   taxable once the conversion pushes provisional income higher.
  * - IRMAA uses 2-year lookback
  *
  * Supports both legacy DOB-based approach and new age-based approach
@@ -125,14 +130,31 @@ export function runFormulaScenario(
 
     // Other taxable income (non-SSI) - year-specific from income table
     const otherIncome = getNonSSIIncomeForYear(client, year);
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
     // Standard deduction (age-adjusted)
     const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
 
-    // Calculate existing taxable income (without conversion)
-    // Per specification: SSI is tax-exempt, so only non-SSI income
-    const existingGrossIncome = otherIncome;
-    const existingTaxableIncome = calculateTaxableIncome(existingGrossIncome, deductions);
+    // Tax picture WITHOUT any conversion this year — used as the baseline for
+    // marginal-conversion-tax math AND for tax owed in years we don't convert.
+    const taxInfoNoConv = computeTaxableIncomeWithSS({
+      otherIncome,
+      ssBenefits: ssIncome,
+      taxExemptInterest: taxExemptNonSSI,
+      deductions,
+      filingStatus: client.filing_status,
+    });
+    const fedNoConv = calculateFederalTax({
+      taxableIncome: taxInfoNoConv.taxableIncome,
+      filingStatus: client.filing_status,
+      taxYear: year,
+    }).totalTax;
+    const stateNoConv = calculateStateTax({
+      taxableIncome: taxInfoNoConv.taxableIncome,
+      state: client.state,
+      filingStatus: client.filing_status,
+      overrideRate: stateTaxRateDecimal,
+    }).totalTax;
 
     // Determine conversion amount
     let conversionAmount = 0;
@@ -147,93 +169,102 @@ export function runFormulaScenario(
                           boyIRA > 0;
 
     if (shouldConvert) {
-      // Calculate optimal conversion that fills up to target bracket
-      conversionAmount = calculateOptimalConversion(
-        boyIRA,
-        existingTaxableIncome,
-        maxTaxRate,
-        client.filing_status,
-        year
-      );
+      // SS-aware optimizer: finds the largest conversion whose resulting
+      // taxable income (conversion + otherIncome + taxableSS − deductions)
+      // stays at or below the target bracket ceiling.
+      conversionAmount = calculateSSAwareOptimalConversion({
+        iraBalance: boyIRA,
+        otherIncome,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        maxBracketRate: maxTaxRate,
+        filingStatus: client.filing_status,
+        taxYear: year,
+      });
 
-      // Handle tax payment from IRA (gross-up)
+      // Handle tax payment from IRA (gross-up): scale conversion down so the
+      // IRA can fund both the conversion and the resulting tax.
       if (payTaxFromIRA && conversionAmount > 0) {
-        // Reduce conversion to account for tax that will be paid from IRA
         const effectiveRate = maxTaxRate / 100 + stateTaxRateDecimal;
         conversionAmount = Math.round(conversionAmount * (1 - effectiveRate));
         conversionAmount = Math.min(conversionAmount, boyIRA);
       }
 
-      // Calculate conversion tax if we're converting
+      // Marginal conversion tax (including any SS that became taxable due to
+      // the conversion pushing provisional income higher).
       if (conversionAmount > 0) {
-        // Federal tax on conversion (marginal)
-        federalConversionTax = calculateConversionFederalTax(
-          conversionAmount,
-          existingTaxableIncome,
-          client.filing_status,
-          year
-        );
+        const taxInfoWithConv = computeTaxableIncomeWithSS({
+          otherIncome: otherIncome + conversionAmount,
+          ssBenefits: ssIncome,
+          taxExemptInterest: taxExemptNonSSI,
+          deductions,
+          filingStatus: client.filing_status,
+        });
+        const fedWithConv = calculateFederalTax({
+          taxableIncome: taxInfoWithConv.taxableIncome,
+          filingStatus: client.filing_status,
+          taxYear: year,
+        }).totalTax;
+        const stateWithConv = calculateStateTax({
+          taxableIncome: taxInfoWithConv.taxableIncome,
+          state: client.state,
+          filingStatus: client.filing_status,
+          overrideRate: stateTaxRateDecimal,
+        }).totalTax;
 
-        // State tax on conversion (flat rate per spec)
-        stateConversionTax = calculateConversionStateTax(
-          conversionAmount,
-          client.state,
-          stateTaxRateDecimal
-        );
-
+        federalConversionTax = Math.max(0, fedWithConv - fedNoConv);
+        stateConversionTax = Math.max(0, stateWithConv - stateNoConv);
         conversionTax = federalConversionTax + stateConversionTax;
       }
 
-      // Check if conversion is complete
       if (boyIRA - conversionAmount <= 0) {
         conversionComplete = true;
       }
     }
 
-    // Execute conversion
-    // When payTaxFromIRA, the IRA also pays the tax — deduct both from IRA
+    // Execute conversion. When payTaxFromIRA, the IRA funds both the
+    // conversion and its marginal tax.
     const conversionTaxFromIRA = payTaxFromIRA ? (federalConversionTax + stateConversionTax) : 0;
     const iraAfterConversion = boyIRA - conversionAmount - conversionTaxFromIRA;
     const rothAfterConversion = boyRoth + conversionAmount;
 
-    // Calculate interest AFTER conversion
-    // Per specification: Interest = (B.O.Y. Balance - Distribution) × Rate
-    // For formula, the "distribution" is the conversion
+    // Interest = (B.O.Y. Balance − Distribution) × Rate
     const iraInterest = Math.round(iraAfterConversion * growthRate);
     const rothInterest = Math.round(rothAfterConversion * growthRate);
-    // NOTE: taxable balance does NOT earn interest - it represents taxes paid from external funds
-    // A negative balance (taxes paid) should NOT compound as debt
 
-    // Calculate MAGI for IRMAA
-    // Include conversion in income for IRMAA purposes
-    const grossIncomeWithConversion = existingGrossIncome + conversionAmount;
-    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
+    // Final tax picture WITH the chosen conversion.
+    const taxInfoFinal = conversionAmount > 0
+      ? computeTaxableIncomeWithSS({
+          otherIncome: otherIncome + conversionAmount,
+          ssBenefits: ssIncome,
+          taxExemptInterest: taxExemptNonSSI,
+          deductions,
+          filingStatus: client.filing_status,
+        })
+      : taxInfoNoConv;
+    const federalResult = calculateFederalTax({
+      taxableIncome: taxInfoFinal.taxableIncome,
+      filingStatus: client.filing_status,
+      taxYear: year,
+    });
+    const stateResult = calculateStateTax({
+      taxableIncome: taxInfoFinal.taxableIncome,
+      state: client.state,
+      filingStatus: client.filing_status,
+      overrideRate: stateTaxRateDecimal,
+    });
+
+    // MAGI for IRMAA uses full SS (taxable + non-taxable portions).
+    const grossIncomeWithConversion = otherIncome + conversionAmount;
     const magi = grossIncomeWithConversion + taxExemptNonSSI + ssIncome;
-
-    // Store for IRMAA lookback
     incomeHistory.set(year, magi);
 
-    // IRMAA (Medicare surcharge, age 65+ only, uses 2-year lookback)
     let irmaaSurcharge = 0;
     if (age >= 65) {
       const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
       irmaaSurcharge = irmaaResult.annualSurcharge;
     }
-
-    // Calculate tax on existing income (not conversion)
-    // The conversion tax is calculated separately as marginal
-    const taxableIncomeWithConversion = existingTaxableIncome + conversionAmount;
-    const federalResult = calculateFederalTax({
-      taxableIncome: taxableIncomeWithConversion,
-      filingStatus: client.filing_status,
-      taxYear: year
-    });
-    const stateResult = calculateStateTax({
-      taxableIncome: taxableIncomeWithConversion,
-      state: client.state,
-      filingStatus: client.filing_status,
-      overrideRate: stateTaxRateDecimal
-    });
 
     // 10% early withdrawal penalty on tax paid from IRA when under 59.5
     const earlyWithdrawalPenalty =
@@ -241,32 +272,35 @@ export function runFormulaScenario(
         ? Math.round(conversionTaxFromIRA * 0.10)
         : 0;
 
-    // Total tax = federal + state + IRMAA + early withdrawal penalty
-    const totalTax = conversionTax + irmaaSurcharge + earlyWithdrawalPenalty;
+    // Total tax this year = full federal + full state + IRMAA + penalty.
+    // (Previously this was conversionTax only, which silently zeroed out tax
+    // on any non-conversion ordinary income or taxable SS.)
+    const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge + earlyWithdrawalPenalty;
 
     // End of Year balances
     iraBalance = iraAfterConversion + iraInterest;
     rothBalance = rothAfterConversion + rothInterest;
 
-    // Taxable account:
-    // - If tax paid from external (outside IRA), deduct full totalTax
-    // - If tax paid from IRA, conversion tax came from the IRA, but IRMAA and
-    //   early withdrawal penalty are still paid externally from the taxable account
-    // NOTE: No interest applied - taxable represents taxes paid (fixed cost, not compounding debt)
+    // Taxable account: deduct non-IRA-funded portion of the year's tax.
+    // When payTaxFromIRA, the conversion's marginal tax is already funded by
+    // the IRA; only IRMAA, penalty, and any residual (e.g. tax on non-SS
+    // income the IRA didn't fund) come from the taxable account.
     if (payTaxFromIRA) {
       taxableBalance = boyTaxable - Math.max(0, totalTax - conversionTaxFromIRA);
     } else {
       taxableBalance = boyTaxable - totalTax;
     }
 
-    // Determine tax bracket
-    const bracket = determineTaxBracket(taxableIncomeWithConversion, client.filing_status, year);
+    // Split federal/state tax between "on conversion" and "on ordinary/SS income"
+    // for display breakdowns. Ordinary portion is what remains after subtracting
+    // the marginal conversion tax.
+    const federalTaxOnOrdinaryAndSS = Math.max(0, federalResult.totalTax - federalConversionTax);
+    const stateTaxOnOrdinaryAndSS = Math.max(0, stateResult.totalTax - stateConversionTax);
 
-    // Extended fields for adjustable columns
+    const bracket = determineTaxBracket(taxInfoFinal.taxableIncome, client.filing_status, year);
     const totalIncome = grossIncomeWithConversion + ssIncome;
-    const agi = calculateAGI(totalIncome);
     const irmaaTier = getIRMAATier(magi, client.filing_status, year);
-    const federalTaxBracket = getMarginalBracket(taxableIncomeWithConversion, client.filing_status, year);
+    const federalTaxBracket = getMarginalBracket(taxInfoFinal.taxableIncome, client.filing_status, year);
 
     results.push({
       year,
@@ -281,12 +315,12 @@ export function runFormulaScenario(
       pensionIncome: 0,
       otherIncome,
       totalIncome,
-      federalTax: federalConversionTax,
-      stateTax: stateConversionTax,
+      federalTax: federalResult.totalTax,
+      stateTax: stateResult.totalTax,
       niitTax: 0,
       irmaaSurcharge,
       totalTax,
-      taxableSS: 0, // SSI is tax-exempt per simplified model
+      taxableSS: taxInfoFinal.taxableSS,
       netWorth: iraBalance + rothBalance + taxableBalance,
       // Extended fields for adjustable columns
       traditionalBOY: boyIRA,
@@ -297,17 +331,27 @@ export function runFormulaScenario(
       taxableGrowth: 0, // No growth on taxable (just pays taxes)
       productBonusApplied: 0, // Bonus applied at year 0 only (in initial balance)
       magi,
-      agi,
+      agi: taxInfoFinal.agi,
       standardDeduction: deductions,
-      taxableIncome: taxableIncomeWithConversion,
+      taxableIncome: taxInfoFinal.taxableIncome,
       federalTaxBracket,
       irmaaTier,
-      federalTaxOnSS: 0,
+      // Rough attribution: tax on SS is the share of ordinary/SS tax
+      // proportional to how much of ordinary+SS taxable income is SS.
+      federalTaxOnSS: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
+        ? Math.round(federalTaxOnOrdinaryAndSS * taxInfoFinal.taxableSS / (otherIncome + taxInfoFinal.taxableSS))
+        : 0,
       federalTaxOnConversions: federalConversionTax,
-      federalTaxOnOrdinaryIncome: 0,
-      stateTaxOnSS: 0,
+      federalTaxOnOrdinaryIncome: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
+        ? Math.round(federalTaxOnOrdinaryAndSS * otherIncome / (otherIncome + taxInfoFinal.taxableSS))
+        : federalTaxOnOrdinaryAndSS,
+      stateTaxOnSS: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
+        ? Math.round(stateTaxOnOrdinaryAndSS * taxInfoFinal.taxableSS / (otherIncome + taxInfoFinal.taxableSS))
+        : 0,
       stateTaxOnConversions: stateConversionTax,
-      stateTaxOnOrdinaryIncome: 0,
+      stateTaxOnOrdinaryIncome: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
+        ? Math.round(stateTaxOnOrdinaryAndSS * otherIncome / (otherIncome + taxInfoFinal.taxableSS))
+        : stateTaxOnOrdinaryAndSS,
       totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA,
       taxesPaidFromIRA: conversionTaxFromIRA,
       earlyWithdrawalPenalty,

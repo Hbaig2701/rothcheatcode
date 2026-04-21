@@ -1,6 +1,8 @@
 import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
 import { getAgeAtYearOffset } from '../utils/age';
+import { computeTaxableIncomeWithSS } from '../tax-helpers';
+import { getStandardDeduction } from '@/lib/data/standard-deductions';
 
 /**
  * Run Growth FIA Baseline scenario: simple compound growth, no conversions, no RMDs
@@ -32,7 +34,8 @@ export function runGrowthBaselineScenario(
   const rothBalance = 0; // No Roth in baseline
   const taxableBalance = 0;
 
-  // SSI parameters (per spec, SSI is tax-exempt but still displayed)
+  // SSI parameters (taxable portion computed via the standard provisional-
+  // income formula — up to 85% when combined with any other income)
   const primarySsStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
   const primarySsAmount = client.ssi_annual_amount ?? client.ss_self ?? 0;
   const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
@@ -73,6 +76,19 @@ export function runGrowthBaselineScenario(
 
     const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : null;
 
+    // Compute taxable SS for display — no RMDs, no conversions, but SS can
+    // still be partially taxable if the client has other income eventually.
+    // Here otherIncome is always 0 (Growth FIA baseline has no income events),
+    // so provisional = 0.5 × SS; taxable SS follows from the torpedo formula.
+    const growthBaselineDeductions = getStandardDeduction(client.filing_status, age, currentSpouseAge ?? undefined, year);
+    const growthBaselineTaxInfo = computeTaxableIncomeWithSS({
+      otherIncome: 0,
+      ssBenefits: ssIncome,
+      taxExemptInterest: 0,
+      deductions: growthBaselineDeductions,
+      filingStatus: client.filing_status,
+    });
+
     results.push({
       year,
       age,
@@ -91,7 +107,7 @@ export function runGrowthBaselineScenario(
       niitTax: 0,
       irmaaSurcharge: 0,
       totalTax: 0,
-      taxableSS: 0,
+      taxableSS: growthBaselineTaxInfo.taxableSS,
       netWorth: iraBalance, // No Roth or taxable in baseline (no conversions, no RMDs)
       // Extended fields for adjustable columns
       traditionalBOY: boyIRA,

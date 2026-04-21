@@ -1,13 +1,20 @@
 import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
 import { getAgeAtYearOffset } from '../utils/age';
-import { calculateOptimalConversion, calculateConversionFederalTax, calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
-import { calculateConversionStateTax, calculateStateTax } from '../modules/state-tax';
+import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
+import { calculateStateTax } from '../modules/state-tax';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { calculateIRMAAWithLookback, calculateIRMAAHeadroom } from '../modules/irmaa';
-import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier } from '../tax-helpers';
+import {
+  calculateMAGI,
+  getMarginalBracket,
+  getIRMAATier,
+  computeTaxableIncomeWithSS,
+  calculateSSAwareOptimalConversion,
+  calculateConversionTaxWithSS,
+} from '../tax-helpers';
 import { calculateRMD } from '../modules/rmd';
 import { ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
 
@@ -148,9 +155,33 @@ export function runGrowthFormulaScenario(
     const rmdAmount = Math.min(rmdResult.rmdAmount, boyIRA);
     const iraAfterRmd = boyIRA - rmdAmount;
 
-    // Existing taxable income (RMD + other non-SSI income)
-    // RMD is taxable; SSI is tax-exempt per spec
-    const existingTaxableIncome = Math.max(0, rmdAmount + otherIncome - deductions);
+    // Existing taxable income (RMD + other + taxable SS) — used to seed
+    // marginal tax calculations and the SS-aware optimizer.
+    const existingNonSSIncome = rmdAmount + otherIncome;
+    const existingTaxInfo = computeTaxableIncomeWithSS({
+      otherIncome: existingNonSSIncome,
+      ssBenefits: ssIncome,
+      taxExemptInterest: taxExemptNonSSI,
+      deductions,
+      filingStatus: client.filing_status,
+    });
+    const existingTaxableIncome = existingTaxInfo.taxableIncome;
+
+    // Helper: marginal conversion tax at a given conversion amount.
+    // Uses SS-aware delta calculation so the extra tax from newly-taxable
+    // SS (tax torpedo) is attributed to the conversion.
+    const convTaxAt = (amount: number) =>
+      calculateConversionTaxWithSS({
+        conversionAmount: amount,
+        otherIncome: existingNonSSIncome,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+        taxYear: year,
+        state: client.state ?? 'CA',
+        stateTaxRateDecimal,
+      });
 
     // Step 1: Handle Roth conversions (on IRA balance AFTER RMD has been taken)
     let conversionAmount = 0;
@@ -172,20 +203,15 @@ export function runGrowthFormulaScenario(
       if (conversionType === 'full_conversion') {
         if (payTaxFromIRA) {
           // Special case: "empty the IRA" when taxes are paid from the IRA.
-          // We want conversion + tax = iraAfterRmd. The generic gross-down
-          // uses maxTaxRate as an upper bound and leaves a remainder because
-          // real marginal tax is lower. Solve iteratively using the actual
-          // tax calculation (converges in 2-3 iterations).
+          // We want conversion + tax = iraAfterRmd. Solve iteratively using
+          // the SS-aware marginal tax calculation (converges in 2-3 iterations).
           let solved = iraAfterRmd * (1 - (maxTaxRate / 100 + stateTaxRateDecimal));
           for (let i = 0; i < 5; i++) {
-            const fTax = calculateConversionFederalTax(solved, existingTaxableIncome, client.filing_status, year);
-            const sTax = calculateConversionStateTax(solved, client.state, stateTaxRateDecimal);
+            const { federalTax: fTax, stateTax: sTax } = convTaxAt(solved);
             solved = iraAfterRmd - fTax - sTax;
           }
           conversionAmount = Math.max(0, Math.round(solved));
-          // Absorb rounding residual to fully drain the IRA
-          const fcVerifyF = calculateConversionFederalTax(conversionAmount, existingTaxableIncome, client.filing_status, year);
-          const fcVerifyS = calculateConversionStateTax(conversionAmount, client.state, stateTaxRateDecimal);
+          const { federalTax: fcVerifyF, stateTax: fcVerifyS } = convTaxAt(conversionAmount);
           const fcResidual = iraAfterRmd - conversionAmount - fcVerifyF - fcVerifyS;
           if (fcResidual > 0 && fcResidual < 50000) {
             conversionAmount += fcResidual;
@@ -196,28 +222,19 @@ export function runGrowthFormulaScenario(
         }
       } else if (conversionType === 'fixed_amount' && fixedConversionAmount > 0) {
         // Fixed amount: convert specified amount per year (or remaining balance if less).
-        // When paying tax from IRA, ensure the IRA can cover both the conversion AND
-        // the tax. The user specified the amount they want converted to Roth, so we
-        // don't gross-down. Instead, cap so that conversion + estimated tax <= iraAfterRmd.
         if (payTaxFromIRA) {
           const estEffRate = maxTaxRate / 100 + stateTaxRateDecimal;
           const maxConvWithTax = Math.floor(iraAfterRmd / (1 + estEffRate));
           if (maxConvWithTax < fixedConversionAmount) {
-            // Remaining balance can't cover a full fixed conversion + tax.
-            // Empty the IRA: solve iteratively for conversion where conv + tax = balance.
             let solved = iraAfterRmd * (1 - estEffRate);
             for (let i = 0; i < 5; i++) {
-              const fTax = calculateConversionFederalTax(solved, existingTaxableIncome, client.filing_status, year);
-              const sTax = calculateConversionStateTax(solved, client.state, stateTaxRateDecimal);
+              const { federalTax: fTax, stateTax: sTax } = convTaxAt(solved);
               solved = iraAfterRmd - fTax - sTax;
             }
             conversionAmount = Math.max(0, Math.round(solved));
-            // Verify: if conversion + final tax still leaves a residual, absorb it
-            const verifyFTax = calculateConversionFederalTax(conversionAmount, existingTaxableIncome, client.filing_status, year);
-            const verifySTax = calculateConversionStateTax(conversionAmount, client.state, stateTaxRateDecimal);
+            const { federalTax: verifyFTax, stateTax: verifySTax } = convTaxAt(conversionAmount);
             const residual = iraAfterRmd - conversionAmount - verifyFTax - verifySTax;
             if (residual > 0 && residual < 50000) {
-              // Small residual from rounding — add to conversion to fully drain
               conversionAmount += residual;
             }
           } else {
@@ -228,35 +245,26 @@ export function runGrowthFormulaScenario(
           conversionAmount = Math.min(fixedConversionAmount, iraAfterRmd);
         }
       } else {
-        // optimized_amount: fill up to target bracket ceiling
-        conversionAmount = calculateOptimalConversion(
-          iraAfterRmd,
-          existingTaxableIncome,
-          maxTaxRate,
-          client.filing_status,
-          year
-        );
+        // optimized_amount: fill up to target bracket ceiling with SS taxation
+        // correctly accounted for (tax torpedo).
+        conversionAmount = calculateSSAwareOptimalConversion({
+          iraBalance: iraAfterRmd,
+          otherIncome: existingNonSSIncome,
+          ssBenefits: ssIncome,
+          taxExemptInterest: taxExemptNonSSI,
+          deductions,
+          maxBracketRate: maxTaxRate,
+          filingStatus: client.filing_status,
+          taxYear: year,
+        });
 
-        // When paying taxes from IRA, the conversion + tax must both fit within
-        // the IRA balance. Solve iteratively to find the conversion amount where
-        // conversion + actual_tax(conversion) <= iraAfterRmd.
+        // When paying taxes from IRA, conversion + tax must fit within the IRA.
         if (payTaxFromIRA && conversionAmount > 0) {
           let solved = conversionAmount;
           for (let iter = 0; iter < 4; iter++) {
-            const fTax = calculateConversionFederalTax(
-              solved,
-              existingTaxableIncome,
-              client.filing_status,
-              year
-            );
-            const sTax = calculateConversionStateTax(
-              solved,
-              client.state,
-              stateTaxRateDecimal
-            );
+            const { federalTax: fTax, stateTax: sTax } = convTaxAt(solved);
             const totalNeeded = solved + fTax + sTax;
             if (totalNeeded <= iraAfterRmd) break;
-            // Shrink: solve for conversion where conv + tax = iraAfterRmd
             solved = iraAfterRmd - fTax - sTax;
             solved = Math.max(0, solved);
           }
@@ -304,20 +312,11 @@ export function runGrowthFormulaScenario(
         conversionAmount = Math.min(conversionAmount, iraAfterRmd);
       }
 
-      // Calculate taxes on conversion
+      // Calculate marginal taxes on conversion (SS-aware delta)
       if (conversionAmount > 0) {
-        federalTax = calculateConversionFederalTax(
-          conversionAmount,
-          existingTaxableIncome,
-          client.filing_status,
-          year
-        );
-
-        stateTax = calculateConversionStateTax(
-          conversionAmount,
-          client.state,
-          stateTaxRateDecimal
-        );
+        const convTax = convTaxAt(conversionAmount);
+        federalTax = convTax.federalTax;
+        stateTax = convTax.stateTax;
       }
     }
 
@@ -388,32 +387,34 @@ export function runGrowthFormulaScenario(
       surrenderValue = Math.round(iraBalance * (1 - surrenderChargePercent / 100));
     }
 
-    // Calculate tax calculation details (needed for IRMAA before totalTax)
-    // Per spec: SS is tax-exempt (not in taxable income), but IS in MAGI for IRMAA
-    //
+    // Tax calculation details with proper SS taxation.
     // KNOWN LIMITATION: when tax_payment_source='from_ira', the tax portion
     // withdrawn from the IRA is itself ordinary income but is NOT added here.
     // This slightly understates reported MAGI and future IRMAA lookback values
-    // by the tax-on-tax amount (~$500-1000/year). Fixing it properly requires
-    // iterative re-calculation of tax on (conversion + tax), which risks
-    // destabilizing other numbers. Revisit when engine tests exist.
-    const grossTaxableIncome = conversionAmount + rmdAmount + otherIncome;
-    const totalIncome = grossTaxableIncome + ssIncome; // For display only
-    const agi = calculateAGI(grossTaxableIncome);
-    const magi = calculateMAGI(grossTaxableIncome, taxExemptNonSSI) + ssIncome;
+    // by the tax-on-tax amount (~$500-1000/year).
+    const grossNonSSIncome = conversionAmount + rmdAmount + otherIncome;
+    const finalTaxInfo = computeTaxableIncomeWithSS({
+      otherIncome: grossNonSSIncome,
+      ssBenefits: ssIncome,
+      taxExemptInterest: taxExemptNonSSI,
+      deductions,
+      filingStatus: client.filing_status,
+    });
+    const totalIncome = grossNonSSIncome + ssIncome; // For display only
+    const agi = finalTaxInfo.agi;
+    // MAGI for IRMAA: AGI + tax-exempt + non-taxable SS (= AGI + tax-exempt + fullSS
+    // when measured against gross SS, matching historical behavior).
+    const magi = calculateMAGI(grossNonSSIncome, taxExemptNonSSI) + ssIncome;
     const standardDeduction = deductions;
-    const taxableIncomeForTax = calculateTaxableIncome(grossTaxableIncome, deductions);
+    const taxableIncomeForTax = finalTaxInfo.taxableIncome;
     const federalTaxBracket = getMarginalBracket(taxableIncomeForTax, client.filing_status);
 
-    // Recalculate federal tax on TOTAL taxable income (RMD + conversion + other)
-    // This replaces the conversion-only tax calculated earlier
+    // Full federal/state tax on the year's total taxable income.
     const totalFederalTax = calculateFederalTax({
       taxableIncome: taxableIncomeForTax,
       filingStatus: client.filing_status,
       taxYear: year,
     }).totalTax;
-
-    // State tax on total taxable income
     const totalStateTax = calculateStateTax({
       taxableIncome: taxableIncomeForTax,
       state: client.state ?? 'CA',
@@ -421,7 +422,11 @@ export function runGrowthFormulaScenario(
       overrideRate: stateTaxRateDecimal,
     }).totalTax;
 
-    // Override the conversion-only taxes with full total taxes
+    // Preserve marginal conversion-tax attribution (captured above when
+    // conversionAmount > 0) for display columns, then override the year's
+    // full federal/state tax.
+    const conversionFederalTax = federalTax;
+    const conversionStateTax = stateTax;
     federalTax = totalFederalTax;
     stateTax = totalStateTax;
 
@@ -476,22 +481,24 @@ export function runGrowthFormulaScenario(
     const rothGrowth = rothInterest;
     const taxableGrowth = 0; // No growth on taxable (just pays taxes)
 
-    // Tax component breakdown — split by income source (marginal allocation)
-    // Approach: conversion tax = marginal tax on conversion portion of income
-    // ordinary tax = remaining federal tax (attributable to RMD + other income)
-    const taxOnNonConversionIncome = conversionAmount > 0
-      ? calculateFederalTax({
-          taxableIncome: calculateTaxableIncome(rmdAmount + otherIncome, deductions),
-          filingStatus: client.filing_status,
-          taxYear: year,
-        }).totalTax
-      : federalTax;
-    const federalTaxOnConversions = Math.max(0, federalTax - taxOnNonConversionIncome);
-    const federalTaxOnOrdinaryIncome = taxOnNonConversionIncome;
-    const stateTaxOnConversions = conversionAmount > 0 && grossTaxableIncome > 0
-      ? Math.round(stateTax * (conversionAmount / grossTaxableIncome))
+    // Tax component breakdown. Marginal conversion tax was computed above
+    // (conversionFederalTax / conversionStateTax). The remainder is split
+    // between ordinary (RMD + other) and the taxable-SS portion.
+    const federalTaxOnConversions = conversionFederalTax;
+    const stateTaxOnConversions = conversionStateTax;
+    const residualFederalTax = Math.max(0, federalTax - federalTaxOnConversions);
+    const residualStateTax = Math.max(0, stateTax - stateTaxOnConversions);
+    const ordinaryBaseline = rmdAmount + otherIncome;
+    const ssTaxableBaseline = finalTaxInfo.taxableSS;
+    const residualDenominator = ordinaryBaseline + ssTaxableBaseline;
+    const federalTaxOnSS = residualDenominator > 0 && ssTaxableBaseline > 0
+      ? Math.round(residualFederalTax * ssTaxableBaseline / residualDenominator)
       : 0;
-    const stateTaxOnOrdinaryIncome = stateTax - stateTaxOnConversions;
+    const federalTaxOnOrdinaryIncome = residualFederalTax - federalTaxOnSS;
+    const stateTaxOnSS = residualDenominator > 0 && ssTaxableBaseline > 0
+      ? Math.round(residualStateTax * ssTaxableBaseline / residualDenominator)
+      : 0;
+    const stateTaxOnOrdinaryIncome = residualStateTax - stateTaxOnSS;
 
     const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : null;
 
@@ -513,7 +520,7 @@ export function runGrowthFormulaScenario(
       niitTax: 0,
       irmaaSurcharge,
       totalTax,
-      taxableSS: 0,
+      taxableSS: finalTaxInfo.taxableSS,
       netWorth: iraBalance + rothBalance + taxableBalance,
       surrenderChargePercent,
       surrenderValue,
@@ -531,10 +538,10 @@ export function runGrowthFormulaScenario(
       taxableIncome: taxableIncomeForTax,
       federalTaxBracket,
       irmaaTier,
-      federalTaxOnSS: 0,
+      federalTaxOnSS,
       federalTaxOnConversions,
       federalTaxOnOrdinaryIncome,
-      stateTaxOnSS: 0,
+      stateTaxOnSS,
       stateTaxOnConversions,
       stateTaxOnOrdinaryIncome,
       totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + rmdAmount,

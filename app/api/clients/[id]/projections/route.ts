@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 28; // v28: GI engine populates giPhase/giIncomeNet/giCumulativeIncome/giRollUpGrowth/giPayoutRate/giConversionTax for adjustable GI columns
+const PRODUCT_CONFIG_VERSION = 29; // v29: CRITICAL — conversion optimizer and tax engine now correctly account for Social Security taxation ("tax torpedo"). Previously simplified model treated SS as tax-exempt, over-sizing conversions and pushing clients into higher brackets than promised.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
