@@ -235,26 +235,43 @@
 }
 
 /* Force color-scheme on native form controls.
-   Some browsers (notably Chrome on Windows) don't inherit color-scheme
-   to native <select> popups from the root element, leading to light-
-   rendered dropdowns on a dark page with invisible dark-on-dark text. */
+   Chromium-based browsers (Chrome, Edge) on Windows in particular do
+   not inherit the root-level color-scheme into <select> popups, so the
+   native dropdown renders in OS light theme while option text inherits
+   the dark-theme foreground color — producing invisible white-on-white
+   options. Apply the property directly on the element and use system-
+   color keywords for options so they always track the element's scheme. */
 select,
+option,
+optgroup,
 input[type="date"],
 input[type="time"],
 input[type="datetime-local"],
 input[type="month"],
 input[type="week"],
-input[type="file"] {
+input[type="file"],
+input[type="color"] {
   color-scheme: light;
 }
 .dark select,
+.dark option,
+.dark optgroup,
 .dark input[type="date"],
 .dark input[type="time"],
 .dark input[type="datetime-local"],
 .dark input[type="month"],
 .dark input[type="week"],
-.dark input[type="file"] {
+.dark input[type="file"],
+.dark input[type="color"] {
   color-scheme: dark;
+}
+/* System-color keywords that flip with the element's color-scheme —
+   guarantees option text stays legible regardless of any inherited
+   color declarations on the parent <select>. */
+option,
+optgroup {
+  background-color: Canvas;
+  color: CanvasText;
 }
 
 /* Print styles for Story Mode */
