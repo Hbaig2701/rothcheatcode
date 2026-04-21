@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 29; // v29: CRITICAL — conversion optimizer and tax engine now correctly account for Social Security taxation ("tax torpedo"). Previously simplified model treated SS as tax-exempt, over-sizing conversions and pushing clients into higher brackets than promised.
+const PRODUCT_CONFIG_VERSION = 30; // v30: PDF reports now expose "Taxable SS" as its own column; growth-baseline also populates agi/taxable-income fields. Cache invalidated so SS-collecting clients regenerate with SS-torpedo-aware numbers without the advisor having to touch the client record.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {

@@ -86,6 +86,7 @@ interface YearRow {
   interest: string;
   eoyCombined: string;
   ssi: string;
+  taxableSs: string;
   taxableNonSsi: string;
   exemptNonSsi: string;
   agi: string;
@@ -320,6 +321,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       interest: formatCurrency(interest),
       eoyCombined: formatCurrency(eoyCombined),
       ssi: '',
+      taxableSs: '',
       taxableNonSsi: '',
       exemptNonSsi: '',
       agi: '',
@@ -335,6 +337,11 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       netIncome: '',
     });
 
+    // Taxable portion of SS (engine field). Falls back to 0 for legacy rows
+    // saved before the SS-torpedo engine fix (v29). Displayed explicitly so
+    // accountants can verify provisional-income math without recomputing.
+    const taxableSSAmount = year.taxableSS ?? 0;
+
     taxableIncome.push({
       ...baseRow,
       boyCombined: '',
@@ -346,6 +353,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       interest: '',
       eoyCombined: '',
       ssi: formatCurrency(year.ssIncome),
+      taxableSs: formatCurrency(taxableSSAmount),
       taxableNonSsi: formatCurrency(year.otherIncome),
       exemptNonSsi: formatCurrency(taxExemptNonSSI),
       agi: formatCurrency(agi),
@@ -372,6 +380,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       interest: '',
       eoyCombined: '',
       ssi: '',
+      taxableSs: '',
       taxableNonSsi: '',
       exemptNonSsi: '',
       agi: formatCurrency(agi),
@@ -398,6 +407,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       interest: '',
       eoyCombined: '',
       ssi: '',
+      taxableSs: '',
       taxableNonSsi: '',
       exemptNonSsi: '',
       agi: '',
