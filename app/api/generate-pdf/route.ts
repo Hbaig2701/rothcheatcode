@@ -620,16 +620,30 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
     const boyCombined = boyTraditional + boyRoth;
     const eoyCombined = year.traditionalBalance + year.rothBalance;
-    // Conversions move within combined balance (Traditional→Roth), don't leave it
-    const interest = eoyCombined - boyCombined;
+    // Real interest = EOY − BOY + (money that left the combined balance).
+    // Conversions move within the combined balance (Traditional→Roth) so they
+    // don't leave. Taxes paid FROM the IRA leave, as do any RMDs that weren't
+    // fully offset by conversions.
+    const taxFromIRA = year.taxesPaidFromIRA ?? 0;
+    const rmdOutflow = year.rmdAmount ?? 0;
+    const interest = eoyCombined - boyCombined + taxFromIRA + rmdOutflow;
+
+    // Pre-conversion taxable income now includes the taxable portion of SS
+    // (which the engine computes via the SS-tax-torpedo formula). This is the
+    // bracket position the conversion starts from.
+    const existingTaxableIncome = year.otherIncome + (year.taxableSS ?? 0);
 
     return {
       age: year.age,
-      existingTaxable: formatCurrency(year.otherIncome),
-      distribution: formatCurrency(year.conversionAmount),
+      existingTaxable: formatCurrency(existingTaxableIncome),
+      // Dollars actually withdrawn from the IRA: the conversion plus any tax
+      // funded from the IRA. Falls back to conversion alone for external-tax
+      // scenarios where the two are equal.
+      distribution: formatCurrency(year.totalIRAWithdrawal ?? year.conversionAmount),
       bracketCeiling: formatCurrency(getBracketCeiling(client.filing_status, client.max_tax_rate ?? 24, year.year)),
-      // Tax cost of the conversion only — not the full year's tax bill which
-      // would include tax on SS, NQ, IRMAA, etc.
+      // Marginal tax cost of the conversion — the extra federal + state tax
+      // the client owes because of this conversion (including any SS that
+      // became taxable as the conversion raised provisional income).
       taxes: formatCurrency((year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0)),
       conversionAmount: formatCurrency(year.conversionAmount),
       interest: formatCurrency(interest),
@@ -897,19 +911,28 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
   const incomeStartAge = projection.gi_income_start_age || client.income_start_age || 70;
   const endAge = client.end_age || 100;
 
-  // Calculate baseline lifetime income from yearly data (matches gi-report-dashboard.tsx lines 80-93)
+  // Sum baseline lifetime income and taxes from yearly data. The engine now
+  // computes `guaranteedIncomeNet` with full SS-aware tax math (federal +
+  // state on gross GI + any taxable SS + other income), so prefer the engine
+  // value over a flat-rate approximation.
   let baselineTotalNetIncome = 0;
+  let baselineTotalTaxes = 0;
   baselineGIYearlyData.forEach((row: any) => {
     if (row.phase === 'income') {
       const grossIncome = row.guaranteedIncomeGross || 0;
-      const taxAtFlatRate = Math.round(grossIncome * flatTaxRate);
-      baselineTotalNetIncome += grossIncome - taxAtFlatRate;
+      const netIncome = row.guaranteedIncomeNet ?? grossIncome - Math.round(grossIncome * flatTaxRate);
+      baselineTotalNetIncome += netIncome;
+      baselineTotalTaxes += grossIncome - netIncome;
     }
   });
-  // Fallback if yearly data not available
+  // Fallback if yearly data not available.
   if (baselineTotalNetIncome === 0 && projection.gi_baseline_annual_income_net) {
     const incomeYears = endAge - incomeStartAge + 1;
     baselineTotalNetIncome = projection.gi_baseline_annual_income_net * incomeYears;
+  }
+  if (baselineTotalTaxes === 0) {
+    const incomeYears = endAge - incomeStartAge + 1;
+    baselineTotalTaxes = Math.round(baselineAnnualIncomeGross * flatTaxRate) * incomeYears;
   }
 
   // Lifetime income
@@ -919,18 +942,6 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
 
   // Taxes
   const conversionTax = projection.gi_total_conversion_tax || 0;
-  // Sum baseline taxes from yearly data for accuracy
-  let baselineTotalTaxes = 0;
-  baselineGIYearlyData.forEach((row: any) => {
-    if (row.phase === 'income') {
-      const grossIncome = row.guaranteedIncomeGross || 0;
-      baselineTotalTaxes += Math.round(grossIncome * flatTaxRate);
-    }
-  });
-  if (baselineTotalTaxes === 0) {
-    const incomeYears = endAge - incomeStartAge + 1;
-    baselineTotalTaxes = Math.round(baselineAnnualIncomeGross * flatTaxRate) * incomeYears;
-  }
   const taxSavings = baselineTotalTaxes - conversionTax;
 
   // Tax-free wealth created
@@ -976,13 +987,18 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
     };
   });
 
-  // Process baseline years
+  // Process baseline years. Use the engine's `guaranteedIncomeNet` (which
+  // correctly accounts for SS taxation now) instead of a flat-rate
+  // approximation; fall back to the flat rate only if the engine value is
+  // missing (legacy yearly data).
   let baselineCumulative = 0;
   const baselineYears: GIYearRow[] = baselineGIYearlyData.map((row: any) => {
     const isIncomePhase = row.phase === 'income';
     const grossIncome = row.guaranteedIncomeGross || 0;
-    const taxOnIncome = isIncomePhase ? Math.round(grossIncome * flatTaxRate) : 0;
-    const netIncome = grossIncome - taxOnIncome;
+    const netIncome = isIncomePhase
+      ? (row.guaranteedIncomeNet ?? grossIncome - Math.round(grossIncome * flatTaxRate))
+      : 0;
+    const taxOnIncome = isIncomePhase ? grossIncome - netIncome : 0;
 
     if (isIncomePhase && netIncome > 0) {
       baselineCumulative += netIncome;
