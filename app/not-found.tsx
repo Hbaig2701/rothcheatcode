@@ -5,7 +5,8 @@ export default function NotFound() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center">
       <div className="text-center space-y-6">
-        <img src="/logo.png" alt="Retirement Expert" className="h-10 w-auto mx-auto" />
+        <img src="/logo.png" alt="Retirement Expert" className="h-10 w-auto mx-auto hidden dark:block" />
+        <img src="/logo-light.png" alt="Retirement Expert" className="h-10 w-auto mx-auto dark:hidden" />
         <h1 className="text-6xl font-bold text-foreground">404</h1>
         <p className="text-lg text-text-dim max-w-md">
           The page you&apos;re looking for doesn&apos;t exist or has been moved.

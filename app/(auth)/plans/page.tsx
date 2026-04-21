@@ -50,7 +50,8 @@ export default function PricingPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
       <div className="mb-4">
-        <img src="/logo.png" alt="Retirement Expert" className="h-10 w-auto" />
+        <img src="/logo.png" alt="Retirement Expert" className="h-10 w-auto hidden dark:block" />
+        <img src="/logo-light.png" alt="Retirement Expert" className="h-10 w-auto dark:hidden" />
       </div>
 
       <h1 className="mb-2 text-center text-3xl font-semibold text-foreground">

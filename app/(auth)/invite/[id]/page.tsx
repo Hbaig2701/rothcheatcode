@@ -164,7 +164,8 @@ export default function InvitePage() {
     <div className="flex min-h-screen items-center justify-center">
       <div className="w-full max-w-md space-y-6">
         <div className="flex justify-center">
-          <img src="/logo.png" alt="Retirement Expert" className="h-10 w-auto" />
+          <img src="/logo.png" alt="Retirement Expert" className="h-10 w-auto hidden dark:block" />
+          <img src="/logo-light.png" alt="Retirement Expert" className="h-10 w-auto dark:hidden" />
         </div>
 
         <Card>

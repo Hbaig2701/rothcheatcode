@@ -20,7 +20,8 @@ export default async function AdminLayout({
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3">
-              <img src="/logo.png" alt="Retirement Expert" className="h-6 w-auto" />
+              <img src="/logo.png" alt="Retirement Expert" className="h-6 w-auto hidden dark:block" />
+              <img src="/logo-light.png" alt="Retirement Expert" className="h-6 w-auto dark:hidden" />
               <span className="text-lg font-semibold tracking-tight">Admin</span>
             </div>
             <nav className="flex items-center gap-4 text-sm">

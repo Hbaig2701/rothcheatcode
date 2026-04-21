@@ -26,7 +26,8 @@ export function AppSidebar({ user, displayName, userRole }: { user: User; displa
   return (
     <Sidebar collapsible="none" className="border-r border-sidebar-border bg-sidebar">
       <SidebarHeader className="px-4 py-7">
-        <img src="/logo.png" alt="Retirement Expert" className="h-8 w-auto dark:brightness-100 brightness-0" />
+        <img src="/logo.png" alt="Retirement Expert" className="h-8 w-auto hidden dark:block" />
+        <img src="/logo-light.png" alt="Retirement Expert" className="h-8 w-auto dark:hidden" />
       </SidebarHeader>
 
       <SidebarContent className="px-4 pt-6">
