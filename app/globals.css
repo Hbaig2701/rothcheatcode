@@ -234,6 +234,29 @@
   background-color: var(--gold-bg);
 }
 
+/* Force color-scheme on native form controls.
+   Some browsers (notably Chrome on Windows) don't inherit color-scheme
+   to native <select> popups from the root element, leading to light-
+   rendered dropdowns on a dark page with invisible dark-on-dark text. */
+select,
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+input[type="month"],
+input[type="week"],
+input[type="file"] {
+  color-scheme: light;
+}
+.dark select,
+.dark input[type="date"],
+.dark input[type="time"],
+.dark input[type="datetime-local"],
+.dark input[type="month"],
+.dark input[type="week"],
+.dark input[type="file"] {
+  color-scheme: dark;
+}
+
 /* Print styles for Story Mode */
 @media print {
   @page { margin: 0.6in; }
