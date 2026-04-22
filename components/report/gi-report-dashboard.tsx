@@ -43,8 +43,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const [productDetailsOpen, setProductDetailsOpen] = useState(false);
 
   const incomeChartData = transformToGIIncomeChartData(projection);
-  const chartData = transformToChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
+  const chartData = transformToChartData(projection, heirTaxRate);
 
   // Get product config
   const productConfig = ALL_PRODUCTS[client.blueprint_type as FormulaType];

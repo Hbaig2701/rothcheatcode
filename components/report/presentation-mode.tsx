@@ -34,9 +34,10 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
     ? isGuaranteedIncomeProduct(client.blueprint_type as FormulaType)
     : false;
 
+  const chartHeirTaxRate = (client.heir_tax_rate ?? 40) / 100;
   const chartData = isGI
-    ? transformToGIChartData(projection)
-    : transformToChartData(projection);
+    ? transformToGIChartData(projection, chartHeirTaxRate)
+    : transformToChartData(projection, chartHeirTaxRate);
 
   // Calculate break-even from chart data (lifetime wealth trajectory, not raw netWorth)
   const chartBreakEvenAge = chartData.find(d => d.formula > d.baseline)?.age ?? null;

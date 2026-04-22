@@ -82,8 +82,12 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
     });
   };
 
-  const chartData = transformToChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
+  // Pass the client's heir tax rate so the chart lines match the breakeven
+  // numbers computed elsewhere (stat card, Advanced Analysis tab). Default
+  // 0.40 would make the reference line and the visible crossover disagree
+  // for any client with a custom heir_tax_rate.
+  const chartData = transformToChartData(projection, heirTaxRate);
 
   // Calculate break-even from chart data (lifetime wealth trajectory, not raw netWorth)
   const chartBreakEvenAge = chartData.find(d => d.formula > d.baseline)?.age ?? null;
