@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 33; // v33: Follow-up to v32 tax-on-tax fix. The IRMAA threshold constraint now accounts for tax-from-IRA when capping total withdrawal for internal-payment + optimized clients; previously the cap only saw the conversion portion and let MAGI spill into the next IRMAA tier. Narrow fix but invalidate cache so affected projections regenerate.
+const PRODUCT_CONFIG_VERSION = 34; // v34: Breakeven age now uses legacy-to-heirs (heir-tax-adjusted) wealth instead of gross netWorth. Previously the summary stat card and the Advanced Features tab said "No breakeven in projection" for most Roth conversion clients — gross netWorth never crosses because the upfront conversion tax is permanently below baseline — while the dashboard WealthChart correctly showed a crossover because it uses legacy-to-heirs. All three now agree. Invalidate cache so existing projections regenerate with the corrected break_even_age.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {

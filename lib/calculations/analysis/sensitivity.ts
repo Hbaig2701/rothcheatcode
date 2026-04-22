@@ -87,8 +87,14 @@ export function runSensitivityAnalysis(client: Client): SensitivityResult {
       client: scenarioClient,
     });
 
-    // Analyze breakeven for this scenario
-    const breakEvenAnalysis = analyzeBreakEven(result.baseline, result.formula);
+    // Analyze breakeven for this scenario (heir-tax-adjusted to match
+    // dashboard WealthChart — gross netWorth breakeven never happens for
+    // Roth conversions and would make every sensitivity row say "N/A").
+    const breakEvenAnalysis = analyzeBreakEven(
+      result.baseline,
+      result.formula,
+      scenarioClient.heir_tax_rate ?? 40,
+    );
 
     // Store results
     const lastFormula = result.formula[result.formula.length - 1];

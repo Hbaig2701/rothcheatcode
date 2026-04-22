@@ -73,8 +73,14 @@ export async function GET(
     widow: null,
   };
 
-  // Breakeven analysis — operates on whichever engine's baseline/formula we ran
-  response.breakeven = analyzeBreakEven(baseResult.baseline, baseResult.formula);
+  // Breakeven analysis — operates on whichever engine's baseline/formula we ran.
+  // Pass client's heir tax rate so the legacy-to-heirs adjustment matches what
+  // the dashboard WealthChart is drawing; otherwise stat card + chart disagree.
+  response.breakeven = analyzeBreakEven(
+    baseResult.baseline,
+    baseResult.formula,
+    typedClient.heir_tax_rate ?? 40,
+  );
 
   // Run sensitivity analysis if enabled (legacy analyzer — known to use the
   // standard engine; accurate for legacy clients only)

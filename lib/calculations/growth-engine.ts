@@ -9,12 +9,29 @@ import { runGrowthFormulaScenario } from './scenarios/growth-formula';
 const DEFAULT_HEIR_TAX_RATE = 40;
 
 /**
- * Find the break-even age where formula net worth exceeds baseline
+ * Find the break-even age using legacy-to-heirs (heir-tax-adjusted) wealth.
+ * See engine.ts for rationale — gross netWorth breakeven is misleading for
+ * Roth conversions because the upfront tax is permanently below baseline.
  */
-function calculateBreakEvenAge(baseline: YearlyResult[], formula: YearlyResult[]): number | null {
+function calculateBreakEvenAge(
+  baseline: YearlyResult[],
+  formula: YearlyResult[],
+  heirTaxRate: number = DEFAULT_HEIR_TAX_RATE,
+): number | null {
+  const heirRate = heirTaxRate / 100;
   for (let i = 0; i < baseline.length && i < formula.length; i++) {
-    if (formula[i].netWorth > baseline[i].netWorth) {
-      return formula[i].age;
+    const b = baseline[i];
+    const f = formula[i];
+    const baselineLegacy =
+      Math.round(b.traditionalBalance * (1 - heirRate)) +
+      b.rothBalance +
+      Math.max(0, b.taxableBalance || 0);
+    const formulaLegacy =
+      Math.round(f.traditionalBalance * (1 - heirRate)) +
+      f.rothBalance +
+      Math.max(0, f.taxableBalance || 0);
+    if (formulaLegacy > baselineLegacy) {
+      return f.age;
     }
   }
   return null;
@@ -74,7 +91,7 @@ export function runGrowthSimulation(input: SimulationInput): SimulationResult {
   return {
     baseline,
     formula,
-    breakEvenAge: calculateBreakEvenAge(baseline, formula),
+    breakEvenAge: calculateBreakEvenAge(baseline, formula, heirTaxRate),
     totalTaxSavings: calculateTaxSavings(baseline, formula),
     heirBenefit: calculateHeirBenefit(baseline, formula, heirTaxRate)
   };
