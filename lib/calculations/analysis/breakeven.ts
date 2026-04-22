@@ -84,14 +84,14 @@ function findSustainedPayback(points: TaxPaybackPoint[]): number | null {
  *
  * @param baseline - YearlyResult[] from no-conversion scenario
  * @param formula - YearlyResult[] from Roth conversion scenario
- * @param _heirTaxRate - Accepted for backwards compatibility with callers that
- *        pass it; no longer used. Breakeven is tax-payback based, independent
- *        of heir tax.
+ * @param heirTaxRate - Heir tax rate (percentage, default 40). Used only to
+ *        compute the standalone `heirTaxSavings` figure surfaced in the
+ *        chart caption — the payback math itself is annual-tax-only.
  */
 export function analyzeBreakEven(
   baseline: YearlyResult[],
   formula: YearlyResult[],
-  _heirTaxRate: number = 40,
+  heirTaxRate: number = 40,
 ): BreakEvenAnalysis {
   const taxPaybackData = buildTaxPaybackSeries(baseline, formula);
 
@@ -122,10 +122,26 @@ export function analyzeBreakEven(
     ? taxPaybackData[taxPaybackData.length - 1].savings
     : 0;
 
+  // Heir tax savings = one-time tax avoided on the Traditional IRA balance
+  // that the strategy converted to Roth (Roth passes tax-free, Traditional
+  // gets hit at heir_tax_rate). Surfaced separately because it's a single
+  // event at death, not part of the annual cash-flow payback. Including it
+  // in the chart curves would create a misleading terminal spike, but
+  // advisors still want to see the number.
+  const heirRate = heirTaxRate / 100;
+  const lastBaseline = baseline[baseline.length - 1];
+  const lastFormula = formula[formula.length - 1];
+  const heirTaxSavings =
+    lastBaseline && lastFormula
+      ? Math.round(lastBaseline.traditionalBalance * heirRate)
+        - Math.round(lastFormula.traditionalBalance * heirRate)
+      : 0;
+
   return {
     simpleBreakEven,
     sustainedBreakEven,
     netBenefit,
+    heirTaxSavings,
     crossoverPoints,
     taxPaybackData,
   };

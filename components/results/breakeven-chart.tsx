@@ -86,6 +86,7 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
     simpleBreakEven,
     sustainedBreakEven,
     netBenefit,
+    heirTaxSavings,
     taxPaybackData,
   } = analysis;
 
@@ -98,11 +99,10 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
   }));
 
   const isPositive = netBenefit > 0;
-  const netBenefitFormatted = (Math.abs(netBenefit) / 100).toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
+  const fmt = (n: number) => (Math.abs(n) / 100).toLocaleString('en-US', {
+    style: 'currency', currency: 'USD', maximumFractionDigits: 0,
   });
+  const totalIncludingHeir = netBenefit + heirTaxSavings;
 
   return (
     <div className="space-y-2">
@@ -124,9 +124,19 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
             {isPositive ? 'Lifetime Tax Savings:' : 'Net Lifetime Tax Cost:'}
           </span>
           <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-            {isPositive ? '+' : '−'}{netBenefitFormatted}
+            {isPositive ? '+' : '−'}{fmt(netBenefit)}
           </span>
         </div>
+        {/* The headline annual-tax savings PLUS the one-time heir-tax savings.
+            This number is what the "Total Taxes Paid" stat card on the dashboard
+            is comparing across scenarios — surfacing it here so the two
+            reconcile at a glance. */}
+        {heirTaxSavings > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Including heir tax savings:</span>
+            <span className="font-medium text-green-600">+{fmt(totalIncludingHeir)}</span>
+          </div>
+        )}
       </div>
 
       {/* Chart */}

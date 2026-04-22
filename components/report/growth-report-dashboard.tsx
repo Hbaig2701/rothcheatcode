@@ -280,7 +280,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             }
           />
           <ComparisonCard
-            label="Total Taxes Paid"
+            label="Lifetime Tax Cost (incl. heir tax)"
             baseline={baseTotalTaxes}
             strategy={blueTotalTaxes}
             invertColor

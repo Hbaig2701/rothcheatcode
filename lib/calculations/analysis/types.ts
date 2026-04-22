@@ -49,7 +49,8 @@ export interface CrossoverPoint {
 export interface BreakEvenAnalysis {
   simpleBreakEven: number | null;     // First age where cumulative strategy tax ≤ cumulative baseline tax
   sustainedBreakEven: number | null;  // Age when strategy STAYS ahead on cumulative tax
-  netBenefit: number;                 // Final cumulative tax savings at end of projection (cents)
+  netBenefit: number;                 // Final cumulative ANNUAL tax savings at end of projection (cents)
+  heirTaxSavings: number;             // One-time savings from less Traditional IRA passing to heirs (cents)
   crossoverPoints: CrossoverPoint[];  // All crossover events (rare — usually just one)
   taxPaybackData: TaxPaybackPoint[];  // Per-year cumulative tax for chart plotting
 }
