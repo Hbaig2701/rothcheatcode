@@ -350,9 +350,10 @@ export function runGrowthFormulaScenario(
 
     // Step 2.5: Apply annual rider fee (only during surrender period, applied to IRA balance)
     // Rider fees are charged on the annuity (IRA) — Roth side has already been moved out
+    let yearRiderFee = 0;
     if (riderFeePercent > 0 && yearOffset < surrenderYears) {
-      const riderFeeAmount = Math.round(iraBalance * riderFeePercent);
-      iraBalance = iraBalance - riderFeeAmount;
+      yearRiderFee = Math.round(iraBalance * riderFeePercent);
+      iraBalance = iraBalance - yearRiderFee;
     }
 
     // Step 3: Apply anniversary bonus to IRA (annuity AV) if within bonus years
@@ -547,6 +548,7 @@ export function runGrowthFormulaScenario(
       totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + rmdAmount,
       taxesPaidFromIRA: conversionTaxFromIRA,
       earlyWithdrawalPenalty,
+      riderFee: yearRiderFee,
     });
   }
 

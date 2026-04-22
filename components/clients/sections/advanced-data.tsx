@@ -8,11 +8,17 @@ import { Input } from "@/components/ui/input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { isFieldLocked, isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
-import { Lock, ChevronDown, ChevronRight } from "lucide-react";
+import { Lock, LockOpen, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function AdvancedDataSection() {
   const [isExpanded, setIsExpanded] = useState(false);
+  // Per-field overrides for preset-locked values. An advisor can click "Edit"
+  // next to a locked field to take manual control (e.g., the same product
+  // ships with different surrender years state-to-state). When overridden,
+  // the preset value persists as-is in the form — advisors own the change.
+  const [overrideSurrender, setOverrideSurrender] = useState(false);
+  const [overridePenaltyFree, setOverridePenaltyFree] = useState(false);
   const form = useFormContext<ClientFormData>();
   const formulaType = form.watch("blueprint_type") as FormulaType;
   const rateOfReturn = form.watch("rate_of_return");
@@ -24,8 +30,17 @@ export function AdvancedDataSection() {
     form.setValue("baseline_comparison_rate", rateOfReturn);
   }, [rateOfReturn, form]);
 
-  const isSurrenderLocked = isFieldLocked("surrenderYears", formulaType);
-  const isPenaltyFreeLocked = isFieldLocked("penaltyFreePercent", formulaType);
+  // Reset overrides when the product preset changes — the new product's
+  // defaults should apply fresh, not inherit the previous override state.
+  useEffect(() => {
+    setOverrideSurrender(false);
+    setOverridePenaltyFree(false);
+  }, [formulaType]);
+
+  const isSurrenderLocked = isFieldLocked("surrenderYears", formulaType) && !overrideSurrender;
+  const isPenaltyFreeLocked = isFieldLocked("penaltyFreePercent", formulaType) && !overridePenaltyFree;
+  const surrenderCanOverride = isFieldLocked("surrenderYears", formulaType);
+  const penaltyFreeCanOverride = isFieldLocked("penaltyFreePercent", formulaType);
 
   return (
     <div className="space-y-4">
@@ -54,6 +69,18 @@ export function AdvancedDataSection() {
             <FieldLabel htmlFor="surrender_years" className="flex items-center gap-1.5">
               Surrender Years
               {isSurrenderLocked && <Lock className="size-3 text-muted-foreground" />}
+              {overrideSurrender && surrenderCanOverride && (
+                <LockOpen className="size-3 text-amber-600 dark:text-amber-400" />
+              )}
+              {surrenderCanOverride && (
+                <button
+                  type="button"
+                  onClick={() => setOverrideSurrender((v) => !v)}
+                  className="ml-auto text-xs text-primary hover:underline"
+                >
+                  {overrideSurrender ? "Re-lock" : "Override preset"}
+                </button>
+              )}
             </FieldLabel>
             <Input
               id="surrender_years"
@@ -64,7 +91,11 @@ export function AdvancedDataSection() {
               disabled={isSurrenderLocked}
               className={cn(isSurrenderLocked && "opacity-60 cursor-not-allowed bg-muted/30")}
             />
-            <FieldDescription>Years with surrender charges (0-20)</FieldDescription>
+            <FieldDescription>
+              {overrideSurrender && surrenderCanOverride
+                ? "Overriding preset — value does not match the selected product's typical terms."
+                : "Years with surrender charges (0-20)"}
+            </FieldDescription>
             <FieldError errors={[form.formState.errors.surrender_years]} />
           </Field>
 
@@ -77,6 +108,18 @@ export function AdvancedDataSection() {
                 <FieldLabel htmlFor="penalty_free_percent" className="flex items-center gap-1.5">
                   Penalty Free %
                   {isPenaltyFreeLocked && <Lock className="size-3 text-muted-foreground" />}
+                  {overridePenaltyFree && penaltyFreeCanOverride && (
+                    <LockOpen className="size-3 text-amber-600 dark:text-amber-400" />
+                  )}
+                  {penaltyFreeCanOverride && (
+                    <button
+                      type="button"
+                      onClick={() => setOverridePenaltyFree((v) => !v)}
+                      className="ml-auto text-xs text-primary hover:underline"
+                    >
+                      {overridePenaltyFree ? "Re-lock" : "Override preset"}
+                    </button>
+                  )}
                 </FieldLabel>
                 <PercentInput
                   {...field}
@@ -84,7 +127,11 @@ export function AdvancedDataSection() {
                   disabled={isPenaltyFreeLocked}
                   className={cn(isPenaltyFreeLocked && "opacity-60 cursor-not-allowed bg-muted/30")}
                 />
-                <FieldDescription>Annual penalty-free withdrawal percentage</FieldDescription>
+                <FieldDescription>
+                  {overridePenaltyFree && penaltyFreeCanOverride
+                    ? "Overriding preset — value does not match the selected product's typical terms."
+                    : "Annual penalty-free withdrawal percentage"}
+                </FieldDescription>
                 <FieldError errors={[fieldState.error]} />
               </Field>
             )}

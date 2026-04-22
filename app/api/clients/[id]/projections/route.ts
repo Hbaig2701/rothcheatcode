@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 30; // v30: PDF reports now expose "Taxable SS" as its own column; growth-baseline also populates agi/taxable-income fields. Cache invalidated so SS-collecting clients regenerate with SS-torpedo-aware numbers without the advisor having to touch the client record.
+const PRODUCT_CONFIG_VERSION = 31; // v31: Growth engine now populates yearly riderFee dollar amount on each YearlyResult so the PDF year-by-year table can show the annual fee drag explicitly. Cache invalidated so Growth FIA clients regenerate with the populated field.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {

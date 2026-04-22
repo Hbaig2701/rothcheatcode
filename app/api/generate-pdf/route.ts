@@ -100,6 +100,7 @@ interface YearRow {
   taxExemptNonIra: string;
   taxesTotal: string;
   netIncome: string;
+  riderFeeAmount: string;
 }
 
 interface ConversionDetail {
@@ -119,6 +120,8 @@ interface ScenarioData {
   totalConversions: string;
   taxOnDistributions: string;
   taxOnConversions: string;
+  premiumBonusReceived: string;
+  netTaxCost: string;
   afterTaxDistributions: string;
   legacyGross: string;
   legacyTax: string;
@@ -187,6 +190,7 @@ interface TemplateData {
   filingStatus: string;
   initialDeposit: string;
   bonusRate: number;
+  riderFee: number;
   rateOfReturn: number;
   maxTaxRate: number;
   state: string;
@@ -201,6 +205,8 @@ interface TemplateData {
   diff: {
     distributions: number;
     taxes: number;
+    premiumBonus: number;
+    netTaxCost: number;
     afterTax: number;
     legacyGross: number;
     legacyTax: number;
@@ -335,6 +341,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       taxExemptNonIra: '',
       taxesTotal: '',
       netIncome: '',
+      riderFeeAmount: formatCurrency(year.riderFee ?? 0),
     });
 
     // Taxable portion of SS (engine field). Falls back to 0 for legacy rows
@@ -367,6 +374,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       taxExemptNonIra: '',
       taxesTotal: '',
       netIncome: '',
+      riderFeeAmount: '',
     });
 
     irmaa.push({
@@ -394,6 +402,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       taxExemptNonIra: '',
       taxesTotal: '',
       netIncome: '',
+      riderFeeAmount: '',
     });
 
     netIncome.push({
@@ -421,6 +430,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       taxExemptNonIra: formatCurrency(taxExemptNonSSI),
       taxesTotal: formatCurrency(year.totalTax),
       netIncome: formatCurrency(netIncomeVal),
+      riderFeeAmount: '',
     });
   });
 
@@ -669,12 +679,26 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     head_of_household: 'Head of Household',
   };
 
+  // Rider fee rate from the product preset (applied during surrender period).
+  // Displayed on the Performance Report's Contract Details card so advisors
+  // can point to the fee line item when clients ask about it.
+  const productRiderFee = ALL_PRODUCTS[client.blueprint_type as FormulaType]?.defaults.riderFee ?? 0;
+  // Premium bonus in dollars received at contract issue — applied only on the
+  // strategy side (baseline is a "do nothing" scenario, no product bonus).
+  // Used for the "Premium Bonus Received" / "Net Tax Cost" rows in the
+  // Distributions summary so advisors can show net-of-bonus tax math.
+  const premiumBonusDollars = Math.round(
+    (client.qualified_account_value ?? 0) * ((client.bonus_percent ?? 0) / 100),
+  );
+  const strategyNetTax = blueTax - premiumBonusDollars;
+
   return {
     clientName: client.name,
     clientAge: client.age,
     filingStatus: filingStatusMap[client.filing_status] || client.filing_status,
     initialDeposit: formatCurrency(client.qualified_account_value),
     bonusRate: client.bonus_percent ?? 10,
+    riderFee: productRiderFee,
     rateOfReturn: client.rate_of_return ?? 7,
     maxTaxRate: client.max_tax_rate ?? 24,
     state: client.state ?? 'CA',
@@ -693,6 +717,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       totalConversions: formatCurrency(0),
       taxOnDistributions: formatCurrency(baseTax),
       taxOnConversions: formatCurrency(0),
+      premiumBonusReceived: formatCurrency(0),
+      netTaxCost: formatCurrency(baseTax),
       afterTaxDistributions: formatCurrency(rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseTax),
       legacyGross: formatCurrency(projection.baseline_final_net_worth),
       legacyTax: formatCurrency(baseHeirTax),
@@ -707,6 +733,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       totalConversions: formatCurrency(blueConversions),
       taxOnDistributions: formatCurrency(0),
       taxOnConversions: formatCurrency(blueTax),
+      premiumBonusReceived: formatCurrency(premiumBonusDollars),
+      netTaxCost: formatCurrency(strategyNetTax),
       afterTaxDistributions: formatCurrency(0),
       legacyGross: formatCurrency(projection.blueprint_final_net_worth),
       legacyTax: formatCurrency(blueHeirTax),
@@ -720,6 +748,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       // Raw values for use with formatDiff helper (dollars, converted from cents)
       distributions: (blueConversions - baseRMDs) / 100,
       taxes: (blueTax - baseTax) / 100,
+      premiumBonus: (premiumBonusDollars - 0) / 100,
+      netTaxCost: (strategyNetTax - baseTax) / 100,
       afterTax: (0 - (rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseTax)) / 100,
       legacyGross: (projection.blueprint_final_net_worth - projection.baseline_final_net_worth) / 100,
       legacyTax: (blueHeirTax - baseHeirTax) / 100,

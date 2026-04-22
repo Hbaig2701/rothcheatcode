@@ -384,6 +384,12 @@
           <span class="metric-label">Bonus</span>
           <span class="metric-value">{{bonusRate}}%</span>
         </div>
+        {{#if riderFee}}
+        <div class="metric-row">
+          <span class="metric-label">Annual Rider Fee</span>
+          <span class="metric-value">{{riderFee}}%</span>
+        </div>
+        {{/if}}
         <div class="metric-row">
           <span class="metric-label">Rate of Return</span>
           <span class="metric-value">{{rateOfReturn}}%</span>
@@ -453,6 +459,18 @@
           <td>{{baseline.taxOnDistributions}}</td>
           <td>{{strategy.taxOnConversions}}</td>
           <td>{{{formatDiff diff.taxes true}}}</td>
+        </tr>
+        <tr>
+          <td>Premium Bonus Received</td>
+          <td>{{baseline.premiumBonusReceived}}</td>
+          <td>{{strategy.premiumBonusReceived}}</td>
+          <td>{{{formatDiff diff.premiumBonus false}}}</td>
+        </tr>
+        <tr>
+          <td><strong>Net Tax Cost (after bonus)</strong></td>
+          <td><strong>{{baseline.netTaxCost}}</strong></td>
+          <td><strong>{{strategy.netTaxCost}}</strong></td>
+          <td>{{{formatDiff diff.netTaxCost true}}}</td>
         </tr>
         <tr>
           <td>After-Tax Distributions</td>
@@ -634,6 +652,7 @@
         <th>B.O.Y. (Combined)</th>
         <th>Dist. (IRA)</th>
         <th>Taxes (IRA)</th>
+        {{#if riderFee}}<th>Rider Fee</th>{{/if}}
         <th>Bracket</th>
         <th>Converted</th>
         <th>Dist. (Roth)</th>
@@ -647,6 +666,7 @@
         <td>{{this.boyCombined}}</td>
         <td>{{this.distIra}}</td>
         <td class="tax-value">{{this.taxesIra}}</td>
+        {{#if ../riderFee}}<td class="tax-value">{{this.riderFeeAmount}}</td>{{/if}}
         <td>{{this.bracket}}</td>
         <td>{{this.converted}}</td>
         <td>{{this.distRoth}}</td>
