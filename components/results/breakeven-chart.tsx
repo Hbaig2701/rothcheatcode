@@ -12,12 +12,61 @@ import {
   ReferenceLine,
   ReferenceArea,
 } from 'recharts';
-import { ChartTooltip } from './chart-tooltip';
 import type { BreakEvenAnalysis } from '@/lib/calculations/analysis/types';
-import { formatAxisValue } from '@/lib/calculations/transforms';
+import { formatAxisValue, formatCurrency } from '@/lib/calculations/transforms';
+import { cn } from '@/lib/utils';
 
 interface BreakevenChartProps {
   analysis: BreakEvenAnalysis;
+}
+
+interface PayloadItem { dataKey: string; value: number; }
+interface TaxTooltipProps { active?: boolean; payload?: PayloadItem[]; label?: string | number; }
+
+/**
+ * Tooltip tailored for the tax-payback chart. The shared ChartTooltip
+ * uses dataKey 'formula' (wealth) and labels things "Advantage" — wrong
+ * vocabulary for cumulative tax paid. This one says "Tax Paid" and
+ * "Savings" so the numbers read sensibly.
+ */
+function TaxPaybackTooltip({ active, payload, label }: TaxTooltipProps) {
+  if (!active || !payload || !payload.length) return null;
+  const baseline = payload.find(p => p.dataKey === 'baseline');
+  const strategy = payload.find(p => p.dataKey === 'strategy');
+  const savings = (baseline?.value ?? 0) - (strategy?.value ?? 0);
+
+  return (
+    <div className="rounded-lg border border-[#2A2A2A] bg-surface/95 p-3 shadow-xl backdrop-blur-sm">
+      <p className="font-semibold text-foreground mb-2">Age {label}</p>
+      <div className="space-y-1.5 text-sm">
+        <div className="flex justify-between gap-6">
+          <span className="text-[#F5B800] flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#F5B800]"></span>
+            Strategy tax paid:
+          </span>
+          <span className="font-mono text-foreground">{formatCurrency(strategy?.value ?? 0)}</span>
+        </div>
+        <div className="flex justify-between gap-6">
+          <span className="text-red-400 flex items-center gap-2">
+            <span className="w-2 h-0.5 bg-red-500"></span>
+            Baseline tax paid:
+          </span>
+          <span className="font-mono text-foreground">{formatCurrency(baseline?.value ?? 0)}</span>
+        </div>
+        <div className="border-t border-[#2A2A2A] pt-2 mt-2">
+          <div className="flex justify-between gap-6">
+            <span className="text-[#A0A0A0]">Savings to date:</span>
+            <span className={cn(
+              'font-mono font-semibold',
+              savings >= 0 ? 'text-[#22C55E]' : 'text-red-400',
+            )}>
+              {savings >= 0 ? '+' : ''}{formatCurrency(savings)}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -48,12 +97,12 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
     strategy: p.strategyCumulativeTax,
   }));
 
-  const netBenefitFormatted = (netBenefit / 100).toLocaleString('en-US', {
+  const isPositive = netBenefit > 0;
+  const netBenefitFormatted = (Math.abs(netBenefit) / 100).toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
   });
-  const isPositive = netBenefit > 0;
 
   return (
     <div className="space-y-2">
@@ -71,9 +120,11 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
           </div>
         )}
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">Lifetime Tax Savings:</span>
+          <span className="text-muted-foreground">
+            {isPositive ? 'Lifetime Tax Savings:' : 'Net Lifetime Tax Cost:'}
+          </span>
           <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-            {isPositive ? '+' : ''}{netBenefitFormatted}
+            {isPositive ? '+' : '−'}{netBenefitFormatted}
           </span>
         </div>
       </div>
@@ -102,7 +153,7 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
                 style: { textAnchor: 'middle', fontSize: 12 },
               }}
             />
-            <Tooltip content={<ChartTooltip />} />
+            <Tooltip content={<TaxPaybackTooltip />} />
             <Legend verticalAlign="top" height={36} />
 
             {/* Baseline cumulative tax — red dashed (the "do nothing" cost trajectory) */}
@@ -160,10 +211,23 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
 
       {/* How to read this */}
       <p className="text-xs text-muted-foreground mt-2">
-        The Strategy line jumps up front (conversion tax paid in year 1), then grows slowly.
-        The Baseline line grows steadily as RMDs are taxed every year. They cross at the payback age,
-        when the strategy&apos;s cumulative tax matches the baseline&apos;s — that&apos;s when the upfront tax cost
-        has been fully repaid through annual savings.
+        The <span className="text-[#F5B800]">Strategy</span> line jumps up front (conversion tax paid
+        in the first few years), then grows slowly. The <span className="text-red-500">Baseline</span>{' '}
+        line grows steadily as RMDs are taxed every year.{' '}
+        {sustainedBreakEven ? (
+          <>
+            They cross at the payback age, when the strategy&apos;s cumulative tax matches the
+            baseline&apos;s — that&apos;s when the upfront tax cost has been fully repaid through annual
+            savings.
+          </>
+        ) : (
+          <>
+            The projection ends before the baseline&apos;s RMD taxes catch up to the conversion cost,
+            so the strategy&apos;s tax payback is not reached within this projection window. The estate-
+            planning benefit (Roth passes tax-free to heirs) is reflected on the Legacy to Heirs chart
+            on the main dashboard and is a separate consideration.
+          </>
+        )}
       </p>
     </div>
   );
