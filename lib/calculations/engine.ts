@@ -10,41 +10,31 @@ import { runFormulaScenario } from './scenarios/formula';
 const DEFAULT_HEIR_TAX_RATE = 40;
 
 /**
- * Find the break-even age where the STRATEGY's legacy-to-heirs overtakes
- * the BASELINE's legacy-to-heirs.
+ * Find the tax-payback age: the first year where the strategy's cumulative
+ * tax paid to date drops to or below the baseline's cumulative tax paid.
  *
- * We use legacy-to-heirs (not gross netWorth) because the Roth conversion
- * pays upfront tax that permanently sits below baseline on a gross basis —
- * the strategy NEVER breaks even on gross netWorth even when it breaks
- * even in real economic terms (more money to heirs because Roth passes
- * tax-free). This matches the main dashboard WealthChart's definition, so
- * the stat card and the chart agree on the same number.
+ * In plain terms: how long until the annual tax savings from Roth conversion
+ * (smaller RMDs, lower bracket, less SS torpedo, less IRMAA) have repaid
+ * the upfront conversion tax. Returns null if the strategy never catches
+ * up within the projection window.
  *
- * Legacy-to-heirs = Traditional × (1 − heir_tax_rate) + Roth + max(0, taxable)
+ * This is what advisors and clients mean by "breakeven" — an investment
+ * payback period. Replaces a prior legacy-to-heirs definition that gave
+ * breakeven in year 1 for any client where heir tax > conversion tax,
+ * which was mathematically correct but practically useless.
  */
 function calculateBreakEvenAge(
   baseline: YearlyResult[],
   formula: YearlyResult[],
-  heirTaxRate: number = DEFAULT_HEIR_TAX_RATE,
 ): number | null {
-  const heirRate = heirTaxRate / 100;
-  for (let i = 0; i < baseline.length && i < formula.length; i++) {
-    const b = baseline[i];
-    const f = formula[i];
-    // Taxable balance is included at its SIGNED value — a negative balance
-    // represents conversion tax paid externally and is a real cost of the
-    // strategy. Clipping to zero hid that cost and produced implausibly
-    // large year-1 advantages on the breakeven chart.
-    const baselineLegacy =
-      Math.round(b.traditionalBalance * (1 - heirRate)) +
-      b.rothBalance +
-      (b.taxableBalance || 0);
-    const formulaLegacy =
-      Math.round(f.traditionalBalance * (1 - heirRate)) +
-      f.rothBalance +
-      (f.taxableBalance || 0);
-    if (formulaLegacy > baselineLegacy) {
-      return f.age;
+  let baseCum = 0;
+  let stratCum = 0;
+  const n = Math.min(baseline.length, formula.length);
+  for (let i = 0; i < n; i++) {
+    baseCum += baseline[i].totalTax || 0;
+    stratCum += formula[i].totalTax || 0;
+    if (stratCum <= baseCum) {
+      return formula[i].age;
     }
   }
   return null;
@@ -271,11 +261,7 @@ export function runSimulation(input: SimulationInput): SimulationResult {
   return {
     baseline,
     formula,
-    breakEvenAge: calculateBreakEvenAge(
-      baseline,
-      formula,
-      client.heir_tax_rate ?? DEFAULT_HEIR_TAX_RATE,
-    ),
+    breakEvenAge: calculateBreakEvenAge(baseline, formula),
     totalTaxSavings: calculateTaxSavings(baseline, formula),
     heirBenefit: calculateHeirBenefit(baseline, formula, client.heir_tax_rate, client.heir_bracket)
   };

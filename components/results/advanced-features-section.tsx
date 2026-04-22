@@ -97,10 +97,12 @@ export function AdvancedFeaturesSection({
 
       {/* Tab content */}
       <div className="min-h-[400px]">
-        {/* Breakeven Tab */}
+        {/* Breakeven Tab — tax-payback based. chartData (legacy-to-heirs)
+            is no longer used here; the BreakevenChart reads its data
+            directly from analysis.taxPaybackData. */}
         {activeTab === 'breakeven' && analysis?.breakeven && (
           <div ref={breakevenChartRef}>
-            <BreakevenChart data={chartData} analysis={analysis.breakeven} />
+            <BreakevenChart analysis={analysis.breakeven} />
           </div>
         )}
 

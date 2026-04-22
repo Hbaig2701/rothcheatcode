@@ -1,133 +1,132 @@
 /**
- * Breakeven Analysis Module
- * Analyzes when Roth conversion strategy becomes beneficial
+ * Breakeven Analysis Module — Tax Payback
+ *
+ * "Breakeven" = the age at which the strategy's cumulative tax paid drops
+ * to or below the baseline's cumulative tax paid. In plain terms: how long
+ * it takes for the annual tax savings (smaller RMDs, lower bracket, less
+ * IRMAA) to earn back the upfront conversion tax.
+ *
+ * This replaces a prior "legacy to heirs" definition which produced
+ * breakeven at year 1 for most clients (because heir tax > conversion tax
+ * creates immediate tax-rate arbitrage). That was mathematically correct
+ * but useless as a "when does this pay off" signal for advisors.
  */
 
 import type { YearlyResult } from '../types';
-import type { BreakEvenAnalysis, CrossoverPoint } from './types';
-
-const DEFAULT_HEIR_TAX_RATE = 40;
+import type { BreakEvenAnalysis, CrossoverPoint, TaxPaybackPoint } from './types';
 
 /**
- * Legacy-to-heirs wealth at a given year.
- *
- * This is the metric that matters for Roth-conversion breakeven analysis:
- * Traditional × (1 − heir_tax_rate) + Roth + max(0, taxable). Gross netWorth
- * is misleading because the conversion pays upfront tax that permanently
- * puts formula below baseline — even when the strategy clearly wins in
- * economic terms (Roth passes tax-free, so heirs receive more).
- *
- * Matches calculateFormulaLegacyToHeirs / calculateBaselineLegacyToHeirs in
- * transforms.ts, which is what the dashboard WealthChart draws.
+ * Build the per-year cumulative-tax comparison series used by the chart
+ * and the breakeven calculation. totalTax includes federal + state + IRMAA
+ * + any early-withdrawal penalty — every dollar the IRS and state
+ * collectively take from the client each year.
  */
-function legacyToHeirs(year: YearlyResult, heirRate: number): number {
-  // Taxable balance included SIGNED — a negative balance is conversion tax
-  // paid from outside the IRA, a real cost that the strategy owes. Clipping
-  // it to zero used to make year-1 advantages look ~50% bigger than reality.
-  return (
-    Math.round(year.traditionalBalance * (1 - heirRate)) +
-    year.rothBalance +
-    (year.taxableBalance || 0)
-  );
+function buildTaxPaybackSeries(
+  baseline: YearlyResult[],
+  formula: YearlyResult[]
+): TaxPaybackPoint[] {
+  const points: TaxPaybackPoint[] = [];
+  let baseCum = 0;
+  let stratCum = 0;
+  const n = Math.min(baseline.length, formula.length);
+  for (let i = 0; i < n; i++) {
+    baseCum += baseline[i].totalTax || 0;
+    stratCum += formula[i].totalTax || 0;
+    points.push({
+      age: formula[i].age,
+      year: formula[i].year,
+      baselineCumulativeTax: baseCum,
+      strategyCumulativeTax: stratCum,
+      savings: baseCum - stratCum,
+    });
+  }
+  return points;
 }
 
 /**
- * Find the sustained breakeven age - when formula STAYS ahead
- * (not just a temporary crossover)
+ * Find the first age where strategy cumulative tax ≤ baseline cumulative tax.
+ * Returns null if the strategy never catches up in the projection window
+ * (meaning the upfront tax cost isn't recouped within the client's remaining
+ * years — rare but possible for older clients or aggressive conversions
+ * deep into high brackets).
  */
-function findSustainedBreakEven(
-  baseline: YearlyResult[],
-  formula: YearlyResult[],
-  crossoverPoints: CrossoverPoint[]
-): number | null {
-  // Find first crossover to formula_ahead that doesn't reverse
-  for (const point of crossoverPoints) {
-    if (point.direction === 'formula_ahead') {
-      // Check if it ever crosses back
-      const reversesLater = crossoverPoints.some(
-        p => p.age > point.age && p.direction === 'baseline_ahead'
-      );
-      if (!reversesLater) {
-        return point.age;
-      }
+function findPaybackAge(points: TaxPaybackPoint[]): number | null {
+  for (const p of points) {
+    if (p.strategyCumulativeTax <= p.baselineCumulativeTax) {
+      return p.age;
     }
   }
   return null;
 }
 
 /**
- * Analyze breakeven between baseline and formula scenarios
- * Returns multiple metrics for comprehensive understanding
+ * Find the age where strategy STAYS ahead on cumulative tax (no reversal).
+ * Typically this is the same as the simple payback age once we hit it —
+ * cumulative tax only grows, so once strategy falls behind (i.e. paid less)
+ * it stays behind. But defensive in case of unusual tax-law changes or
+ * scenario mixes that could flip.
+ */
+function findSustainedPayback(points: TaxPaybackPoint[]): number | null {
+  for (let i = 0; i < points.length; i++) {
+    if (points[i].strategyCumulativeTax <= points[i].baselineCumulativeTax) {
+      // Check the rest of the projection — does strategy stay at or below?
+      const stays = points.slice(i).every(
+        p => p.strategyCumulativeTax <= p.baselineCumulativeTax
+      );
+      if (stays) return points[i].age;
+    }
+  }
+  return null;
+}
+
+/**
+ * Analyze breakeven between baseline and formula scenarios.
  *
  * @param baseline - YearlyResult[] from no-conversion scenario
  * @param formula - YearlyResult[] from Roth conversion scenario
- * @param heirTaxRate - Heir tax rate as percentage (default 40). Used to
- *        apply the legacy-to-heirs adjustment so that breakeven reflects
- *        what the strategy is ACTUALLY optimizing for — post-heir-tax
- *        wealth transferred to beneficiaries.
- * @returns BreakEvenAnalysis with simple, sustained breakeven and all crossovers
+ * @param _heirTaxRate - Accepted for backwards compatibility with callers that
+ *        pass it; no longer used. Breakeven is tax-payback based, independent
+ *        of heir tax.
  */
 export function analyzeBreakEven(
   baseline: YearlyResult[],
   formula: YearlyResult[],
-  heirTaxRate: number = DEFAULT_HEIR_TAX_RATE,
+  _heirTaxRate: number = 40,
 ): BreakEvenAnalysis {
-  const heirRate = heirTaxRate / 100;
+  const taxPaybackData = buildTaxPaybackSeries(baseline, formula);
+
+  const simpleBreakEven = findPaybackAge(taxPaybackData);
+  const sustainedBreakEven = findSustainedPayback(taxPaybackData);
+
+  // Track direction changes (rare, but possible if a late-life event swings
+  // cumulative tax back). Useful context when it happens.
   const crossoverPoints: CrossoverPoint[] = [];
   let lastDirection: 'formula_ahead' | 'baseline_ahead' | null = null;
-
-  // Track whether formula started ahead (no crossover needed — already there).
-  let initialFormulaAhead: { age: number; year: number; diff: number } | null = null;
-
-  for (let i = 0; i < baseline.length; i++) {
-    const baselineLegacy = legacyToHeirs(baseline[i], heirRate);
-    const formulaLegacy = legacyToHeirs(formula[i], heirRate);
-    const diff = formulaLegacy - baselineLegacy;
+  for (const p of taxPaybackData) {
     const currentDirection: 'formula_ahead' | 'baseline_ahead' =
-      diff > 0 ? 'formula_ahead' : 'baseline_ahead';
-
-    if (lastDirection === null) {
-      // First year — no crossover yet, but record if formula starts ahead.
-      if (currentDirection === 'formula_ahead') {
-        initialFormulaAhead = { age: formula[i].age, year: formula[i].year, diff };
-      }
-    } else if (currentDirection !== lastDirection) {
-      // Detect crossover (direction change)
+      p.strategyCumulativeTax <= p.baselineCumulativeTax
+        ? 'formula_ahead'
+        : 'baseline_ahead';
+    if (lastDirection !== null && currentDirection !== lastDirection) {
       crossoverPoints.push({
-        age: formula[i].age,
-        year: formula[i].year,
+        age: p.age,
+        year: p.year,
         direction: currentDirection,
-        wealthDifference: diff,
+        wealthDifference: p.savings,
       });
     }
     lastDirection = currentDirection;
   }
 
-  // Simple breakeven: first time formula is ahead. If it was ahead from the
-  // very first year there's no "crossover" event, but breakeven is still
-  // year 0 — the strategy starts winning immediately.
-  const firstCrossover = crossoverPoints.find(p => p.direction === 'formula_ahead');
-  const simpleBreakEven = initialFormulaAhead?.age
-    ?? firstCrossover?.age
-    ?? null;
-
-  // Sustained breakeven: when it stays ahead. If formula started ahead AND
-  // there's never a baseline_ahead crossover, sustained = year 0.
-  const anyReversal = crossoverPoints.some(p => p.direction === 'baseline_ahead');
-  const sustainedBreakEven = initialFormulaAhead && !anyReversal
-    ? initialFormulaAhead.age
-    : findSustainedBreakEven(baseline, formula, crossoverPoints);
-
-  // Net benefit: final difference (also legacy-to-heirs adjusted)
-  const lastBaseline = baseline[baseline.length - 1];
-  const lastFormula = formula[formula.length - 1];
-  const netBenefit =
-    legacyToHeirs(lastFormula, heirRate) - legacyToHeirs(lastBaseline, heirRate);
+  const netBenefit = taxPaybackData.length > 0
+    ? taxPaybackData[taxPaybackData.length - 1].savings
+    : 0;
 
   return {
     simpleBreakEven,
     sustainedBreakEven,
     netBenefit,
     crossoverPoints,
+    taxPaybackData,
   };
 }

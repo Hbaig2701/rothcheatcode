@@ -13,64 +13,65 @@ import {
   ReferenceArea,
 } from 'recharts';
 import { ChartTooltip } from './chart-tooltip';
-import type { ChartDataPoint } from '@/lib/calculations/transforms';
-import type { BreakEvenAnalysis, CrossoverPoint } from '@/lib/calculations/analysis/types';
+import type { BreakEvenAnalysis } from '@/lib/calculations/analysis/types';
 import { formatAxisValue } from '@/lib/calculations/transforms';
 
 interface BreakevenChartProps {
-  data: ChartDataPoint[];
   analysis: BreakEvenAnalysis;
 }
 
 /**
- * Get color for crossover marker based on direction
+ * Tax-Payback chart for the Advanced Analysis section.
+ *
+ * Plots cumulative tax paid year-by-year for each scenario:
+ *   - Baseline (no conversion): grows linearly as RMDs get taxed every year
+ *   - Strategy (Roth conversion): jumps up front (the conversion tax),
+ *     then grows very slowly because Roth distributions aren't taxable
+ *
+ * They cross at the "payback age" — the year the strategy's annual tax
+ * savings have repaid the upfront conversion tax. That's what advisors and
+ * clients mean by "breakeven": when does this investment pay for itself.
  */
-function getCrossoverColor(direction: CrossoverPoint['direction']): string {
-  return direction === 'formula_ahead' ? '#F5B800' : '#ef4444'; // gold or red
-}
-
-/**
- * Enhanced breakeven chart showing:
- * - Baseline vs Formula wealth lines
- * - All crossover points marked
- * - Sustained breakeven highlighted
- * - Net benefit annotation
- */
-export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
+export function BreakevenChart({ analysis }: BreakevenChartProps) {
   const {
     simpleBreakEven,
     sustainedBreakEven,
-    crossoverPoints,
     netBenefit,
+    taxPaybackData,
   } = analysis;
 
-  // Format net benefit for display
+  // Map the analysis points into chart-ready rows. Recharts wants flat
+  // numeric props per row (we already have them).
+  const data = taxPaybackData.map(p => ({
+    age: p.age,
+    baseline: p.baselineCumulativeTax,
+    strategy: p.strategyCumulativeTax,
+  }));
+
   const netBenefitFormatted = (netBenefit / 100).toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
   });
-
   const isPositive = netBenefit > 0;
 
   return (
     <div className="space-y-2">
       {/* Summary stats */}
       <div className="flex flex-wrap gap-4 text-sm mb-4">
-        {simpleBreakEven && (
+        {simpleBreakEven ? (
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">First Breakeven:</span>
-            <span className="font-medium">Age {simpleBreakEven}</span>
+            <span className="text-muted-foreground">Tax Payback Age:</span>
+            <span className="font-medium">{simpleBreakEven}</span>
           </div>
-        )}
-        {sustainedBreakEven && sustainedBreakEven !== simpleBreakEven && (
+        ) : (
           <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Sustained Breakeven:</span>
-            <span className="font-medium text-green-600">Age {sustainedBreakEven}</span>
+            <span className="text-muted-foreground">Tax Payback:</span>
+            <span className="font-medium text-amber-600">Not reached in projection</span>
           </div>
         )}
         <div className="flex items-center gap-2">
-          <span className="text-muted-foreground">Net Benefit:</span>
+          <span className="text-muted-foreground">Lifetime Tax Savings:</span>
           <span className={`font-medium ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
             {isPositive ? '+' : ''}{netBenefitFormatted}
           </span>
@@ -94,15 +95,21 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
               tickFormatter={formatAxisValue}
               width={70}
               tick={{ fontSize: 12 }}
+              label={{
+                value: 'Cumulative Tax Paid',
+                angle: -90,
+                position: 'insideLeft',
+                style: { textAnchor: 'middle', fontSize: 12 },
+              }}
             />
             <Tooltip content={<ChartTooltip />} />
             <Legend verticalAlign="top" height={36} />
 
-            {/* Baseline line - red dashed */}
+            {/* Baseline cumulative tax — red dashed (the "do nothing" cost trajectory) */}
             <Line
               type="monotone"
               dataKey="baseline"
-              name="Baseline (No Conversion)"
+              name="Baseline Cumulative Tax (No Conversion)"
               stroke="#ef4444"
               strokeWidth={2}
               strokeDasharray="6 4"
@@ -110,18 +117,18 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
               activeDot={{ r: 6 }}
             />
 
-            {/* Strategy line - gold */}
+            {/* Strategy cumulative tax — gold (jumps up front, then flattens) */}
             <Line
               type="monotone"
-              dataKey="formula"
-              name="Strategy (Roth Conversion)"
+              dataKey="strategy"
+              name="Strategy Cumulative Tax (Roth Conversion)"
               stroke="#F5B800"
               strokeWidth={3}
               dot={false}
               activeDot={{ r: 6 }}
             />
 
-            {/* Sustained breakeven marker - green dashed line (priority) */}
+            {/* Payback age marker */}
             {sustainedBreakEven && (
               <ReferenceLine
                 x={sustainedBreakEven}
@@ -129,7 +136,7 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
                 strokeDasharray="5 5"
                 strokeWidth={2}
                 label={{
-                  value: `Sustained: Age ${sustainedBreakEven}`,
+                  value: `Payback: Age ${sustainedBreakEven}`,
                   position: 'top',
                   fill: '#F5B800',
                   fontSize: 11,
@@ -138,22 +145,7 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
               />
             )}
 
-            {/* Additional crossover markers (if any beyond sustained) */}
-            {crossoverPoints
-              .filter(p => p.age !== sustainedBreakEven)
-              .slice(0, 3) // Limit to avoid clutter
-              .map((point, idx) => (
-                <ReferenceLine
-                  key={`crossover-${idx}`}
-                  x={point.age}
-                  stroke={getCrossoverColor(point.direction)}
-                  strokeDasharray="3 3"
-                  strokeWidth={1}
-                  strokeOpacity={0.6}
-                />
-              ))}
-
-            {/* Shade area where formula is ahead (if sustained breakeven exists) */}
+            {/* Shade the region after payback to emphasize "savings phase" */}
             {sustainedBreakEven && data.length > 0 && (
               <ReferenceArea
                 x1={sustainedBreakEven}
@@ -166,13 +158,13 @@ export function BreakevenChart({ data, analysis }: BreakevenChartProps) {
         </ResponsiveContainer>
       </div>
 
-      {/* Crossover legend */}
-      {crossoverPoints.length > 1 && (
-        <div className="text-xs text-muted-foreground mt-2">
-          <span className="font-medium">{crossoverPoints.length} crossover points detected.</span>
-          {' '}The lines cross multiple times before the sustained breakeven.
-        </div>
-      )}
+      {/* How to read this */}
+      <p className="text-xs text-muted-foreground mt-2">
+        The Strategy line jumps up front (conversion tax paid in year 1), then grows slowly.
+        The Baseline line grows steadily as RMDs are taxed every year. They cross at the payback age,
+        when the strategy&apos;s cumulative tax matches the baseline&apos;s — that&apos;s when the upfront tax cost
+        has been fully repaid through annual savings.
+      </p>
     </div>
   );
 }

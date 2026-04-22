@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 35; // v35: Legacy-to-heirs calculation now includes taxable balance at its SIGNED value instead of clipping negative values to 0. Previously, conversion taxes paid from outside the IRA (which drive taxableBalance negative) were silently ignored, making the strategy appear ahead of baseline by ~50% more than reality in the year of conversion. Advisor reported "how could breakeven possibly be in year 1" — now the chart reflects the true economic tradeoff (tax paid now vs heir tax later). Invalidate cache.
+const PRODUCT_CONFIG_VERSION = 36; // v36: Breakeven redefined as TAX PAYBACK — the age at which the strategy's cumulative tax paid drops below the baseline's. Previously used legacy-to-heirs, which produced breakeven in year 1 for most clients (tax-rate arbitrage) and confused every advisor. Tax payback is what advisors mean by "when does this investment pay off." The Advanced Analysis chart now plots cumulative tax paid by each scenario; they cross at the payback age. Invalidate cache so all existing projections regenerate with the new break_even_age semantics.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
