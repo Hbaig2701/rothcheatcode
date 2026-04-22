@@ -13,6 +13,7 @@ import {
   getIRMAATier,
   computeTaxableIncomeWithSS,
   calculateSSAwareOptimalConversion,
+  calculateSSAwareIRAWithdrawalPlan,
   calculateConversionTaxWithSS,
 } from '../tax-helpers';
 import { calculateRMD } from '../modules/rmd';
@@ -247,29 +248,40 @@ export function runGrowthFormulaScenario(
       } else {
         // optimized_amount: fill up to target bracket ceiling with SS taxation
         // correctly accounted for (tax torpedo).
-        conversionAmount = calculateSSAwareOptimalConversion({
-          iraBalance: iraAfterRmd,
-          otherIncome: existingNonSSIncome,
-          ssBenefits: ssIncome,
-          taxExemptInterest: taxExemptNonSSI,
-          deductions,
-          maxBracketRate: maxTaxRate,
-          filingStatus: client.filing_status,
-          taxYear: year,
-        });
-
-        // When paying taxes from IRA, conversion + tax must fit within the IRA.
-        if (payTaxFromIRA && conversionAmount > 0) {
-          let solved = conversionAmount;
-          for (let iter = 0; iter < 4; iter++) {
-            const { federalTax: fTax, stateTax: sTax } = convTaxAt(solved);
-            const totalNeeded = solved + fTax + sTax;
-            if (totalNeeded <= iraAfterRmd) break;
-            solved = iraAfterRmd - fTax - sTax;
-            solved = Math.max(0, solved);
-          }
-          conversionAmount = Math.min(solved, conversionAmount);
+        if (payTaxFromIRA) {
+          // Plan the full IRA withdrawal (conversion + tax) as a single
+          // bracket-filling distribution. The planner's "total withdrawal"
+          // is what the IRS sees on the 1099-R; splitting into conversion
+          // and tax_from_IRA happens after the bracket check, so both are
+          // correctly below the ceiling. This is the self-consistent
+          // replacement for the legacy `conversion × (1 − rate)` haircut.
+          const plan = calculateSSAwareIRAWithdrawalPlan({
+            iraBalance: iraAfterRmd,
+            otherIncome: existingNonSSIncome,
+            ssBenefits: ssIncome,
+            taxExemptInterest: taxExemptNonSSI,
+            deductions,
+            maxBracketRate: maxTaxRate,
+            filingStatus: client.filing_status,
+            taxYear: year,
+            state: client.state ?? 'CA',
+            stateTaxRateDecimal,
+          });
+          conversionAmount = plan.conversion;
+          federalTax = plan.federalTaxFromIRA;
+          stateTax = plan.stateTaxFromIRA;
           skipGrossDown = true;
+        } else {
+          conversionAmount = calculateSSAwareOptimalConversion({
+            iraBalance: iraAfterRmd,
+            otherIncome: existingNonSSIncome,
+            ssBenefits: ssIncome,
+            taxExemptInterest: taxExemptNonSSI,
+            deductions,
+            maxBracketRate: maxTaxRate,
+            filingStatus: client.filing_status,
+            taxYear: year,
+          });
         }
       }
 
@@ -305,15 +317,22 @@ export function runGrowthFormulaScenario(
       // When taxes are paid from IRA, the total IRA withdrawal is (conversion + tax).
       // To keep the total withdrawal within the target amount, reduce the portion
       // that actually converts to Roth so there's room for the tax to be paid from the IRA.
-      // Skip when full_conversion already solved this exactly above.
+      // Skip when full_conversion / fixed_amount / optimized_amount already solved
+      // the conversion-vs-tax split exactly above (skipGrossDown=true).
       if (payTaxFromIRA && conversionAmount > 0 && !skipGrossDown) {
         const effectiveRate = maxTaxRate / 100 + stateTaxRateDecimal;
         conversionAmount = Math.round(conversionAmount * (1 - effectiveRate));
         conversionAmount = Math.min(conversionAmount, iraAfterRmd);
       }
 
-      // Calculate marginal taxes on conversion (SS-aware delta)
-      if (conversionAmount > 0) {
+      // Calculate marginal taxes on conversion (SS-aware delta). Skip when the
+      // planner already produced authoritative tax numbers — in that path, the
+      // tax is computed against the full (conversion + tax-from-IRA) distribution,
+      // which is what the IRS actually sees. Re-running convTaxAt(conversion)
+      // here would overwrite it with tax-on-conversion-alone, re-introducing
+      // the very bug the planner was added to fix.
+      const planAlreadySetTax = payTaxFromIRA && skipGrossDown && conversionType === 'optimized_amount';
+      if (conversionAmount > 0 && !planAlreadySetTax) {
         const convTax = convTaxAt(conversionAmount);
         federalTax = convTax.federalTax;
         stateTax = convTax.stateTax;
@@ -388,12 +407,14 @@ export function runGrowthFormulaScenario(
       surrenderValue = Math.round(iraBalance * (1 - surrenderChargePercent / 100));
     }
 
-    // Tax calculation details with proper SS taxation.
-    // KNOWN LIMITATION: when tax_payment_source='from_ira', the tax portion
-    // withdrawn from the IRA is itself ordinary income but is NOT added here.
-    // This slightly understates reported MAGI and future IRMAA lookback values
-    // by the tax-on-tax amount (~$500-1000/year).
-    const grossNonSSIncome = conversionAmount + rmdAmount + otherIncome;
+    // Tax calculation details with proper SS taxation. When tax_payment_source
+    // is 'from_ira', the tax withheld from the IRA is ALSO a taxable
+    // distribution (same 1099-R), so we must include it in the year's gross
+    // taxable income — otherwise federal tax, state tax, MAGI/IRMAA, and the
+    // bracket display would all be understated by the tax-on-tax amount. With
+    // the planner-driven bracket fill above, this addition exactly squares
+    // the books: the displayed taxable income matches what the IRS computes.
+    const grossNonSSIncome = conversionAmount + conversionTaxFromIRA + rmdAmount + otherIncome;
     const finalTaxInfo = computeTaxableIncomeWithSS({
       otherIncome: grossNonSSIncome,
       ssBenefits: ssIncome,

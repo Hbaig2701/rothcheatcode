@@ -107,6 +107,129 @@ export function calculateSSAwareOptimalConversion(params: {
 }
 
 /**
+ * Plan an IRA withdrawal that simultaneously funds a Roth conversion AND
+ * the tax owed on that conversion, when the client has opted to pay tax
+ * FROM the IRA (a.k.a. "internal" tax payment).
+ *
+ * Key insight: when tax is withheld from the IRA itself, the withholding
+ * is ALSO a taxable distribution on the 1099-R. So the year's taxable
+ * income includes `conversion + tax_from_IRA`, not just `conversion`. The
+ * bracket constraint therefore applies to the *total IRA withdrawal*, not
+ * just the conversion portion.
+ *
+ * Algorithm:
+ *   1. Let X = total IRA withdrawal. Find the largest X where
+ *      `taxable_income(otherIncome + X, ssBenefits)` stays at or below the
+ *      target bracket ceiling. This is exactly what
+ *      `calculateSSAwareOptimalConversion` solves — the output is X, the
+ *      maximum bracket-filling IRA distribution.
+ *   2. Compute the marginal federal + state tax at that X (relative to no
+ *      IRA withdrawal). This is the tax the custodian withholds.
+ *   3. Split: conversion = X − marginalTax; tax_from_IRA = marginalTax.
+ *
+ * This produces self-consistent numbers: the 1099-R for X, the tax the
+ * IRS actually computes on the year's return, and the money that ends up
+ * in the Roth all reconcile without a cash shortfall.
+ *
+ * The previous approach — find max conversion C, then shrink by
+ * `C × (1 − rate)` — under-reported tax by ~`C × rate²` because the
+ * haircut didn't account for the tax payment itself being taxable.
+ */
+export function calculateSSAwareIRAWithdrawalPlan(params: {
+  iraBalance: number;
+  otherIncome: number;
+  ssBenefits: number;
+  taxExemptInterest: number;
+  deductions: number;
+  maxBracketRate: number;
+  filingStatus: FilingStatus;
+  taxYear: number;
+  state: string;
+  stateTaxRateDecimal?: number;
+}): {
+  totalIRAWithdrawal: number;
+  conversion: number;
+  federalTaxFromIRA: number;
+  stateTaxFromIRA: number;
+  taxableSS: number;
+} {
+  // Step 1: find the max total IRA withdrawal that keeps taxable income
+  // at or below the bracket ceiling. Same binary-search semantics as the
+  // conversion optimizer — we just relabel the output.
+  const totalIRAWithdrawal = calculateSSAwareOptimalConversion({
+    iraBalance: params.iraBalance,
+    otherIncome: params.otherIncome,
+    ssBenefits: params.ssBenefits,
+    taxExemptInterest: params.taxExemptInterest,
+    deductions: params.deductions,
+    maxBracketRate: params.maxBracketRate,
+    filingStatus: params.filingStatus,
+    taxYear: params.taxYear,
+  });
+
+  if (totalIRAWithdrawal <= 0) {
+    return {
+      totalIRAWithdrawal: 0,
+      conversion: 0,
+      federalTaxFromIRA: 0,
+      stateTaxFromIRA: 0,
+      taxableSS: 0,
+    };
+  }
+
+  // Step 2: marginal federal + state tax at this withdrawal level.
+  const noWithdrawal = computeTaxableIncomeWithSS({
+    otherIncome: params.otherIncome,
+    ssBenefits: params.ssBenefits,
+    taxExemptInterest: params.taxExemptInterest,
+    deductions: params.deductions,
+    filingStatus: params.filingStatus,
+  });
+  const withWithdrawal = computeTaxableIncomeWithSS({
+    otherIncome: params.otherIncome + totalIRAWithdrawal,
+    ssBenefits: params.ssBenefits,
+    taxExemptInterest: params.taxExemptInterest,
+    deductions: params.deductions,
+    filingStatus: params.filingStatus,
+  });
+
+  const fedNo = calculateFederalTax({
+    taxableIncome: noWithdrawal.taxableIncome,
+    filingStatus: params.filingStatus,
+    taxYear: params.taxYear,
+  }).totalTax;
+  const fedWith = calculateFederalTax({
+    taxableIncome: withWithdrawal.taxableIncome,
+    filingStatus: params.filingStatus,
+    taxYear: params.taxYear,
+  }).totalTax;
+  const stateNo = calculateStateTax({
+    taxableIncome: noWithdrawal.taxableIncome,
+    state: params.state,
+    filingStatus: params.filingStatus,
+    overrideRate: params.stateTaxRateDecimal,
+  }).totalTax;
+  const stateWith = calculateStateTax({
+    taxableIncome: withWithdrawal.taxableIncome,
+    state: params.state,
+    filingStatus: params.filingStatus,
+    overrideRate: params.stateTaxRateDecimal,
+  }).totalTax;
+
+  const federalTaxFromIRA = Math.max(0, fedWith - fedNo);
+  const stateTaxFromIRA = Math.max(0, stateWith - stateNo);
+  const conversion = Math.max(0, totalIRAWithdrawal - federalTaxFromIRA - stateTaxFromIRA);
+
+  return {
+    totalIRAWithdrawal,
+    conversion,
+    federalTaxFromIRA,
+    stateTaxFromIRA,
+    taxableSS: withWithdrawal.taxableSS,
+  };
+}
+
+/**
  * Marginal federal + state tax attributable to a Roth conversion, computed as
  * the DELTA between the year's tax with the conversion and without it. This
  * correctly captures extra tax from any additional SS that becomes taxable

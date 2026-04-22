@@ -333,35 +333,56 @@ function runGIStrategyScenario(
           conversionAmount = Math.min(fixedAnnualConversion, boyTraditional);
         }
 
-        // Handle tax payment from IRA
-        // When paying taxes internally, cap so conversion + tax fits in the IRA.
-        // For fixed amounts, don't reduce the conversion — the user specified
-        // what they want converted; taxes are additional.
-        // For last-year full conversion, solve so conversion + tax = balance.
+        // Handle tax payment from IRA.
+        // Key insight: when the IRA funds its own tax, the tax withheld is
+        // ALSO a taxable distribution on the 1099-R. So the TOTAL IRA
+        // withdrawal (conversion + tax) is taxed, not just the conversion.
+        // At a flat rate:
+        //   total_dist × rate = tax     (tax on full distribution)
+        //   conversion + tax  = total_dist
+        //   => tax        = conversion × rate / (1 − rate)
+        //   => total_dist = conversion / (1 − rate)
+        // The prior formula `tax = conversion × rate` under-reported tax
+        // by ~rate × (conversion × rate / (1-rate)) — exactly the
+        // tax-on-tax amount that left the client with a surprise bill.
         if (payTaxFromIRA && conversionAmount > 0) {
           const effectiveRate = conversionBracket / 100 + stateTaxRateDecimal;
           if (isLastConversionYear) {
-            // Full conversion: solve conversion + tax = balance
-            conversionAmount = Math.round(boyTraditional / (1 + effectiveRate));
-            // Absorb rounding residual
-            const giTax = Math.round(conversionAmount * effectiveRate);
-            const giResidual = boyTraditional - conversionAmount - giTax;
-            if (giResidual > 0 && giResidual < 50000) {
-              conversionAmount += giResidual;
-            }
+            // Full conversion: empty the IRA. total_dist = balance, so
+            // conversion = balance × (1 − rate).
+            conversionAmount = Math.round(boyTraditional * (1 - effectiveRate));
           } else {
-            // Fixed amount: cap so conversion + tax <= balance
-            const maxConvWithTax = Math.floor(boyTraditional / (1 + effectiveRate));
-            conversionAmount = Math.min(conversionAmount, maxConvWithTax);
+            // Fixed amount: cap so the SELF-CONSISTENT total (conv/(1-rate))
+            // fits inside the IRA. This is tighter than the old cap because
+            // tax-on-tax is higher than tax-on-conversion-alone.
+            const maxConvWithSelfConsistentTax = Math.floor(boyTraditional * (1 - effectiveRate));
+            conversionAmount = Math.min(conversionAmount, maxConvWithSelfConsistentTax);
           }
-          conversionAmount = Math.min(conversionAmount, boyTraditional);
+          conversionAmount = Math.max(0, Math.min(conversionAmount, boyTraditional));
         }
 
-        // Calculate conversion tax using user's selected bracket (flat rate)
-        // This matches the flat rate approach used for all display/comparison metrics
+        // Calculate conversion tax (flat rate). When paying from the IRA, the
+        // tax must be computed on the TOTAL distribution (gross-up), not on
+        // the conversion alone — otherwise the reported tax is less than what
+        // the IRS would actually owe on the 1099-R.
         if (conversionAmount > 0) {
-          federalConversionTax = Math.round(conversionAmount * (conversionBracket / 100));
-          stateConversionTax = Math.round(conversionAmount * stateTaxRateDecimal);
+          if (payTaxFromIRA) {
+            const fedRate = conversionBracket / 100;
+            const stateRate = stateTaxRateDecimal;
+            // Gross-up: tax = conversion × rate / (1 − rate)
+            const totalRate = fedRate + stateRate;
+            const totalTaxGrossed = totalRate > 0 && totalRate < 1
+              ? Math.round(conversionAmount * totalRate / (1 - totalRate))
+              : 0;
+            // Split fed / state proportionally
+            federalConversionTax = totalRate > 0
+              ? Math.round(totalTaxGrossed * fedRate / totalRate)
+              : 0;
+            stateConversionTax = totalTaxGrossed - federalConversionTax;
+          } else {
+            federalConversionTax = Math.round(conversionAmount * (conversionBracket / 100));
+            stateConversionTax = Math.round(conversionAmount * stateTaxRateDecimal);
+          }
         }
       }
 
@@ -382,8 +403,11 @@ function runGIStrategyScenario(
       traditionalBalance += traditionalInterest;
       rothBalance += rothInterest;
 
-      // IRMAA
-      const grossIncomeWithConversion = otherIncome + conversionAmount;
+      // Gross taxable income for the year. When the IRA funds its own taxes,
+      // the tax withheld is ALSO a taxable distribution on the 1099-R, so it
+      // must be added to the income base — otherwise the year's MAGI/IRMAA
+      // lookback and the reported taxable income both understate reality.
+      const grossIncomeWithConversion = otherIncome + conversionAmount + conversionTaxFromIRA;
       const magi = grossIncomeWithConversion + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 

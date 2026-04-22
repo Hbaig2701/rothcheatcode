@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 31; // v31: Growth engine now populates yearly riderFee dollar amount on each YearlyResult so the PDF year-by-year table can show the annual fee drag explicitly. Cache invalidated so Growth FIA clients regenerate with the populated field.
+const PRODUCT_CONFIG_VERSION = 32; // v32: CRITICAL — internal tax payment (pay tax from IRA) now uses a self-consistent gross-up. The old formula treated the conversion alone as the taxable distribution, so the tax withheld from the IRA (which is also reported on the 1099-R) was invisible to the bracket / MAGI / taxable-income math. Clients doing internal payment were understating tax owed by ~15-20% in bracket-filling years. Invalidate all cached projections.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {

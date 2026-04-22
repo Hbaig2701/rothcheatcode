@@ -16,6 +16,7 @@ import {
   getIRMAATier,
   computeTaxableIncomeWithSS,
   calculateSSAwareOptimalConversion,
+  calculateSSAwareIRAWithdrawalPlan,
 } from '../tax-helpers';
 
 /**
@@ -168,54 +169,74 @@ export function runFormulaScenario(
                           age <= conversionEndAge &&
                           boyIRA > 0;
 
+    // The IRA withdrawal taxable for the year. For external tax payment, only
+    // the conversion is a taxable distribution. For internal tax payment, the
+    // withheld tax is ALSO a taxable distribution (same 1099-R), so the full
+    // conversion + tax-from-IRA is what the IRS sees.
+    let totalIRAWithdrawal = 0;
+
     if (shouldConvert) {
-      // SS-aware optimizer: finds the largest conversion whose resulting
-      // taxable income (conversion + otherIncome + taxableSS − deductions)
-      // stays at or below the target bracket ceiling.
-      conversionAmount = calculateSSAwareOptimalConversion({
-        iraBalance: boyIRA,
-        otherIncome,
-        ssBenefits: ssIncome,
-        taxExemptInterest: taxExemptNonSSI,
-        deductions,
-        maxBracketRate: maxTaxRate,
-        filingStatus: client.filing_status,
-        taxYear: year,
-      });
-
-      // Handle tax payment from IRA (gross-up): scale conversion down so the
-      // IRA can fund both the conversion and the resulting tax.
-      if (payTaxFromIRA && conversionAmount > 0) {
-        const effectiveRate = maxTaxRate / 100 + stateTaxRateDecimal;
-        conversionAmount = Math.round(conversionAmount * (1 - effectiveRate));
-        conversionAmount = Math.min(conversionAmount, boyIRA);
-      }
-
-      // Marginal conversion tax (including any SS that became taxable due to
-      // the conversion pushing provisional income higher).
-      if (conversionAmount > 0) {
-        const taxInfoWithConv = computeTaxableIncomeWithSS({
-          otherIncome: otherIncome + conversionAmount,
+      if (payTaxFromIRA) {
+        // Plan the full withdrawal (conversion + tax) as one bracket-filling
+        // distribution. Self-consistent: the marginal tax computed is
+        // exactly what gets withheld, and the net conversion equals the
+        // total minus that tax.
+        const plan = calculateSSAwareIRAWithdrawalPlan({
+          iraBalance: boyIRA,
+          otherIncome,
           ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI,
           deductions,
-          filingStatus: client.filing_status,
-        });
-        const fedWithConv = calculateFederalTax({
-          taxableIncome: taxInfoWithConv.taxableIncome,
+          maxBracketRate: maxTaxRate,
           filingStatus: client.filing_status,
           taxYear: year,
-        }).totalTax;
-        const stateWithConv = calculateStateTax({
-          taxableIncome: taxInfoWithConv.taxableIncome,
           state: client.state,
-          filingStatus: client.filing_status,
-          overrideRate: stateTaxRateDecimal,
-        }).totalTax;
-
-        federalConversionTax = Math.max(0, fedWithConv - fedNoConv);
-        stateConversionTax = Math.max(0, stateWithConv - stateNoConv);
+          stateTaxRateDecimal,
+        });
+        conversionAmount = plan.conversion;
+        totalIRAWithdrawal = plan.totalIRAWithdrawal;
+        federalConversionTax = plan.federalTaxFromIRA;
+        stateConversionTax = plan.stateTaxFromIRA;
         conversionTax = federalConversionTax + stateConversionTax;
+      } else {
+        // External tax: the conversion alone fills the bracket; client writes
+        // the tax check from outside funds.
+        conversionAmount = calculateSSAwareOptimalConversion({
+          iraBalance: boyIRA,
+          otherIncome,
+          ssBenefits: ssIncome,
+          taxExemptInterest: taxExemptNonSSI,
+          deductions,
+          maxBracketRate: maxTaxRate,
+          filingStatus: client.filing_status,
+          taxYear: year,
+        });
+        totalIRAWithdrawal = conversionAmount;
+
+        if (conversionAmount > 0) {
+          const taxInfoWithConv = computeTaxableIncomeWithSS({
+            otherIncome: otherIncome + conversionAmount,
+            ssBenefits: ssIncome,
+            taxExemptInterest: taxExemptNonSSI,
+            deductions,
+            filingStatus: client.filing_status,
+          });
+          const fedWithConv = calculateFederalTax({
+            taxableIncome: taxInfoWithConv.taxableIncome,
+            filingStatus: client.filing_status,
+            taxYear: year,
+          }).totalTax;
+          const stateWithConv = calculateStateTax({
+            taxableIncome: taxInfoWithConv.taxableIncome,
+            state: client.state,
+            filingStatus: client.filing_status,
+            overrideRate: stateTaxRateDecimal,
+          }).totalTax;
+
+          federalConversionTax = Math.max(0, fedWithConv - fedNoConv);
+          stateConversionTax = Math.max(0, stateWithConv - stateNoConv);
+          conversionTax = federalConversionTax + stateConversionTax;
+        }
       }
 
       if (boyIRA - conversionAmount <= 0) {
@@ -224,7 +245,7 @@ export function runFormulaScenario(
     }
 
     // Execute conversion. When payTaxFromIRA, the IRA funds both the
-    // conversion and its marginal tax.
+    // conversion and its marginal tax — together they equal totalIRAWithdrawal.
     const conversionTaxFromIRA = payTaxFromIRA ? (federalConversionTax + stateConversionTax) : 0;
     const iraAfterConversion = boyIRA - conversionAmount - conversionTaxFromIRA;
     const rothAfterConversion = boyRoth + conversionAmount;
@@ -233,10 +254,12 @@ export function runFormulaScenario(
     const iraInterest = Math.round(iraAfterConversion * growthRate);
     const rothInterest = Math.round(rothAfterConversion * growthRate);
 
-    // Final tax picture WITH the chosen conversion.
-    const taxInfoFinal = conversionAmount > 0
+    // Final tax picture. The IRS sees the full IRA distribution (conversion
+    // AND any tax withheld from the IRA), so we pass totalIRAWithdrawal —
+    // not just conversionAmount — when computing the year's taxable income.
+    const taxInfoFinal = totalIRAWithdrawal > 0
       ? computeTaxableIncomeWithSS({
-          otherIncome: otherIncome + conversionAmount,
+          otherIncome: otherIncome + totalIRAWithdrawal,
           ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI,
           deductions,
@@ -255,9 +278,12 @@ export function runFormulaScenario(
       overrideRate: stateTaxRateDecimal,
     });
 
-    // MAGI for IRMAA uses full SS (taxable + non-taxable portions).
-    const grossIncomeWithConversion = otherIncome + conversionAmount;
-    const magi = grossIncomeWithConversion + taxExemptNonSSI + ssIncome;
+    // MAGI for IRMAA uses full SS (taxable + non-taxable portions) plus all
+    // IRA distributions. When paying tax from the IRA, the tax withholding
+    // is part of that distribution, so we use totalIRAWithdrawal not just
+    // conversionAmount — otherwise IRMAA tiers would be under-triggered.
+    const grossIncomeWithWithdrawal = otherIncome + totalIRAWithdrawal;
+    const magi = grossIncomeWithWithdrawal + taxExemptNonSSI + ssIncome;
     incomeHistory.set(year, magi);
 
     let irmaaSurcharge = 0;
@@ -298,7 +324,7 @@ export function runFormulaScenario(
     const stateTaxOnOrdinaryAndSS = Math.max(0, stateResult.totalTax - stateConversionTax);
 
     const bracket = determineTaxBracket(taxInfoFinal.taxableIncome, client.filing_status, year);
-    const totalIncome = grossIncomeWithConversion + ssIncome;
+    const totalIncome = grossIncomeWithWithdrawal + ssIncome;
     const irmaaTier = getIRMAATier(magi, client.filing_status, year);
     const federalTaxBracket = getMarginalBracket(taxInfoFinal.taxableIncome, client.filing_status, year);
 
@@ -352,7 +378,7 @@ export function runFormulaScenario(
       stateTaxOnOrdinaryIncome: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
         ? Math.round(stateTaxOnOrdinaryAndSS * otherIncome / (otherIncome + taxInfoFinal.taxableSS))
         : stateTaxOnOrdinaryAndSS,
-      totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA,
+      totalIRAWithdrawal,
       taxesPaidFromIRA: conversionTaxFromIRA,
       earlyWithdrawalPenalty,
     });
