@@ -22,14 +22,16 @@ function calculateBreakEvenAge(
   for (let i = 0; i < baseline.length && i < formula.length; i++) {
     const b = baseline[i];
     const f = formula[i];
+    // See engine.ts for the rationale — taxable balance included signed so
+    // the conversion tax cost (negative taxable) isn't silently ignored.
     const baselineLegacy =
       Math.round(b.traditionalBalance * (1 - heirRate)) +
       b.rothBalance +
-      Math.max(0, b.taxableBalance || 0);
+      (b.taxableBalance || 0);
     const formulaLegacy =
       Math.round(f.traditionalBalance * (1 - heirRate)) +
       f.rothBalance +
-      Math.max(0, f.taxableBalance || 0);
+      (f.taxableBalance || 0);
     if (formulaLegacy > baselineLegacy) {
       return f.age;
     }

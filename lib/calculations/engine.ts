@@ -31,14 +31,18 @@ function calculateBreakEvenAge(
   for (let i = 0; i < baseline.length && i < formula.length; i++) {
     const b = baseline[i];
     const f = formula[i];
+    // Taxable balance is included at its SIGNED value — a negative balance
+    // represents conversion tax paid externally and is a real cost of the
+    // strategy. Clipping to zero hid that cost and produced implausibly
+    // large year-1 advantages on the breakeven chart.
     const baselineLegacy =
       Math.round(b.traditionalBalance * (1 - heirRate)) +
       b.rothBalance +
-      Math.max(0, b.taxableBalance || 0);
+      (b.taxableBalance || 0);
     const formulaLegacy =
       Math.round(f.traditionalBalance * (1 - heirRate)) +
       f.rothBalance +
-      Math.max(0, f.taxableBalance || 0);
+      (f.taxableBalance || 0);
     if (formulaLegacy > baselineLegacy) {
       return f.age;
     }

@@ -21,10 +21,13 @@ const DEFAULT_HEIR_TAX_RATE = 40;
  * transforms.ts, which is what the dashboard WealthChart draws.
  */
 function legacyToHeirs(year: YearlyResult, heirRate: number): number {
+  // Taxable balance included SIGNED — a negative balance is conversion tax
+  // paid from outside the IRA, a real cost that the strategy owes. Clipping
+  // it to zero used to make year-1 advantages look ~50% bigger than reality.
   return (
     Math.round(year.traditionalBalance * (1 - heirRate)) +
     year.rothBalance +
-    Math.max(0, year.taxableBalance || 0)
+    (year.taxableBalance || 0)
   );
 }
 

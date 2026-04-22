@@ -36,18 +36,24 @@ function isProjection(input: Projection | SimulationResult): input is Projection
  * Calculate "Legacy to Heirs" Trajectory for FORMULA scenario
  *
  * Shows what heirs ACTUALLY receive after taxes:
- * - Traditional IRA: taxed at heir rate (40%), so heirs get 60%
+ * - Traditional IRA: taxed at heir rate (default 40%), so heirs get 60%
  * - Roth IRA: 100% tax-free to heirs
- * - Cash/Taxable: passes through (if positive)
+ * - Taxable balance: included AT ITS SIGNED VALUE. When conversion taxes are
+ *   paid externally (from_taxable), this balance goes negative by the tax
+ *   amount — that's a real cost of the strategy that must be counted,
+ *   otherwise the strategy looks artificially ahead of baseline in the year
+ *   of the conversion.
  *
- * This creates dramatic visual disparity because Roth conversions move money
- * from 60%-to-heirs (Traditional) to 100%-to-heirs (Roth).
+ * Previously this used Math.max(0, taxableBalance), which hid the conversion
+ * tax cost and produced implausibly large year-1 advantages (~$280K on a
+ * $1M conversion). The fix surfaces the true economic tradeoff: strategy
+ * pays tax upfront, baseline pays it at inheritance.
  */
 function calculateFormulaLegacyToHeirs(years: YearlyResult[], heirTaxRate: number = 0.40): number[] {
   return years.map(year => {
     const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
     const rothToHeirs = year.rothBalance;
-    const cashToHeirs = Math.max(0, year.taxableBalance || 0);
+    const cashToHeirs = year.taxableBalance || 0;
     return traditionalToHeirs + rothToHeirs + cashToHeirs;
   });
 }
@@ -56,17 +62,18 @@ function calculateFormulaLegacyToHeirs(years: YearlyResult[], heirTaxRate: numbe
  * Calculate "Legacy to Heirs" Trajectory for BASELINE scenario
  *
  * Shows what heirs would receive if client does nothing:
- * - Traditional IRA: taxed at 40% heir rate, so heirs get 60%
+ * - Traditional IRA: taxed at heir_tax_rate (default 40%)
  * - Roth IRA: 100% tax-free (usually $0 in baseline)
- * - Cash/Taxable: passes through (RMD proceeds minus taxes)
- *
- * This line is LOWER because Traditional IRA gets 40% haircut.
+ * - Taxable balance: signed (negative would only happen if the client owes
+ *   tax on RMDs beyond what RMD proceeds cover — rare but possible, and
+ *   treating it consistently with the formula side keeps the comparison
+ *   symmetric).
  */
 function calculateBaselineLegacyToHeirs(years: YearlyResult[], heirTaxRate: number = 0.40): number[] {
   return years.map(year => {
     const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
     const rothToHeirs = year.rothBalance;
-    const cashToHeirs = Math.max(0, year.taxableBalance || 0);
+    const cashToHeirs = year.taxableBalance || 0;
     return traditionalToHeirs + rothToHeirs + cashToHeirs;
   });
 }
@@ -109,16 +116,17 @@ function calculateGIFormulaLifetimeWealth(
       }
     }
 
-    // Legacy calculation depends on phase
+    // Legacy calculation depends on phase. Taxable balance is signed —
+    // negative reflects conversion tax paid externally and is a real cost.
     let netLegacy = 0;
     if (giYear && (giYear.phase === 'conversion' || giYear.phase === 'purchase')) {
       // Before GI purchase: Track Traditional + Roth + Taxable
       netLegacy = Math.round(giYear.traditionalBalance * (1 - heirTaxRate))
                 + giYear.rothBalance
-                + Math.max(0, year.taxableBalance || 0);
+                + (year.taxableBalance || 0);
     } else if (giYear && (giYear.phase === 'deferral' || giYear.phase === 'income')) {
       // After GI purchase: Account value (in Roth, so no heir tax) + Taxable
-      netLegacy = giYear.accountValue + Math.max(0, year.taxableBalance || 0);
+      netLegacy = giYear.accountValue + (year.taxableBalance || 0);
     } else {
       // Fallback
       netLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + year.rothBalance;

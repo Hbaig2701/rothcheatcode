@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 34; // v34: Breakeven age now uses legacy-to-heirs (heir-tax-adjusted) wealth instead of gross netWorth. Previously the summary stat card and the Advanced Features tab said "No breakeven in projection" for most Roth conversion clients — gross netWorth never crosses because the upfront conversion tax is permanently below baseline — while the dashboard WealthChart correctly showed a crossover because it uses legacy-to-heirs. All three now agree. Invalidate cache so existing projections regenerate with the corrected break_even_age.
+const PRODUCT_CONFIG_VERSION = 35; // v35: Legacy-to-heirs calculation now includes taxable balance at its SIGNED value instead of clipping negative values to 0. Previously, conversion taxes paid from outside the IRA (which drive taxableBalance negative) were silently ignored, making the strategy appear ahead of baseline by ~50% more than reality in the year of conversion. Advisor reported "how could breakeven possibly be in year 1" — now the chart reflects the true economic tradeoff (tax paid now vs heir tax later). Invalidate cache.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
