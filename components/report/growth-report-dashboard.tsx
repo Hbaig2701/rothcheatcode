@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ReactNode, useEffect } from "react";
+import { useState, ReactNode } from "react";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
 import type { YearlyResult } from "@/lib/calculations";
@@ -37,35 +37,31 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const [productDetailsOpen, setProductDetailsOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
 
+  // Column preferences are SHARED across the Strategy / Baseline / Comparison
+  // table views — advisors expect the columns they configure on one view to
+  // stay consistent when they toggle to another. Storage key is per-client
+  // so each client keeps its own selection and widths.
+  const columnStorageKey = `growth-report-${client.id}`;
+
   // Column customization state with SSR safety
   const [selectedColumns, setSelectedColumns] = useState<string[]>(() => {
     if (typeof window === 'undefined') return getDefaultColumns("growth");
-    const saved = loadColumnPreferences(`report-${tableView}`);
+    const saved = loadColumnPreferences(columnStorageKey);
     return saved?.selectedColumns || getDefaultColumns("growth");
   });
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window === 'undefined') return {};
-    const saved = loadColumnPreferences(`report-${tableView}`);
+    const saved = loadColumnPreferences(columnStorageKey);
     return saved?.columnWidths || {};
   });
 
-  // Update selected columns when switching table views
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const saved = loadColumnPreferences(`report-${tableView}`);
-    if (saved?.selectedColumns) {
-      setSelectedColumns(saved.selectedColumns);
-      setColumnWidths(saved.columnWidths || {});
-    } else {
-      setSelectedColumns(getDefaultColumns("growth"));
-      setColumnWidths({});
-    }
-  }, [tableView]);
+  // (No useEffect-on-tableView — column state persists as the user switches
+  // views, matching advisor expectation that selection is global to the client.)
 
   const handleSaveColumns = (columns: string[]) => {
     setSelectedColumns(columns);
-    saveColumnPreferences(`report-${tableView}`, {
+    saveColumnPreferences(columnStorageKey, {
       selectedColumns: columns,
       columnWidths,
       lastUpdated: new Date().toISOString(),
@@ -75,7 +71,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const handleWidthChange = (columnId: string, width: number) => {
     const newWidths = { ...columnWidths, [columnId]: width };
     setColumnWidths(newWidths);
-    saveColumnPreferences(`report-${tableView}`, {
+    saveColumnPreferences(columnStorageKey, {
       selectedColumns,
       columnWidths: newWidths,
       lastUpdated: new Date().toISOString(),
