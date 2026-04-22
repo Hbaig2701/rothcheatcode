@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 32; // v32: CRITICAL — internal tax payment (pay tax from IRA) now uses a self-consistent gross-up. The old formula treated the conversion alone as the taxable distribution, so the tax withheld from the IRA (which is also reported on the 1099-R) was invisible to the bracket / MAGI / taxable-income math. Clients doing internal payment were understating tax owed by ~15-20% in bracket-filling years. Invalidate all cached projections.
+const PRODUCT_CONFIG_VERSION = 33; // v33: Follow-up to v32 tax-on-tax fix. The IRMAA threshold constraint now accounts for tax-from-IRA when capping total withdrawal for internal-payment + optimized clients; previously the cap only saw the conversion portion and let MAGI spill into the next IRMAA tier. Narrow fix but invalidate cache so affected projections regenerate.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {

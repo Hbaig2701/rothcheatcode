@@ -309,7 +309,42 @@ export function runGrowthFormulaScenario(
         if (Number.isFinite(irmaaHeadroom) && irmaaHeadroom > 0) {
           // Leave 1-cent buffer since IRMAA uses cliff thresholds.
           const irmaaCap = Math.max(0, irmaaHeadroom - 1);
-          conversionAmount = Math.min(conversionAmount, irmaaCap);
+
+          // For internal tax + optimized_amount: MAGI is increased by the FULL
+          // IRA withdrawal (conversion + tax withheld), not just the conversion.
+          // The headroom therefore bounds the TOTAL withdrawal, not the
+          // conversion alone. If the planner's total withdrawal exceeds the
+          // IRMAA cap, re-plan with the IRMAA cap as the effective IRA ceiling
+          // — this lets the planner find a self-consistent (conv, tax) split
+          // that respects both the bracket ceiling AND the IRMAA tier.
+          //
+          // For all other paths (external tax, or internal with full/fixed
+          // conversion types), the subsequent tax recompute block rebuilds
+          // fed/state tax against the capped conversion, so just capping
+          // conversionAmount directly stays self-consistent.
+          const usesPlan = payTaxFromIRA && skipGrossDown && conversionType === 'optimized_amount';
+          if (usesPlan) {
+            const currentTotal = conversionAmount + federalTax + stateTax;
+            if (currentTotal > irmaaCap) {
+              const cappedPlan = calculateSSAwareIRAWithdrawalPlan({
+                iraBalance: Math.min(iraAfterRmd, irmaaCap),
+                otherIncome: existingNonSSIncome,
+                ssBenefits: ssIncome,
+                taxExemptInterest: taxExemptNonSSI,
+                deductions,
+                maxBracketRate: maxTaxRate,
+                filingStatus: client.filing_status,
+                taxYear: year,
+                state: client.state ?? 'CA',
+                stateTaxRateDecimal,
+              });
+              conversionAmount = cappedPlan.conversion;
+              federalTax = cappedPlan.federalTaxFromIRA;
+              stateTax = cappedPlan.stateTaxFromIRA;
+            }
+          } else {
+            conversionAmount = Math.min(conversionAmount, irmaaCap);
+          }
         }
       }
 
