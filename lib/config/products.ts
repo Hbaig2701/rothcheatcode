@@ -1,7 +1,7 @@
 // Product preset configuration for Product Preset dropdown
 // This file ONLY defines UI presets - it does NOT modify any calculation formulas
 
-export type GrowthFormulaType = 'fia' | 'short-term-cap-growth' | 'phased-bonus-growth' | 'vesting-bonus-growth' | 'high-bonus-long-term-growth';
+export type GrowthFormulaType = 'fia' | 'short-term-cap-growth' | 'phased-bonus-growth' | 'vesting-bonus-growth' | 'high-bonus-long-term-growth' | 'high-bonus-medium-term-growth';
 
 export type GuaranteedIncomeFormulaType =
   | 'simple-rollup-income'
@@ -123,6 +123,24 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
       bonus: 22,
       surrenderYears: 15,
       surrenderSchedule: [15, 14, 14, 13, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 0],
+      penaltyFreePercent: 10,
+      rateOfReturn: 7,
+      riderFee: 0.95,
+    },
+  },
+
+  'high-bonus-medium-term-growth': {
+    id: 'high-bonus-medium-term-growth',
+    label: 'High-Bonus Medium-Term Growth',
+    category: 'Growth',
+    description: '20% premium bonus, 10-year surrender, 0.95% annual rider fee',
+    lockedFields: ['carrierName', 'productName', 'bonus', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
+    defaults: {
+      carrierName: 'Insurance Carrier',
+      productName: 'High-Bonus Medium-Term Growth',
+      bonus: 20,
+      surrenderYears: 10,
+      surrenderSchedule: [12, 12, 12, 11, 10, 9, 8, 7, 6, 4],
       penaltyFreePercent: 10,
       rateOfReturn: 7,
       riderFee: 0.95,
