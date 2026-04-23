@@ -122,6 +122,16 @@ export function analyzeBreakEven(
     ? taxPaybackData[taxPaybackData.length - 1].savings
     : 0;
 
+  // Peak strategy deficit = max amount strategy was "behind" baseline on
+  // cumulative tax during the projection. This is the upfront tax cost the
+  // strategy needs to earn back. We compare netBenefit to this in the UI to
+  // distinguish meaningful payback (savings >> deficit fraction) from
+  // marginal/coincidental crossover (savings tiny relative to deficit).
+  const peakStrategyDeficit = taxPaybackData.reduce((max, p) => {
+    const deficit = p.strategyCumulativeTax - p.baselineCumulativeTax;
+    return deficit > max ? deficit : max;
+  }, 0);
+
   // Heir tax savings = one-time tax avoided on the Traditional IRA balance
   // that the strategy converted to Roth (Roth passes tax-free, Traditional
   // gets hit at heir_tax_rate). Surfaced separately because it's a single
@@ -144,5 +154,6 @@ export function analyzeBreakEven(
     heirTaxSavings,
     crossoverPoints,
     taxPaybackData,
+    peakStrategyDeficit,
   };
 }

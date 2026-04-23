@@ -88,6 +88,7 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
     netBenefit,
     heirTaxSavings,
     taxPaybackData,
+    peakStrategyDeficit,
   } = analysis;
 
   // Map the analysis points into chart-ready rows. Recharts wants flat
@@ -104,14 +105,41 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
   });
   const totalIncludingHeir = netBenefit + heirTaxSavings;
 
+  // Detect "marginal payback" — when cumulative tax curves cross technically
+  // but the lifetime savings is trivial relative to the upfront conversion
+  // tax cost. Common cause: client is in the same federal bracket during
+  // conversion years and RMD years, so there's no real bracket arbitrage
+  // and the strategy just shifts when the IRS gets the same dollars. The
+  // chart used to call this "Payback Age: 85" with +$630 savings, which
+  // misled advisors into thinking the strategy paid back via tax savings —
+  // it didn't. The real value for these clients is heir tax avoidance and
+  // tax-free Roth growth, which we surface separately.
+  // Threshold: savings must exceed max($5K, 10% of upfront deficit). $5K
+  // catches absolute trivial cases; 10% catches "I paid $300K upfront and
+  // saved $20K — that's not payback" cases.
+  const lastAge = data.length > 0 ? data[data.length - 1].age : null;
+  const meaningfulSavingsThreshold = Math.max(500_000, peakStrategyDeficit * 0.10);
+  const isMarginalPayback =
+    simpleBreakEven !== null
+    && netBenefit < meaningfulSavingsThreshold
+    && peakStrategyDeficit > 0;
+  const isLatePayback =
+    simpleBreakEven !== null && lastAge !== null
+    && simpleBreakEven >= lastAge - 2;
+
   return (
     <div className="space-y-2">
       {/* Summary stats */}
       <div className="flex flex-wrap gap-4 text-sm mb-4">
-        {simpleBreakEven ? (
+        {simpleBreakEven && !isMarginalPayback ? (
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Tax Payback Age:</span>
             <span className="font-medium">{simpleBreakEven}</span>
+          </div>
+        ) : isMarginalPayback ? (
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground">Tax Payback:</span>
+            <span className="font-medium text-amber-600">Marginal — no meaningful tax arbitrage</span>
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -189,8 +217,11 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
               activeDot={{ r: 6 }}
             />
 
-            {/* Payback age marker */}
-            {sustainedBreakEven && (
+            {/* Payback age marker — suppressed when payback is marginal so
+                we don't visually claim a meaningful breakeven the data doesn't
+                actually support (e.g., +$630 savings labeled "Payback Age 85"
+                misleads advisors into thinking annual tax arbitrage worked). */}
+            {sustainedBreakEven && !isMarginalPayback && (
               <ReferenceLine
                 x={sustainedBreakEven}
                 stroke="#F5B800"
@@ -206,8 +237,10 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
               />
             )}
 
-            {/* Shade the region after payback to emphasize "savings phase" */}
-            {sustainedBreakEven && data.length > 0 && (
+            {/* Shade the region after payback to emphasize "savings phase" —
+                also suppressed when marginal, since there's no real savings
+                phase to highlight. */}
+            {sustainedBreakEven && !isMarginalPayback && data.length > 0 && (
               <ReferenceArea
                 x1={sustainedBreakEven}
                 x2={data[data.length - 1].age}
@@ -224,11 +257,25 @@ export function BreakevenChart({ analysis }: BreakevenChartProps) {
         The <span className="text-[#F5B800]">Strategy</span> line jumps up front (conversion tax paid
         in the first few years), then grows slowly. The <span className="text-red-500">Baseline</span>{' '}
         line grows steadily as RMDs are taxed every year.{' '}
-        {sustainedBreakEven ? (
+        {isMarginalPayback ? (
+          <>
+            For this client, the strategy&apos;s cumulative tax barely meets the baseline by the end of
+            the projection — only {fmt(netBenefit)} of lifetime annual-tax savings on roughly{' '}
+            {fmt(peakStrategyDeficit)} of upfront conversion tax. This typically means the client is
+            in the <strong>same federal bracket</strong> during conversion years and RMD years, so the
+            strategy doesn&apos;t exploit any bracket arbitrage. The strategy&apos;s real value here is
+            the heir tax avoidance ({fmt(heirTaxSavings)}) and tax-free Roth growth, not annual tax
+            savings — see the Legacy to Heirs chart on the dashboard.
+          </>
+        ) : sustainedBreakEven ? (
           <>
             They cross at the payback age, when the strategy&apos;s cumulative tax matches the
             baseline&apos;s — that&apos;s when the upfront tax cost has been fully repaid through annual
-            savings.
+            savings.{isLatePayback && (
+              <> Note: payback occurs near the end of the projection window, so the savings phase
+              is short — the strategy&apos;s primary value here may be heir tax avoidance and Roth
+              growth rather than annual tax arbitrage.</>
+            )}
           </>
         ) : (
           <>

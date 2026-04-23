@@ -53,6 +53,14 @@ export interface BreakEvenAnalysis {
   heirTaxSavings: number;             // One-time savings from less Traditional IRA passing to heirs (cents)
   crossoverPoints: CrossoverPoint[];  // All crossover events (rare — usually just one)
   taxPaybackData: TaxPaybackPoint[];  // Per-year cumulative tax for chart plotting
+  // Peak deficit = maximum (strategy_cum_tax − baseline_cum_tax) across the
+  // projection. Represents how much "extra" tax the strategy paid upfront
+  // vs the baseline — i.e., the amount that needs to be earned back through
+  // later annual savings. Used to detect "marginal payback" cases where the
+  // strategy technically crosses but the savings is trivial relative to the
+  // upfront cost (e.g., client in same bracket during conversion and RMD
+  // years has near-zero tax arbitrage). Cents.
+  peakStrategyDeficit: number;
 }
 
 // ============================================================
