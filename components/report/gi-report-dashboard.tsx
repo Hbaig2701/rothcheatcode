@@ -662,8 +662,10 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
           )}
         </div>
 
-        {/* Section 9: Advanced Analysis */}
-        <AdvancedFeaturesSection client={client} chartData={chartData} />
+        {/* Section 9: Advanced Analysis — Hidden for now per product call.
+            Bring back by removing the `false &&` once the Breakeven framing
+            is finalized. */}
+        {false && <AdvancedFeaturesSection client={client} chartData={chartData} />}
 
         {/* Section 10: Disclaimer */}
         <p className="text-sm text-text-dim italic text-center max-w-[800px] mx-auto py-6">

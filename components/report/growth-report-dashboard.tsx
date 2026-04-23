@@ -621,8 +621,10 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           productType="growth"
         />
 
-        {/* Section 7: Advanced Analysis (Widow's Penalty, Breakeven, Audit) */}
-        <AdvancedFeaturesSection client={client} chartData={chartData} />
+        {/* Section 7: Advanced Analysis (Widow's Penalty, Breakeven, Audit)
+            — Hidden for now per product call. Bring back by removing the
+            `false &&` once the Breakeven framing is finalized. */}
+        {false && <AdvancedFeaturesSection client={client} chartData={chartData} />}
 
         {/* Section 8: Disclaimer */}
         <p className="text-sm text-text-dim italic text-center max-w-[900px] mx-auto py-6">
