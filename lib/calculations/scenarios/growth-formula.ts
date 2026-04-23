@@ -528,13 +528,30 @@ export function runGrowthFormulaScenario(
       taxableBalance = boyTaxable + rmdAmount - taxFromTaxableAccount;
     }
 
-    // Product bonus applied this year (anniversary bonus if within bonus years)
-    const productBonusApplied = anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears
+    // Product bonus applied this year. Two sources:
+    //  1. Upfront premium bonus (year 0 only) — bonus_percent × initial deposit.
+    //     Already baked into the starting iraBalance above (initialValue × (1 + bonus_percent)),
+    //     but we surface it here so the year-by-year "Product Bonus" column shows
+    //     the bonus the carrier actually credited in year 0. Without this, products
+    //     with a one-time premium bonus (e.g., Vesting Bonus Growth, 14% upfront)
+    //     showed $0 in every year of the table even though the bonus was applied,
+    //     making advisors think the bonus wasn't being honored.
+    //  2. Anniversary bonus (years 1..anniversaryBonusYears) — applied to the
+    //     post-conversion + post-interest IRA balance per the contract.
+    const upfrontBonusThisYear = yearOffset === 0
+      ? Math.round(initialValue * bonusPercent / 100)
+      : 0;
+    const anniversaryBonusThisYear = anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears
       ? Math.round((iraAfterConversion + iraInterest) * anniversaryBonusPercent)
       : 0;
+    const productBonusApplied = upfrontBonusThisYear + anniversaryBonusThisYear;
 
-    // Calculate display growth/interest for each account
-    const traditionalGrowth = iraInterest + productBonusApplied;
+    // Calculate display growth/interest for each account.
+    // traditionalGrowth excludes the upfront premium bonus — that bonus is
+    // applied at issue (it's already in the starting iraBalance), not earned
+    // as growth during year 0. It's surfaced in productBonusApplied for the
+    // bonus column. Only anniversary bonuses count as in-year growth credits.
+    const traditionalGrowth = iraInterest + anniversaryBonusThisYear;
     const rothGrowth = rothInterest;
     const taxableGrowth = 0; // No growth on taxable (just pays taxes)
 

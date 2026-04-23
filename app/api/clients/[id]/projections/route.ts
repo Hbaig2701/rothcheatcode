@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 36; // v36: Breakeven redefined as TAX PAYBACK — the age at which the strategy's cumulative tax paid drops below the baseline's. Previously used legacy-to-heirs, which produced breakeven in year 1 for most clients (tax-rate arbitrage) and confused every advisor. Tax payback is what advisors mean by "when does this investment pay off." The Advanced Analysis chart now plots cumulative tax paid by each scenario; they cross at the payback age. Invalidate cache so all existing projections regenerate with the new break_even_age semantics.
+const PRODUCT_CONFIG_VERSION = 37; // v37: Growth FIA productBonusApplied now surfaces the upfront premium bonus in year 0 (e.g., $140K for a 14% bonus on $1M). Previously the column only tracked anniversary bonuses, so any product with a one-time premium bonus showed $0 across all years even though the bonus was applied to the starting balance. Existing cached projections need to regenerate so the year-by-year Product Bonus column shows the correct amount.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {

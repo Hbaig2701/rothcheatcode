@@ -567,7 +567,7 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     id: 'productBonusApplied',
     label: 'Product Bonus',
     category: 'product',
-    description: 'Product bonus credited by the insurance carrier. For Growth FIA, applied annually during the bonus period (typically years 1-3). For Guaranteed Income, applied once at purchase to the income base and/or account value.',
+    description: 'Product bonus credited by the insurance carrier. For Growth FIA: shows the upfront premium bonus in year 1 (e.g., 14% × initial deposit) and any anniversary bonuses in years 1–3 if the contract has them. For Guaranteed Income, applied once at purchase to the income base and/or account value.',
     formatter: formatCurrency,
     defaultVisible: false,
     visibleForProducts: ['all'],
