@@ -802,8 +802,12 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       return projection.blueprint_years.map((year: any) => {
         const baseYear = projection.baseline_years.find((y: any) => y.year === year.year);
         if (!baseYear) return null;
-        const baseLegacy = Math.round(baseYear.traditionalBalance * (1 - heirTaxRate)) + (baseYear.rothBalance || 0);
-        const stratLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + (year.rothBalance || 0);
+        // Include signed taxableBalance so legacy reconciles with the dashboard
+        // "Legacy to Heirs" stat card. When conversion tax is paid externally,
+        // taxableBalance goes negative and is a real cost; omitting it inflated
+        // strategy legacy by the conversion-tax amount.
+        const baseLegacy = Math.round(baseYear.traditionalBalance * (1 - heirTaxRate)) + (baseYear.rothBalance || 0) + (baseYear.taxableBalance || 0);
+        const stratLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + (year.rothBalance || 0) + (year.taxableBalance || 0);
         const diff = stratLegacy - baseLegacy;
         return {
           year: year.year,

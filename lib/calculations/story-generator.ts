@@ -69,7 +69,6 @@ export function generateStory(
   // Tracking variables
   let totalConverted = 0;
   let totalTaxPaid = 0;
-  let hasHitBreakEven = false;
   let hasExceededOriginal = false;
   let hasHitHalfway = false;
   let hasFullyConverted = false;
@@ -227,15 +226,21 @@ export function generateStory(
       });
     }
 
-    // BREAK-EVEN (Roth balance exceeds total taxes paid)
-    if (!hasHitBreakEven && year.rothBalance >= totalTaxPaid && totalTaxPaid > 0) {
-      hasHitBreakEven = true;
+    // BREAK-EVEN — fires at projection.break_even_age, the same tax-payback
+    // age computed by the engine and shown on the Advanced Analysis chart.
+    // Definition: first year where strategy cumulative totalTax ≤ baseline
+    // cumulative totalTax. Using the engine's value here keeps story, the
+    // Advanced Analysis breakeven, and any other "breakeven" surface in the
+    // report aligned to the dollar/year. (Previously this fired on a local
+    // condition, year.rothBalance >= totalTaxPaid, which gave a different
+    // age and confused advisors comparing the two views.)
+    if (projection.break_even_age != null && year.age === projection.break_even_age) {
       storyEntries.push({
         year: year.year,
         age: year.age,
         trigger: 'break_even',
-        headline: 'Break-Even Reached',
-        body: `Your Roth balance of ${formatCurrency(year.rothBalance)} now exceeds the total taxes you paid to convert (${formatCurrency(totalTaxPaid)}). From here on, every dollar of growth is pure tax-free gain.`,
+        headline: 'Tax Payback Reached',
+        body: `At age ${year.age}, the strategy has fully recovered the upfront conversion tax through annual tax savings. From here on, you pay less in taxes every year than you would by doing nothing.`,
         runningTotals: {
           totalConverted: formatCurrency(totalConverted),
           totalTaxPaid: formatCurrency(totalTaxPaid),
@@ -364,11 +369,20 @@ export function generateStory(
   });
 
   // FINAL: DEATH/LEGACY SUMMARY
+  // Both sides use projection.*_final_net_worth − heirTax(traditional). This
+  // is the same formula the results-page "Legacy to Heirs" stat card uses, so
+  // the two views reconcile to the dollar. final_net_worth includes the
+  // (signed) taxable balance — when conversion tax is paid externally, that
+  // balance is negative and represents real cost to the strategy. Earlier
+  // versions summed roth + traditional only and missed that cost, producing
+  // numbers $200K+ higher than the dashboard for clients paying tax from
+  // taxable accounts.
   const finalYear = years[years.length - 1];
   const baseFinalTraditional = projection.baseline_final_traditional;
   const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
   const baselineNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
-  const strategyLegacy = finalYear.rothBalance + finalYear.traditionalBalance;
+  const strategyHeirTax = Math.round(finalYear.traditionalBalance * heirTaxRate);
+  const strategyLegacy = projection.blueprint_final_net_worth - strategyHeirTax;
   const difference = strategyLegacy - baselineNetLegacy;
 
   storyEntries.push({
@@ -376,7 +390,7 @@ export function generateStory(
     age: finalYear.age,
     trigger: 'death_legacy',
     headline: 'What Your Heirs Receive',
-    body: `When you pass, your heirs receive ${formatCurrency(finalYear.rothBalance)} from your Roth IRA completely tax-free. No income tax, no waiting, no complications.`,
+    body: `When you pass, your heirs receive ${formatCurrency(strategyLegacy)} — your Roth IRA passes completely tax-free, with no income tax, no waiting, no complications.`,
     comparison: `Without this strategy, heirs would receive approximately ${formatCurrency(baselineNetLegacy)} after paying ${formatCurrency(baseHeirTax)} in taxes on the inherited Traditional IRA.`,
     metrics: [
       { label: 'Strategy: To Heirs', value: formatCurrency(strategyLegacy) },
