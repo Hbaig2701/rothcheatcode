@@ -158,7 +158,7 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
       )}
 
       {/* Sticky Toolbar */}
-      <div className="sticky top-0 z-50 px-8 py-3 flex justify-between items-center bg-[rgba(12,12,12,0.95)] backdrop-blur-xl border-b border-border-default">
+      <div className="sticky top-0 z-50 px-8 py-3 flex justify-between items-center bg-background/95 backdrop-blur-xl border-b border-border-default">
         <div className="flex items-center gap-4">
           <button
             onClick={onExit}

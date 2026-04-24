@@ -64,7 +64,7 @@ export function AnnotationToolbar({
   const [colorOpen, setColorOpen] = useState(false);
 
   return (
-    <div className="sticky top-0 z-[60] flex items-center gap-1.5 bg-[#1A1A1A] border-b border-[#2A2A2A] px-4 py-2.5 rounded-t-lg">
+    <div className="sticky top-0 z-[60] flex items-center gap-1.5 bg-[#1A1A1A] border-b border-border-default px-4 py-2.5 rounded-t-lg">
       {/* Tool buttons */}
       <div className="flex items-center gap-1">
         {TOOLS.map((tool) => {
@@ -105,7 +105,7 @@ export function AnnotationToolbar({
         </button>
 
         {colorOpen && (
-          <div className="absolute top-full left-0 mt-1 grid grid-cols-4 gap-1.5 p-2.5 bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg shadow-xl z-[70]">
+          <div className="absolute top-full left-0 mt-1 grid grid-cols-4 gap-1.5 p-2.5 bg-[#1A1A1A] border border-border-default rounded-lg shadow-xl z-[70]">
             {COLORS.map((c) => (
               <button
                 key={c.id}

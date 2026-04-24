@@ -202,14 +202,14 @@ export function InputSidebar({ client }: InputSidebarProps) {
     };
 
     return (
-        <div className="flex flex-col h-full bg-surface border-r border-[#2A2A2A] text-foreground">
+        <div className="flex flex-col h-full bg-surface border-r border-border-default text-foreground">
             {/* Sidebar Header */}
-            <div className="p-4 border-b border-[#2A2A2A] bg-[#0A0A0A] shrink-0 space-y-2">
+            <div className="p-4 border-b border-border-default bg-[#0A0A0A] shrink-0 space-y-2">
                 <h2 className="text-xs font-bold text-[#F5B800] uppercase tracking-widest">Inputs</h2>
                 <select
                     value={formulaType}
                     onChange={handleFormulaTypeChange}
-                    className="w-full bg-surface border border-[#2A2A2A] text-xs h-8 rounded px-3 text-foreground focus:ring-1 focus:ring-[#F5B800] outline-none"
+                    className="w-full bg-surface border border-border-default text-xs h-8 rounded px-3 text-foreground focus:ring-1 focus:ring-[#F5B800] outline-none"
                 >
                     <optgroup label="Growth">
                         {Object.values(GROWTH_PRODUCTS).map((product) => (
@@ -251,7 +251,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
                             "[&_[data-slot=select-trigger]]:bg-[#1A1A1A] [&_[data-slot=select-trigger]]:border-[#3A3A3A] [&_[data-slot=select-trigger]]:h-8 [&_[data-slot=select-trigger]]:text-xs [&_[data-slot=select-trigger]]:text-foreground [&_[data-slot=select-trigger]]:w-full",
 
                             // Headers
-                            "[&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-[#F5B800] [&_h3]:border-b [&_h3]:border-[#2A2A2A] [&_h3]:pb-1 [&_h3]:mb-3",
+                            "[&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-[#F5B800] [&_h3]:border-b [&_h3]:border-border-default [&_h3]:pb-1 [&_h3]:mb-3",
 
                             // Description text
                             "[&_p]:text-xs [&_p]:text-[#6B6B6B]"
@@ -270,7 +270,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-[#2A2A2A] bg-[#0A0A0A] shrink-0">
+            <div className="p-4 border-t border-border-default bg-[#0A0A0A] shrink-0">
                 <Button
                     onClick={form.handleSubmit(onSubmit)}
                     className="w-full bg-[#F5B800] hover:bg-[#DEAD00] text-black font-bold h-9 uppercase text-xs tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(245,184,0,0.3)] transition-all"

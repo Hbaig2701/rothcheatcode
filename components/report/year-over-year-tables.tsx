@@ -226,7 +226,7 @@ export function YearOverYearTables({
   const renderHeaderCell = (label: string, align: "left" | "right" = "right") => (
     <th
       className={cn(
-        "px-4 py-3 text-xs font-medium text-[#A0A0A0] border-b border-[#2A2A2A] sticky top-0 bg-[#1F1F1F] z-10",
+        "px-4 py-3 text-xs font-medium text-[#A0A0A0] border-b border-border-default sticky top-0 bg-[#1F1F1F] z-10",
         align === "left" ? "text-left" : "text-right"
       )}
     >
@@ -526,9 +526,9 @@ export function YearOverYearTables({
   const visibleTabs = TABS.filter((tab) => tab.showAlways || scenario === "formula");
 
   return (
-    <div className="bg-surface rounded-lg border border-[#2A2A2A] overflow-hidden">
+    <div className="bg-surface rounded-lg border border-border-default overflow-hidden">
       {/* Header */}
-      <div className="px-6 py-4 border-b border-[#2A2A2A]">
+      <div className="px-6 py-4 border-b border-border-default">
         <h3 className="text-lg font-semibold text-foreground mb-3">Year-over-Year Values</h3>
 
         {/* Scenario Toggle */}
@@ -540,7 +540,7 @@ export function YearOverYearTables({
               value="baseline"
               checked={scenario === "baseline"}
               onChange={() => setScenario("baseline")}
-              className="w-4 h-4 text-[#F5B800] bg-[#1F1F1F] border-[#2A2A2A] focus:ring-[#F5B800]"
+              className="w-4 h-4 text-[#F5B800] bg-[#1F1F1F] border-border-default focus:ring-[#F5B800]"
             />
             <span
               className={cn(
@@ -558,7 +558,7 @@ export function YearOverYearTables({
               value="formula"
               checked={scenario === "formula"}
               onChange={() => setScenario("formula")}
-              className="w-4 h-4 text-[#F5B800] bg-[#1F1F1F] border-[#2A2A2A] focus:ring-[#F5B800]"
+              className="w-4 h-4 text-[#F5B800] bg-[#1F1F1F] border-border-default focus:ring-[#F5B800]"
             />
             <span
               className={cn(
@@ -576,7 +576,7 @@ export function YearOverYearTables({
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-[#2A2A2A] bg-surface">
+      <div className="flex border-b border-border-default bg-surface">
         {visibleTabs.map((tab) => (
           <button
             key={tab.id}
@@ -597,7 +597,7 @@ export function YearOverYearTables({
       <div className="overflow-x-auto max-h-[600px] overflow-y-auto">{renderTable()}</div>
 
       {/* Footer Disclaimer */}
-      <div className="px-6 py-4 border-t border-[#2A2A2A] bg-surface">
+      <div className="px-6 py-4 border-t border-border-default bg-surface">
         <p className="text-xs text-[#6B6B6B] italic">
           This optimized plan is for educational purposes only. Before making a Roth conversion,
           discuss your final plan with a tax professional.

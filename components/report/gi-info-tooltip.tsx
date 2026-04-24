@@ -83,7 +83,7 @@ export function InfoTooltip({
       {isOpen && (
         <div
           ref={tooltipRef}
-          className="absolute z-50 top-full right-0 mt-2 w-[360px] max-w-[90vw] bg-[rgba(12,12,12,0.98)] border border-border-default rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-in fade-in-0 zoom-in-95 duration-150"
+          className="absolute z-50 top-full right-0 mt-2 w-[360px] max-w-[90vw] bg-popover text-popover-foreground border border-border-default rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] animate-in fade-in-0 zoom-in-95 duration-150"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-border-default">

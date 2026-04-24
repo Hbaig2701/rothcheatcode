@@ -36,7 +36,7 @@ function TaxPaybackTooltip({ active, payload, label }: TaxTooltipProps) {
   const savings = (baseline?.value ?? 0) - (strategy?.value ?? 0);
 
   return (
-    <div className="rounded-lg border border-[#2A2A2A] bg-surface/95 p-3 shadow-xl backdrop-blur-sm">
+    <div className="rounded-lg border border-border-default bg-surface/95 p-3 shadow-xl backdrop-blur-sm">
       <p className="font-semibold text-foreground mb-2">Age {label}</p>
       <div className="space-y-1.5 text-sm">
         <div className="flex justify-between gap-6">
@@ -53,7 +53,7 @@ function TaxPaybackTooltip({ active, payload, label }: TaxTooltipProps) {
           </span>
           <span className="font-mono text-foreground">{formatCurrency(baseline?.value ?? 0)}</span>
         </div>
-        <div className="border-t border-[#2A2A2A] pt-2 mt-2">
+        <div className="border-t border-border-default pt-2 mt-2">
           <div className="flex justify-between gap-6">
             <span className="text-[#A0A0A0]">Savings to date:</span>
             <span className={cn(

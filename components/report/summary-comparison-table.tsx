@@ -84,8 +84,8 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     ];
 
     return (
-        <div className="w-full bg-surface rounded-sm border border-[#2A2A2A] text-xs">
-            <div className="grid grid-cols-4 bg-surface border-b border-[#2A2A2A] p-2 font-bold text-[#A0A0A0] uppercase tracking-wider">
+        <div className="w-full bg-surface rounded-sm border border-border-default text-xs">
+            <div className="grid grid-cols-4 bg-surface border-b border-border-default p-2 font-bold text-[#A0A0A0] uppercase tracking-wider">
                 <div>Metric</div>
                 <div className="text-right">Baseline Trajectory</div>
                 <div className="text-right text-[#F5B800]">Formula Trajectory</div>

@@ -24,7 +24,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Panel 1: Guaranteed Income Overview */}
-                <div className="bg-surface border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+                <div className="bg-surface border border-border-default rounded-lg p-4 space-y-3">
                     <h4 className="text-xs font-bold text-[#F5B800] uppercase tracking-wider">
                         Income Overview
                     </h4>
@@ -81,7 +81,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                             </span>
                         </div>
                         {projection.gi_depletion_age && (
-                            <div className="flex justify-between items-center pt-1 border-t border-[#2A2A2A]">
+                            <div className="flex justify-between items-center pt-1 border-t border-border-default">
                                 <span className="text-xs text-[#A0A0A0] flex items-center gap-1.5">
                                     Income After Depletion
                                     <InfoTooltip text={GI_TOOLTIPS.incomeAfterDepletion} />
@@ -95,7 +95,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                 </div>
 
                 {/* Panel 2: Income Base Snapshot */}
-                <div className="bg-surface border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+                <div className="bg-surface border border-border-default rounded-lg p-4 space-y-3">
                     <h4 className="text-xs font-bold text-[#F5B800] uppercase tracking-wider">
                         Income Base
                     </h4>
@@ -123,7 +123,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                             </span>
                         </div>
                         {projection.gi_income_base_at_start && projection.gi_income_base_at_income_age && (
-                            <div className="flex justify-between items-center pt-1 border-t border-[#2A2A2A]">
+                            <div className="flex justify-between items-center pt-1 border-t border-border-default">
                                 <span className="text-xs text-[#A0A0A0] flex items-center gap-1.5">
                                     Growth
                                     <InfoTooltip text={GI_TOOLTIPS.incomeBaseGrowth} />
@@ -134,7 +134,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                             </div>
                         )}
                         {projection.gi_roll_up_description && (
-                            <div className="flex justify-between items-center pt-1 border-t border-[#2A2A2A]">
+                            <div className="flex justify-between items-center pt-1 border-t border-border-default">
                                 <span className="text-xs text-[#A0A0A0] flex items-center gap-1.5">
                                     Roll-Up
                                     <InfoTooltip text={GI_TOOLTIPS.rollUpRate} />
@@ -148,7 +148,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                 </div>
 
                 {/* Panel 3: Lifetime Income Totals */}
-                <div className="bg-surface border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+                <div className="bg-surface border border-border-default rounded-lg p-4 space-y-3">
                     <h4 className="text-xs font-bold text-[#F5B800] uppercase tracking-wider">
                         Lifetime Totals
                     </h4>
@@ -187,7 +187,7 @@ export function GISummaryPanel({ projection }: GISummaryPanelProps) {
                             </div>
                         )}
                         {projection.gi_total_gross_paid && projection.gi_total_net_paid && (
-                            <div className="flex justify-between items-center pt-1 border-t border-[#2A2A2A]">
+                            <div className="flex justify-between items-center pt-1 border-t border-border-default">
                                 <span className="text-xs text-[#A0A0A0] flex items-center gap-1.5">
                                     Effective Tax Rate
                                     <InfoTooltip text={GI_TOOLTIPS.effectiveTaxRate} />
