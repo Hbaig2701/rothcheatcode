@@ -10,6 +10,7 @@ import { ChevronDown, ChevronUp, Info, X, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
 import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
+import { ResizableComparisonTable } from "@/components/results/deep-dive/resizable-comparison-table";
 import { ColumnSelectorModal } from "@/components/results/deep-dive/column-selector-modal";
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
 import { loadColumnPreferences, saveColumnPreferences, getDefaultColumns } from "@/lib/table-columns/storage";
@@ -603,10 +604,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               />
             )}
             {tableView === "comparison" && (
-              <ComparisonTable
-                strategyYears={projection.blueprint_years}
-                baselineYears={projection.baseline_years}
-                heirTaxRate={heirTaxRate}
+              <ResizableComparisonTable
+                columns={COLUMN_DEFINITIONS.filter(col => selectedColumns.includes(col.id))}
+                baselineData={projection.baseline_years}
+                strategyData={projection.blueprint_years}
+                columnWidths={columnWidths}
+                onColumnWidthChange={handleWidthChange}
+                frozenColumnCount={2}
               />
             )}
           </div>
@@ -1312,69 +1316,9 @@ function BaselineTable({ years, client }: { years: YearlyResult[]; client: Clien
   );
 }
 
-// Comparison Table
-function ComparisonTable({
-  strategyYears,
-  baselineYears,
-  heirTaxRate
-}: {
-  strategyYears: YearlyResult[];
-  baselineYears: YearlyResult[];
-  heirTaxRate: number;
-}) {
-  return (
-    <table className="w-full">
-      <thead>
-        <tr className="bg-[rgba(255,255,255,0.02)]">
-          <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Year</th>
-          <th className="text-left px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Age</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Baseline</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Strategy</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Roth</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Total</th>
-          <th className="text-right px-4 py-3 text-xs uppercase text-text-muted tracking-[1px] font-medium">Difference</th>
-        </tr>
-      </thead>
-      <tbody>
-        {strategyYears.map((stratRow, idx) => {
-          const baseRow = baselineYears[idx];
-          if (!baseRow) return null;
-
-          const strategyTotal = stratRow.traditionalBalance + stratRow.rothBalance;
-          const diff = strategyTotal - baseRow.traditionalBalance;
-
-          return (
-            <tr
-              key={stratRow.year}
-              className="border-b border-border-default/50 hover:bg-bg-card transition-colors"
-            >
-              <td className="px-4 py-3 text-sm font-mono text-text-dim">{stratRow.year}</td>
-              <td className="px-4 py-3 text-sm text-text-muted">{stratRow.age}</td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-text-dim">
-                {toUSD(baseRow.traditionalBalance)}
-              </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-text-muted">
-                {toUSD(stratRow.traditionalBalance)}
-              </td>
-              <td className={cn(
-                "px-4 py-3 text-sm font-mono text-right",
-                stratRow.rothBalance > 0 ? "text-green" : "text-text-dim"
-              )}>
-                {stratRow.rothBalance > 0 ? toUSD(stratRow.rothBalance) : "—"}
-              </td>
-              <td className="px-4 py-3 text-sm font-mono text-right text-foreground">
-                {toUSD(strategyTotal)}
-              </td>
-              <td className={cn(
-                "px-4 py-3 text-sm font-mono text-right font-medium",
-                diff >= 0 ? "text-green" : "text-red"
-              )}>
-                {diff >= 0 ? "+" : ""}{toUSD(diff)}
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-}
+// Comparison view now uses ResizableComparisonTable with the shared
+// column-selector infrastructure — see usage above. The previous hardcoded
+// 7-column ComparisonTable was removed because it (a) ignored the user's
+// column selection, (b) computed diff against incomplete totals (missed
+// taxableBalance on both sides — the same Math.max(0, …)-class bug we fixed
+// elsewhere), and (c) used hardcoded dark colors that broke in Light mode.
