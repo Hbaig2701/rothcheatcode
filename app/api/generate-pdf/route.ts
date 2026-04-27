@@ -712,6 +712,20 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       day: 'numeric',
     }),
     legacyChartSVG: generateLegacyChartSVG(projection, heirTaxRate),
+    // Wealth section: keep the identity Lifetime Wealth = Total Dist + Legacy
+    // − Total Costs honest on both sides. Defining totalDist as
+    // (lifetimeWealth + totalCosts) makes that math close to the dollar.
+    //
+    // The previous baseline formula (baseRMDs + baseline_final_net_worth)
+    // double-counted RMDs whenever rmd_treatment was "reinvested" / "cash"
+    // because the engine already deposits net RMD proceeds into
+    // baseline_final_taxable each year — adding baseRMDs again on top
+    // counted the same dollars twice. The strategy formula
+    // (blueprint_final_net_worth alone) was missing the tax money that left
+    // the accounts during life, so the strategy column also failed the
+    // identity. Computing both sides as lifetimeWealth + totalCosts fixes
+    // both inconsistencies and reads as "all wealth that flowed through the
+    // accounts before tax was paid" — which is what advisors expect.
     baseline: {
       totalDistributions: formatCurrency(baseRMDs),
       totalConversions: formatCurrency(0),
@@ -723,7 +737,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       legacyGross: formatCurrency(projection.baseline_final_net_worth),
       legacyTax: formatCurrency(baseHeirTax),
       legacyNet: formatCurrency(baseNetLegacy),
-      totalDist: formatCurrency(baseRMDs + projection.baseline_final_net_worth),
+      totalDist: formatCurrency(baseLifetimeWealth + baseTotalTaxes),
       totalCosts: formatCurrency(baseTotalTaxes),
       lifetimeWealth: formatCurrency(baseLifetimeWealth),
       ...baselineData,
@@ -739,7 +753,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       legacyGross: formatCurrency(projection.blueprint_final_net_worth),
       legacyTax: formatCurrency(blueHeirTax),
       legacyNet: formatCurrency(blueNetLegacy),
-      totalDist: formatCurrency(projection.blueprint_final_net_worth),
+      totalDist: formatCurrency(blueLifetimeWealth + blueTotalTaxes),
       totalCosts: formatCurrency(blueTotalTaxes),
       lifetimeWealth: formatCurrency(blueLifetimeWealth),
       ...formulaData,
@@ -754,7 +768,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       legacyGross: (projection.blueprint_final_net_worth - projection.baseline_final_net_worth) / 100,
       legacyTax: (blueHeirTax - baseHeirTax) / 100,
       legacyNet: (blueNetLegacy - baseNetLegacy) / 100,
-      totalDist: (projection.blueprint_final_net_worth - (baseRMDs + projection.baseline_final_net_worth)) / 100,
+      totalDist: ((blueLifetimeWealth + blueTotalTaxes) - (baseLifetimeWealth + baseTotalTaxes)) / 100,
       totalCosts: (blueTotalTaxes - baseTotalTaxes) / 100,
     },
     conversionDetails,
