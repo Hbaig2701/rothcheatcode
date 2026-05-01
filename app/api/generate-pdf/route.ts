@@ -9,7 +9,9 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { isGuaranteedIncomeProduct, ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
 import { hasFeature, hasFullAccess } from '@/lib/config/plans';
-import { determineTaxBracket } from '@/lib/calculations/modules/federal-tax';
+import { determineTaxBracket, calculateFederalTax } from '@/lib/calculations/modules/federal-tax';
+import { calculateStateTax } from '@/lib/calculations/modules/state-tax';
+import { computeTaxableIncomeWithSS } from '@/lib/calculations/tax-helpers';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getBracketCeiling } from '@/lib/data/federal-brackets-2026';
 import { getTaxExemptIncomeForYear } from '@/lib/calculations/utils/income';
@@ -115,11 +117,65 @@ interface ConversionDetail {
   eoyRoth: string;
 }
 
+// Totals rows — only sum flow-type columns (distributions, taxes, growth);
+// balances and rates are intentionally omitted since summing them is meaningless.
+interface AccountValuesTotalsRow {
+  distIra: string;
+  taxesIra: string;
+  riderFeeAmount: string;
+  converted: string;
+  distRoth: string;
+  interest: string;
+}
+
+interface TaxableIncomeTotalsRow {
+  ssi: string;
+  taxableSs: string;
+  taxableNonSsi: string;
+  exemptNonSsi: string;
+  distIra: string;
+  agi: string;
+  deduction: string;
+  taxableIncome: string;
+}
+
+interface ConversionDetailsTotalsRow {
+  existingTaxable: string;
+  distribution: string;
+  taxes: string;
+  conversionAmount: string;
+  interest: string;
+}
+
+interface RothGrowthTotalsRow {
+  annualGrowth: string;
+}
+
+interface ConversionPaybackTotalsRow {
+  conversionAmount: string;
+  taxPaid: string;
+}
+
+interface RMDAvoidanceTotalsRow {
+  baselineRMD: string;
+  strategyRMD: string;
+  rmdAvoided: string;
+  taxSaved: string;
+}
+
 interface ScenarioData {
   totalDistributions: string;
   totalConversions: string;
-  taxOnDistributions: string;
-  taxOnConversions: string;
+  // Conversion-attributable tax only — federalTaxOnConversions + stateTaxOnConversions
+  // summed across years. For baseline this is $0 (no conversions). Matches the
+  // year-by-year Conversion Details and Conversion Cost & Payback tables.
+  taxOnConversionsOnly: string;
+  // RMD-attributable tax only — for each year with an RMD, the marginal tax owed
+  // because of the RMD itself (recomputed by re-running the tax engine without
+  // the RMD and taking the difference). Excludes background tax on W-2/SS that
+  // the client would pay anyway. Strategy is typically $0 since conversions
+  // eliminate RMDs.
+  taxOnRMDsOnly: string;
   premiumBonusReceived: string;
   netTaxCost: string;
   afterTaxDistributions: string;
@@ -133,6 +189,8 @@ interface ScenarioData {
   taxableIncome: YearRow[];
   irmaa: YearRow[];
   netIncome: YearRow[];
+  accountValuesTotals: AccountValuesTotalsRow;
+  taxableIncomeTotals: TaxableIncomeTotalsRow;
 }
 
 interface BrandingData {
@@ -204,7 +262,8 @@ interface TemplateData {
   strategy: ScenarioData;
   diff: {
     distributions: number;
-    taxes: number;
+    taxOnConversionsOnly: number;
+    taxOnRMDsOnly: number;
     premiumBonus: number;
     netTaxCost: number;
     afterTax: number;
@@ -215,6 +274,7 @@ interface TemplateData {
     totalCosts: number;
   };
   conversionDetails: ConversionDetail[];
+  conversionDetailsTotals: ConversionDetailsTotalsRow;
   branding: BrandingData;
   // New optional table sections
   sections?: {
@@ -224,9 +284,12 @@ interface TemplateData {
     rmdAvoidance?: boolean;
   };
   rothGrowthTable?: RothGrowthRow[];
+  rothGrowthTotals?: RothGrowthTotalsRow;
   conversionPaybackTable?: ConversionPaybackRow[];
+  conversionPaybackTotals?: ConversionPaybackTotalsRow;
   legacyComparisonTable?: LegacyComparisonRow[];
   rmdAvoidanceTable?: RMDAvoidanceRow[];
+  rmdAvoidanceTotals?: RMDAvoidanceTotalsRow;
 }
 
 function formatCurrency(cents: number): string {
@@ -257,11 +320,19 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
   taxableIncome: YearRow[];
   irmaa: YearRow[];
   netIncome: YearRow[];
+  accountValuesTotals: AccountValuesTotalsRow;
+  taxableIncomeTotals: TaxableIncomeTotalsRow;
 } {
   const accountValues: YearRow[] = [];
   const taxableIncome: YearRow[] = [];
   const irmaa: YearRow[] = [];
   const netIncome: YearRow[] = [];
+
+  // Raw running totals for the totals row at the bottom of each table.
+  // Only flow-type columns are summed (distributions, taxes, conversions,
+  // interest, income flows); balances and rates are not.
+  let totDistIra = 0, totTaxesIra = 0, totRiderFee = 0, totConverted = 0, totDistRoth = 0, totInterest = 0;
+  let totSsi = 0, totTaxableSs = 0, totTaxableNonSsi = 0, totExemptNonSsi = 0, totAgi = 0, totDeduction = 0, totTaxableIncome = 0;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   years.forEach((year: any, index: number) => {
@@ -432,9 +503,49 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       netIncome: formatCurrency(netIncomeVal),
       riderFeeAmount: '',
     });
+
+    // Accumulate flow-column running totals.
+    totDistIra += distIra;
+    totTaxesIra += scenario === 'baseline'
+      ? (year.totalTax ?? 0)
+      : (year.taxesPaidFromIRA ?? 0);
+    totRiderFee += year.riderFee ?? 0;
+    totConverted += year.conversionAmount ?? 0;
+    totDistRoth += 0; // engine does not currently model Roth distributions
+    totInterest += interest;
+    totSsi += year.ssIncome ?? 0;
+    totTaxableSs += taxableSSAmount;
+    totTaxableNonSsi += year.otherIncome ?? 0;
+    totExemptNonSsi += taxExemptNonSSI;
+    totAgi += agi;
+    totDeduction += deduction;
+    totTaxableIncome += taxableIncomeVal;
   });
 
-  return { accountValues, taxableIncome, irmaa, netIncome };
+  return {
+    accountValues,
+    taxableIncome,
+    irmaa,
+    netIncome,
+    accountValuesTotals: {
+      distIra: formatCurrency(totDistIra),
+      taxesIra: formatCurrency(totTaxesIra),
+      riderFeeAmount: formatCurrency(totRiderFee),
+      converted: formatCurrency(totConverted),
+      distRoth: formatCurrency(totDistRoth),
+      interest: formatCurrency(totInterest),
+    },
+    taxableIncomeTotals: {
+      ssi: formatCurrency(totSsi),
+      taxableSs: formatCurrency(totTaxableSs),
+      taxableNonSsi: formatCurrency(totTaxableNonSsi),
+      exemptNonSsi: formatCurrency(totExemptNonSsi),
+      distIra: formatCurrency(totDistIra),
+      agi: formatCurrency(totAgi),
+      deduction: formatCurrency(totDeduction),
+      taxableIncome: formatCurrency(totTaxableIncome),
+    },
+  };
 }
 
 /**
@@ -462,12 +573,16 @@ function generateLegacyChartSVG(projection: any, heirTaxRate: number): string {
 
   if (baselineYears.length === 0) return '<p style="color:#666;">No chart data available</p>';
 
-  // Calculate legacy to heirs for each year (same logic as transforms.ts)
+  // Calculate legacy to heirs for each year — must match transforms.ts and
+  // the PDF's own legacyComparisonTable, which both use the SIGNED taxable
+  // balance. Flooring at 0 here hid the conversion-tax cost when taxes were
+  // paid externally (negative taxable balance) and made the chart disagree
+  // with the Page 1 Net Legacy figure by exactly that tax amount.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const baselineData = baselineYears.map((year: any) => {
     const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
     const rothToHeirs = year.rothBalance || 0;
-    const cashToHeirs = Math.max(0, year.taxableBalance || 0);
+    const cashToHeirs = year.taxableBalance || 0;
     return { age: year.age, value: traditionalToHeirs + rothToHeirs + cashToHeirs };
   });
 
@@ -475,7 +590,7 @@ function generateLegacyChartSVG(projection: any, heirTaxRate: number): string {
   const formulaData = formulaYears.map((year: any) => {
     const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
     const rothToHeirs = year.rothBalance || 0;
-    const cashToHeirs = Math.max(0, year.taxableBalance || 0);
+    const cashToHeirs = year.taxableBalance || 0;
     return { age: year.age, value: traditionalToHeirs + rothToHeirs + cashToHeirs };
   });
 
@@ -570,6 +685,66 @@ function generateLegacyChartSVG(projection: any, heirTaxRate: number): string {
   </svg>`;
 }
 
+/**
+ * Compute the marginal tax attributable to RMDs across all years.
+ *
+ * For each year with an RMD, we re-run the tax calculation as if the RMD
+ * weren't taken (just SS + other income + tax-exempt) and take the difference
+ * vs the year's actual federal+state tax. The sum across years isolates the
+ * tax cost of the forced distribution from background tax on wages, pension,
+ * SS, etc. that the client would owe regardless.
+ *
+ * Used for the "Tax on RMDs" row in the Distributions summary so it compares
+ * apples-to-apples with the strategy column's "Tax on Conversions".
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function computeMarginalRMDTax(years: any[], client: any): number {
+  const stateTaxRateOverride = client.state_tax_rate !== undefined && client.state_tax_rate !== null
+    ? client.state_tax_rate / 100
+    : undefined;
+
+  let total = 0;
+  for (const year of years) {
+    const rmd = year.rmdAmount ?? 0;
+    if (rmd <= 0) continue;
+
+    const taxWithRMD = (year.federalTax ?? 0) + (year.stateTax ?? 0);
+
+    // Recompute tax assuming no RMD this year. otherIncome on the engine row
+    // already EXCLUDES the RMD (RMD is summed in separately as grossTaxableIncome
+    // inside the engine). So passing `otherIncome` alone here gives the
+    // "without RMD" picture, including any change in SS taxability.
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year.year, client.tax_exempt_non_ssi ?? 0);
+    const deductions = year.standardDeduction
+      ?? getStandardDeduction(client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
+
+    const taxInfoNoRMD = computeTaxableIncomeWithSS({
+      otherIncome: year.otherIncome ?? 0,
+      ssBenefits: year.ssIncome ?? 0,
+      taxExemptInterest: taxExemptNonSSI,
+      deductions,
+      filingStatus: client.filing_status,
+    });
+
+    const fedNoRMD = calculateFederalTax({
+      taxableIncome: taxInfoNoRMD.taxableIncome,
+      filingStatus: client.filing_status,
+      taxYear: year.year,
+    }).totalTax;
+
+    const stateNoRMD = calculateStateTax({
+      taxableIncome: taxInfoNoRMD.taxableIncome,
+      state: client.state,
+      filingStatus: client.filing_status,
+      overrideRate: stateTaxRateOverride,
+    }).totalTax;
+
+    const taxWithoutRMD = fedNoRMD + stateNoRMD;
+    total += Math.max(0, taxWithRMD - taxWithoutRMD);
+  }
+  return total;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function prepareTemplateData(reportData: any, branding: BrandingData): TemplateData {
   const { client, projection } = reportData;
@@ -602,9 +777,24 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     : baseNetLegacy;
   const baseTotalTaxes = baseTax + baseIrmaa + baseHeirTax;
 
+  // RMD-attributable tax for baseline (marginal) — for each year with an RMD,
+  // re-run the tax calc without the RMD and take the difference. Strategy
+  // typically has zero RMDs (conversions empty the IRA before age 73), so its
+  // value will usually be 0; we still compute it for symmetry/edge cases.
+  const baseRMDTaxOnly = computeMarginalRMDTax(projection.baseline_years, client);
+  const blueRMDTaxOnly = computeMarginalRMDTax(projection.blueprint_years, client);
+
   // Formula metrics (matches growth-report-dashboard.tsx lines 73-84)
   const blueConversions = sum(projection.blueprint_years, 'conversionAmount');
   const blueTax = sum(projection.blueprint_years, 'federalTax') + sum(projection.blueprint_years, 'stateTax');
+  // Conversion-attributable tax only — the marginal federal + state tax
+  // owed because of the conversions themselves. Excludes background tax on
+  // W-2/business income, Social Security, RMDs, etc. that the client would
+  // pay regardless. Matches the year-by-year totals in the Conversion Details
+  // and Conversion Cost & Payback tables.
+  const blueConversionTaxOnly =
+    sum(projection.blueprint_years, 'federalTaxOnConversions') +
+    sum(projection.blueprint_years, 'stateTaxOnConversions');
   const blueIrmaa = sum(projection.blueprint_years, 'irmaaSurcharge');
   const blueFinalTraditional = projection.blueprint_final_traditional;
   // Heir tax only applies to remaining traditional IRA (if any)
@@ -631,6 +821,9 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     .filter(({ year }: { year: any }) => year.conversionAmount > 0);
 
+  // Track flow-column running totals for the conversion-details totals row.
+  let cdTotExistingTaxable = 0, cdTotDistribution = 0, cdTotTaxes = 0, cdTotConversion = 0, cdTotInterest = 0;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const conversionDetails: ConversionDetail[] = conversionYearsWithIndex.map(({ year, originalIndex }: { year: any; originalIndex: number }) => {
     const prevYear = originalIndex > 0 ? projection.blueprint_years[originalIndex - 1] : null;
@@ -652,6 +845,14 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     // (which the engine computes via the SS-tax-torpedo formula). This is the
     // bracket position the conversion starts from.
     const existingTaxableIncome = year.otherIncome + (year.taxableSS ?? 0);
+    const distributionAmount = year.totalIRAWithdrawal ?? year.conversionAmount;
+    const conversionTaxAmount = (year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0);
+
+    cdTotExistingTaxable += existingTaxableIncome;
+    cdTotDistribution += distributionAmount;
+    cdTotTaxes += conversionTaxAmount;
+    cdTotConversion += year.conversionAmount;
+    cdTotInterest += interest;
 
     return {
       age: year.age,
@@ -659,18 +860,26 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       // Dollars actually withdrawn from the IRA: the conversion plus any tax
       // funded from the IRA. Falls back to conversion alone for external-tax
       // scenarios where the two are equal.
-      distribution: formatCurrency(year.totalIRAWithdrawal ?? year.conversionAmount),
+      distribution: formatCurrency(distributionAmount),
       bracketCeiling: formatCurrency(getBracketCeiling(client.filing_status, client.max_tax_rate ?? 24, year.year)),
       // Marginal tax cost of the conversion — the extra federal + state tax
       // the client owes because of this conversion (including any SS that
       // became taxable as the conversion raised provisional income).
-      taxes: formatCurrency((year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0)),
+      taxes: formatCurrency(conversionTaxAmount),
       conversionAmount: formatCurrency(year.conversionAmount),
       interest: formatCurrency(interest),
       eoyIra: formatCurrency(year.traditionalBalance),
       eoyRoth: formatCurrency(year.rothBalance),
     };
   });
+
+  const conversionDetailsTotals: ConversionDetailsTotalsRow = {
+    existingTaxable: formatCurrency(cdTotExistingTaxable),
+    distribution: formatCurrency(cdTotDistribution),
+    taxes: formatCurrency(cdTotTaxes),
+    conversionAmount: formatCurrency(cdTotConversion),
+    interest: formatCurrency(cdTotInterest),
+  };
 
   const filingStatusMap: Record<string, string> = {
     single: 'Single',
@@ -690,7 +899,13 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const premiumBonusDollars = Math.round(
     (client.qualified_account_value ?? 0) * ((client.bonus_percent ?? 0) / 100),
   );
-  const strategyNetTax = blueTax - premiumBonusDollars;
+  // Net out-of-pocket tax: event-attributable tax (RMDs for baseline,
+  // conversions for strategy) less the premium bonus. This is the honest
+  // "what does this strategy cost me" figure for client presentations.
+  // Previously used total lifetime tax which polluted the comparison with
+  // background W-2 / SS tax that both scenarios pay regardless.
+  const baselineNetOutOfPocketTax = baseRMDTaxOnly;
+  const strategyNetOutOfPocketTax = blueConversionTaxOnly - premiumBonusDollars;
 
   return {
     clientName: client.name,
@@ -729,10 +944,10 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     baseline: {
       totalDistributions: formatCurrency(baseRMDs),
       totalConversions: formatCurrency(0),
-      taxOnDistributions: formatCurrency(baseTax),
-      taxOnConversions: formatCurrency(0),
+      taxOnConversionsOnly: formatCurrency(0),
+      taxOnRMDsOnly: formatCurrency(baseRMDTaxOnly),
       premiumBonusReceived: formatCurrency(0),
-      netTaxCost: formatCurrency(baseTax),
+      netTaxCost: formatCurrency(baselineNetOutOfPocketTax),
       afterTaxDistributions: formatCurrency(rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseTax),
       legacyGross: formatCurrency(projection.baseline_final_net_worth),
       legacyTax: formatCurrency(baseHeirTax),
@@ -745,10 +960,10 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     strategy: {
       totalDistributions: formatCurrency(0),
       totalConversions: formatCurrency(blueConversions),
-      taxOnDistributions: formatCurrency(0),
-      taxOnConversions: formatCurrency(blueTax),
+      taxOnConversionsOnly: formatCurrency(blueConversionTaxOnly),
+      taxOnRMDsOnly: formatCurrency(blueRMDTaxOnly),
       premiumBonusReceived: formatCurrency(premiumBonusDollars),
-      netTaxCost: formatCurrency(strategyNetTax),
+      netTaxCost: formatCurrency(strategyNetOutOfPocketTax),
       afterTaxDistributions: formatCurrency(0),
       legacyGross: formatCurrency(projection.blueprint_final_net_worth),
       legacyTax: formatCurrency(blueHeirTax),
@@ -761,9 +976,10 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     diff: {
       // Raw values for use with formatDiff helper (dollars, converted from cents)
       distributions: (blueConversions - baseRMDs) / 100,
-      taxes: (blueTax - baseTax) / 100,
+      taxOnConversionsOnly: (blueConversionTaxOnly - 0) / 100,
+      taxOnRMDsOnly: (blueRMDTaxOnly - baseRMDTaxOnly) / 100,
       premiumBonus: (premiumBonusDollars - 0) / 100,
-      netTaxCost: (strategyNetTax - baseTax) / 100,
+      netTaxCost: (strategyNetOutOfPocketTax - baselineNetOutOfPocketTax) / 100,
       afterTax: (0 - (rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseTax)) / 100,
       legacyGross: (projection.blueprint_final_net_worth - projection.baseline_final_net_worth) / 100,
       legacyTax: (blueHeirTax - baseHeirTax) / 100,
@@ -772,6 +988,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       totalCosts: (blueTotalTaxes - baseTotalTaxes) / 100,
     },
     conversionDetails,
+    conversionDetailsTotals,
     branding,
     // New table data (generated regardless, conditionally shown via sections flags)
     rothGrowthTable: (() => {
@@ -789,6 +1006,14 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
         };
       });
     })(),
+    rothGrowthTotals: {
+      // Sum of annual growth equals the final cumulative growth — only the flow
+      // column is summed; balance and cumulative columns are not.
+      annualGrowth: formatCurrency(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        projection.blueprint_years.reduce((s: number, y: any) => s + (y.rothGrowth || 0), 0),
+      ),
+    },
     conversionPaybackTable: (() => {
       let cumulativeConversionTax = 0;
       const initialRoth = client.roth_ira ?? 0;
@@ -811,6 +1036,16 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
         };
       });
     })(),
+    conversionPaybackTotals: {
+      conversionAmount: formatCurrency(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        projection.blueprint_years.reduce((s: number, y: any) => s + (y.conversionAmount || 0), 0),
+      ),
+      taxPaid: formatCurrency(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        projection.blueprint_years.reduce((s: number, y: any) => s + ((y.federalTaxOnConversions ?? 0) + (y.stateTaxOnConversions ?? 0)), 0),
+      ),
+    },
     legacyComparisonTable: (() => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return projection.blueprint_years.map((year: any) => {
@@ -852,6 +1087,24 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
           taxSaved: formatCurrency(taxSaved),
         };
       });
+    })(),
+    rmdAvoidanceTotals: (() => {
+      const taxRate = (client.tax_rate ?? 22) / 100;
+      let baseSum = 0, stratSum = 0;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      projection.baseline_years.filter((y: any) => y.rmdAmount > 0).forEach((baseYear: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const stratYear = projection.blueprint_years.find((y: any) => y.year === baseYear.year);
+        baseSum += baseYear.rmdAmount || 0;
+        stratSum += stratYear?.rmdAmount || 0;
+      });
+      const avoidedSum = baseSum - stratSum;
+      return {
+        baselineRMD: formatCurrency(baseSum),
+        strategyRMD: formatCurrency(stratSum),
+        rmdAvoided: formatCurrency(avoidedSum),
+        taxSaved: formatCurrency(Math.round(avoidedSum * taxRate)),
+      };
     })(),
   };
 }

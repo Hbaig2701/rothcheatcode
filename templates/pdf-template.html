@@ -280,6 +280,19 @@
       color: #22c55e;
     }
 
+    /* Totals row at the bottom of year-by-year tables. Slightly heavier
+       background and a top border to read as a summary line. Background must
+       win against the nth-child(even) zebra rule, so it's set with !important. */
+    .data-table tr.totals-row {
+      background: #e6efe9 !important;
+      border-top: 2px solid #2d3748;
+      font-weight: 700;
+    }
+    .data-table tr.totals-row td {
+      padding-top: 7px;
+      padding-bottom: 7px;
+    }
+
     /* Chart Container */
     .chart-container {
       width: 100%;
@@ -448,17 +461,34 @@
           <th>Strategy Trajectory</th>
           <th>Difference</th>
         </tr>
+        <!-- What each path actually does — split so each row only shows the
+             column where it applies. Reads as a clear narrative. -->
         <tr>
-          <td>RMDs / Conversions</td>
+          <td>Required RMDs (forced)</td>
           <td>{{baseline.totalDistributions}}</td>
-          <td>{{strategy.totalConversions}}</td>
+          <td style="color: #9ca3af;">—</td>
           <td>{{{formatDiff diff.distributions false}}}</td>
         </tr>
         <tr>
-          <td>Tax on Distributions / Conversions</td>
-          <td>{{baseline.taxOnDistributions}}</td>
-          <td>{{strategy.taxOnConversions}}</td>
-          <td>{{{formatDiff diff.taxes true}}}</td>
+          <td>Roth Conversions (planned)</td>
+          <td style="color: #9ca3af;">—</td>
+          <td>{{strategy.totalConversions}}</td>
+          <td>{{{formatDiff diff.distributions false}}}</td>
+        </tr>
+
+        <!-- Tax on the event itself — apples-to-apples comparison.
+             Excludes background tax on W-2 / SS / pension income. -->
+        <tr>
+          <td>Tax on RMDs</td>
+          <td>{{baseline.taxOnRMDsOnly}}</td>
+          <td style="color: #9ca3af;">—</td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Tax on Conversions</td>
+          <td style="color: #9ca3af;">—</td>
+          <td>{{strategy.taxOnConversionsOnly}}</td>
+          <td></td>
         </tr>
         <tr>
           <td>Premium Bonus Received</td>
@@ -466,14 +496,14 @@
           <td>{{strategy.premiumBonusReceived}}</td>
           <td>{{{formatDiff diff.premiumBonus false}}}</td>
         </tr>
-        <tr>
-          <td><strong>Net Tax Cost (after bonus)</strong></td>
+        <tr style="background: #f0fdf4;">
+          <td><strong>Net Out-of-Pocket Tax (after bonus)</strong></td>
           <td><strong>{{baseline.netTaxCost}}</strong></td>
           <td><strong>{{strategy.netTaxCost}}</strong></td>
           <td>{{{formatDiff diff.netTaxCost true}}}</td>
         </tr>
         <tr>
-          <td>After-Tax Distributions</td>
+          <td>After-Tax Distributions Spent</td>
           <td>{{baseline.afterTaxDistributions}}</td>
           <td>{{strategy.afterTaxDistributions}}</td>
           <td>{{{formatDiff diff.afterTax false}}}</td>
@@ -566,6 +596,17 @@
         <td>{{this.eoyRoth}}</td>
       </tr>
       {{/each}}
+      <tr class="totals-row">
+        <td>Total</td>
+        <td>{{conversionDetailsTotals.existingTaxable}}</td>
+        <td>{{conversionDetailsTotals.distribution}}</td>
+        <td>—</td>
+        <td class="tax-value">{{conversionDetailsTotals.taxes}}</td>
+        <td>{{conversionDetailsTotals.conversionAmount}}</td>
+        <td>{{conversionDetailsTotals.interest}}</td>
+        <td>—</td>
+        <td>—</td>
+      </tr>
     </table>
     {{{brandingFooter}}}
   </div>
@@ -601,6 +642,17 @@
         <td>{{this.eoyCombined}}</td>
       </tr>
       {{/each}}
+      <tr class="totals-row">
+        <td colspan="2">Total</td>
+        <td>—</td>
+        <td>{{baseline.accountValuesTotals.distIra}}</td>
+        <td class="tax-value">{{baseline.accountValuesTotals.taxesIra}}</td>
+        <td>—</td>
+        <td>{{baseline.accountValuesTotals.converted}}</td>
+        <td>{{baseline.accountValuesTotals.distRoth}}</td>
+        <td>{{baseline.accountValuesTotals.interest}}</td>
+        <td>—</td>
+      </tr>
     </table>
     {{{brandingFooter}}}
   </div>
@@ -636,6 +688,17 @@
         <td>{{this.taxableIncome}}</td>
       </tr>
       {{/each}}
+      <tr class="totals-row">
+        <td colspan="2">Total</td>
+        <td>{{baseline.taxableIncomeTotals.ssi}}</td>
+        <td>{{baseline.taxableIncomeTotals.taxableSs}}</td>
+        <td>{{baseline.taxableIncomeTotals.taxableNonSsi}}</td>
+        <td>{{baseline.taxableIncomeTotals.exemptNonSsi}}</td>
+        <td>{{baseline.taxableIncomeTotals.distIra}}</td>
+        <td>{{baseline.taxableIncomeTotals.agi}}</td>
+        <td>{{baseline.taxableIncomeTotals.deduction}}</td>
+        <td>{{baseline.taxableIncomeTotals.taxableIncome}}</td>
+      </tr>
     </table>
     {{{brandingFooter}}}
   </div>
@@ -674,6 +737,18 @@
         <td>{{this.eoyCombined}}</td>
       </tr>
       {{/each}}
+      <tr class="totals-row">
+        <td colspan="2">Total</td>
+        <td>—</td>
+        <td>{{strategy.accountValuesTotals.distIra}}</td>
+        <td class="tax-value">{{strategy.accountValuesTotals.taxesIra}}</td>
+        {{#if riderFee}}<td class="tax-value">{{strategy.accountValuesTotals.riderFeeAmount}}</td>{{/if}}
+        <td>—</td>
+        <td>{{strategy.accountValuesTotals.converted}}</td>
+        <td>{{strategy.accountValuesTotals.distRoth}}</td>
+        <td>{{strategy.accountValuesTotals.interest}}</td>
+        <td>—</td>
+      </tr>
     </table>
     {{{brandingFooter}}}
   </div>
@@ -710,6 +785,17 @@
         <td>{{this.taxableIncome}}</td>
       </tr>
       {{/each}}
+      <tr class="totals-row">
+        <td colspan="2">Total</td>
+        <td>{{strategy.taxableIncomeTotals.ssi}}</td>
+        <td>{{strategy.taxableIncomeTotals.taxableSs}}</td>
+        <td>{{strategy.taxableIncomeTotals.taxableNonSsi}}</td>
+        <td>{{strategy.taxableIncomeTotals.exemptNonSsi}}</td>
+        <td>{{strategy.taxableIncomeTotals.distIra}}</td>
+        <td>{{strategy.taxableIncomeTotals.agi}}</td>
+        <td>{{strategy.taxableIncomeTotals.deduction}}</td>
+        <td>{{strategy.taxableIncomeTotals.taxableIncome}}</td>
+      </tr>
     </table>
     {{{brandingFooter}}}
   </div>
@@ -738,6 +824,12 @@
         <td style="text-align: right; color: #16a34a; font-weight: 600;">{{this.cumulativeGrowth}}</td>
       </tr>
       {{/each}}
+      <tr class="totals-row">
+        <td colspan="2">Total</td>
+        <td style="text-align: right;">—</td>
+        <td style="text-align: right; color: #16a34a;">{{rothGrowthTotals.annualGrowth}}</td>
+        <td style="text-align: right;">—</td>
+      </tr>
     </table>
     {{{brandingFooter}}}
   </div>
@@ -768,6 +860,13 @@
         <td style="text-align: right; color: #16a34a; font-weight: 600;">{{this.rothValueGained}}</td>
       </tr>
       {{/each}}
+      <tr class="totals-row">
+        <td colspan="2">Total</td>
+        <td style="text-align: right;">{{conversionPaybackTotals.conversionAmount}}</td>
+        <td style="text-align: right; color: #dc2626;">{{conversionPaybackTotals.taxPaid}}</td>
+        <td style="text-align: right;">—</td>
+        <td style="text-align: right;">—</td>
+      </tr>
     </table>
     {{{brandingFooter}}}
   </div>
@@ -826,6 +925,13 @@
         <td style="text-align: right; color: #16a34a; font-weight: 600;">{{this.taxSaved}}</td>
       </tr>
       {{/each}}
+      <tr class="totals-row">
+        <td colspan="2">Total</td>
+        <td style="text-align: right;">{{rmdAvoidanceTotals.baselineRMD}}</td>
+        <td style="text-align: right;">{{rmdAvoidanceTotals.strategyRMD}}</td>
+        <td style="text-align: right; color: #16a34a;">{{rmdAvoidanceTotals.rmdAvoided}}</td>
+        <td style="text-align: right; color: #16a34a;">{{rmdAvoidanceTotals.taxSaved}}</td>
+      </tr>
     </table>
     {{{brandingFooter}}}
   </div>
