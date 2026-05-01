@@ -462,18 +462,23 @@
           <th>Difference</th>
         </tr>
         <!-- What each path actually does — split so each row only shows the
-             column where it applies. Reads as a clear narrative. -->
+             column where it applies. Reads as a clear narrative. The
+             Difference cell is intentionally blank: when one side is —
+             the diff just restates the number, and the cross-row diff
+             ("conversions vs RMDs") isn't a meaningful apples-to-apples
+             comparison. The substantive comparison lives on the
+             Net Out-of-Pocket Tax row below. -->
         <tr>
           <td>Required RMDs (forced)</td>
           <td>{{baseline.totalDistributions}}</td>
           <td style="color: #9ca3af;">—</td>
-          <td>{{{formatDiff diff.distributions false}}}</td>
+          <td style="color: #9ca3af;">—</td>
         </tr>
         <tr>
           <td>Roth Conversions (planned)</td>
           <td style="color: #9ca3af;">—</td>
           <td>{{strategy.totalConversions}}</td>
-          <td>{{{formatDiff diff.distributions false}}}</td>
+          <td style="color: #9ca3af;">—</td>
         </tr>
 
         <!-- Tax on the event itself — apples-to-apples comparison.
@@ -482,13 +487,13 @@
           <td>Tax on RMDs</td>
           <td>{{baseline.taxOnRMDsOnly}}</td>
           <td style="color: #9ca3af;">—</td>
-          <td></td>
+          <td style="color: #9ca3af;">—</td>
         </tr>
         <tr>
           <td>Tax on Conversions</td>
           <td style="color: #9ca3af;">—</td>
           <td>{{strategy.taxOnConversionsOnly}}</td>
-          <td></td>
+          <td style="color: #9ca3af;">—</td>
         </tr>
         <tr>
           <td>Premium Bonus Received</td>

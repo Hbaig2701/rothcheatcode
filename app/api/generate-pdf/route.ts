@@ -261,9 +261,6 @@ interface TemplateData {
   baseline: ScenarioData;
   strategy: ScenarioData;
   diff: {
-    distributions: number;
-    taxOnConversionsOnly: number;
-    taxOnRMDsOnly: number;
     premiumBonus: number;
     netTaxCost: number;
     afterTax: number;
@@ -975,9 +972,6 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     },
     diff: {
       // Raw values for use with formatDiff helper (dollars, converted from cents)
-      distributions: (blueConversions - baseRMDs) / 100,
-      taxOnConversionsOnly: (blueConversionTaxOnly - 0) / 100,
-      taxOnRMDsOnly: (blueRMDTaxOnly - baseRMDTaxOnly) / 100,
       premiumBonus: (premiumBonusDollars - 0) / 100,
       netTaxCost: (strategyNetOutOfPocketTax - baselineNetOutOfPocketTax) / 100,
       afterTax: (0 - (rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseTax)) / 100,
