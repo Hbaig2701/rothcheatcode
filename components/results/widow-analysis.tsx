@@ -86,6 +86,30 @@ export function WidowAnalysis({ analysis }: WidowAnalysisProps) {
   const displayYears = taxImpactByYear.slice(0, 10);
   const hasMoreYears = taxImpactByYear.length > 10;
 
+  // Empty state: assumed death year is past projection end → no post-death
+  // years to compare, so all the summary numbers come out as zero. Showing
+  // the zeroed cards makes it look like "no penalty exists" which is wrong;
+  // the truth is "we have no data to evaluate." Render a clear explanation.
+  if (taxImpactByYear.length === 0) {
+    return (
+      <div className="rounded-lg border border-amber-300/50 bg-amber-50/40 dark:bg-amber-950/20 p-5">
+        <h4 className="font-semibold text-amber-900 dark:text-amber-200 mb-2">
+          No post-death years to analyze
+        </h4>
+        <p className="text-sm text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
+          The assumed death year is <strong>{deathYear}</strong>, which falls after this client&apos;s
+          projection ends. To see the widow&apos;s penalty, extend the projection past the assumed
+          death year by raising the client&apos;s <strong>End Age</strong> in the Advanced Data
+          section.
+        </p>
+        <p className="text-xs text-amber-800/70 dark:text-amber-300/70 mt-3">
+          Default death year = older spouse&apos;s birth year + 85. If you want to model an earlier
+          death, we&apos;d need to add a &quot;death year&quot; input on the form (let us know).
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
