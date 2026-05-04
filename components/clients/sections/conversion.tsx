@@ -9,10 +9,11 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 
 const CONVERSION_TYPE_OPTIONS = [
-  { value: "optimized_amount", label: "Optimized Amount" },
-  { value: "fixed_amount", label: "Fixed Amount" },
-  { value: "full_conversion", label: "Full Conversion" },
-  { value: "no_conversion", label: "No Conversion" },
+  { value: "optimized_amount", label: "Optimized Amount", help: "Each year, fill up to the target tax bracket. Continues until the IRA is empty or the projection ends." },
+  { value: "partial_amount", label: "Partial Amount", help: "Convert optimally each year, but stop once cumulative conversions reach a target total dollar amount." },
+  { value: "fixed_amount", label: "Fixed Amount", help: "Convert the same dollar amount every year (or remaining balance if less)." },
+  { value: "full_conversion", label: "Full Conversion", help: "Convert everything aggressively in the first year possible." },
+  { value: "no_conversion", label: "No Conversion", help: "Don't convert anything (baseline behavior)." },
 ] as const;
 
 export function ConversionSection() {
@@ -69,6 +70,30 @@ export function ConversionSection() {
                 aria-invalid={fieldState.invalid}
               />
               <FieldDescription>Fixed dollar amount to convert each year</FieldDescription>
+              <FieldError errors={[fieldState.error]} />
+            </Field>
+          )}
+        />
+      )}
+
+      {/* Target Partial Amount - only show when "Partial Amount" is selected */}
+      {conversionType === "partial_amount" && (
+        <Controller
+          name="target_partial_amount"
+          control={form.control}
+          render={({ field: { ref, value, onChange, ...field }, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="target_partial_amount">Total Amount to Convert</FieldLabel>
+              <CurrencyInput
+                {...field}
+                value={value ?? 0}
+                onChange={onChange}
+                aria-invalid={fieldState.invalid}
+              />
+              <FieldDescription>
+                Cumulative target across all years. The engine converts optimally each year (filling the tax bracket) and stops once total conversions reach this amount.
+                For example: client has $3.1M in their IRA but only wants to convert $2.2M total — the remaining $900K stays as Traditional.
+              </FieldDescription>
               <FieldError errors={[fieldState.error]} />
             </Field>
           )}

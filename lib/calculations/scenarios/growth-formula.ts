@@ -64,15 +64,27 @@ export function runGrowthFormulaScenario(
   let rothBalance = 0;
   let taxableBalance = 0; // Track taxes paid externally
 
-  // Anniversary bonus (Phased Bonus Growth: 4% at end of years 1, 2, 3)
-  const anniversaryBonusPercent = (client.anniversary_bonus_percent ?? 0) / 100;
-  const anniversaryBonusYears = client.anniversary_bonus_years ?? 0;
+  // Look up the product preset early so we can fall back to preset defaults
+  // when the client record is missing fields. This guards against legacy
+  // client rows saved before the picker reliably populated anniversary fields —
+  // without the fallback, a Phased Bonus Growth client with null anniversary
+  // values would silently model as a no-anniversary product.
+  const productConfig = ALL_PRODUCTS[client.blueprint_type as FormulaType];
+  const presetAnnivBonus = productConfig?.defaults.anniversaryBonus ?? null;
+  const presetAnnivYears = productConfig?.defaults.anniversaryBonusYears ?? null;
+
+  // Anniversary bonus (e.g., Phased Bonus Growth: 4% at end of years 1, 2, 3).
+  // Prefer the value on the client record (advisor may have customized it),
+  // otherwise fall back to the preset default.
+  const anniversaryBonusPercent =
+    ((client.anniversary_bonus_percent ?? presetAnnivBonus) ?? 0) / 100;
+  const anniversaryBonusYears =
+    (client.anniversary_bonus_years ?? presetAnnivYears) ?? 0;
 
   // Surrender schedule (array of charge percentages by year)
   const surrenderSchedule = client.surrender_schedule ?? null;
 
   // Rider fee (from product preset, only applied during surrender period)
-  const productConfig = ALL_PRODUCTS[client.blueprint_type as FormulaType];
   const riderFeePercent = (productConfig?.defaults.riderFee ?? 0) / 100;
   const surrenderYears = client.surrender_years ?? 0;
 
@@ -106,9 +118,17 @@ export function runGrowthFormulaScenario(
   // Conversion parameters
   const conversionType = client.conversion_type ?? 'optimized_amount';
   const fixedConversionAmount = client.fixed_conversion_amount ?? 0;
+  // Total cap across all years for the 'partial_amount' conversion type.
+  // 0 (or null) means "no partial cap" — but the type is only meaningful when > 0,
+  // so we treat 0 as effectively no_conversion in that branch below.
+  const targetPartialAmount = client.target_partial_amount ?? 0;
   const yearsToDefer = client.years_to_defer_conversion ?? 0;
   const conversionStartAge = clientAge + yearsToDefer;
   const conversionEndAge = client.end_age ?? 100;
+
+  // Cumulative converted across the projection — used by 'partial_amount' to cap
+  // total conversions. Outside the loop so it persists across years.
+  let cumulativeConverted = 0;
 
   // Income history for IRMAA 2-year lookback
   const incomeHistory = new Map<number, number>();
@@ -245,10 +265,30 @@ export function runGrowthFormulaScenario(
         } else {
           conversionAmount = Math.min(fixedConversionAmount, iraAfterRmd);
         }
-      } else {
+      } else if (conversionType === 'optimized_amount' || conversionType === 'partial_amount') {
         // optimized_amount: fill up to target bracket ceiling with SS taxation
         // correctly accounted for (tax torpedo).
-        if (payTaxFromIRA) {
+        // partial_amount: same as optimized, but cap the per-year conversion so
+        // cumulative across all years doesn't exceed targetPartialAmount.
+
+        // For partial_amount, compute the remaining headroom against the cap.
+        // Once we've converted the full target, no more conversions happen.
+        const partialRemaining = conversionType === 'partial_amount'
+          ? Math.max(0, targetPartialAmount - cumulativeConverted)
+          : Number.POSITIVE_INFINITY;
+
+        // Cap the iraBalance fed into the planner by the remaining cap. The
+        // planner returns the bracket-optimal amount within whatever balance
+        // we hand it, so capping the input is sufficient.
+        const cappedIra = Math.min(iraAfterRmd, partialRemaining);
+
+        if (cappedIra <= 0) {
+          // Cap exhausted — no conversion this year
+          conversionAmount = 0;
+          federalTax = 0;
+          stateTax = 0;
+          skipGrossDown = true;
+        } else if (payTaxFromIRA) {
           // Plan the full IRA withdrawal (conversion + tax) as a single
           // bracket-filling distribution. The planner's "total withdrawal"
           // is what the IRS sees on the 1099-R; splitting into conversion
@@ -256,7 +296,7 @@ export function runGrowthFormulaScenario(
           // correctly below the ceiling. This is the self-consistent
           // replacement for the legacy `conversion × (1 − rate)` haircut.
           const plan = calculateSSAwareIRAWithdrawalPlan({
-            iraBalance: iraAfterRmd,
+            iraBalance: cappedIra,
             otherIncome: existingNonSSIncome,
             ssBenefits: ssIncome,
             taxExemptInterest: taxExemptNonSSI,
@@ -273,7 +313,7 @@ export function runGrowthFormulaScenario(
           skipGrossDown = true;
         } else {
           conversionAmount = calculateSSAwareOptimalConversion({
-            iraBalance: iraAfterRmd,
+            iraBalance: cappedIra,
             otherIncome: existingNonSSIncome,
             ssBenefits: ssIncome,
             taxExemptInterest: taxExemptNonSSI,
@@ -322,12 +362,16 @@ export function runGrowthFormulaScenario(
           // conversion types), the subsequent tax recompute block rebuilds
           // fed/state tax against the capped conversion, so just capping
           // conversionAmount directly stays self-consistent.
-          const usesPlan = payTaxFromIRA && skipGrossDown && conversionType === 'optimized_amount';
+          const usesPlan = payTaxFromIRA && skipGrossDown && (conversionType === 'optimized_amount' || conversionType === 'partial_amount');
           if (usesPlan) {
             const currentTotal = conversionAmount + federalTax + stateTax;
             if (currentTotal > irmaaCap) {
+              // Also respect the partial cap if active
+              const partialRemainingForIrmaa = conversionType === 'partial_amount'
+                ? Math.max(0, targetPartialAmount - cumulativeConverted)
+                : Number.POSITIVE_INFINITY;
               const cappedPlan = calculateSSAwareIRAWithdrawalPlan({
-                iraBalance: Math.min(iraAfterRmd, irmaaCap),
+                iraBalance: Math.min(iraAfterRmd, irmaaCap, partialRemainingForIrmaa),
                 otherIncome: existingNonSSIncome,
                 ssBenefits: ssIncome,
                 taxExemptInterest: taxExemptNonSSI,
@@ -366,7 +410,7 @@ export function runGrowthFormulaScenario(
       // which is what the IRS actually sees. Re-running convTaxAt(conversion)
       // here would overwrite it with tax-on-conversion-alone, re-introducing
       // the very bug the planner was added to fix.
-      const planAlreadySetTax = payTaxFromIRA && skipGrossDown && conversionType === 'optimized_amount';
+      const planAlreadySetTax = payTaxFromIRA && skipGrossDown && (conversionType === 'optimized_amount' || conversionType === 'partial_amount');
       if (conversionAmount > 0 && !planAlreadySetTax) {
         const convTax = convTaxAt(conversionAmount);
         federalTax = convTax.federalTax;
@@ -382,6 +426,8 @@ export function runGrowthFormulaScenario(
 
     // Track cumulative withdrawals for the principal protection floor
     cumulativeWithdrawn += rmdAmount + conversionAmount + conversionTaxFromIRA;
+    // Track cumulative converted (used by 'partial_amount' to enforce the total cap)
+    cumulativeConverted += conversionAmount;
 
     // Step 2: Calculate interest AFTER conversion.
     // IRA (annuity) uses contract rate during the surrender period and the

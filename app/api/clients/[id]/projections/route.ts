@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 37; // v37: Growth FIA productBonusApplied now surfaces the upfront premium bonus in year 0 (e.g., $140K for a 14% bonus on $1M). Previously the column only tracked anniversary bonuses, so any product with a one-time premium bonus showed $0 across all years even though the bonus was applied to the starting balance. Existing cached projections need to regenerate so the year-by-year Product Bonus column shows the correct amount.
+const PRODUCT_CONFIG_VERSION = 39; // v39: (a) Phased Bonus Growth preset bonus 8% → 11% to match EquiTrust's current standard. (b) Engine falls back to preset anniversary_bonus_percent / anniversary_bonus_years when client record fields are null — fixes legacy phased-bonus-growth clients showing $0 Product Bonus in years 2 and 3. (c) New 'partial_amount' conversion type with target_partial_amount cap on cumulative Roth conversions across the full strategy.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
@@ -37,6 +37,7 @@ function generateInputHash(client: Client): string {
     non_ssi_income: client.non_ssi_income,
     conversion_type: client.conversion_type,
     fixed_conversion_amount: client.fixed_conversion_amount,
+    target_partial_amount: client.target_partial_amount,
     protect_initial_premium: client.protect_initial_premium,
     withdrawal_type: client.withdrawal_type,
     surrender_years: client.surrender_years,

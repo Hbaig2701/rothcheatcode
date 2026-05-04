@@ -69,8 +69,9 @@ export interface Client {
   non_ssi_income: NonSSIIncomeEntry[];  // JSONB array of income entries
 
   // ===== Section 6: Conversion =====
-  conversion_type: "optimized_amount" | "fixed_amount" | "full_conversion" | "no_conversion";
+  conversion_type: "optimized_amount" | "fixed_amount" | "full_conversion" | "no_conversion" | "partial_amount";
   fixed_conversion_amount: number | null; // Fixed dollar amount to convert per year (in cents), used when conversion_type = 'fixed_amount'
+  target_partial_amount: number | null;   // Total amount to convert across all years (in cents), used when conversion_type = 'partial_amount'
   protect_initial_premium: boolean;
 
   // ===== Section 7: Roth Withdrawals =====
