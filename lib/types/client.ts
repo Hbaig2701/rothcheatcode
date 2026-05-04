@@ -30,7 +30,7 @@ export interface Client {
 
   // ===== Product Preset =====
   blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth" | "high-bonus-long-term-growth" | "high-bonus-medium-term-growth"
-    | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income";
+    | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income" | "generic-income";
 
   // ===== Section 1: Client Data =====
   scenario_name: string | null;

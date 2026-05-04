@@ -4,6 +4,7 @@
 export type GrowthFormulaType = 'fia' | 'short-term-cap-growth' | 'phased-bonus-growth' | 'vesting-bonus-growth' | 'high-bonus-long-term-growth' | 'high-bonus-medium-term-growth';
 
 export type GuaranteedIncomeFormulaType =
+  | 'generic-income'
   | 'simple-rollup-income'
   | 'compound-rollup-income'
   | 'flat-rate-compound-income';
@@ -149,6 +150,23 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
 };
 
 export const GUARANTEED_INCOME_PRODUCTS: Record<GuaranteedIncomeFormulaType, ProductConfig> = {
+  'generic-income': {
+    id: 'generic-income',
+    label: 'Generic Income Product',
+    category: 'Guaranteed Income',
+    description: 'Generic Guaranteed Income Annuity - fully customizable',
+    lockedFields: [], // No fields locked — user can edit everything
+    defaults: {
+      carrierName: 'Generic Carrier',
+      productName: 'Generic Income Product',
+      bonus: 10,
+      surrenderYears: 10,
+      penaltyFreePercent: 10,
+      rateOfReturn: 0,
+      riderFee: 1.20,
+    },
+  },
+
   'simple-rollup-income': {
     id: 'simple-rollup-income',
     label: 'Simple Roll-up Income',

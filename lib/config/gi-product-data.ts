@@ -92,6 +92,46 @@ export interface GIProductData {
 
 export const GI_PRODUCT_DATA: Record<GuaranteedIncomeFormulaType, GIProductData> = {
   // =========================================================================
+  // Generic Income Product (fully customizable)
+  // Sensible defaults: bonus to both AV+IB, 8% simple interest, 10 years, 1.20% rider fee
+  // Mirrors Simple Roll-up internals so the engine has reasonable defaults.
+  // Advisors can override the form-level fields (bonus, surrender, etc.).
+  // For deeper customization (custom payout factors, roll-up curves), use the
+  // AI Product Builder in Settings → My Products.
+  // =========================================================================
+  'generic-income': {
+    bonusAppliesTo: 'both',
+    riderFee: 1.20,
+    riderFeeAppliesTo: 'incomeBase',
+    rollUp: {
+      type: 'simple',
+      rate: 8.0,
+      maxPeriod: 10,
+    },
+    payoutTable: {
+      single: {
+        50: 4.50, 51: 4.62, 52: 4.75, 53: 4.88, 54: 5.00,
+        55: 5.15, 56: 5.30, 57: 5.45, 58: 5.60, 59: 5.75,
+        60: 5.90, 61: 6.05, 62: 6.20, 63: 6.35, 64: 6.50,
+        65: 6.60, 66: 6.75, 67: 6.85, 68: 7.00, 69: 7.15,
+        70: 7.25, 71: 7.40, 72: 7.50, 73: 7.65, 74: 7.75,
+        75: 7.90, 76: 8.00, 77: 8.10, 78: 8.20, 79: 8.30, 80: 8.40,
+      },
+      joint: {
+        50: 4.00, 51: 4.12, 52: 4.25, 53: 4.38, 54: 4.50,
+        55: 4.65, 56: 4.80, 57: 4.95, 58: 5.10, 59: 5.25,
+        60: 5.40, 61: 5.55, 62: 5.70, 63: 5.85, 64: 6.00,
+        65: 6.05, 66: 6.20, 67: 6.30, 68: 6.45, 69: 6.60,
+        70: 6.70, 71: 6.85, 72: 6.95, 73: 7.10, 74: 7.20,
+        75: 7.30, 76: 7.40, 77: 7.50, 78: 7.60, 79: 7.70, 80: 7.80,
+      },
+    },
+    hasDualPayoutOption: false,
+    hasRollUpOptions: false,
+    rollUpDescription: '8.0% Simple Interest (10yr max) — generic baseline',
+  },
+
+  // =========================================================================
   // Simple Roll-up Income
   // 14% bonus to BOTH Account Value AND Income Account Value
   // Hardcoded to 8.25% simple interest, 10 years, 1.20% rider fee
