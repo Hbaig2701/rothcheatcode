@@ -136,6 +136,13 @@ export function useUpdateClient() {
           query.queryKey[0] === "clients" &&
           query.queryKey[query.queryKey.length - 1] === "scenarios",
       });
+      // ALSO invalidate the analysis query for this client — widow's penalty,
+      // breakeven, sensitivity all depend on client fields (end_age,
+      // widow_analysis flag, etc.). Without this the dashboard serves stale
+      // analysis even after a save.
+      queryClient.invalidateQueries({ queryKey: ["analysis", variables.id] });
+      // And projections — same reason.
+      queryClient.invalidateQueries({ queryKey: ["projections", variables.id] });
     },
   });
 }
