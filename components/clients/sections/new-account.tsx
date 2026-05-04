@@ -450,13 +450,15 @@ export function NewAccountSection() {
                     <SelectValue placeholder="Select tax bracket" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="0">0% (fill to standard deduction only)</SelectItem>
+                    <SelectItem value="10">10%</SelectItem>
                     <SelectItem value="12">12%</SelectItem>
                     <SelectItem value="22">22%</SelectItem>
                     <SelectItem value="24">24%</SelectItem>
                     <SelectItem value="32">32%</SelectItem>
                   </SelectContent>
                 </Select>
-                <FieldDescription>Target tax bracket for Roth conversions during conversion phase</FieldDescription>
+                <FieldDescription>Target tax bracket for Roth conversions during conversion phase. 0% = convert just enough to stay under the standard deduction (no federal tax).</FieldDescription>
                 <FieldError errors={[fieldState.error]} />
               </Field>
             )}

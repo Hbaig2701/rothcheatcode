@@ -42,7 +42,11 @@ const RMD_TREATMENT_OPTIONS = [
 ] as const;
 
 // Valid federal tax brackets - must match what's in federal-brackets-2026.ts
+// 0% means "fill up to standard deduction so taxable income stays at $0" — used for
+// low-income clients (e.g., military with disability income, retirees living off
+// tax-exempt sources) who want to convert without triggering any federal tax.
 const TAX_BRACKET_OPTIONS = [
+  { value: 0, label: "0% (fill to standard deduction only)" },
   { value: 10, label: "10%" },
   { value: 12, label: "12%" },
   { value: 22, label: "22%" },

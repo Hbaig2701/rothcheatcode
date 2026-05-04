@@ -79,7 +79,12 @@ export function calculateSSAwareOptimalConversion(params: {
   if (params.iraBalance <= 0) return 0;
 
   const ceiling = getBracketCeiling(params.filingStatus, params.maxBracketRate, params.taxYear);
-  if (ceiling === 0 || ceiling === Infinity) return params.iraBalance;
+  // Infinity = no upper bound (e.g., 37%+ rate) → convert everything.
+  // Note: ceiling === 0 is a VALID case meaning "fill up to where taxable income = 0"
+  // (i.e., convert just enough to stay under the standard deduction). The binary search
+  // below handles it correctly. We must NOT short-circuit on ceiling===0 — that previously
+  // caused max_tax_rate=0 to return the full IRA balance.
+  if (ceiling === Infinity) return params.iraBalance;
 
   const taxableAt = (conversion: number) =>
     computeTaxableIncomeWithSS({
@@ -90,8 +95,10 @@ export function calculateSSAwareOptimalConversion(params: {
       filingStatus: params.filingStatus,
     }).taxableIncome;
 
-  // If existing income alone already exceeds the ceiling, no room to convert.
-  if (taxableAt(0) >= ceiling) return 0;
+  // If existing income alone STRICTLY EXCEEDS the ceiling, no room to convert.
+  // Use strict > (not >=) so the ceiling=0 case allows a binary search when
+  // taxableAt(0)=0 exactly (e.g., $0 other income + $30K standard deduction).
+  if (taxableAt(0) > ceiling) return 0;
   // If converting the entire IRA still keeps us under the ceiling, convert all.
   if (taxableAt(params.iraBalance) <= ceiling) return params.iraBalance;
 

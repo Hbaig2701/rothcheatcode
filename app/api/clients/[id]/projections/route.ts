@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 40; // v40: New respect_penalty_free_limit flag — when enabled, each year's conversion is capped at penalty_free_percent × beginning-of-year IRA. Models Allianz/American Equity-style contracts where conversions can't exceed the carrier's free-withdrawal allowance without surrender charges.
+const PRODUCT_CONFIG_VERSION = 41; // v41: Optimizer correctly handles max_tax_rate=0 (fills standard deduction so $0 federal tax). Previously the ceiling===0 short-circuit converted the entire IRA. Also: changed the existing-income check from >= to > so the binary search runs when taxableAt(0)=0=ceiling (Joshua W. military client case).
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
