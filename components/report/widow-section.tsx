@@ -62,8 +62,9 @@ export function WidowSection({ client }: WidowSectionProps) {
 
         {!isLoading && !error && !analysis?.widow && (
           <p className="text-sm text-text-dim italic">
-            Widow analysis is enabled for this client but the projection isn&apos;t
-            available yet. Save the client and regenerate the projection.
+            Widow analysis is enabled but the calculation didn&apos;t return data —
+            this can happen on very short projections (no post-death years to
+            analyze). Try extending the projection past the assumed death year.
           </p>
         )}
 

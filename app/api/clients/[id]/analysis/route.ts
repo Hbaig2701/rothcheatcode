@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { Client } from '@/lib/types/client';
 import { analyzeBreakEven } from '@/lib/calculations/analysis/breakeven';
 import { runSensitivityAnalysis } from '@/lib/calculations/analysis/sensitivity';
-import { analyzeWidowPenalty } from '@/lib/calculations/analysis/widow-penalty';
+import { analyzeWidowPenalty, analyzeWidowPenaltyFromProjection } from '@/lib/calculations/analysis/widow-penalty';
 import { runSimulation, createSimulationInput, runGrowthSimulation, runGuaranteedIncomeSimulation } from '@/lib/calculations';
 import { logCalculation } from '@/lib/audit/log';
 import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/lib/config/products';
@@ -88,20 +88,26 @@ export async function GET(
     response.sensitivity = runSensitivityAnalysis(typedClient);
   }
 
-  // Widow analysis: the analyzer uses the legacy baseline/widow scenarios,
-  // which do NOT model Growth FIA product features (bonuses, surrender,
-  // post-contract rate, principal protection) or GI income streams.
-  // Running it for those products would show numbers inconsistent with the
-  // main projection. Restrict to legacy/standard clients until the analyzer
-  // is refactored to be engine-aware.
+  // Widow analysis: re-prices the strategy projection year-by-year using Single
+  // brackets + the smaller standard deduction, with the surviving spouse's SS
+  // check (the larger of the two). For Growth FIA and GI clients we use the
+  // engine-aware path that consumes the already-computed projection — this
+  // preserves all product-specific math (bonuses, surrender, GI roll-up) and
+  // produces numbers consistent with the main report. For legacy/standard
+  // clients we keep the original analyzer that runs its own simulations.
   if (
     typedClient.widow_analysis &&
-    typedClient.filing_status === 'married_filing_jointly' &&
-    !isGI &&
-    !isGrowth
+    typedClient.filing_status === 'married_filing_jointly'
   ) {
     try {
-      response.widow = analyzeWidowPenalty(typedClient);
+      if (isGI || isGrowth) {
+        response.widow = analyzeWidowPenaltyFromProjection({
+          client: typedClient,
+          formulaYears: baseResult.formula,
+        });
+      } else {
+        response.widow = analyzeWidowPenalty(typedClient);
+      }
     } catch (err) {
       console.error('[Analysis] Widow analysis error:', err);
       // Don't fail the whole request, just return null
