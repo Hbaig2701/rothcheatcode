@@ -7,6 +7,7 @@ import type { YearlyResult } from "@/lib/calculations";
 import { GIIncomeChart } from "@/components/results/gi-income-chart";
 import { transformToGIIncomeChartData, transformToChartData } from "@/lib/calculations/transforms";
 import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
+import { WidowSection } from "@/components/report/widow-section";
 import { YearByYearTable } from "@/components/results/deep-dive/year-by-year-table";
 import { Check, ChevronDown, ChevronUp, ArrowRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -662,9 +663,13 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
           )}
         </div>
 
-        {/* Section 9: Advanced Analysis — Hidden for now per product call.
-            Bring back by removing the `false &&` once the Breakeven framing
-            is finalized. */}
+        {/* Section 8b: Widow's Penalty Analysis (only renders for MFJ clients
+            with the widow_analysis flag on — otherwise returns null) */}
+        <WidowSection client={client} />
+
+        {/* Section 9: Advanced Analysis (Breakeven, Sensitivity, Audit) —
+            Hidden until the Breakeven framing is finalized. Widow analysis
+            now lives in its own dedicated section above. */}
         {false && <AdvancedFeaturesSection client={client} chartData={chartData} />}
 
         {/* Section 10: Disclaimer */}

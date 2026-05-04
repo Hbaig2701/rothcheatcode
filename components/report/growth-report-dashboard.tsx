@@ -15,6 +15,7 @@ import { ColumnSelectorModal } from "@/components/results/deep-dive/column-selec
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
 import { loadColumnPreferences, saveColumnPreferences, getDefaultColumns } from "@/lib/table-columns/storage";
 import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
+import { WidowSection } from "@/components/report/widow-section";
 
 interface GrowthReportDashboardProps {
   client: Client;
@@ -637,9 +638,14 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           productType="growth"
         />
 
-        {/* Section 7: Advanced Analysis (Widow's Penalty, Breakeven, Audit)
-            — Hidden for now per product call. Bring back by removing the
-            `false &&` once the Breakeven framing is finalized. */}
+        {/* Section 7: Widow's Penalty Analysis (only renders if client has the
+            flag enabled AND is filing MFJ — otherwise component returns null) */}
+        <WidowSection client={client} />
+
+        {/* Section 7b: Advanced Analysis (Breakeven, Sensitivity, Audit)
+            — Hidden until the Breakeven framing is finalized. Widow analysis
+            has been pulled out into its own dedicated section above so it
+            doesn't depend on this gate. */}
         {false && <AdvancedFeaturesSection client={client} chartData={chartData} />}
 
         {/* Section 8: Disclaimer */}
