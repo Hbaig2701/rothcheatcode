@@ -11,9 +11,9 @@
  * - Frozen columns (Year, Age) are always present and cannot be unchecked or dragged.
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import {
   COLUMN_DEFINITIONS,
   type ColumnDefinition,
@@ -51,6 +51,9 @@ export function ColumnSelectorModal({
 }: ColumnSelectorModalProps) {
   const [tempSelection, setTempSelection] = useState<string[]>(selectedColumns);
   const [searchQuery, setSearchQuery] = useState('');
+  // Ref for synchronous read in onDragOver/onDrop (state updates lag a render).
+  // State copy is for visual styling only.
+  const draggedIdRef = useRef<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
 
@@ -58,6 +61,7 @@ export function ColumnSelectorModal({
     if (open) {
       setTempSelection(selectedColumns);
       setSearchQuery('');
+      draggedIdRef.current = null;
       setDraggedId(null);
       setDragOverId(null);
     }
@@ -137,13 +141,34 @@ export function ColumnSelectorModal({
     setTempSelection(tempSelection.filter((x) => x !== id));
   };
 
+  // Move a non-frozen row up or down by one position, working in the DISPLAYED order
+  // (frozen first, then non-frozen). Frozen rows cannot move and act as a hard upper boundary.
+  const moveBy = (id: string, delta: -1 | 1) => {
+    const displayedIds = selectedOrdered.map((c) => c.id);
+    const idx = displayedIds.indexOf(id);
+    if (idx === -1) return;
+    const targetIdx = idx + delta;
+    if (targetIdx < 0 || targetIdx >= displayedIds.length) return;
+    // Don't swap with a frozen column
+    const targetCol = columnMap.get(displayedIds[targetIdx]);
+    if (targetCol?.frozen) return;
+    const next = [...displayedIds];
+    [next[idx], next[targetIdx]] = [next[targetIdx], next[idx]];
+    setTempSelection(next);
+  };
+
   // ---- Drag handlers (HTML5 native) ----
+  // CRITICAL: react state updates lag — read drag state from a ref for synchronous access.
+  // Always call e.preventDefault() in onDragOver when a drag is in progress, otherwise the
+  // browser disallows the drop and the whole interaction silently fails.
+
   const handleDragStart = (e: React.DragEvent, id: string) => {
     const col = columnMap.get(id);
     if (col?.frozen) {
       e.preventDefault();
       return;
     }
+    draggedIdRef.current = id;
     setDraggedId(id);
     e.dataTransfer.effectAllowed = 'move';
     // Firefox requires setData for drag to start
@@ -151,12 +176,14 @@ export function ColumnSelectorModal({
   };
 
   const handleDragOver = (e: React.DragEvent, targetId: string) => {
-    if (!draggedId) return;
+    const dragged = draggedIdRef.current;
+    if (!dragged) return;
     const targetCol = columnMap.get(targetId);
     if (targetCol?.frozen) return; // Cannot drop onto frozen row
+    // Must preventDefault to allow drop — do this BEFORE any other early returns
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (draggedId !== targetId) setDragOverId(targetId);
+    if (dragged !== targetId && dragOverId !== targetId) setDragOverId(targetId);
   };
 
   const handleDragLeave = (targetId: string) => {
@@ -165,7 +192,9 @@ export function ColumnSelectorModal({
 
   const handleDrop = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
-    const src = draggedId;
+    e.stopPropagation();
+    const src = draggedIdRef.current;
+    draggedIdRef.current = null;
     setDraggedId(null);
     setDragOverId(null);
     if (!src || src === targetId) return;
@@ -174,18 +203,25 @@ export function ColumnSelectorModal({
     const srcCol = columnMap.get(src);
     if (targetCol?.frozen || srcCol?.frozen) return;
 
-    const sourceIndex = tempSelection.indexOf(src);
-    const targetIndex = tempSelection.indexOf(targetId);
+    // Reorder using the DISPLAYED order (selectedOrdered) — frozen are pulled to the
+    // top, so dropping must operate on what the user actually sees. Without this, the
+    // drop targets the wrong slot when frozen items aren't already at the start of
+    // tempSelection.
+    const displayedIds = selectedOrdered.map((c) => c.id);
+    const sourceIndex = displayedIds.indexOf(src);
+    const targetIndex = displayedIds.indexOf(targetId);
     if (sourceIndex === -1 || targetIndex === -1) return;
 
-    const next = [...tempSelection];
+    const next = [...displayedIds];
     next.splice(sourceIndex, 1);
-    const insertAt = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
-    next.splice(insertAt, 0, src);
+    // Use targetIndex (NOT targetIndex - 1) so the dragged item takes the target's spot
+    // and the target shifts away. Avoids the "adjacent drag is a no-op" bug.
+    next.splice(targetIndex, 0, src);
     setTempSelection(next);
   };
 
   const handleDragEnd = () => {
+    draggedIdRef.current = null;
     setDraggedId(null);
     setDragOverId(null);
   };
@@ -215,7 +251,7 @@ export function ColumnSelectorModal({
               Adjust Columns
             </Dialog.Title>
             <p className="text-sm text-text-dim mt-1">
-              Select up to 20 columns. Drag selected columns to reorder them (Year and Age are always first).
+              Select up to 20 columns. Use the arrow buttons to reorder them (Year and Age are always first).
             </p>
             <div className="mt-4">
               <input
@@ -233,7 +269,7 @@ export function ColumnSelectorModal({
             {/* Selected Columns */}
             <div className="mb-6">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-text-dim mb-3">
-                Selected Columns {nonFrozenSelectedCount > 0 && <span className="text-text-dimmer normal-case tracking-normal font-normal">— drag to reorder</span>}
+                Selected Columns {nonFrozenSelectedCount > 0 && <span className="text-text-dimmer normal-case tracking-normal font-normal">— use the arrows to reorder</span>}
               </h3>
 
               {selectedFiltered.length === 0 ? (
@@ -242,10 +278,18 @@ export function ColumnSelectorModal({
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  {selectedFiltered.map((col) => {
+                  {selectedFiltered.map((col, idx) => {
                     const isDragged = draggedId === col.id;
                     const isDragOver = dragOverId === col.id;
                     const canDrag = !col.frozen;
+
+                    // Arrow-button enable logic — works in DISPLAYED order
+                    const displayedIds = selectedOrdered.map((c) => c.id);
+                    const displayIdx = displayedIds.indexOf(col.id);
+                    const prevIsFrozen = displayIdx > 0 && columnMap.get(displayedIds[displayIdx - 1])?.frozen;
+                    const isLastInDisplay = displayIdx === displayedIds.length - 1;
+                    const canMoveUp = canDrag && displayIdx > 0 && !prevIsFrozen;
+                    const canMoveDown = canDrag && !isLastInDisplay;
 
                     return (
                       <div
@@ -262,13 +306,13 @@ export function ColumnSelectorModal({
                           ${isDragOver ? 'border-primary bg-primary/5' : 'border-transparent bg-bg-card'}
                         `}
                       >
-                        {/* Drag handle */}
+                        {/* Drag handle (still functional where supported) */}
                         <div
                           className={`
                             flex items-center self-stretch px-1 -my-0.5
                             ${canDrag ? 'cursor-grab active:cursor-grabbing text-text-dim hover:text-foreground' : 'text-text-dimmer/40 cursor-not-allowed'}
                           `}
-                          title={canDrag ? 'Drag to reorder' : 'Frozen column cannot be moved'}
+                          title={canDrag ? 'Drag to reorder (or use the arrow buttons)' : 'Frozen column cannot be moved'}
                         >
                           <GripVertical className="w-4 h-4" />
                         </div>
@@ -297,6 +341,38 @@ export function ColumnSelectorModal({
                             </div>
                           )}
                         </div>
+
+                        {/* Up/Down arrow buttons — primary reorder mechanism */}
+                        {canDrag && (
+                          <div className="flex flex-col gap-0.5 self-center">
+                            <button
+                              type="button"
+                              onClick={() => moveBy(col.id, -1)}
+                              disabled={!canMoveUp}
+                              className={`
+                                p-1 rounded transition-colors
+                                ${canMoveUp ? 'text-text-dim hover:text-foreground hover:bg-white/10' : 'text-text-dimmer/40 cursor-not-allowed'}
+                              `}
+                              title="Move up"
+                              aria-label={`Move ${col.label} up`}
+                            >
+                              <ChevronUp className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveBy(col.id, 1)}
+                              disabled={!canMoveDown}
+                              className={`
+                                p-1 rounded transition-colors
+                                ${canMoveDown ? 'text-text-dim hover:text-foreground hover:bg-white/10' : 'text-text-dimmer/40 cursor-not-allowed'}
+                              `}
+                              title="Move down"
+                              aria-label={`Move ${col.label} down`}
+                            >
+                              <ChevronDown className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

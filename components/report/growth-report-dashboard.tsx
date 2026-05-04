@@ -69,6 +69,18 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
     });
   };
 
+  // Build columns in the user-chosen order (frozen first). Filtering COLUMN_DEFINITIONS
+  // by `selectedColumns.includes(...)` returns columns in the constants-file order, which
+  // silently ignores the user's reorder. Mapping selectedColumns through a lookup
+  // preserves the order the user actually picked.
+  const orderedColumns = (() => {
+    const defMap = new Map(COLUMN_DEFINITIONS.map((c) => [c.id, c]));
+    const resolved = selectedColumns.map((id) => defMap.get(id)).filter(Boolean) as typeof COLUMN_DEFINITIONS;
+    const frozen = resolved.filter((c) => c.frozen);
+    const nonFrozen = resolved.filter((c) => !c.frozen);
+    return [...frozen, ...nonFrozen];
+  })();
+
   const handleWidthChange = (columnId: string, width: number) => {
     const newWidths = { ...columnWidths, [columnId]: width };
     setColumnWidths(newWidths);
@@ -587,7 +599,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           <div className="p-6 overflow-x-auto">
             {tableView === "strategy" && (
               <ResizableTable
-                columns={COLUMN_DEFINITIONS.filter(col => selectedColumns.includes(col.id))}
+                columns={orderedColumns}
                 data={projection.blueprint_years}
                 columnWidths={columnWidths}
                 onColumnWidthChange={handleWidthChange}
@@ -596,7 +608,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             )}
             {tableView === "baseline" && (
               <ResizableTable
-                columns={COLUMN_DEFINITIONS.filter(col => selectedColumns.includes(col.id))}
+                columns={orderedColumns}
                 data={projection.baseline_years}
                 columnWidths={columnWidths}
                 onColumnWidthChange={handleWidthChange}
@@ -605,7 +617,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             )}
             {tableView === "comparison" && (
               <ResizableComparisonTable
-                columns={COLUMN_DEFINITIONS.filter(col => selectedColumns.includes(col.id))}
+                columns={orderedColumns}
                 baselineData={projection.baseline_years}
                 strategyData={projection.blueprint_years}
                 columnWidths={columnWidths}
