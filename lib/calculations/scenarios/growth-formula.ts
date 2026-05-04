@@ -122,6 +122,13 @@ export function runGrowthFormulaScenario(
   // 0 (or null) means "no partial cap" — but the type is only meaningful when > 0,
   // so we treat 0 as effectively no_conversion in that branch below.
   const targetPartialAmount = client.target_partial_amount ?? 0;
+  // When true, cap each year's IRA withdrawal for conversion (conversion + tax-from-IRA)
+  // at penalty_free_percent × beginning-of-year IRA. Models Allianz/American Equity-style
+  // contracts where conversions can't exceed the free-withdrawal allowance without
+  // triggering surrender charges. Only applies during the surrender period — after the
+  // contract ends, conversions are unconstrained.
+  const respectPenaltyFreeLimit = client.respect_penalty_free_limit ?? false;
+  const penaltyFreePercent = client.penalty_free_percent ?? 10;
   const yearsToDefer = client.years_to_defer_conversion ?? 0;
   const conversionStartAge = clientAge + yearsToDefer;
   const conversionEndAge = client.end_age ?? 100;
@@ -209,10 +216,24 @@ export function runGrowthFormulaScenario(
     let federalTax = 0;
     let stateTax = 0;
 
+    // Carrier penalty-free cap: when respect_penalty_free_limit is true AND the
+    // client is still inside the surrender period, the contract doesn't allow more
+    // than penalty_free_percent × beginning-of-year IRA to come out for conversion
+    // (Allianz/American Equity-style). Once the surrender period ends, the carrier
+    // releases the limit — conversions go back to being unrestricted (subject to
+    // other constraints like IRMAA, bracket, etc.).
+    // RMDs and balance updates use the actual iraAfterRmd; the cap only constrains
+    // conversion sizing.
+    const inSurrenderPeriod = yearOffset < surrenderYears;
+    const carrierCap = respectPenaltyFreeLimit && inSurrenderPeriod
+      ? Math.round(boyIRA * penaltyFreePercent / 100)
+      : Number.POSITIVE_INFINITY;
+    const effectiveIraForConversion = Math.min(iraAfterRmd, carrierCap);
+
     const shouldConvert = conversionType !== 'no_conversion' &&
                           age >= conversionStartAge &&
                           age <= conversionEndAge &&
-                          iraAfterRmd > 100; // Skip dust balances under $1 (residuals absorbed by solver)
+                          effectiveIraForConversion > 100; // Skip dust balances
 
     // Flag: when we've already solved the from-IRA tax math exactly (e.g. for
     // full_conversion), skip the generic gross-down below to avoid shrinking
@@ -224,37 +245,37 @@ export function runGrowthFormulaScenario(
       if (conversionType === 'full_conversion') {
         if (payTaxFromIRA) {
           // Special case: "empty the IRA" when taxes are paid from the IRA.
-          // We want conversion + tax = iraAfterRmd. Solve iteratively using
-          // the SS-aware marginal tax calculation (converges in 2-3 iterations).
-          let solved = iraAfterRmd * (1 - (maxTaxRate / 100 + stateTaxRateDecimal));
+          // We want conversion + tax = effectiveIraForConversion. Solve iteratively
+          // using the SS-aware marginal tax calculation (converges in 2-3 iterations).
+          let solved = effectiveIraForConversion * (1 - (maxTaxRate / 100 + stateTaxRateDecimal));
           for (let i = 0; i < 5; i++) {
             const { federalTax: fTax, stateTax: sTax } = convTaxAt(solved);
-            solved = iraAfterRmd - fTax - sTax;
+            solved = effectiveIraForConversion - fTax - sTax;
           }
           conversionAmount = Math.max(0, Math.round(solved));
           const { federalTax: fcVerifyF, stateTax: fcVerifyS } = convTaxAt(conversionAmount);
-          const fcResidual = iraAfterRmd - conversionAmount - fcVerifyF - fcVerifyS;
+          const fcResidual = effectiveIraForConversion - conversionAmount - fcVerifyF - fcVerifyS;
           if (fcResidual > 0 && fcResidual < 50000) {
             conversionAmount += fcResidual;
           }
           skipGrossDown = true;
         } else {
-          conversionAmount = iraAfterRmd;
+          conversionAmount = effectiveIraForConversion;
         }
       } else if (conversionType === 'fixed_amount' && fixedConversionAmount > 0) {
         // Fixed amount: convert specified amount per year (or remaining balance if less).
         if (payTaxFromIRA) {
           const estEffRate = maxTaxRate / 100 + stateTaxRateDecimal;
-          const maxConvWithTax = Math.floor(iraAfterRmd / (1 + estEffRate));
+          const maxConvWithTax = Math.floor(effectiveIraForConversion / (1 + estEffRate));
           if (maxConvWithTax < fixedConversionAmount) {
-            let solved = iraAfterRmd * (1 - estEffRate);
+            let solved = effectiveIraForConversion * (1 - estEffRate);
             for (let i = 0; i < 5; i++) {
               const { federalTax: fTax, stateTax: sTax } = convTaxAt(solved);
-              solved = iraAfterRmd - fTax - sTax;
+              solved = effectiveIraForConversion - fTax - sTax;
             }
             conversionAmount = Math.max(0, Math.round(solved));
             const { federalTax: verifyFTax, stateTax: verifySTax } = convTaxAt(conversionAmount);
-            const residual = iraAfterRmd - conversionAmount - verifyFTax - verifySTax;
+            const residual = effectiveIraForConversion - conversionAmount - verifyFTax - verifySTax;
             if (residual > 0 && residual < 50000) {
               conversionAmount += residual;
             }
@@ -263,7 +284,7 @@ export function runGrowthFormulaScenario(
           }
           skipGrossDown = true;
         } else {
-          conversionAmount = Math.min(fixedConversionAmount, iraAfterRmd);
+          conversionAmount = Math.min(fixedConversionAmount, effectiveIraForConversion);
         }
       } else if (conversionType === 'optimized_amount' || conversionType === 'partial_amount') {
         // optimized_amount: fill up to target bracket ceiling with SS taxation
@@ -277,10 +298,10 @@ export function runGrowthFormulaScenario(
           ? Math.max(0, targetPartialAmount - cumulativeConverted)
           : Number.POSITIVE_INFINITY;
 
-        // Cap the iraBalance fed into the planner by the remaining cap. The
-        // planner returns the bracket-optimal amount within whatever balance
-        // we hand it, so capping the input is sufficient.
-        const cappedIra = Math.min(iraAfterRmd, partialRemaining);
+        // Cap the iraBalance fed into the planner by the remaining cap AND the
+        // carrier penalty-free cap. The planner returns the bracket-optimal amount
+        // within whatever balance we hand it, so capping the input is sufficient.
+        const cappedIra = Math.min(effectiveIraForConversion, partialRemaining);
 
         if (cappedIra <= 0) {
           // Cap exhausted — no conversion this year
@@ -371,7 +392,7 @@ export function runGrowthFormulaScenario(
                 ? Math.max(0, targetPartialAmount - cumulativeConverted)
                 : Number.POSITIVE_INFINITY;
               const cappedPlan = calculateSSAwareIRAWithdrawalPlan({
-                iraBalance: Math.min(iraAfterRmd, irmaaCap, partialRemainingForIrmaa),
+                iraBalance: Math.min(effectiveIraForConversion, irmaaCap, partialRemainingForIrmaa),
                 otherIncome: existingNonSSIncome,
                 ssBenefits: ssIncome,
                 taxExemptInterest: taxExemptNonSSI,
@@ -401,7 +422,7 @@ export function runGrowthFormulaScenario(
       if (payTaxFromIRA && conversionAmount > 0 && !skipGrossDown) {
         const effectiveRate = maxTaxRate / 100 + stateTaxRateDecimal;
         conversionAmount = Math.round(conversionAmount * (1 - effectiveRate));
-        conversionAmount = Math.min(conversionAmount, iraAfterRmd);
+        conversionAmount = Math.min(conversionAmount, effectiveIraForConversion);
       }
 
       // Calculate marginal taxes on conversion (SS-aware delta). Skip when the

@@ -138,6 +138,10 @@ export const clientFormulaBaseSchema = z.object({
   // Total amount (in cents) to convert across the full strategy when
   // conversion_type === 'partial_amount'. Engine caps cumulative conversions at this value.
   target_partial_amount: z.number().int().min(0).optional().nullable().default(null),
+  // When true, each year's conversion is capped at penalty_free_percent × beginning-of-year IRA.
+  // Models Allianz/American Equity-style contracts where conversions can't exceed the carrier's
+  // free-withdrawal allowance without triggering surrender charges.
+  respect_penalty_free_limit: z.boolean().optional().default(false),
   protect_initial_premium: z.boolean().default(true),
 
   // Section 7: Roth Withdrawals
@@ -327,6 +331,7 @@ export const clientFullBaseSchema = z.object({
   conversion_type: conversionTypeEnum.default("optimized_amount"),
   fixed_conversion_amount: z.number().int().min(0).optional().nullable().default(null),
   target_partial_amount: z.number().int().min(0).optional().nullable().default(null),
+  respect_penalty_free_limit: z.boolean().optional().default(false),
   protect_initial_premium: z.boolean().default(true),
   start_age: z.number().int().min(50).max(90).default(62),
   end_age: z.number().int().min(55).max(120).default(100),
@@ -435,6 +440,7 @@ export type ClientFormData = {
   conversion_type: "optimized_amount" | "fixed_amount" | "full_conversion" | "no_conversion" | "partial_amount";
   fixed_conversion_amount: number | null;
   target_partial_amount: number | null;
+  respect_penalty_free_limit: boolean;
   protect_initial_premium: boolean;
 
   // Section 7: Withdrawals

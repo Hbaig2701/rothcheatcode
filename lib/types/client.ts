@@ -72,6 +72,7 @@ export interface Client {
   conversion_type: "optimized_amount" | "fixed_amount" | "full_conversion" | "no_conversion" | "partial_amount";
   fixed_conversion_amount: number | null; // Fixed dollar amount to convert per year (in cents), used when conversion_type = 'fixed_amount'
   target_partial_amount: number | null;   // Total amount to convert across all years (in cents), used when conversion_type = 'partial_amount'
+  respect_penalty_free_limit: boolean;    // When true, cap each year's conversion at penalty_free_percent × beginning-of-year IRA
   protect_initial_premium: boolean;
 
   // ===== Section 7: Roth Withdrawals =====

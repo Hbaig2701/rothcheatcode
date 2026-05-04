@@ -120,6 +120,32 @@ export function ConversionSection() {
           </Field>
         )}
       />
+
+      {/* Respect Carrier Penalty-Free Limit — caps each year's conversion at
+          penalty_free_percent × beginning-of-year IRA. Hidden when no_conversion. */}
+      {conversionType !== "no_conversion" && (
+        <Controller
+          name="respect_penalty_free_limit"
+          control={form.control}
+          render={({ field }) => (
+            <Field orientation="horizontal">
+              <Checkbox
+                id="respect_penalty_free_limit"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+              />
+              <FieldLabel htmlFor="respect_penalty_free_limit">
+                Respect Contract Penalty-Free Limit
+              </FieldLabel>
+              <FieldDescription>
+                Caps each year&apos;s conversion at the penalty-free withdrawal % of the remaining IRA
+                balance — for Allianz, American Equity, and similar carriers that don&apos;t allow
+                conversions beyond the free-withdrawal allowance without surrender charges.
+              </FieldDescription>
+            </Field>
+          )}
+        />
+      )}
     </FormSection>
   );
 }

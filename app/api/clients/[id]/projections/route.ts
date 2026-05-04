@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 39; // v39: (a) Phased Bonus Growth preset bonus 8% → 11% to match EquiTrust's current standard. (b) Engine falls back to preset anniversary_bonus_percent / anniversary_bonus_years when client record fields are null — fixes legacy phased-bonus-growth clients showing $0 Product Bonus in years 2 and 3. (c) New 'partial_amount' conversion type with target_partial_amount cap on cumulative Roth conversions across the full strategy.
+const PRODUCT_CONFIG_VERSION = 40; // v40: New respect_penalty_free_limit flag — when enabled, each year's conversion is capped at penalty_free_percent × beginning-of-year IRA. Models Allianz/American Equity-style contracts where conversions can't exceed the carrier's free-withdrawal allowance without surrender charges.
 
 function generateInputHash(client: Client): string {
   const relevantFields = {
@@ -38,6 +38,7 @@ function generateInputHash(client: Client): string {
     conversion_type: client.conversion_type,
     fixed_conversion_amount: client.fixed_conversion_amount,
     target_partial_amount: client.target_partial_amount,
+    respect_penalty_free_limit: client.respect_penalty_free_limit,
     protect_initial_premium: client.protect_initial_premium,
     withdrawal_type: client.withdrawal_type,
     surrender_years: client.surrender_years,
