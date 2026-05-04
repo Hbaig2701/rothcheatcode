@@ -37,19 +37,21 @@ export function ConversionSection() {
             <FieldLabel>Conversion Type</FieldLabel>
             <div className="space-y-2">
               {CONVERSION_TYPE_OPTIONS.map((option) => (
-                <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+                <label key={option.value} className="flex items-start gap-2 cursor-pointer">
                   <input
                     type="radio"
                     value={option.value}
                     checked={field.value === option.value}
                     onChange={(e) => field.onChange(e.target.value)}
-                    className="h-4 w-4 text-primary"
+                    className="h-4 w-4 text-primary mt-0.5 shrink-0"
                   />
-                  <span className="text-sm">{option.label}</span>
+                  <div className="flex-1">
+                    <div className="text-sm">{option.label}</div>
+                    <div className="text-xs text-muted-foreground">{option.help}</div>
+                  </div>
                 </label>
               ))}
             </div>
-            <FieldDescription>How to determine conversion amounts</FieldDescription>
             <FieldError errors={[fieldState.error]} />
           </Field>
         )}

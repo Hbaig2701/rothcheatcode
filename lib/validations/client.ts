@@ -189,6 +189,30 @@ export const clientFormulaSchema = clientFormulaBaseSchema.superRefine((data, ct
     });
   }
 
+  // partial_amount conversion requires a positive target
+  if (data.conversion_type === "partial_amount") {
+    const target = data.target_partial_amount;
+    if (target == null || target <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Total amount to convert is required when using Partial Amount conversion",
+        path: ["target_partial_amount"],
+      });
+    }
+  }
+
+  // fixed_amount conversion requires a positive amount (parity with partial)
+  if (data.conversion_type === "fixed_amount") {
+    const amt = data.fixed_conversion_amount;
+    if (amt == null || amt <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Annual conversion amount is required when using Fixed Amount conversion",
+        path: ["fixed_conversion_amount"],
+      });
+    }
+  }
+
   // SSI payout age should be >= current age (unless already receiving)
   if (data.ssi_payout_age < data.age && data.ssi_annual_amount > 0) {
     // Allow if already past payout age - they're receiving SSI

@@ -90,6 +90,7 @@ function generateInputHash(client: Client): string {
 function getStrategyFromConversionType(conversionType?: string): string {
   switch (conversionType) {
     case 'optimized_amount': return 'moderate';
+    case 'partial_amount': return 'moderate'; // Partial is bracket-fill capped at total — same risk profile as optimized
     case 'fixed_amount': return 'conservative';
     case 'full_conversion': return 'aggressive';
     case 'no_conversion': return 'conservative';

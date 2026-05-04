@@ -347,7 +347,11 @@ export function ColumnSelectorModal({
                           <div className="flex flex-col gap-0.5 self-center">
                             <button
                               type="button"
-                              onClick={() => moveBy(col.id, -1)}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveBy(col.id, -1);
+                              }}
                               disabled={!canMoveUp}
                               className={`
                                 p-1 rounded transition-colors
@@ -360,7 +364,11 @@ export function ColumnSelectorModal({
                             </button>
                             <button
                               type="button"
-                              onClick={() => moveBy(col.id, 1)}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                moveBy(col.id, 1);
+                              }}
                               disabled={!canMoveDown}
                               className={`
                                 p-1 rounded transition-colors
