@@ -5,7 +5,7 @@ import type { ClientFormData } from "@/lib/validations/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { Plus, Trash2, Repeat } from "lucide-react";
+import { Plus, Trash2, Repeat, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { INCOME_TYPES, type IncomeType } from "@/lib/types/client";
 
@@ -24,6 +24,11 @@ export function IncomeTable() {
   const currentYear = new Date().getFullYear();
 
   const [showRecurring, setShowRecurring] = useState(false);
+  // Collapse the entry list when there are a lot of rows — advisors filling
+  // recurring income end up with 20-40 rows and the form gets unwieldy in the
+  // narrow report sidebar/drawer. Default collapsed once we hit 6+ entries;
+  // advisors can always toggle.
+  const [collapsed, setCollapsed] = useState(() => fields.length >= 6);
   const [recurringStartAgeStr, setRecurringStartAgeStr] = useState(String(currentAge));
   const [recurringEndAgeStr, setRecurringEndAgeStr] = useState(String(endAge));
   const [recurringGross, setRecurringGross] = useState<number | null>(null);
@@ -76,6 +81,9 @@ export function IncomeTable() {
   };
 
   const addEntry = () => {
+    // Auto-expand so the advisor sees the new row land — adding while
+    // collapsed would otherwise feel like nothing happened.
+    setCollapsed(false);
     const lastEntryIndex = fields.length - 1;
     const lastYearVal = fields.length > 0 ? form.getValues(`non_ssi_income.${lastEntryIndex}.year`) : null;
 
@@ -143,10 +151,46 @@ export function IncomeTable() {
     setShowRecurring(false);
   };
 
+  // Compact summary shown next to the heading when the section is collapsed.
+  // Tries to surface the most useful at-a-glance info (entry count + first/last
+  // year of the schedule) without forcing the advisor to expand.
+  const collapsedSummary = (() => {
+    if (fields.length === 0) return null;
+    const years = fields
+      .map((_, i) => form.getValues(`non_ssi_income.${i}.year`))
+      .filter((y): y is number => typeof y === "number" && !Number.isNaN(y))
+      .sort((a, b) => a - b);
+    const count = fields.length;
+    const range = years.length > 0
+      ? years[0] === years[years.length - 1]
+        ? `${years[0]}`
+        : `${years[0]}–${years[years.length - 1]}`
+      : null;
+    return `${count} ${count === 1 ? "entry" : "entries"}${range ? ` · ${range}` : ""}`;
+  })();
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h4 className="text-sm font-medium whitespace-nowrap">Non-SSI Income</h4>
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          className="flex items-center gap-1.5 text-sm font-medium text-foreground hover:text-foreground/80 transition-colors -ml-1 px-1 py-0.5 rounded"
+          aria-expanded={!collapsed}
+          aria-controls="non-ssi-income-body"
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          )}
+          <span className="whitespace-nowrap">Non-SSI Income</span>
+          {collapsed && collapsedSummary && (
+            <span className="text-xs font-normal text-muted-foreground ml-1.5">
+              ({collapsedSummary})
+            </span>
+          )}
+        </button>
         <div className="flex flex-wrap gap-2">
           {fields.length > 0 && (
             <Button
@@ -290,41 +334,45 @@ export function IncomeTable() {
         </div>
       )}
 
-      {fields.length === 0 ? (
-        <p className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-md">
-          No income entries. Click &quot;Add Entry&quot; to add annual income data, or use &quot;Recurring&quot; to bulk fill.
-        </p>
-      ) : (
-        <div className="border rounded-md overflow-x-auto">
-          <table className="text-sm min-w-full" style={{ minWidth: "560px" }}>
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium w-[88px]">Year</th>
-                <th className="px-3 py-2 text-left font-medium w-[72px]">Age(s)</th>
-                <th className="px-3 py-2 text-left font-medium w-[140px]">Type</th>
-                <th className="px-3 py-2 text-left font-medium">Gross Taxable</th>
-                <th className="px-3 py-2 text-left font-medium">Tax Exempt</th>
-                <th className="px-2 py-2 w-10"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {fields.map((field, index) => (
-                <IncomeTableRow
-                  key={field.id}
-                  index={index}
-                  onRemove={() => {
-                    // Look up current index by field id so stale closures over `index`
-                    // from earlier renders don't delete the wrong row.
-                    const currentIdx = fields.findIndex((f) => f.id === field.id);
-                    remove(currentIdx >= 0 ? currentIdx : index);
-                  }}
-                  currentAge={currentAge}
-                  spouseAge={spouseAge}
-                  currentYear={currentYear}
-                />
-              ))}
-            </tbody>
-          </table>
+      {!collapsed && (
+        <div id="non-ssi-income-body">
+          {fields.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-md">
+              No income entries. Click &quot;Add Entry&quot; to add annual income data, or use &quot;Recurring&quot; to bulk fill.
+            </p>
+          ) : (
+            <div className="border rounded-md overflow-x-auto">
+              <table className="text-sm min-w-full" style={{ minWidth: "560px" }}>
+                <thead className="bg-muted/50">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-medium w-[88px]">Year</th>
+                    <th className="px-3 py-2 text-left font-medium w-[72px]">Age(s)</th>
+                    <th className="px-3 py-2 text-left font-medium w-[140px]">Type</th>
+                    <th className="px-3 py-2 text-left font-medium">Gross Taxable</th>
+                    <th className="px-3 py-2 text-left font-medium">Tax Exempt</th>
+                    <th className="px-2 py-2 w-10"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {fields.map((field, index) => (
+                    <IncomeTableRow
+                      key={field.id}
+                      index={index}
+                      onRemove={() => {
+                        // Look up current index by field id so stale closures over `index`
+                        // from earlier renders don't delete the wrong row.
+                        const currentIdx = fields.findIndex((f) => f.id === field.id);
+                        remove(currentIdx >= 0 ? currentIdx : index);
+                      }}
+                      currentAge={currentAge}
+                      spouseAge={spouseAge}
+                      currentYear={currentYear}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
