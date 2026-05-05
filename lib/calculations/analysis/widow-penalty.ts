@@ -65,25 +65,32 @@ export function calculateWidowTaxImpact(input: {
  *   2. Older spouse's birth year + 85 (life-expectancy heuristic) when DOB known.
  *   3. 15 years from now (last-resort default).
  *
- * Always returns at least currentYear + 1 so the analysis has at least one
- * post-death year of projection to re-price.
+ * Past anchors are passed through unmodified — they reflect "death already
+ * happened, treat the entire projection as widow" which is a legitimate
+ * scenario. The for-loop in the analyzer skips years before the death year,
+ * and a past anchor naturally means no years are skipped.
  */
 function getDefaultDeathYear(client: Client): number {
   const currentYear = new Date().getFullYear();
 
-  // Resolve the older spouse's birth year. Prefer DOB; fall back to age.
-  let olderBirthYear: number | null = null;
-  const clientBirthYear = client.date_of_birth
-    ? new Date(client.date_of_birth).getFullYear()
-    : client.age != null
-      ? currentYear - client.age
-      : null;
-  const spouseBirthYear = client.spouse_dob
-    ? new Date(client.spouse_dob).getFullYear()
-    : client.spouse_age != null
-      ? currentYear - client.spouse_age
-      : null;
+  // Resolve a birth year for each spouse. Prefer DOB; fall back to age.
+  // Number.isFinite guards against malformed DOB strings (e.g. "" or "not-a-date")
+  // producing NaN, which would silently propagate as NaN death year.
+  const toBirthYear = (dob: string | null, age: number | null | undefined): number | null => {
+    if (dob) {
+      const parsed = new Date(dob).getFullYear();
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    if (age != null && Number.isFinite(age) && age > 0) {
+      return currentYear - age;
+    }
+    return null;
+  };
 
+  const clientBirthYear = toBirthYear(client.date_of_birth, client.age);
+  const spouseBirthYear = toBirthYear(client.spouse_dob, client.spouse_age);
+
+  let olderBirthYear: number | null = null;
   if (clientBirthYear !== null && spouseBirthYear !== null) {
     olderBirthYear = Math.min(clientBirthYear, spouseBirthYear); // earlier birth = older spouse
   } else {
@@ -91,14 +98,21 @@ function getDefaultDeathYear(client: Client): number {
   }
 
   // Advisor override: "first to die at age N" anchored on the older spouse.
-  if (client.widow_death_age != null && olderBirthYear !== null) {
-    const overrideYear = olderBirthYear + client.widow_death_age;
-    return Math.max(currentYear + 1, overrideYear);
+  // If no birth year is available we still honor the override by treating
+  // widow_death_age as "years from now" — silently dropping the advisor's
+  // explicit choice would be worse than this fallback.
+  if (client.widow_death_age != null) {
+    if (olderBirthYear !== null) {
+      return olderBirthYear + client.widow_death_age;
+    }
+    return currentYear + client.widow_death_age;
   }
 
-  // Heuristic default: older spouse + 85.
+  // Heuristic default: older spouse + 85. If older spouse is already past 85
+  // (rare but possible — e.g., advisor illustrating an existing widow),
+  // the resulting past year naturally means "treat all years as widow."
   if (olderBirthYear !== null) {
-    return Math.max(currentYear + 5, olderBirthYear + 85);
+    return olderBirthYear + 85;
   }
 
   return currentYear + 15;

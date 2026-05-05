@@ -265,7 +265,15 @@ export function AdvancedDataSection() {
                     value={field.value ?? ""}
                     onChange={(e) => {
                       const v = e.target.value;
-                      field.onChange(v === "" ? null : parseInt(v, 10));
+                      if (v === "") {
+                        field.onChange(null);
+                        return;
+                      }
+                      const parsed = parseInt(v, 10);
+                      // Guard against NaN from non-numeric paste (Zod would
+                      // catch it on submit, but the field state would still
+                      // hold NaN until then — coerce to null up front).
+                      field.onChange(Number.isFinite(parsed) ? parsed : null);
                     }}
                     aria-invalid={fieldState.invalid}
                   />
