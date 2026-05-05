@@ -201,6 +201,12 @@ export async function POST(request: NextRequest) {
             billing_cycle: cycle,
             subscription_status: subscription.status as string,
             stripe_subscription_id: subscription.id as string,
+            // Bump updated_at on every webhook write so we have an audit trail
+            // for "when did this profile last change?". The default Supabase
+            // schema doesn't auto-update this column on UPDATE, so without an
+            // explicit assignment the row's updated_at stays at signup time
+            // even after months of subscription renewals.
+            updated_at: new Date().toISOString(),
           };
           if (periodEndIso) {
             updateData.current_period_end = periodEndIso;
@@ -292,6 +298,7 @@ export async function POST(request: NextRequest) {
             stripe_subscription_id: null,
             billing_cycle: null,
             current_period_end: null,
+            updated_at: new Date().toISOString(),
           })
           .eq("stripe_customer_id", customerId);
 
@@ -321,7 +328,7 @@ export async function POST(request: NextRequest) {
 
         const { error, count } = await supabase
           .from("profiles")
-          .update({ subscription_status: "past_due" })
+          .update({ subscription_status: "past_due", updated_at: new Date().toISOString() })
           .eq("stripe_customer_id", customerId);
 
         if (error) {
@@ -344,7 +351,7 @@ export async function POST(request: NextRequest) {
         // Update status to active
         const { error: statusError } = await supabase
           .from("profiles")
-          .update({ subscription_status: "active" })
+          .update({ subscription_status: "active", updated_at: new Date().toISOString() })
           .eq("stripe_customer_id", customerId);
 
         if (statusError) {
