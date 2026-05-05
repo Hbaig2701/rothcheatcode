@@ -1,9 +1,57 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield, Table2, ArrowUpDown, MoveHorizontal, UserCog, Columns, Tags } from 'lucide-react'
+import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield, Table2, ArrowUpDown, MoveHorizontal, UserCog, Columns, Tags, HandCoins, Heart, Sparkles, GitCompare, SlidersHorizontal } from 'lucide-react'
 
 const updates = [
+  {
+    id: '23',
+    date: 'May 5, 2026',
+    title: 'Voluntary IRA / Roth Withdrawals',
+    description: 'Schedule voluntary withdrawals from the IRA or Roth at specific ages — on top of RMDs and conversions. Each row picks a year, amount, and source: Traditional IRA, Roth, or Auto. The "Auto" source pulls from Roth first and falls back to IRA, which gives the natural baseline-vs-strategy comparison: the baseline drains the IRA, the strategy uses the Roth bucket the conversions built up.\n\nIRA pulls add to taxable income (federal/state/IRMAA/SS torpedo), Roth pulls are tax-free, and pulls before age 59½ trigger the 10% early-withdrawal penalty automatically.\n\nFind it in the new "IRA / Roth Withdrawals" section of the client form.',
+    category: 'New Feature',
+    icon: HandCoins,
+  },
+  {
+    id: '22',
+    date: 'May 4, 2026',
+    title: "Widow's Penalty Analysis",
+    description: "When you check \"Show Widow's Penalty\" on an MFJ client, the report now surfaces a dedicated section below the year-by-year table. It re-prices every projected year side-by-side as Married Filing Jointly vs. Single, showing the bracket compression, the lost SS check, and the incremental tax burden the surviving spouse would face year by year.\n\nA new \"First-Death Age\" input (default: older spouse + 85) lets you anchor the analysis to a specific year — so you can illustrate \"if it happens in 5 years\" or \"if your husband lives to 90\" without changing the rest of the projection.\n\nWorks for Growth FIA and Guaranteed Income clients — the analysis consumes the same projection your dashboard is already showing, so the joint baseline matches what's on the report.",
+    category: 'New Feature',
+    icon: Heart,
+  },
+  {
+    id: '21',
+    date: 'May 3, 2026',
+    title: 'AI Product Builder',
+    description: "Build custom carrier products in seconds and use them on illustrations alongside the built-in presets. Three creation paths in Settings → My Products:\n\n• Upload a brochure or spec sheet (most accurate — AI reads the carrier PDF)\n• Search by product name (quick web research)\n• Manual builder for when you already know the specs\n\nThe AI extracts every parameter — bonus type and percentage, vesting schedule, surrender charges, rider fees, roll-up rates, payout factors, state variations — and flags anything it had to assume so you can verify before using on a client.\n\nCustom products show up in your scenario picker grouped under \"Yours\" alongside system presets. The engine honors all of it: rider fee, GI roll-up rate, payout factors, bonus targeting, and per-state bonus/surrender overrides all flow through to the projection.",
+    category: 'New Feature',
+    icon: Sparkles,
+  },
+  {
+    id: '20',
+    date: 'April 27, 2026',
+    title: 'Year-by-Year Comparison View',
+    description: "The year-by-year table on Growth FIA reports now has a third tab: Comparison. Each money column you've selected expands into three side-by-side sub-columns — Baseline / Strategy / Δ — so you can see exactly where the strategy diverges year by year.\n\nUses the same column selector as the Strategy and Baseline tabs, so your column choice carries across all three views.",
+    category: 'New Feature',
+    icon: GitCompare,
+  },
+  {
+    id: '19',
+    date: 'April 25, 2026',
+    title: 'New Conversion Options & Product Updates',
+    description: "Several improvements to how conversions are sized and which products are available:\n\n• \"0%\" tax bracket on the conversion ceiling — fills just up to the standard deduction so federal tax stays at $0 (useful for low-income clients with disability income or pre-SS years).\n\n• \"Partial Conversion\" type — convert exactly N dollars total across the projection, leaving the rest in the IRA. Engine optimizes year-by-year fills until the cumulative cap is hit.\n\n• \"Carrier Penalty-Free Cap\" toggle — when on, each year's conversion is capped at the contract's penalty-free withdrawal allowance during the surrender period. Models Allianz / American Equity-style contracts where exceeding the limit triggers surrender charges.\n\n• Phased Bonus Growth preset bonus updated 8% → 11% to match EquiTrust's current contract (8% base + 3% promo). Anniversary 4% × 3 years still applies.\n\n• New \"Generic Income Product\" preset — fully customizable Guaranteed Income illustration when no specific carrier preset fits.",
+    category: 'Enhancement',
+    icon: SlidersHorizontal,
+  },
+  {
+    id: '18',
+    date: 'April 22, 2026',
+    title: 'Breakeven Reframed as Tax Payback',
+    description: "The Breakeven chart now models \"tax payback\" instead of legacy-to-heirs crossover — the year the conversion's upfront tax hit is recovered through future tax savings + heir benefit + product bonus. The old framing produced \"never breaks even\" results for many advisors; the new one matches how most planners actually pitch the strategy.\n\nThe chart, summary stat, and tooltip text all use the same number now, so what's on the dashboard matches what's in the conversation.",
+    category: 'Enhancement',
+    icon: Star,
+  },
   {
     id: '17',
     date: 'April 18, 2026',
