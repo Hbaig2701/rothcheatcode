@@ -48,36 +48,38 @@ export async function GET() {
       p.stripe_subscription_id && (p.subscription_status === 'active' || p.subscription_status === 'trialing')
     );
 
-    // Batch fetch Stripe subscriptions (actual amounts after discounts)
+    // Batch fetch Stripe subscriptions. We use the latest invoice's billed
+    // amount as the source of truth (it bakes in every discount type:
+    // subscription-level coupons, customer-level coupons, promo codes). The
+    // manual coupon-math fallback is only for accounts that haven't been
+    // billed yet (trials, fresh signups).
     const subAmounts = new Map<string, { amount: number; interval: string }>();
     const subFetches = activeProfiles
       .filter(p => p.stripe_subscription_id)
       .map(async (p) => {
         try {
-          const sub = await stripe.subscriptions.retrieve(p.stripe_subscription_id!);
+          // Expand latest_invoice — Stripe records the post-discount billed
+          // amount on each invoice (subtotal = pre-discount, total = post-
+          // discount). Use that directly rather than walking coupon objects.
+          const sub = await stripe.subscriptions.retrieve(p.stripe_subscription_id!, {
+            expand: ['latest_invoice'],
+          });
           const item = sub.items?.data?.[0];
-          if (item) {
-            // amount is the actual price after any coupon/discount, in cents
-            const amount = (item.price?.unit_amount ?? 0) / 100;
-            const interval = item.price?.recurring?.interval ?? 'month';
+          if (!item) return;
+          const listPrice = (item.price?.unit_amount ?? 0) / 100;
+          const interval = item.price?.recurring?.interval ?? 'month';
 
-            // Apply subscription-level discounts
-            let finalAmount = amount;
-            const discounts = sub.discounts ?? [];
-            for (const d of discounts) {
-              if (typeof d === 'string') continue;
-              const coupon = typeof d.source?.coupon === 'object' ? d.source.coupon : null;
-              if (coupon?.percent_off) {
-                finalAmount *= (1 - coupon.percent_off / 100);
-              }
-              if (coupon?.amount_off) {
-                finalAmount = Math.max(0, finalAmount - coupon.amount_off / 100);
-              }
-            }
-            subAmounts.set(p.id, { amount: finalAmount, interval });
+          let amount = listPrice;
+          const latestInvoice = (sub as unknown as { latest_invoice?: { subtotal?: number; total?: number; amount_paid?: number } | string | null }).latest_invoice;
+          if (latestInvoice && typeof latestInvoice === 'object') {
+            const tot = latestInvoice.total ?? 0;
+            const paid = latestInvoice.amount_paid ?? 0;
+            if (tot > 0) amount = tot / 100;
+            else if (paid > 0) amount = paid / 100;
           }
+
+          subAmounts.set(p.id, { amount, interval });
         } catch (err) {
-          // If subscription fetch fails, skip (might be deleted in Stripe)
           console.error(`Failed to fetch subscription ${p.stripe_subscription_id}:`, err);
         }
       });

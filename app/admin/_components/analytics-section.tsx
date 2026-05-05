@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Heart, Shield } from 'lucide-react'
+import { Heart, Shield } from 'lucide-react'
 
 interface HealthScore {
   id: string
@@ -14,11 +14,8 @@ interface HealthScore {
   recentScenarios: number
   recentExports: number
   totalClients: number
-}
-
-interface AtRiskAdvisor extends HealthScore {
   mrr: number
-  risk: 'high' | 'medium' | 'low'
+  risk: 'critical' | 'high' | 'medium' | 'healthy'
 }
 
 interface AnalyticsData {
@@ -36,7 +33,6 @@ interface AnalyticsData {
     avgScenariosPerAdvisor: number
   }
   healthScores: HealthScore[]
-  revenueAtRisk: AtRiskAdvisor[]
 }
 
 export function AnalyticsSection() {
@@ -62,7 +58,6 @@ export function AnalyticsSection() {
 
   const fa = data.featureAdoption
   const total = fa.totalAdvisors || 1
-  const totalAtRiskMRR = data.revenueAtRisk.reduce((sum, a) => sum + a.mrr, 0)
 
   // Score distribution
   const excellent = data.healthScores.filter(h => h.score >= 75).length
@@ -70,70 +65,35 @@ export function AnalyticsSection() {
   const atrisk = data.healthScores.filter(h => h.score >= 25 && h.score < 50).length
   const critical = data.healthScores.filter(h => h.score < 25).length
 
+  // MRR exposure on accounts that need attention (anyone scoring under 50).
+  // This replaces the old standalone "Revenue at Risk" section — same number,
+  // just folded into a single panel.
+  const atRiskMRR = data.healthScores
+    .filter(h => h.score < 50)
+    .reduce((sum, h) => sum + (h.mrr || 0), 0)
+
+  // Show the bottom 10 advisors needing attention. Skip "healthy" so the
+  // panel is actually actionable when most of the book is doing fine.
+  const needsAttention = data.healthScores
+    .filter(h => h.score < 75)
+    .slice(0, 10)
+
   return (
     <div className="space-y-6">
-      {/* Revenue at Risk */}
-      {data.revenueAtRisk.length > 0 && (
-        <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-[#f59e0b]" />
-            Revenue at Risk
-            <span className="text-xs font-mono text-[#ef4444] ml-2">
-              ${totalAtRiskMRR.toLocaleString()}/mo
-            </span>
-          </h2>
-          <div className="space-y-2">
-            {data.revenueAtRisk.slice(0, 10).map(a => (
-              <Link
-                key={a.id}
-                href={`/admin/advisors/${a.id}`}
-                className="flex items-center justify-between p-3 rounded-lg bg-bg-card hover:bg-bg-card-hover transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <span className={`w-2 h-2 rounded-full ${
-                    a.risk === 'high' ? 'bg-[#ef4444]' : a.risk === 'medium' ? 'bg-[#f59e0b]' : 'bg-[#3b82f6]'
-                  }`} />
-                  <div>
-                    <p className="text-sm text-foreground">{a.name ?? a.email}</p>
-                    {a.name && <p className="text-xs text-text-dim">{a.email}</p>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-right">
-                  <div>
-                    <p className="text-xs text-text-dim">Last login</p>
-                    <p className="text-sm font-mono text-text-muted">
-                      {a.daysSinceLogin >= 999 ? 'Never' : `${a.daysSinceLogin}d ago`}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-dim">30d activity</p>
-                    <p className="text-sm font-mono text-text-muted">
-                      {a.recentScenarios}s / {a.recentExports}e
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-dim">MRR</p>
-                    <p className="text-sm font-mono font-medium text-[#ef4444]">
-                      ${a.mrr}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-dim">Health</p>
-                    <HealthBadge score={a.score} />
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Advisor Health Scores */}
+      {/* Advisor Health (merged: Revenue at Risk + Health Scores) */}
       <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted mb-4 flex items-center gap-2">
-          <Heart className="h-4 w-4 text-[#d4af37]" />
-          Advisor Health Scores
-        </h2>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted flex items-center gap-2">
+            <Heart className="h-4 w-4 text-[#d4af37]" />
+            Advisor Health
+          </h2>
+          {atRiskMRR > 0 && (
+            <span className="text-xs text-text-dim">
+              MRR on at-risk accounts (score &lt; 50):{' '}
+              <span className="font-mono font-semibold text-[#ef4444]">${atRiskMRR.toLocaleString()}/mo</span>
+            </span>
+          )}
+        </div>
 
         {/* Distribution summary */}
         <div className="grid grid-cols-4 gap-3 mb-6">
@@ -155,36 +115,46 @@ export function AnalyticsSection() {
           </div>
         </div>
 
-        {/* Bottom 10 advisors (lowest health) */}
-        {data.healthScores.length > 0 && (
+        {/* Single ranked list — score, MRR, last login, recent activity */}
+        {needsAttention.length > 0 ? (
           <>
-            <p className="text-xs text-text-muted mb-2">Lowest health advisors:</p>
+            <p className="text-xs text-text-muted mb-2">Top {needsAttention.length} advisors needing attention:</p>
             <div className="space-y-1">
-              {data.healthScores.slice(0, 10).map(h => (
+              {needsAttention.map(h => (
                 <Link
                   key={h.id}
                   href={`/admin/advisors/${h.id}`}
                   className="flex items-center justify-between p-2.5 rounded-lg hover:bg-bg-card-hover transition-colors"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <HealthBadge score={h.score} />
-                    <div>
-                      <p className="text-sm text-foreground">{h.name ?? h.email}</p>
-                      {h.name && <p className="text-xs text-text-dim">{h.email}</p>}
+                    <div className="min-w-0">
+                      <p className="text-sm text-foreground truncate">{h.name ?? h.email}</p>
+                      {h.name && <p className="text-xs text-text-dim truncate">{h.email}</p>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-6 text-xs text-text-dim">
-                    <span>{h.totalClients} clients</span>
-                    <span>{h.recentLogins} logins (30d)</span>
-                    <span>{h.recentScenarios} scenarios (30d)</span>
-                    <span>
-                      {h.daysSinceLogin >= 999 ? 'Never logged in' : `Last login ${h.daysSinceLogin}d ago`}
+                  <div className="flex items-center gap-5 text-xs text-text-dim shrink-0">
+                    <span className="font-mono text-[#ef4444] w-16 text-right">
+                      {h.mrr > 0 ? `$${h.mrr}/mo` : '—'}
+                    </span>
+                    <span className="w-20 text-right tabular-nums">
+                      {h.daysSinceLogin >= 999 ? 'Never' : `${h.daysSinceLogin}d ago`}
+                    </span>
+                    <span className="w-24 text-right tabular-nums">
+                      {h.recentScenarios}s · {h.recentExports}e (30d)
+                    </span>
+                    <span className="w-16 text-right tabular-nums">
+                      {h.totalClients} client{h.totalClients === 1 ? '' : 's'}
                     </span>
                   </div>
                 </Link>
               ))}
             </div>
           </>
+        ) : (
+          <p className="text-xs text-text-dim text-center py-6">
+            All advisors scoring 75+. Nothing to action right now.
+          </p>
         )}
       </div>
 

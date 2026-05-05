@@ -30,6 +30,14 @@ interface Advisor {
   status: 'active' | 'inactive' | 'deactivated'
   subscriptionStatus: string
   billingCycle: string | null
+  currentPeriodEnd: string | null
+  // Pricing (after coupons/discounts) — null when no Stripe sub.
+  netMonthly: number | null
+  netInterval: number | null
+  listPriceInterval: number | null
+  priceInterval: string | null
+  discountPercent: number
+  discountLabel: string | null
 }
 
 interface ActivityPoint {
@@ -37,9 +45,10 @@ interface ActivityPoint {
   count: number
 }
 
-type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status' | 'subscriptionStatus'
+type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status' | 'subscriptionStatus' | 'netMonthly' | 'currentPeriodEnd'
 type SortDir = 'asc' | 'desc'
 type DateRange = 'today' | '7d' | '30d' | 'mtd' | 'all' | 'custom'
+type AdvisorView = 'active' | 'churned' | 'all'
 
 const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -63,7 +72,7 @@ export default function AdminDashboard() {
   const [activityType, setActivityType] = useState<'scenario_runs' | 'exports' | 'logins'>('scenario_runs')
   const [activityRange, setActivityRange] = useState<'7d' | '30d' | '90d'>('30d')
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'deactivated'>('all')
-  const [showChurned, setShowChurned] = useState(false)
+  const [advisorView, setAdvisorView] = useState<AdvisorView>('active')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [sortKey, setSortKey] = useState<SortKey>('createdAt')
@@ -84,14 +93,17 @@ export default function AdminDashboard() {
     fetch(url).then(r => r.json()).then(s => setStats(s)).catch(console.error)
   }, [dateRange, customFrom, customTo])
 
+  // Always fetch ALL advisors (including churned) and filter client-side.
+  // Lets the segmented filter switch instantly without re-fetching, and means
+  // the underlying data is fresh enough for one-off filter changes.
   const fetchAdvisors = useCallback(() => {
-    fetch(`/api/admin/advisors?churned=${showChurned}`).then(r => r.json()).then(a => setAdvisors(a.advisors ?? [])).catch(console.error)
-  }, [showChurned])
+    fetch(`/api/admin/advisors?churned=true`).then(r => r.json()).then(a => setAdvisors(a.advisors ?? [])).catch(console.error)
+  }, [])
 
   useEffect(() => {
     Promise.all([
       fetch(`/api/admin/stats?range=${dateRange}`).then(r => r.json()),
-      fetch(`/api/admin/advisors?churned=${showChurned}`).then(r => r.json()),
+      fetch(`/api/admin/advisors?churned=true`).then(r => r.json()),
     ]).then(([s, a]) => {
       setStats(s)
       setAdvisors(a.advisors ?? [])
@@ -102,10 +114,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchStats()
   }, [fetchStats])
-
-  useEffect(() => {
-    fetchAdvisors()
-  }, [showChurned])
 
   useEffect(() => {
     fetch(`/api/admin/activity?type=${activityType}&range=${activityRange}`)
@@ -165,8 +173,10 @@ export default function AdminDashboard() {
 
   const filtered = useMemo(() => {
     let result = advisors.filter(a => {
+      // Active/Churned/All view filter — operates on subscription status.
+      if (advisorView === 'active' && a.subscriptionStatus === 'canceled') return false
+      if (advisorView === 'churned' && a.subscriptionStatus !== 'canceled') return false
       if (statusFilter !== 'all' && a.status !== statusFilter) return false
-      if (!showChurned && a.subscriptionStatus === 'canceled') return false
       if (search) {
         const q = search.toLowerCase()
         if (!a.email.toLowerCase().includes(q) && !(a.name && a.name.toLowerCase().includes(q))) return false
@@ -192,12 +202,24 @@ export default function AdminDashboard() {
         }
         case 'status': cmp = a.status.localeCompare(b.status); break
         case 'subscriptionStatus': cmp = a.subscriptionStatus.localeCompare(b.subscriptionStatus); break
+        case 'netMonthly': cmp = (a.netMonthly ?? -1) - (b.netMonthly ?? -1); break
+        case 'currentPeriodEnd': {
+          const aVal = a.currentPeriodEnd ?? ''
+          const bVal = b.currentPeriodEnd ?? ''
+          cmp = aVal.localeCompare(bVal)
+          break
+        }
       }
       return sortDir === 'asc' ? cmp : -cmp
     })
 
     return result
-  }, [advisors, statusFilter, showChurned, search, sortKey, sortDir])
+  }, [advisors, statusFilter, advisorView, search, sortKey, sortDir])
+
+  const churnedCount = useMemo(
+    () => advisors.filter(a => a.subscriptionStatus === 'canceled').length,
+    [advisors]
+  )
 
   const toggleSelectAll = useCallback(() => {
     if (selectedIds.size === filtered.length) {
@@ -208,13 +230,19 @@ export default function AdminDashboard() {
   }, [filtered, selectedIds.size])
 
   const exportToCSV = useCallback(() => {
-    const headers = ['Email', 'Name', 'Status', 'Subscription', 'Billing', 'Signup Date', 'Clients', 'Scenarios', 'Exports', 'Sessions', 'Last Login']
+    const headers = ['Email', 'Name', 'Status', 'Subscription', 'Billing', 'List Price', 'Net Price', 'Discount %', 'Discount Label', 'Net MRR', 'Renewal', 'Signup Date', 'Clients', 'Scenarios', 'Exports', 'Sessions', 'Last Login']
     const rows = filtered.map(a => [
       a.email,
       a.name ?? '',
       a.status,
       a.subscriptionStatus,
       a.billingCycle ?? '',
+      a.listPriceInterval != null ? `$${a.listPriceInterval.toFixed(2)}` : '',
+      a.netInterval != null ? `$${a.netInterval.toFixed(2)}` : '',
+      a.discountPercent ? `${a.discountPercent}%` : '',
+      a.discountLabel ?? '',
+      a.netMonthly != null ? `$${a.netMonthly.toFixed(2)}` : '',
+      a.currentPeriodEnd ? new Date(a.currentPeriodEnd).toLocaleDateString() : '',
       new Date(a.createdAt).toLocaleDateString(),
       a.clientCount,
       a.scenarioRunCount,
@@ -386,9 +414,12 @@ export default function AdminDashboard() {
       {/* Advisors Table */}
       <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted">
-            Paying Advisors
-          </h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted">
+              {advisorView === 'churned' ? 'Churned Advisors' : advisorView === 'all' ? 'All Advisors' : 'Paying Advisors'}
+            </h2>
+            <span className="text-xs text-text-dim font-mono">{filtered.length}</span>
+          </div>
           <div className="flex gap-3 flex-wrap">
             <input
               type="text"
@@ -397,6 +428,26 @@ export default function AdminDashboard() {
               onChange={e => setSearch(e.target.value)}
               className="px-3 py-1.5 text-xs bg-bg-card-hover border border-border-default rounded-lg text-foreground placeholder:text-text-muted outline-none focus:border-[#d4af37]"
             />
+            {/* Active / Churned / All — replaces the old standalone toggle. */}
+            <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
+              {(['active', 'churned', 'all'] as const).map(v => (
+                <button
+                  key={v}
+                  onClick={() => setAdvisorView(v)}
+                  className={`px-3 py-1 text-xs rounded-md transition-colors capitalize ${
+                    advisorView === v
+                      ? v === 'churned'
+                        ? 'bg-[rgba(239,68,68,0.18)] text-[#ef4444] font-medium'
+                        : 'bg-[#d4af37] text-black font-medium'
+                      : 'text-text-muted hover:text-foreground'
+                  }`}
+                >
+                  {v === 'churned' && churnedCount > 0
+                    ? `Churned (${churnedCount})`
+                    : v}
+                </button>
+              ))}
+            </div>
             <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
               {(['all', 'active', 'inactive', 'deactivated'] as const).map(s => (
                 <button
@@ -412,16 +463,6 @@ export default function AdminDashboard() {
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setShowChurned(!showChurned)}
-              className={`px-3 py-1.5 text-xs rounded-lg border transition-colors ${
-                showChurned
-                  ? 'bg-[rgba(239,68,68,0.15)] border-[rgba(239,68,68,0.3)] text-[#ef4444]'
-                  : 'bg-bg-card-hover border-border-default text-text-muted hover:text-foreground'
-              }`}
-            >
-              {showChurned ? 'Showing Churned' : 'Show Churned'}
-            </button>
             <button
               onClick={exportToCSV}
               className="px-3 py-1.5 text-xs bg-bg-card-hover border border-border-default rounded-lg text-foreground hover:bg-secondary transition-colors flex items-center gap-1.5"
@@ -454,7 +495,10 @@ export default function AdminDashboard() {
               <SortableHeader label="Name" sortKey="name" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Email" sortKey="email" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Subscription" sortKey="subscriptionStatus" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-              <SortableHeader label="Signup" sortKey="createdAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              <SortableHeader label="Net Price" sortKey="netMonthly" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+              {advisorView === 'churned'
+                ? <SortableHeader label="Churned On" sortKey="currentPeriodEnd" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                : <SortableHeader label="Signup" sortKey="createdAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />}
               <SortableHeader label="Clients" sortKey="clientCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Scenarios" sortKey="scenarioRunCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Exports" sortKey="exportCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
@@ -496,8 +540,20 @@ export default function AdminDashboard() {
                     {a.subscriptionStatus}{a.billingCycle ? ` (${a.billingCycle})` : ''}
                   </span>
                 </td>
+                <td className="px-4 py-3 text-sm text-right font-mono text-foreground">
+                  {a.netInterval != null ? (
+                    <>
+                      ${formatPrice(a.netInterval)}
+                      <span className="text-text-dim">/{a.priceInterval === 'year' ? 'yr' : 'mo'}</span>
+                    </>
+                  ) : (
+                    <span className="text-text-dimmer">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-sm text-text-muted">
-                  {new Date(a.createdAt).toLocaleDateString()}
+                  {advisorView === 'churned'
+                    ? (a.currentPeriodEnd ? new Date(a.currentPeriodEnd).toLocaleDateString() : '—')
+                    : new Date(a.createdAt).toLocaleDateString()}
                 </td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-text-dim">{a.clientCount}</td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-text-dim">{a.scenarioRunCount}</td>
@@ -529,8 +585,8 @@ export default function AdminDashboard() {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={12} className="px-4 py-8 text-center text-sm text-text-muted">
-                  No advisors found
+                <td colSpan={13} className="px-4 py-8 text-center text-sm text-text-muted">
+                  {advisorView === 'churned' ? 'No churned advisors.' : 'No advisors found'}
                 </td>
               </tr>
             )}
@@ -565,6 +621,14 @@ function SortableHeader({ label, sortKey: key, align, currentSort, currentDir, o
       </span>
     </th>
   )
+}
+
+function formatPrice(value: number): string {
+  // Whole dollars when the value is integer-cents; otherwise show 2 decimals.
+  if (Number.isFinite(value) && Math.round(value * 100) === Math.round(value) * 100) {
+    return value.toLocaleString(undefined, { maximumFractionDigits: 0 })
+  }
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function StatCard({ label, value, subtitle }: { label: string; value: number; subtitle?: string }) {

@@ -138,8 +138,8 @@ export async function GET() {
       }
     });
 
-    // Calculate health scores (0-100) for each paying advisor
-    const healthScores = profiles
+    // Build raw health scores first (no MRR yet).
+    const rawHealth = profiles
       .filter(p => p.subscription_status === 'active' || p.subscription_status === 'trialing')
       .map(p => {
         const lastLogin = lastLoginMap.get(p.id);
@@ -153,13 +153,9 @@ export async function GET() {
         const totalClients = clientsByAdvisor.get(p.id) ?? 0;
 
         // Score components (each 0-25, total 0-100)
-        // Login recency: 25 if within 3 days, scales down
         const recencyScore = daysSinceLogin <= 3 ? 25 : daysSinceLogin <= 7 ? 20 : daysSinceLogin <= 14 ? 12 : daysSinceLogin <= 30 ? 5 : 0;
-        // Login frequency: 25 if 10+ logins in 30d
         const frequencyScore = Math.min(25, Math.round((recentLogins / 10) * 25));
-        // Usage: 25 if 5+ scenarios in 30d
         const usageScore = Math.min(25, Math.round(((recentScenarios + recentExports) / 5) * 25));
-        // Depth: 25 if 5+ clients
         const depthScore = Math.min(25, Math.round((totalClients / 5) * 25));
 
         const score = recencyScore + frequencyScore + usageScore + depthScore;
@@ -174,55 +170,61 @@ export async function GET() {
           recentScenarios,
           recentExports,
           totalClients,
+          stripe_subscription_id: p.stripe_subscription_id,
         };
-      })
-      .sort((a, b) => a.score - b.score); // Lowest scores first
+      });
 
-    // Fetch actual subscription amounts from Stripe for at-risk MRR
+    // Fetch MRR from Stripe for the bottom-of-health subset that we'll display
+    // (everyone scoring below 75). Cap fetches so we don't pay the round-trip
+    // for advisors that won't appear in the merged "Advisor Health" list.
     const stripe = getStripe();
-    const atRiskCandidates = healthScores.filter(h => h.daysSinceLogin >= 7 || h.score < 30);
+    const mrrFetchTargets = rawHealth
+      .filter(h => h.score < 75 && h.stripe_subscription_id)
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 30);
     const subAmountMap = new Map<string, number>();
 
-    const subFetches = atRiskCandidates.map(async (h) => {
-      const profile = profiles.find(p => p.id === h.id);
-      if (!profile?.stripe_subscription_id) return;
+    const subFetches = mrrFetchTargets.map(async (h) => {
       try {
-        const sub = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
+        // Latest invoice carries the post-discount billed amount; cleanest
+        // single source of truth for MRR after discounts.
+        const sub = await stripe.subscriptions.retrieve(h.stripe_subscription_id!, {
+          expand: ['latest_invoice'],
+        });
         const item = sub.items?.data?.[0];
-        if (item) {
-          let amount = (item.price?.unit_amount ?? 0) / 100;
-          const interval = item.price?.recurring?.interval ?? 'month';
-          // Apply subscription-level discounts
-          const discounts = sub.discounts ?? [];
-          for (const d of discounts) {
-            if (typeof d === 'string') continue;
-            const coupon = typeof d.source?.coupon === 'object' ? d.source.coupon : null;
-            if (coupon?.percent_off) {
-              amount *= (1 - coupon.percent_off / 100);
-            }
-            if (coupon?.amount_off) {
-              amount = Math.max(0, amount - coupon.amount_off / 100);
-            }
-          }
-          const mrr = interval === 'year' ? Math.round(amount / 12) : Math.round(amount);
-          subAmountMap.set(h.id, mrr);
+        if (!item) return;
+        const listPrice = (item.price?.unit_amount ?? 0) / 100;
+        const interval = item.price?.recurring?.interval ?? 'month';
+
+        let amount = listPrice;
+        const latestInvoice = (sub as unknown as { latest_invoice?: { total?: number; amount_paid?: number } | string | null }).latest_invoice;
+        if (latestInvoice && typeof latestInvoice === 'object') {
+          const tot = latestInvoice.total ?? 0;
+          const paid = latestInvoice.amount_paid ?? 0;
+          if (tot > 0) amount = tot / 100;
+          else if (paid > 0) amount = paid / 100;
         }
+
+        const mrr = interval === 'year' ? Math.round(amount / 12) : Math.round(amount);
+        subAmountMap.set(h.id, mrr);
       } catch {
         // Skip if fetch fails
       }
     });
     await Promise.all(subFetches);
 
-    // Revenue at risk: paying advisors who haven't logged in for 7+ days OR have declining usage
-    const revenueAtRisk = atRiskCandidates
-      .map(h => ({
+    // Final shape: each advisor carries MRR + risk label. Sorted by score
+    // ascending so the highest-priority intervention sits at the top.
+    const healthScores = rawHealth
+      .map(({ stripe_subscription_id: _drop, ...h }) => ({
         ...h,
         mrr: subAmountMap.get(h.id) ?? 0,
-        risk: h.daysSinceLogin >= 30 ? 'high' as const
-          : h.daysSinceLogin >= 14 ? 'medium' as const
-          : 'low' as const,
+        risk: h.score < 25 ? 'critical' as const
+          : h.score < 50 ? 'high' as const
+          : h.score < 75 ? 'medium' as const
+          : 'healthy' as const,
       }))
-      .sort((a, b) => b.mrr - a.mrr); // Highest revenue at risk first
+      .sort((a, b) => a.score - b.score);
 
     return NextResponse.json({
       featureAdoption: {
@@ -236,7 +238,6 @@ export async function GET() {
       },
       engagement: { avgClientsPerAdvisor, avgScenariosPerAdvisor },
       healthScores,
-      revenueAtRisk,
     });
   } catch (error) {
     console.error("Analytics API error:", error);
