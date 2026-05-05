@@ -61,6 +61,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       spouse_ssi_payout_age: client?.spouse_ssi_payout_age ?? 67,
       spouse_ssi_annual_amount: client?.spouse_ssi_annual_amount ?? 0,
       non_ssi_income: client?.non_ssi_income ?? [],
+      withdrawals: client?.withdrawals ?? [],
       conversion_type: client?.conversion_type ?? "optimized_amount",
       protect_initial_premium: client?.protect_initial_premium ?? true,
       withdrawal_type: client?.withdrawal_type ?? "no_withdrawals",

@@ -45,6 +45,7 @@ import {
   getEffectiveRollUpForYear,
   getEffectiveIncreasingLPARate,
 } from '../resolvers/product-resolver';
+import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import type { CustomProductRow } from '@/lib/products/types';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier, computeTaxableIncomeWithSS } from '../tax-helpers';
@@ -324,17 +325,29 @@ function runGIStrategyScenario(
       let federalConversionTax = 0;
       let stateConversionTax = 0;
 
+      // Voluntary withdrawals (advisor-scheduled). For GI we apply them ONLY
+      // during the conversion phase — once the funds are inside the GI annuity
+      // (purchase + deferral + income phases) the engine doesn't model
+      // ad-hoc withdrawals from the AV. This covers the most common case
+      // (advisor pulling income before the GI starts).
+      const wdGI = resolveWithdrawalsForYear(client, year, boyTraditional, boyRoth);
+      const iraWithdrawalGI = wdGI.iraPulled;
+      const rothWithdrawalGI = wdGI.rothPulled;
+      // Subtract immediately so conversion math sees the right balance.
+      let availableTraditional = boyTraditional - iraWithdrawalGI;
+      const availableRoth = boyRoth - rothWithdrawalGI;
+
       // Check if this is the LAST year of conversion phase
       const isLastConversionYear = age === conversionEndAge;
 
-      if (boyTraditional > 0) {
+      if (availableTraditional > 0) {
         if (isLastConversionYear) {
           // LAST YEAR: Convert ALL remaining Traditional to ensure everything goes into Roth GI
           // This maximizes tax-free income by getting all money into the Roth strategy
-          conversionAmount = boyTraditional;
+          conversionAmount = availableTraditional;
         } else {
           // For other years, use FIXED annual conversion amount
-          conversionAmount = Math.min(fixedAnnualConversion, boyTraditional);
+          conversionAmount = Math.min(fixedAnnualConversion, availableTraditional);
         }
 
         // Handle tax payment from IRA.
@@ -354,15 +367,15 @@ function runGIStrategyScenario(
           if (isLastConversionYear) {
             // Full conversion: empty the IRA. total_dist = balance, so
             // conversion = balance × (1 − rate).
-            conversionAmount = Math.round(boyTraditional * (1 - effectiveRate));
+            conversionAmount = Math.round(availableTraditional * (1 - effectiveRate));
           } else {
             // Fixed amount: cap so the SELF-CONSISTENT total (conv/(1-rate))
             // fits inside the IRA. This is tighter than the old cap because
             // tax-on-tax is higher than tax-on-conversion-alone.
-            const maxConvWithSelfConsistentTax = Math.floor(boyTraditional * (1 - effectiveRate));
+            const maxConvWithSelfConsistentTax = Math.floor(availableTraditional * (1 - effectiveRate));
             conversionAmount = Math.min(conversionAmount, maxConvWithSelfConsistentTax);
           }
-          conversionAmount = Math.max(0, Math.min(conversionAmount, boyTraditional));
+          conversionAmount = Math.max(0, Math.min(conversionAmount, availableTraditional));
         }
 
         // Calculate conversion tax (flat rate). When paying from the IRA, the
@@ -393,11 +406,12 @@ function runGIStrategyScenario(
       const conversionTax = federalConversionTax + stateConversionTax;
       totalConversionTax += conversionTax;
 
-      // Execute conversion
-      // When payTaxFromIRA, the IRA also pays the tax — deduct both
+      // Execute conversion. The voluntary withdrawals were already netted out
+      // of availableTraditional / availableRoth above, so we apply conversion
+      // on top of those reduced balances.
       const conversionTaxFromIRA = payTaxFromIRA ? conversionTax : 0;
-      traditionalBalance = boyTraditional - conversionAmount - conversionTaxFromIRA;
-      rothBalance = boyRoth + conversionAmount;
+      traditionalBalance = availableTraditional - conversionAmount - conversionTaxFromIRA;
+      rothBalance = availableRoth + conversionAmount;
 
       // Apply growth
       const traditionalInterest = Math.round(traditionalBalance * rateOfReturn);
@@ -411,7 +425,9 @@ function runGIStrategyScenario(
       // the tax withheld is ALSO a taxable distribution on the 1099-R, so it
       // must be added to the income base — otherwise the year's MAGI/IRMAA
       // lookback and the reported taxable income both understate reality.
-      const grossIncomeWithConversion = otherIncome + conversionAmount + conversionTaxFromIRA;
+      // Voluntary IRA pulls (iraWithdrawalGI) join the same ordinary-income
+      // bucket; voluntary Roth pulls are tax-free and excluded.
+      const grossIncomeWithConversion = otherIncome + conversionAmount + conversionTaxFromIRA + iraWithdrawalGI;
       const magi = grossIncomeWithConversion + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
@@ -421,11 +437,15 @@ function runGIStrategyScenario(
         irmaaSurcharge = irmaaResult.annualSurcharge;
       }
 
-      // 10% early withdrawal penalty on tax paid from IRA when under 59.5
-      const earlyWithdrawalPenalty =
+      // 10% early withdrawal penalty applies to (a) IRA-funded conversion tax
+      // when under 59.5 and (b) any voluntary IRA pull this year when under
+      // 59.5. Conversions themselves are penalty-exempt.
+      const conversionTaxPenalty =
         conversionTaxFromIRA > 0 && age < 60
           ? Math.round(conversionTaxFromIRA * 0.10)
           : 0;
+      const voluntaryWithdrawalPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawalGI);
+      const earlyWithdrawalPenalty = conversionTaxPenalty + voluntaryWithdrawalPenalty;
 
       const totalTax = conversionTax + irmaaSurcharge + earlyWithdrawalPenalty;
 
@@ -495,9 +515,11 @@ function runGIStrategyScenario(
         stateTaxOnSS: 0,
         stateTaxOnConversions: stateConversionTax,
         stateTaxOnOrdinaryIncome: 0,
-        totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA,
+        totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + iraWithdrawalGI,
         taxesPaidFromIRA: conversionTaxFromIRA,
         earlyWithdrawalPenalty,
+        iraWithdrawal: iraWithdrawalGI,
+        rothWithdrawal: rothWithdrawalGI,
         // GI-specific fields
         incomeRiderValue: 0,
         accumulationValue: 0,
@@ -1145,7 +1167,16 @@ function runGIBaselineScenario(
     // WAITING PHASE: Traditional IRA grows before GI purchase
     // =======================================================================
     if (currentPhase === 'waiting') {
-      // Traditional IRA grows
+      // Voluntary withdrawals on top of normal balance growth. Traditional
+      // available = full boyTraditional (no RMD/conversion in waiting phase).
+      // Roth balance is 0 in baseline — Roth withdrawals will resolve to 0.
+      const wdW = resolveWithdrawalsForYear(client, year, traditionalBalance, 0);
+      const iraWithdrawalW = wdW.iraPulled;
+      const rothWithdrawalW = wdW.rothPulled; // always 0 in baseline waiting
+      const earlyPenaltyW = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawalW);
+      traditionalBalance = traditionalBalance - iraWithdrawalW;
+
+      // Traditional IRA grows on the post-withdrawal balance
       const iraGrowth = Math.round(traditionalBalance * rateOfReturn);
       traditionalBalance = traditionalBalance + iraGrowth;
 
@@ -1153,8 +1184,8 @@ function runGIBaselineScenario(
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
       taxableBalance = boyTaxable + taxableInterest;
 
-      // IRMAA
-      const magi = otherIncome + taxExemptNonSSI + ssIncome;
+      // IRMAA. Voluntary IRA pulls feed into MAGI/income exactly like ordinary income.
+      const magi = otherIncome + iraWithdrawalW + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
       let irmaaSurcharge = 0;
@@ -1165,13 +1196,13 @@ function runGIBaselineScenario(
 
       // Calculate tax details (with SS taxation awareness)
       const waitingTaxInfo = computeTaxableIncomeWithSS({
-        otherIncome,
+        otherIncome: otherIncome + iraWithdrawalW,
         ssBenefits: ssIncome,
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
       });
-      const totalIncome = otherIncome + ssIncome;
+      const totalIncome = otherIncome + iraWithdrawalW + ssIncome;
       const agi = waitingTaxInfo.agi;
       const taxableIncome = waitingTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
@@ -1197,7 +1228,7 @@ function runGIBaselineScenario(
         stateTax: 0,
         niitTax: 0,
         irmaaSurcharge,
-        totalTax: irmaaSurcharge,
+        totalTax: irmaaSurcharge + earlyPenaltyW,
         taxableSS: waitingTaxInfo.taxableSS,
         netWorth: traditionalBalance + taxableBalance,
         // Extended fields for adjustable columns
@@ -1220,6 +1251,10 @@ function runGIBaselineScenario(
         stateTaxOnSS: 0,
         stateTaxOnConversions: 0,
         stateTaxOnOrdinaryIncome: 0,
+        totalIRAWithdrawal: iraWithdrawalW,
+        iraWithdrawal: iraWithdrawalW,
+        rothWithdrawal: rothWithdrawalW,
+        earlyWithdrawalPenalty: earlyPenaltyW || undefined,
         // GI-specific fields
         incomeRiderValue: 0,
         accumulationValue: 0,

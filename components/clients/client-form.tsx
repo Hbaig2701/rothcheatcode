@@ -81,6 +81,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       spouse_ssi_payout_age: client?.spouse_ssi_payout_age ?? 67,
       spouse_ssi_annual_amount: client?.spouse_ssi_annual_amount ?? 0,
       non_ssi_income: client?.non_ssi_income ?? [],
+      withdrawals: client?.withdrawals ?? [],
 
       // Section 6: Conversion
       conversion_type: client?.conversion_type ?? (ud.conversion_type as ClientFormData["conversion_type"]) ?? "optimized_amount",

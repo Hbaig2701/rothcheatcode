@@ -21,6 +21,27 @@ export interface NonSSIIncomeEntry {
   type?: IncomeType;     // Optional — existing data has no type (displays as "Other")
 }
 
+/**
+ * One year's voluntary withdrawal from the IRA or Roth, on top of any RMD or
+ * conversion the engine computes. Distinct from `NonSSIIncomeEntry` (which is
+ * income from OUTSIDE the portfolio — pension, rental, wages); these rows
+ * actually pull from the qualified balance.
+ *
+ * `source`:
+ *   - 'ira'  — pull from IRA only. Adds to taxable income; 10% penalty if age < 59.5.
+ *   - 'roth' — pull from Roth only. Tax-free (assumed qualified — 5-yr rule + 59.5).
+ *   - 'auto' — pull from Roth first (tax-free), remainder from IRA. Most useful for
+ *              comparing baseline vs strategy: baseline naturally falls to IRA, the
+ *              strategy uses the Roth bucket the conversions built up.
+ */
+export type WithdrawalSource = 'ira' | 'roth' | 'auto';
+export interface WithdrawalEntry {
+  year: number;
+  age: number | string;  // for display only — engine uses year
+  amount: number;        // cents
+  source: WithdrawalSource;
+}
+
 export interface Client {
   // System fields
   id: string;
@@ -69,6 +90,7 @@ export interface Client {
   spouse_ssi_payout_age: number | null;  // Spouse SSI start age (MFJ only)
   spouse_ssi_annual_amount: number | null; // Spouse SSI amount (MFJ only)
   non_ssi_income: NonSSIIncomeEntry[];  // JSONB array of income entries
+  withdrawals: WithdrawalEntry[];        // Voluntary IRA/Roth withdrawals on top of RMDs/conversions
 
   // ===== Section 6: Conversion =====
   conversion_type: "optimized_amount" | "fixed_amount" | "full_conversion" | "no_conversion" | "partial_amount";
@@ -178,6 +200,7 @@ export interface FormulaFormData {
   spouse_ssi_payout_age: number | null;
   spouse_ssi_annual_amount: number | null;
   non_ssi_income: NonSSIIncomeEntry[];
+  withdrawals: WithdrawalEntry[];
 
   // Section 6: Conversion
   conversion_type: Client["conversion_type"];

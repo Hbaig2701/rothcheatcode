@@ -64,6 +64,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             spouse_ssi_annual_amount: client?.spouse_ssi_annual_amount ?? 0,
 
             non_ssi_income: client?.non_ssi_income ?? [],
+            withdrawals: client?.withdrawals ?? [],
             conversion_type: client?.conversion_type ?? "optimized_amount",
             fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
             protect_initial_premium: client?.protect_initial_premium ?? true,

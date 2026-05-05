@@ -13,7 +13,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 42; // v42: Custom products now flow into engine (rider fee, GI roll-up, payout factors, bonus targeting) — every cached projection that uses a custom product needs recompute.
+const PRODUCT_CONFIG_VERSION = 43; // v43: Voluntary IRA/Roth withdrawal schedule — engines now apply per-year withdrawals on top of RMDs/conversions, affecting balances + taxable income + 10% early-withdrawal penalty. All cached projections need recompute since balance trajectories shift even for clients with no withdrawals (the cache key now includes the schedule).
 
 function generateInputHash(client: Client, customProduct?: CustomProductRow | null): string {
   const relevantFields = {
@@ -44,6 +44,7 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     spouse_ssi_payout_age: client.spouse_ssi_payout_age,
     spouse_ssi_annual_amount: client.spouse_ssi_annual_amount,
     non_ssi_income: client.non_ssi_income,
+    withdrawals: client.withdrawals,
     conversion_type: client.conversion_type,
     fixed_conversion_amount: client.fixed_conversion_amount,
     target_partial_amount: client.target_partial_amount,

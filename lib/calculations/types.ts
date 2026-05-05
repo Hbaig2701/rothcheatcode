@@ -219,6 +219,13 @@ export interface YearlyResult {
   // amount; paid from external funds, not from the IRA itself.
   earlyWithdrawalPenalty?: number;
 
+  // Voluntary withdrawals from the IRA / Roth, scheduled by the advisor
+  // (separate from RMDs and conversions). IRA portion adds to taxable income;
+  // Roth portion is tax-free (assumed qualified). Both reduce the respective
+  // balance. The pre-59.5 IRA penalty rolls into earlyWithdrawalPenalty above.
+  iraWithdrawal?: number;
+  rothWithdrawal?: number;
+
   // Guaranteed Income-specific (optional, for GI products)
   incomeRiderValue?: number; // Income benefit base (in cents)
   accumulationValue?: number; // Account accumulation value (in cents)

@@ -19,6 +19,7 @@ import {
 import { calculateRMD } from '../modules/rmd';
 import { ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
 import { getEffectiveGrowthRiderFee } from '../resolvers/product-resolver';
+import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import type { CustomProductRow } from '@/lib/products/types';
 
 /**
@@ -190,9 +191,21 @@ export function runGrowthFormulaScenario(
     const rmdAmount = Math.min(rmdResult.rmdAmount, boyIRA);
     const iraAfterRmd = boyIRA - rmdAmount;
 
-    // Existing taxable income (RMD + other + taxable SS) — used to seed
-    // marginal tax calculations and the SS-aware optimizer.
-    const existingNonSSIncome = rmdAmount + otherIncome;
+    // Step 0b: Voluntary withdrawals on top of RMDs (advisor-scheduled).
+    // Available IRA = balance after RMD; available Roth = full boyRoth.
+    // The IRA portion adds to taxable income alongside the RMD; the Roth
+    // portion is tax-free (assumed qualified). Withdrawals happen BEFORE the
+    // conversion math so the optimizer sees the right post-withdrawal IRA
+    // and the right starting taxable income.
+    const wd = resolveWithdrawalsForYear(client, year, iraAfterRmd, boyRoth);
+    const iraWithdrawal = wd.iraPulled;
+    const rothWithdrawal = wd.rothPulled;
+    const iraAfterRmdAndWithdrawal = iraAfterRmd - iraWithdrawal;
+    const rothAfterWithdrawal = boyRoth - rothWithdrawal;
+
+    // Existing taxable income (RMD + voluntary IRA withdrawal + other + taxable SS) —
+    // used to seed marginal tax calculations and the SS-aware optimizer.
+    const existingNonSSIncome = rmdAmount + iraWithdrawal + otherIncome;
     const existingTaxInfo = computeTaxableIncomeWithSS({
       otherIncome: existingNonSSIncome,
       ssBenefits: ssIncome,
@@ -235,7 +248,7 @@ export function runGrowthFormulaScenario(
     const carrierCap = respectPenaltyFreeLimit && inSurrenderPeriod
       ? Math.round(boyIRA * penaltyFreePercent / 100)
       : Number.POSITIVE_INFINITY;
-    const effectiveIraForConversion = Math.min(iraAfterRmd, carrierCap);
+    const effectiveIraForConversion = Math.min(iraAfterRmdAndWithdrawal, carrierCap);
 
     const shouldConvert = conversionType !== 'no_conversion' &&
                           age >= conversionStartAge &&
@@ -446,14 +459,15 @@ export function runGrowthFormulaScenario(
       }
     }
 
-    // Execute conversion (on IRA balance already reduced by RMD)
+    // Execute conversion (on IRA balance already reduced by RMD + voluntary withdrawal)
     // When payTaxFromIRA, the IRA also pays the tax, so deduct both from IRA
     const conversionTaxFromIRA = payTaxFromIRA ? (federalTax + stateTax) : 0;
-    const iraAfterConversion = iraAfterRmd - conversionAmount - conversionTaxFromIRA;
-    const rothAfterConversion = boyRoth + conversionAmount;
+    const iraAfterConversion = iraAfterRmdAndWithdrawal - conversionAmount - conversionTaxFromIRA;
+    const rothAfterConversion = rothAfterWithdrawal + conversionAmount;
 
-    // Track cumulative withdrawals for the principal protection floor
-    cumulativeWithdrawn += rmdAmount + conversionAmount + conversionTaxFromIRA;
+    // Track cumulative withdrawals for the principal protection floor.
+    // Voluntary IRA pulls reduce the floor base just like RMDs/conversions do.
+    cumulativeWithdrawn += rmdAmount + iraWithdrawal + conversionAmount + conversionTaxFromIRA;
     // Track cumulative converted (used by 'partial_amount' to enforce the total cap)
     cumulativeConverted += conversionAmount;
 
@@ -572,15 +586,18 @@ export function runGrowthFormulaScenario(
     }
     const irmaaTier = getIRMAATier(magi, client.filing_status);
 
-    // 10% early withdrawal penalty on tax paid from IRA when under 59.5.
-    // The conversion itself is penalty-exempt (IRC §72(t)(2)(A)(vi)), but the
-    // extra withdrawal to cover taxes IS a taxable distribution subject to the
-    // penalty. We use age < 60 as a proxy for "under 59.5" since we track
-    // integer ages. The penalty is paid from external funds (not from the IRA).
-    const earlyWithdrawalPenalty =
+    // 10% early withdrawal penalty. Two distinct triggers, each on its own:
+    //   1. tax paid from the IRA when under 59.5 — the conversion itself is
+    //      penalty-exempt (IRC §72(t)(2)(A)(vi)), but the extra withdrawal to
+    //      cover taxes IS a taxable distribution subject to the 10%.
+    //   2. voluntary IRA withdrawal scheduled by the advisor when under 59.5.
+    // We use age < 60 as a proxy for "under 59.5" since we track integer ages.
+    const conversionTaxPenalty =
       conversionTaxFromIRA > 0 && age < 60
         ? Math.round(conversionTaxFromIRA * 0.10)
         : 0;
+    const voluntaryWithdrawalPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
+    const earlyWithdrawalPenalty = conversionTaxPenalty + voluntaryWithdrawalPenalty;
 
     // Taxes paid from external funds (taxable account goes negative)
     const totalTax = federalTax + stateTax + irmaaSurcharge + earlyWithdrawalPenalty;
@@ -692,9 +709,11 @@ export function runGrowthFormulaScenario(
       stateTaxOnSS,
       stateTaxOnConversions,
       stateTaxOnOrdinaryIncome,
-      totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + rmdAmount,
+      totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + rmdAmount + iraWithdrawal,
       taxesPaidFromIRA: conversionTaxFromIRA,
       earlyWithdrawalPenalty,
+      iraWithdrawal,
+      rothWithdrawal,
       riderFee: yearRiderFee,
     });
   }

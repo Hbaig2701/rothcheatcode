@@ -7,6 +7,7 @@ import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
+import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import { getMarginalBracket, getIRMAATier, computeTaxableIncomeWithSS } from '../tax-helpers';
 
 /**
@@ -92,6 +93,15 @@ export function runBaselineScenario(
     const rmdResult = calculateRMD({ age, traditionalBalance: boyIRA, birthYear });
     const rmdAmount = rmdResult.rmdAmount;
 
+    // Voluntary withdrawals on top of RMDs. RMD comes off conceptually first,
+    // so the available IRA for voluntary draw is (boyIRA - RMD). Roth is whole
+    // boyRoth (no forced distributions). The IRA portion adds to taxable
+    // income below; the Roth portion is tax-free (assumed qualified).
+    const wd = resolveWithdrawalsForYear(client, year, boyIRA - rmdAmount, boyRoth);
+    const iraWithdrawal = wd.iraPulled;
+    const rothWithdrawal = wd.rothPulled;
+    const earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
+
     // Primary SSI income (with COLA)
     const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
     const primarySsIncome = primaryYearsCollecting >= 0
@@ -115,7 +125,10 @@ export function runBaselineScenario(
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
     // Gross non-SSI income (drives provisional income for SS taxation).
-    const grossTaxableIncome = rmdAmount + otherIncome;
+    // Voluntary IRA withdrawals add to ordinary income alongside RMDs.
+    // Voluntary Roth withdrawals are tax-free (assumed qualified) and
+    // therefore excluded from this total.
+    const grossTaxableIncome = rmdAmount + iraWithdrawal + otherIncome;
 
     // Standard deduction (age-adjusted)
     const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
@@ -160,14 +173,18 @@ export function runBaselineScenario(
       irmaaSurcharge = irmaaResult.annualSurcharge;
     }
 
-    // Total tax
-    const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge;
+    // Total tax — federal + state + IRMAA + 10% early-withdrawal penalty for
+    // any pre-59.5 voluntary IRA pull. RMDs themselves don't trigger the
+    // penalty (RMD start age is well above 59.5).
+    const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge + earlyPenalty;
 
     // Calculate interest AFTER distribution
     // Interest = (B.O.Y. Balance - Distribution) × Rate
-    const iraAfterDistribution = boyIRA - rmdAmount;
+    // Voluntary withdrawals also leave the bucket before the year's growth.
+    const iraAfterDistribution = boyIRA - rmdAmount - iraWithdrawal;
     const iraInterest = Math.round(iraAfterDistribution * growthRate);
-    const rothInterest = Math.round(boyRoth * growthRate);
+    const rothAfterWithdrawal = boyRoth - rothWithdrawal;
+    const rothInterest = Math.round(rothAfterWithdrawal * growthRate);
 
     // Taxable interest only applies in 'reinvested' mode
     const taxableInterest = rmdTreatment === 'reinvested'
@@ -175,9 +192,11 @@ export function runBaselineScenario(
       : 0;
 
     // End of Year balances
-    // E.O.Y. = B.O.Y. - Distribution + Interest
+    // E.O.Y. = B.O.Y. - Distribution + Interest. The voluntary withdrawal
+    // amounts are presumed spent — they leave the portfolio entirely and
+    // are NOT added back into the taxable account.
     iraBalance = iraAfterDistribution + iraInterest;
-    rothBalance = boyRoth + rothInterest;
+    rothBalance = rothAfterWithdrawal + rothInterest;
 
     // Taxable balance handling depends on RMD treatment option
     // After-tax RMD = RMD - taxes attributable to the RMD
@@ -266,7 +285,10 @@ export function runBaselineScenario(
       stateTaxOnSS,
       stateTaxOnConversions: 0, // No conversions in baseline
       stateTaxOnOrdinaryIncome,
-      totalIRAWithdrawal: rmdAmount, // Baseline only has RMD withdrawals
+      totalIRAWithdrawal: rmdAmount + iraWithdrawal, // RMD + voluntary IRA pull
+      iraWithdrawal,
+      rothWithdrawal,
+      earlyWithdrawalPenalty: earlyPenalty || undefined,
     });
   }
 

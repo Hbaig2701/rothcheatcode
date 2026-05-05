@@ -79,6 +79,22 @@ export const nonSSIIncomeEntrySchema = z.object({
   type: z.enum(["pension", "rental", "dividends", "capital_gains", "wages", "annuity", "other"]).optional(),
 });
 
+// Voluntary IRA/Roth withdrawal schedule. See WithdrawalEntry in lib/types/client.ts.
+export const withdrawalSourceEnum = z.enum(["ira", "roth", "auto"]);
+export const withdrawalEntrySchema = z.object({
+  year: z.preprocess(
+    (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
+    z.number({ error: "Year is required" })
+      .int().min(2024, "Year must be 2024 or later").max(2100, "Year must be 2100 or earlier")
+  ),
+  age: z.union([z.number(), z.string()]),
+  amount: z.preprocess(
+    (v) => v === undefined || v === null ? 0 : v,
+    z.number({ error: "Amount must be a number" }).int().min(0, "Amount must be positive")
+  ),
+  source: withdrawalSourceEnum.default("auto"),
+});
+
 // ============================================================================
 // Formula Form Schema (8 sections)
 // ============================================================================
@@ -133,6 +149,7 @@ export const clientFormulaBaseSchema = z.object({
     z.number().int().min(0).optional()
   ),
   non_ssi_income: z.array(nonSSIIncomeEntrySchema).default([]),
+  withdrawals: z.array(withdrawalEntrySchema).default([]),
 
   // Section 6: Conversion
   conversion_type: conversionTypeEnum.default("optimized_amount"),
@@ -333,6 +350,7 @@ export const clientFullBaseSchema = z.object({
   ssi_payout_age: z.number().int().min(62).max(70).default(67),
   ssi_annual_amount: z.number().int().min(0).default(2400000),
   non_ssi_income: z.array(nonSSIIncomeEntrySchema).default([]),
+  withdrawals: z.array(withdrawalEntrySchema).default([]),
 
   // Conversion Settings
   strategy: strategyEnum.default("moderate"),
@@ -445,6 +463,12 @@ export type ClientFormData = {
     gross_taxable: number;
     tax_exempt: number;
     type?: "pension" | "rental" | "dividends" | "capital_gains" | "wages" | "annuity" | "other";
+  }>;
+  withdrawals: Array<{
+    year: number;
+    age: number | string;
+    amount: number;
+    source: "ira" | "roth" | "auto";
   }>;
 
   // Section 6: Conversion
