@@ -9,7 +9,10 @@ import { useRecalculateProjection } from "@/lib/queries/projections";
 import type { Client } from "@/lib/types/client";
 import { Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { GROWTH_PRODUCTS, GUARANTEED_INCOME_PRODUCTS, ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
+import { GROWTH_PRODUCTS, GUARANTEED_INCOME_PRODUCTS, ALL_PRODUCTS, type FormulaType, type GuaranteedIncomeFormulaType } from "@/lib/config/products";
+import { useProducts } from "@/lib/queries/products";
+import { GI_PRODUCT_DATA } from "@/lib/config/gi-product-data";
+import type { CustomProductRow } from "@/lib/products/types";
 
 // Import Sections
 import { ClientDataSection } from "@/components/clients/sections/client-data";
@@ -34,6 +37,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
     resolver: zodResolver(clientFormulaSchema) as Resolver<ClientFormData>,
     defaultValues: {
       blueprint_type: client?.blueprint_type ?? "fia",
+      custom_product_id: client?.custom_product_id ?? null,
       filing_status: client?.filing_status ?? "married_filing_jointly",
       name: client?.name ?? "",
       age: client?.age ?? 62,
@@ -177,12 +181,69 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
   };
 
   const formulaType = form.watch("blueprint_type") as FormulaType;
+  const customProductId = form.watch("custom_product_id");
+
+  // Pull custom products so this picker mirrors the main NewAccountSection picker
+  const { data: productsData } = useProducts();
+  const customProducts: CustomProductRow[] = productsData?.customDetailed ?? [];
+
+  const SYSTEM_PREFIX = "system:";
+  const CUSTOM_PREFIX = "custom:";
+  const pickerValue = customProductId
+    ? `${CUSTOM_PREFIX}${customProductId}`
+    : `${SYSTEM_PREFIX}${formulaType}`;
+
+  const customGrowth = customProducts.filter((p) => p.category === "growth");
+  const customIncome = customProducts.filter((p) => p.category === "income");
+
+  const applyCustom = (product: CustomProductRow) => {
+    const cfg = product.config;
+    const sa = cfg.state_availability ?? null;
+    const clientState = (form.getValues("state") ?? "").toUpperCase();
+    const bonusPct = (sa?.bonus_overrides?.[clientState] as number | undefined) ?? cfg.bonus.percentage;
+    const surrenderSchedule =
+      (sa?.surrender_overrides?.[clientState] as number[] | undefined) ?? cfg.surrender.schedule;
+
+    form.setValue("custom_product_id", product.id);
+    form.setValue("blueprint_type", product.engine_preset);
+    form.setValue("carrier_name", product.carrier_name ?? product.name);
+    form.setValue("product_name", product.carrier_product_name ?? product.name);
+    form.setValue("bonus_percent", bonusPct);
+    form.setValue("surrender_years", cfg.surrender.years);
+    form.setValue("penalty_free_percent", cfg.withdrawals.penalty_free_percent);
+    form.setValue("rate_of_return", cfg.form_defaults?.rate_of_return ?? 7);
+    form.setValue("anniversary_bonus_percent", cfg.bonus.anniversary_rate ?? null);
+    form.setValue("anniversary_bonus_years", cfg.bonus.anniversary_years ?? null);
+    form.setValue("surrender_schedule", surrenderSchedule.length ? surrenderSchedule : null);
+
+    const giData = GI_PRODUCT_DATA[product.engine_preset as GuaranteedIncomeFormulaType];
+    if (giData) {
+      form.setValue("roll_up_option", giData.hasRollUpOptions && giData.rollUp.defaultOption
+        ? (giData.rollUp.defaultOption as "simple" | "compound")
+        : null);
+      form.setValue("payout_option", giData.hasDualPayoutOption ? "level" : null);
+    } else {
+      form.setValue("roll_up_option", null);
+      form.setValue("payout_option", null);
+    }
+  };
 
   const handleFormulaTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value as FormulaType;
+    const encoded = e.target.value;
+    if (encoded.startsWith(CUSTOM_PREFIX)) {
+      const id = encoded.slice(CUSTOM_PREFIX.length);
+      const cp = customProducts.find((p) => p.id === id);
+      if (cp) applyCustom(cp);
+      return;
+    }
+    const value = encoded.startsWith(SYSTEM_PREFIX)
+      ? (encoded.slice(SYSTEM_PREFIX.length) as FormulaType)
+      : (encoded as FormulaType);
     const product = ALL_PRODUCTS[value];
     if (!product) return;
 
+    // Selecting a system preset clears any custom-product link
+    form.setValue("custom_product_id", null);
     form.setValue("blueprint_type", value);
     form.setValue("carrier_name", product.defaults.carrierName);
     form.setValue("product_name", product.defaults.productName);
@@ -221,21 +282,31 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
           </a>
         </div>
         <select
-          value={formulaType}
+          value={pickerValue}
           onChange={handleFormulaTypeChange}
           className="w-full bg-bg-input border border-border-default text-sm h-10 rounded-lg px-3 text-foreground focus:ring-1 focus:ring-gold focus:border-[rgba(212,175,55,0.3)] outline-none transition-colors"
         >
           <optgroup label="Growth">
             {Object.values(GROWTH_PRODUCTS).map((product) => (
-              <option key={product.id} value={product.id}>
+              <option key={product.id} value={`${SYSTEM_PREFIX}${product.id}`}>
                 {product.label}
+              </option>
+            ))}
+            {customGrowth.map((p) => (
+              <option key={p.id} value={`${CUSTOM_PREFIX}${p.id}`}>
+                ✨ {p.name} (yours)
               </option>
             ))}
           </optgroup>
           <optgroup label="Guaranteed Income">
             {Object.values(GUARANTEED_INCOME_PRODUCTS).map((product) => (
-              <option key={product.id} value={product.id}>
+              <option key={product.id} value={`${SYSTEM_PREFIX}${product.id}`}>
                 {product.label}
+              </option>
+            ))}
+            {customIncome.map((p) => (
+              <option key={p.id} value={`${CUSTOM_PREFIX}${p.id}`}>
+                ✨ {p.name} (yours)
               </option>
             ))}
           </optgroup>
