@@ -7,6 +7,7 @@ import { analyzeWidowPenalty, analyzeWidowPenaltyFromProjection } from '@/lib/ca
 import { runSimulation, createSimulationInput, runGrowthSimulation, runGuaranteedIncomeSimulation } from '@/lib/calculations';
 import { logCalculation } from '@/lib/audit/log';
 import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/lib/config/products';
+import { getCustomProduct } from '@/lib/products/repository';
 import type { BreakEvenAnalysis, SensitivityResult, WidowAnalysisResult } from '@/lib/calculations/analysis/types';
 
 interface AnalysisResponse {
@@ -56,7 +57,12 @@ export async function GET(
   // sensitivity and widow analysis all see the same numbers as the main
   // projection. Previously this always used runSimulation (legacy engine),
   // which produced misleading numbers for Growth FIA and GI products.
-  const simulationInput = createSimulationInput(typedClient);
+  // Custom product (if any) is loaded so the engine resolver overlays its
+  // config on top of the system preset.
+  const customProduct = typedClient.custom_product_id
+    ? await getCustomProduct(user.id, typedClient.custom_product_id)
+    : null;
+  const simulationInput = createSimulationInput(typedClient, customProduct);
   const formulaType = typedClient.blueprint_type as FormulaType;
   const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
   const isGrowth = formulaType && isGrowthProduct(formulaType);

@@ -70,13 +70,14 @@ function calculateHeirBenefit(
  * - Formula: Growth FIA with upfront bonus, anniversary bonuses, and strategic Roth conversions
  */
 export function runGrowthSimulation(input: SimulationInput): SimulationResult {
-  const { client, startYear, endYear } = input;
+  const { client, startYear, endYear, customProduct } = input;
   const projectionYears = endYear - startYear + 1;
 
   // Baseline uses the STANDARD baseline with RMDs (same as legacy engine)
   const baseline = runBaselineScenario(client, startYear, projectionYears);
-  // Formula uses the growth formula with anniversary bonus support
-  const formula = runGrowthFormulaScenario(client, startYear, projectionYears);
+  // Formula uses the growth formula with anniversary bonus support.
+  // customProduct overrides the system preset's rider fee when present.
+  const formula = runGrowthFormulaScenario(client, startYear, projectionYears, customProduct);
 
   const heirTaxRate = client.heir_tax_rate ?? DEFAULT_HEIR_TAX_RATE;
 

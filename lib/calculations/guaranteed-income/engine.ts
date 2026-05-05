@@ -37,14 +37,15 @@ import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
-import {
-  GI_PRODUCT_DATA,
-  getProductPayoutFactor,
-  getRollUpForYear,
-  getIncreasingLPARate,
-  type GIProductData,
-} from '@/lib/config/gi-product-data';
+import { type GIProductData } from '@/lib/config/gi-product-data';
 import type { GuaranteedIncomeFormulaType } from '@/lib/config/products';
+import {
+  getEffectiveGIData,
+  getEffectivePayoutFactor,
+  getEffectiveRollUpForYear,
+  getEffectiveIncreasingLPARate,
+} from '../resolvers/product-resolver';
+import type { CustomProductRow } from '@/lib/products/types';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier, computeTaxableIncomeWithSS } from '../tax-helpers';
 
@@ -89,14 +90,15 @@ function calculateHeirBenefit(
 export function runGuaranteedIncomeSimulation(
   input: SimulationInput
 ): SimulationResult & { giMetrics: GIMetrics } {
-  const { client, startYear, endYear } = input;
+  const { client, startYear, endYear, customProduct } = input;
   const projectionYears = endYear - startYear + 1;
 
   // Run STRATEGY: Convert First, Then Roth GI (tax-free income)
   const { formula, strategyMetrics, strategyGIYearlyData } = runGIStrategyScenario(
     client,
     startYear,
-    projectionYears
+    projectionYears,
+    customProduct
   );
 
   // Run BASELINE: Traditional GI (taxable income)
@@ -104,7 +106,8 @@ export function runGuaranteedIncomeSimulation(
     client,
     startYear,
     projectionYears,
-    strategyMetrics
+    strategyMetrics,
+    customProduct
   );
 
   // Calculate comparison metrics using client's flat tax rate for baseline
@@ -172,7 +175,8 @@ function findDepletionAge(yearlyData: GIYearData[]): number | null {
 function runGIStrategyScenario(
   client: Client,
   startYear: number,
-  projectionYears: number
+  projectionYears: number,
+  customProduct?: CustomProductRow | null
 ): {
   formula: YearlyResult[];
   strategyMetrics: GIStrategyMetrics & {
@@ -188,9 +192,9 @@ function runGIStrategyScenario(
   const results: YearlyResult[] = [];
   const giYearlyData: GIYearData[] = [];
 
-  // --- Product config ---
+  // --- Product config (custom product overrides system preset via resolver) ---
   const productId = client.blueprint_type as GuaranteedIncomeFormulaType;
-  const productData: GIProductData | undefined = GI_PRODUCT_DATA[productId];
+  const productData: GIProductData | undefined = getEffectiveGIData(productId, customProduct);
 
   // --- Age setup ---
   const useAgeBased = client.age !== undefined && client.age > 0;
@@ -566,7 +570,7 @@ function runGIStrategyScenario(
       // (e.g., 10 years from age 60 to 70 = 10 roll-ups, not 9)
       const incomeBasePrePurchaseRollUp = incomeBase;
       if (productData) {
-        const rollUpInfo = getRollUpForYear(productId, 1, rollUpOption); // Year 1 roll-up
+        const rollUpInfo = getEffectiveRollUpForYear(productId, 1, rollUpOption, customProduct); // Year 1 roll-up
         if (rollUpInfo) {
           if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
@@ -693,7 +697,7 @@ function runGIStrategyScenario(
       // Roll up Income Base using product-specific config
       const incomeBasePreRollUp = incomeBase;
       if (productData) {
-        const rollUpInfo = getRollUpForYear(productId, deferralYear, rollUpOption);
+        const rollUpInfo = getEffectiveRollUpForYear(productId, deferralYear, rollUpOption, customProduct);
         if (rollUpInfo) {
           if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
@@ -724,7 +728,7 @@ function runGIStrategyScenario(
       if (age + 1 === effectiveIncomeStartAge) {
         incomeBaseAtIncomeAge = incomeBase;
         const payoutFactor = productData
-          ? getProductPayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption)
+          ? getEffectivePayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption, customProduct)
           : 0.05;
         payoutPercent = payoutFactor * 100;
         guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
@@ -838,7 +842,7 @@ function runGIStrategyScenario(
       if (guaranteedAnnualIncome === 0) {
         incomeBaseAtIncomeAge = incomeBase;
         const payoutFactor = productData
-          ? getProductPayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption)
+          ? getEffectivePayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption, customProduct)
           : 0.05;
         payoutPercent = payoutFactor * 100;
         guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
@@ -849,7 +853,7 @@ function runGIStrategyScenario(
       const yearsOfIncome = age - effectiveIncomeStartAge;
       let grossGI = guaranteedAnnualIncome;
       if (payoutOption === 'increasing' && yearsOfIncome > 0) {
-        const increaseRate = getIncreasingLPARate(productId);
+        const increaseRate = getEffectiveIncreasingLPARate(productId, customProduct);
         if (increaseRate > 0) {
           grossGI = Math.round(guaranteedAnnualIncome * Math.pow(1 + increaseRate, yearsOfIncome));
         }
@@ -1022,7 +1026,8 @@ function runGIBaselineScenario(
     rollUpDescription: string;
     bonusAmount: number;
     bonusAppliesTo: string | null;
-  }
+  },
+  customProduct?: CustomProductRow | null
 ): {
   baseline: YearlyResult[];
   baselineMetrics: GIBaselineMetrics;
@@ -1031,9 +1036,9 @@ function runGIBaselineScenario(
   const results: YearlyResult[] = [];
   const giYearlyData: GIYearData[] = [];
 
-  // --- Product config ---
+  // --- Product config (custom product overrides system preset via resolver) ---
   const productId = client.blueprint_type as GuaranteedIncomeFormulaType;
-  const productData: GIProductData | undefined = GI_PRODUCT_DATA[productId];
+  const productData: GIProductData | undefined = getEffectiveGIData(productId, customProduct);
 
   // --- Age setup ---
   const useAgeBased = client.age !== undefined && client.age > 0;
@@ -1282,7 +1287,7 @@ function runGIBaselineScenario(
       // Apply FIRST year of roll-up during purchase phase (same as strategy)
       const incomeBasePrePurchaseRollUp = incomeBase;
       if (productData) {
-        const rollUpInfo = getRollUpForYear(productId, 1, rollUpOption);
+        const rollUpInfo = getEffectiveRollUpForYear(productId, 1, rollUpOption, customProduct);
         if (rollUpInfo) {
           if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
@@ -1407,7 +1412,7 @@ function runGIBaselineScenario(
       // Roll up Income Base
       const incomeBasePreRollUp = incomeBase;
       if (productData) {
-        const rollUpInfo = getRollUpForYear(productId, deferralYear, rollUpOption);
+        const rollUpInfo = getEffectiveRollUpForYear(productId, deferralYear, rollUpOption, customProduct);
         if (rollUpInfo) {
           if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
@@ -1422,7 +1427,7 @@ function runGIBaselineScenario(
       if (age + 1 === effectiveIncomeStartAge) {
         incomeBaseAtIncomeAge = incomeBase;
         const payoutFactor = productData
-          ? getProductPayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption)
+          ? getEffectivePayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption, customProduct)
           : 0.05;
         payoutPercent = payoutFactor * 100;
         guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
@@ -1547,7 +1552,7 @@ function runGIBaselineScenario(
       if (guaranteedAnnualIncome === 0) {
         incomeBaseAtIncomeAge = incomeBase;
         const payoutFactor = productData
-          ? getProductPayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption)
+          ? getEffectivePayoutFactor(productId, payoutType, effectiveIncomeStartAge, payoutOption, customProduct)
           : 0.05;
         payoutPercent = payoutFactor * 100;
         guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
@@ -1557,7 +1562,7 @@ function runGIBaselineScenario(
       const yearsOfIncome = age - effectiveIncomeStartAge;
       let grossGI = guaranteedAnnualIncome;
       if (payoutOption === 'increasing' && yearsOfIncome > 0) {
-        const increaseRate = getIncreasingLPARate(productId);
+        const increaseRate = getEffectiveIncreasingLPARate(productId, customProduct);
         if (increaseRate > 0) {
           grossGI = Math.round(guaranteedAnnualIncome * Math.pow(1 + increaseRate, yearsOfIncome));
         }

@@ -286,10 +286,15 @@ export function runSimulationWithMetrics(input: SimulationInput): {
 }
 
 /**
- * Create simulation input from client data
- * Supports both new Formula form (age + end_age) and legacy form (projection_years)
+ * Create simulation input from client data.
+ * Supports both new Formula form (age + end_age) and legacy form (projection_years).
+ * Optionally attaches a custom product row so the engine resolver can overlay
+ * its config on the system preset (see lib/calculations/resolvers/product-resolver.ts).
  */
-export function createSimulationInput(client: Client): SimulationInput {
+export function createSimulationInput(
+  client: Client,
+  customProduct?: import("@/lib/products/types").CustomProductRow | null
+): SimulationInput {
   const currentYear = new Date().getFullYear();
 
   // Calculate projection years: prefer (end_age - age) if both are available
@@ -303,7 +308,8 @@ export function createSimulationInput(client: Client): SimulationInput {
   return {
     client,
     startYear: currentYear,
-    endYear: currentYear + projectionYears
+    endYear: currentYear + projectionYears,
+    customProduct: customProduct ?? null,
   };
 }
 

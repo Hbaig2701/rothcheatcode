@@ -18,6 +18,8 @@ import {
 } from '../tax-helpers';
 import { calculateRMD } from '../modules/rmd';
 import { ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
+import { getEffectiveGrowthRiderFee } from '../resolvers/product-resolver';
+import type { CustomProductRow } from '@/lib/products/types';
 
 /**
  * Run Growth FIA Formula scenario: Roth conversions with FIA product features
@@ -39,7 +41,8 @@ import { ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
 export function runGrowthFormulaScenario(
   client: Client,
   startYear: number,
-  projectionYears: number
+  projectionYears: number,
+  customProduct?: CustomProductRow | null
 ): YearlyResult[] {
   const results: YearlyResult[] = [];
 
@@ -84,8 +87,12 @@ export function runGrowthFormulaScenario(
   // Surrender schedule (array of charge percentages by year)
   const surrenderSchedule = client.surrender_schedule ?? null;
 
-  // Rider fee (from product preset, only applied during surrender period)
-  const riderFeePercent = (productConfig?.defaults.riderFee ?? 0) / 100;
+  // Rider fee — custom product overrides the system preset when present.
+  // Only applied during the surrender period.
+  const riderFeePercent = getEffectiveGrowthRiderFee(
+    client.blueprint_type as FormulaType,
+    customProduct
+  );
   const surrenderYears = client.surrender_years ?? 0;
 
   // SSI parameters (per spec, SSI is treated as tax-exempt but still displayed)

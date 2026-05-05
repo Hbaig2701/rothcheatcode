@@ -7,16 +7,25 @@ import type { SimulationResult } from '@/lib/calculations';
 import type { GIMetrics } from '@/lib/calculations/guaranteed-income/types';
 import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage } from '@/lib/usage';
+import { getCustomProduct } from '@/lib/products/repository';
+import type { CustomProductRow } from '@/lib/products/types';
 import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 41; // v41: Optimizer correctly handles max_tax_rate=0 (fills standard deduction so $0 federal tax). Previously the ceiling===0 short-circuit converted the entire IRA. Also: changed the existing-income check from >= to > so the binary search runs when taxableAt(0)=0=ceiling (Joshua W. military client case).
+const PRODUCT_CONFIG_VERSION = 42; // v42: Custom products now flow into engine (rider fee, GI roll-up, payout factors, bonus targeting) — every cached projection that uses a custom product needs recompute.
 
-function generateInputHash(client: Client): string {
+function generateInputHash(client: Client, customProduct?: CustomProductRow | null): string {
   const relevantFields = {
     // Config version - bump this when product configs change
     _configVersion: PRODUCT_CONFIG_VERSION,
+    // Custom product config — must be in the hash so editing the product
+    // invalidates cached projections that used it. We hash the FULL config
+    // payload + updated_at so any edit produces a new hash.
+    custom_product_id: client.custom_product_id ?? null,
+    custom_product_config: customProduct?.config ?? null,
+    custom_product_engine_preset: customProduct?.engine_preset ?? null,
+    custom_product_updated_at: customProduct?.updated_at ?? null,
     // New Formula fields
     age: client.age,
     qualified_account_value: client.qualified_account_value,
@@ -200,7 +209,14 @@ export async function GET(
       throw clientError;
     }
 
-    const inputHash = generateInputHash(client as Client);
+    // Load the custom product config (if any) BEFORE hashing — its updated_at
+    // and config must be part of the cache key so edits invalidate.
+    const typedClient = client as Client;
+    const customProduct = typedClient.custom_product_id
+      ? await getCustomProduct(user.id, typedClient.custom_product_id)
+      : null;
+
+    const inputHash = generateInputHash(typedClient, customProduct);
 
     // Check cache
     const { data: existingProjection } = await supabase
@@ -231,21 +247,23 @@ export async function GET(
       );
     }
 
-    // Run simulation - dispatch to GI or standard engine based on product type
-    const simulationInput = createSimulationInput(client as Client);
-    const formulaType = (client as Client).blueprint_type as FormulaType;
+    // Run simulation - dispatch to GI or standard engine based on product type.
+    // customProduct (loaded above) is passed through so the resolver can overlay
+    // its config on top of the system preset for engine-internal data.
+    const simulationInput = createSimulationInput(typedClient, customProduct);
+    const formulaType = typedClient.blueprint_type as FormulaType;
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
     let projectionInsert: ProjectionInsert;
     if (isGI) {
       const giResult = runGuaranteedIncomeSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, client as Client, giResult, inputHash, giResult.giMetrics);
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, giResult, inputHash, giResult.giMetrics);
     } else if (isGrowthProduct(formulaType)) {
       // Growth FIA: uses growth formula with anniversary bonus, standard baseline with RMDs
       const result = runGrowthSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, result, inputHash);
     } else {
       const result = runSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, result, inputHash);
     }
 
     const { data: newProjection, error: insertError } = await supabase
@@ -307,23 +325,28 @@ export async function POST(
       );
     }
 
-    const inputHash = generateInputHash(client as Client);
-    const simulationInput = createSimulationInput(client as Client);
-    const formulaType = (client as Client).blueprint_type as FormulaType;
+    const typedClient = client as Client;
+    const customProduct = typedClient.custom_product_id
+      ? await getCustomProduct(user.id, typedClient.custom_product_id)
+      : null;
+
+    const inputHash = generateInputHash(typedClient, customProduct);
+    const simulationInput = createSimulationInput(typedClient, customProduct);
+    const formulaType = typedClient.blueprint_type as FormulaType;
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {
       const giResult = runGuaranteedIncomeSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, client as Client, giResult, inputHash, giResult.giMetrics);
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, giResult, inputHash, giResult.giMetrics);
     } else if (isGrowthProduct(formulaType)) {
       // Growth FIA: uses growth engine with anniversary bonus support
       const result = runGrowthSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, result, inputHash);
     } else {
       // Legacy: use standard simulation
       const result = runSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, client as Client, result, inputHash);
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, result, inputHash);
     }
 
     const { data: newProjection, error: insertError } = await supabase

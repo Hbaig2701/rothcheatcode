@@ -239,6 +239,15 @@ export interface SimulationInput {
   client: Client;
   startYear: number;
   endYear: number;
+  /**
+   * If the client has a custom product attached (client.custom_product_id),
+   * the loaded row goes here. The engine consults the resolver
+   * (lib/calculations/resolvers/product-resolver.ts) which overlays this
+   * config on top of the system preset for fields like roll-up rate, payout
+   * factors, rider fee, and bonus targeting. When absent, engines fall back
+   * to the system preset's tables.
+   */
+  customProduct?: import("@/lib/products/types").CustomProductRow | null;
 }
 
 export interface SimulationResult {
