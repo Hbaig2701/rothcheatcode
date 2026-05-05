@@ -227,7 +227,11 @@ export function AdvancedDataSection() {
             )}
           />
 
-          {/* Show Widow's Penalty - Always editable */}
+          {/* Widow's Penalty controls — only meaningful for MFJ. The report
+              section already gates on filing_status, so showing the checkbox
+              for single filers just creates dead state in the DB. */}
+          {form.watch("filing_status") === "married_filing_jointly" && (
+            <>
           <Controller
             name="widow_analysis"
             control={form.control}
@@ -287,6 +291,8 @@ export function AdvancedDataSection() {
                 </Field>
               )}
             />
+          )}
+            </>
           )}
         </div>
       )}
