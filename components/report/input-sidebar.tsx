@@ -81,6 +81,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             end_age: client?.end_age ?? 100,
             heir_tax_rate: client?.heir_tax_rate ?? 40,
             widow_analysis: client?.widow_analysis ?? false,
+            widow_death_age: client?.widow_death_age ?? null,
             surrender_schedule: client?.surrender_schedule ?? null,
             taxable_accounts: client?.taxable_accounts ?? 0,
             roth_ira: client?.roth_ira ?? 0,

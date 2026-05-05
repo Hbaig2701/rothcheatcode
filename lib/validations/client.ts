@@ -168,6 +168,10 @@ export const clientFormulaBaseSchema = z.object({
   end_age: z.number().int().min(55).max(120).default(100),
   heir_tax_rate: z.number().min(0).max(100).default(40),
   widow_analysis: z.boolean().default(false),
+  // Anchor age for the widow's penalty: age of the older spouse when first
+  // death occurs. Null means use the default heuristic (older spouse's
+  // birth year + 85). 60-100 covers reasonable planning ranges.
+  widow_death_age: z.number().int().min(60).max(100).nullable().optional(),
   rmd_treatment: rmdTreatmentEnum.default("reinvested"),
 
   // Additional fields needed for calculations
@@ -351,6 +355,7 @@ export const clientFullBaseSchema = z.object({
   heir_tax_rate: z.number().min(0).max(100).default(40),
   projection_years: z.number().int().min(10).max(60).default(40),
   widow_analysis: z.boolean().default(false),
+  widow_death_age: z.number().int().min(60).max(100).nullable().optional(),
   sensitivity: z.boolean().default(false),
   surrender_years: z.number().int().min(0).max(20).default(7),
   surrender_schedule: z.array(z.number().min(0).max(100)).optional().nullable().default(null),
@@ -471,6 +476,7 @@ export type ClientFormData = {
   end_age: number;
   heir_tax_rate: number;
   widow_analysis: boolean;
+  widow_death_age?: number | null;
   rmd_treatment: "spent" | "reinvested" | "cash";
 
   // Additional

@@ -58,19 +58,49 @@ export function calculateWidowTaxImpact(input: {
 }
 
 /**
- * Default death year: Use older spouse's life expectancy or 15 years out
+ * Resolve the death year used to anchor the widow's analysis. Priority:
+ *   1. `client.widow_death_age` — advisor's explicit override (UI: "First-Death Age").
+ *      Resolved against the OLDER spouse's birth year so the resulting calendar
+ *      year matches the advisor's expectation ("first to die at age N").
+ *   2. Older spouse's birth year + 85 (life-expectancy heuristic) when DOB known.
+ *   3. 15 years from now (last-resort default).
+ *
+ * Always returns at least currentYear + 1 so the analysis has at least one
+ * post-death year of projection to re-price.
  */
 function getDefaultDeathYear(client: Client): number {
   const currentYear = new Date().getFullYear();
 
-  // If spouse DOB provided, use spouse's life expectancy (simplified: 85 years)
-  if (client.spouse_dob) {
-    const spouseBirthYear = new Date(client.spouse_dob).getFullYear();
-    const spouseDeathYear = spouseBirthYear + 85;
-    return Math.max(currentYear + 5, spouseDeathYear); // At least 5 years out
+  // Resolve the older spouse's birth year. Prefer DOB; fall back to age.
+  let olderBirthYear: number | null = null;
+  const clientBirthYear = client.date_of_birth
+    ? new Date(client.date_of_birth).getFullYear()
+    : client.age != null
+      ? currentYear - client.age
+      : null;
+  const spouseBirthYear = client.spouse_dob
+    ? new Date(client.spouse_dob).getFullYear()
+    : client.spouse_age != null
+      ? currentYear - client.spouse_age
+      : null;
+
+  if (clientBirthYear !== null && spouseBirthYear !== null) {
+    olderBirthYear = Math.min(clientBirthYear, spouseBirthYear); // earlier birth = older spouse
+  } else {
+    olderBirthYear = clientBirthYear ?? spouseBirthYear;
   }
 
-  // Default: 15 years from now
+  // Advisor override: "first to die at age N" anchored on the older spouse.
+  if (client.widow_death_age != null && olderBirthYear !== null) {
+    const overrideYear = olderBirthYear + client.widow_death_age;
+    return Math.max(currentYear + 1, overrideYear);
+  }
+
+  // Heuristic default: older spouse + 85.
+  if (olderBirthYear !== null) {
+    return Math.max(currentYear + 5, olderBirthYear + 85);
+  }
+
   return currentYear + 15;
 }
 

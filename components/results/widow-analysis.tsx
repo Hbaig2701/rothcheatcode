@@ -98,13 +98,9 @@ export function WidowAnalysis({ analysis }: WidowAnalysisProps) {
         </h4>
         <p className="text-sm text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
           The assumed death year is <strong>{deathYear}</strong>, which falls after this client&apos;s
-          projection ends. To see the widow&apos;s penalty, extend the projection past the assumed
-          death year by raising the client&apos;s <strong>End Age</strong> in the Advanced Data
+          projection ends. To see the widow&apos;s penalty, either extend <strong>End Age</strong>
+          past the death year, or lower <strong>First-Death Age</strong> in the Advanced Data
           section.
-        </p>
-        <p className="text-xs text-amber-800/70 dark:text-amber-300/70 mt-3">
-          Default death year = older spouse&apos;s birth year + 85. If you want to model an earlier
-          death, we&apos;d need to add a &quot;death year&quot; input on the form (let us know).
         </p>
       </div>
     );

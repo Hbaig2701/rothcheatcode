@@ -101,6 +101,10 @@ export interface Client {
   end_age: number;
   heir_tax_rate: number;            // Percentage
   widow_analysis: boolean;
+  // Age of the older spouse when first death occurs. When null, the analyzer
+  // falls back to the heuristic (older spouse's birth year + 85). Range
+  // enforced by the form is 60-100.
+  widow_death_age: number | null;
   rmd_treatment: 'spent' | 'reinvested' | 'cash'; // How RMDs are treated in baseline
 
   // ===== Legacy fields (kept for backwards compatibility) =====
@@ -202,6 +206,7 @@ export interface FormulaFormData {
   end_age: number;
   heir_tax_rate: number;
   widow_analysis: boolean;
+  widow_death_age: number | null;
   rmd_treatment: 'spent' | 'reinvested' | 'cash';
 
   // Additional needed for tax payments

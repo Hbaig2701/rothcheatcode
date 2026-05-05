@@ -63,6 +63,7 @@ function makeClient(overrides: Partial<Client>): Client {
     end_age: 90,
     heir_tax_rate: 40,
     widow_analysis: true,
+    widow_death_age: null,
     rmd_treatment: "reinvested",
     date_of_birth: null,
     spouse_dob: null,
@@ -354,6 +355,56 @@ startTest("MFJ tax in widow analysis matches the main projection year exactly");
   }
   assert(mismatches === 0, `Married tax should match the projection's federal+IRMAA exactly`);
   console.log(`  All ${widow.taxImpactByYear.length} post-death years match projection`);
+}
+
+// ============================================================================
+// TEST 9: Advisor-supplied widow_death_age overrides the heuristic
+// ============================================================================
+startTest("widow_death_age on client anchors the analysis at the right year");
+{
+  // Older spouse: client at age 67, spouse at age 65 → primary is older.
+  // Birth year for primary = currentYear - 67.
+  // With widow_death_age = 75: expected death year = (currentYear - 67) + 75 = currentYear + 8.
+  const client = makeClient({
+    age: 67,
+    spouse_age: 65,
+    end_age: 95,
+    widow_death_age: 75,
+  });
+  const input = createSimulationInput(client);
+  const result = runGrowthSimulation(input);
+  const widow = analyzeWidowPenaltyFromProjection({
+    client,
+    formulaYears: result.formula,
+    // Note: NOT passing deathYear — analyzer should derive it from widow_death_age.
+  });
+  const expected = (new Date().getFullYear() - 67) + 75;
+  console.log(`  Expected death year: ${expected}`);
+  console.log(`  Resolved death year: ${widow.deathYear}`);
+  assert(widow.deathYear === expected, `Death year should resolve from widow_death_age (got ${widow.deathYear}, want ${expected})`);
+  assert(widow.taxImpactByYear.length > 0, "Should produce post-death rows");
+}
+
+// ============================================================================
+// TEST 10: Without widow_death_age, falls back to older spouse's birth year + 85
+// ============================================================================
+startTest("Default heuristic still applies when widow_death_age is null");
+{
+  const client = makeClient({
+    age: 67,
+    spouse_age: 65,
+    end_age: 100,
+    widow_death_age: null,
+  });
+  const input = createSimulationInput(client);
+  const result = runGrowthSimulation(input);
+  const widow = analyzeWidowPenaltyFromProjection({
+    client,
+    formulaYears: result.formula,
+  });
+  const olderBirthYear = new Date().getFullYear() - 67; // primary is older
+  const expected = olderBirthYear + 85;
+  assert(widow.deathYear === expected, `Default should be older birth + 85 (got ${widow.deathYear}, want ${expected})`);
 }
 
 console.log(`\n=== ${testNum} tests ${process.exitCode ? "FAILED" : "PASSED"} ===`);

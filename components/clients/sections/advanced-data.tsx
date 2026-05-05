@@ -245,6 +245,41 @@ export function AdvancedDataSection() {
               </Field>
             )}
           />
+
+          {/* Death age — only meaningful when widow analysis is enabled.
+              Advisors asked for a way to anchor the analysis to a specific year
+              instead of the default heuristic (older spouse's birth year + 85). */}
+          {form.watch("widow_analysis") && (
+            <Controller
+              name="widow_death_age"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="widow_death_age">First-Death Age</FieldLabel>
+                  <Input
+                    id="widow_death_age"
+                    type="number"
+                    min={60}
+                    max={100}
+                    placeholder="85 (default)"
+                    value={field.value ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      field.onChange(v === "" ? null : parseInt(v, 10));
+                    }}
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <FieldDescription>
+                    Age of the older spouse when first death occurs. Leave blank to use 85
+                    (older spouse&apos;s life expectancy). Range 60-100. The widow analysis
+                    re-prices every projection year from this point forward at single-filer
+                    brackets.
+                  </FieldDescription>
+                  <FieldError errors={[fieldState.error]} />
+                </Field>
+              )}
+            />
+          )}
         </div>
       )}
     </div>
