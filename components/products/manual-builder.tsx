@@ -199,6 +199,15 @@ export function ManualBuilder({
 
     const flags = inferModifierFlags(config);
 
+    // Merge any flags the AI extracted (passed in via initialFlags) with the
+    // ones we can infer from visible config. inferModifierFlags only sees the
+    // fields exposed in the form; AI may have surfaced flags like
+    // has_enhanced_income from a brochure mention that doesn't have a
+    // dedicated form control. Without the merge, editing wipes those flags.
+    const mergedFlags = initialFlags && initialFlags.length > 0
+      ? Array.from(new Set([...initialFlags, ...flags]))
+      : flags;
+
     try {
       let result: CustomProductRow;
       if (productId) {
@@ -207,7 +216,7 @@ export function ManualBuilder({
           carrier_name: carrierName.trim() || null,
           carrier_product_name: carrierProductName.trim() || null,
           archetype,
-          modifier_flags: flags,
+          modifier_flags: mergedFlags,
           config,
         });
       } else {
@@ -217,7 +226,7 @@ export function ManualBuilder({
           carrier_product_name: carrierProductName.trim() || null,
           category,
           archetype,
-          modifier_flags: initialFlags && initialFlags.length > 0 ? Array.from(new Set([...initialFlags, ...flags])) : flags,
+          modifier_flags: mergedFlags,
           config,
           source: initialSource,
           ai_research_sources: initialAISources,

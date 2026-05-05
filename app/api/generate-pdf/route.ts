@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isGuaranteedIncomeProduct, ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
+import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
 import { hasFeature, hasFullAccess } from '@/lib/config/plans';
 import { determineTaxBracket, calculateFederalTax } from '@/lib/calculations/modules/federal-tax';
@@ -15,6 +15,9 @@ import { computeTaxableIncomeWithSS } from '@/lib/calculations/tax-helpers';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getBracketCeiling } from '@/lib/data/federal-brackets-2026';
 import { getTaxExemptIncomeForYear } from '@/lib/calculations/utils/income';
+import { getCustomProduct } from '@/lib/products/repository';
+import { getEffectiveGrowthRiderFee, getEffectiveGIData } from '@/lib/calculations/resolvers/product-resolver';
+import type { CustomProductRow } from '@/lib/products/types';
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -744,7 +747,7 @@ function computeMarginalRMDTax(years: any[], client: any): number {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function prepareTemplateData(reportData: any, branding: BrandingData): TemplateData {
-  const { client, projection } = reportData;
+  const { client, projection, customProduct } = reportData as { client: any; projection: any; customProduct: CustomProductRow | null }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   // Calculate summary metrics
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -885,10 +888,11 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     head_of_household: 'Head of Household',
   };
 
-  // Rider fee rate from the product preset (applied during surrender period).
-  // Displayed on the Performance Report's Contract Details card so advisors
-  // can point to the fee line item when clients ask about it.
-  const productRiderFee = ALL_PRODUCTS[client.blueprint_type as FormulaType]?.defaults.riderFee ?? 0;
+  // Rider fee rate. Custom products override the system preset's value via the
+  // resolver — getEffectiveGrowthRiderFee returns the decimal (0.0095 for 0.95%),
+  // so we multiply by 100 for display. Displayed on the Performance Report's
+  // Contract Details card so advisors can point to the fee line item.
+  const productRiderFee = getEffectiveGrowthRiderFee(client.blueprint_type as FormulaType, customProduct) * 100;
   // Premium bonus in dollars received at contract issue — applied only on the
   // strategy side (baseline is a "do nothing" scenario, no product bonus).
   // Used for the "Premium Bonus Received" / "Net Tax Cost" rows in the
@@ -1188,7 +1192,7 @@ interface GITemplateData {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function prepareGITemplateData(reportData: any, branding: BrandingData): GITemplateData {
-  const { client, projection } = reportData;
+  const { client, projection, customProduct } = reportData as { client: any; projection: any; customProduct: CustomProductRow | null }; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   const giYearlyData = projection.gi_yearly_data || [];
   const baselineGIYearlyData = projection.gi_baseline_yearly_data || [];
@@ -1397,7 +1401,16 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
     // Product details
     carrierName: client.carrier_name || 'N/A',
     productName: client.product_name || 'N/A',
-    riderFee: (ALL_PRODUCTS[client.blueprint_type as FormulaType]?.defaults.riderFee ?? client.rider_fee ?? 1.00).toFixed(2),
+    // Custom GI products can override the rider fee — fall back to the system
+    // preset's value when no custom product is attached.
+    riderFee: (
+      getEffectiveGIData(
+        client.blueprint_type as Parameters<typeof getEffectiveGIData>[0],
+        customProduct,
+      )?.riderFee
+        ?? client.rider_fee
+        ?? 1.00
+    ).toFixed(2),
     rollUpDescription: projection.gi_roll_up_description || 'N/A',
     totalRiderFees: formatCurrency(projection.gi_total_rider_fees || 0),
 
@@ -1484,6 +1497,16 @@ export async function POST(request: NextRequest) {
     // Detect if this is a GI product
     const blueprintType = reportData.client.blueprint_type as FormulaType;
     const isGI = blueprintType && isGuaranteedIncomeProduct(blueprintType);
+
+    // If the client is using a custom product, load it so the rider fee /
+    // GI roll-up / payout factors used in the PDF match what the engine uses.
+    // Without this the PDF would silently fall back to the system preset's
+    // rider fee even when the advisor configured a different value.
+    const customProductId = reportData.client.custom_product_id as string | null | undefined;
+    const customProduct = customProductId
+      ? await getCustomProduct(user.id, customProductId)
+      : null;
+    reportData.customProduct = customProduct;
 
     // Load and compile the appropriate template
     const templateFileName = isGI ? 'gi-pdf-template.html' : 'pdf-template.html';

@@ -92,6 +92,19 @@ export function useUpdateProduct(id: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: productsKeys.all });
+      // Editing a product changes the engine output for any client that
+      // references it. The server-side projection cache is keyed on the
+      // product's updated_at and will recompute on the next request, but
+      // the client-side React Query cache for projections/analysis must
+      // also be cleared — otherwise advisors land on a stale dashboard.
+      // We don't know which clients use this product without an extra
+      // round-trip, so invalidate every projection/analysis query.
+      qc.invalidateQueries({
+        predicate: (q) => {
+          const key = q.queryKey[0];
+          return key === "projections" || key === "analysis";
+        },
+      });
     },
   });
 }
@@ -118,6 +131,16 @@ export function useDeleteProduct() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: productsKeys.all });
+      // Force-delete nulls out custom_product_id on every client that used
+      // it (DB FK has ON DELETE SET NULL). Those clients' cached projections
+      // and analyses no longer reflect what the engine will produce next,
+      // so flush the client-side cache.
+      qc.invalidateQueries({
+        predicate: (q) => {
+          const key = q.queryKey[0];
+          return key === "projections" || key === "analysis" || key === "clients";
+        },
+      });
     },
   });
 }

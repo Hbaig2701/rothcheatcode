@@ -118,7 +118,12 @@ export function NewAccountSection() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedState, customProductId]);
 
-  // Compute state-aware notice for UI
+  // Compute state-aware notice for UI.
+  // Only `bonus_overrides` and `surrender_overrides` flow into the form fields
+  // the engine reads. `vesting_overrides` and `mva_overrides` are stored on the
+  // product for documentation purposes — the engine doesn't model vesting
+  // recapture or MVA today, so we surface them as "noted, not modeled" rather
+  // than claiming they were applied.
   const stateNotice = (() => {
     if (!customProductId) return null;
     const product = customProducts.find((p) => p.id === customProductId);
@@ -132,18 +137,20 @@ export function NewAccountSection() {
     const hasSurrender = sa.surrender_overrides?.[st] != null;
     const hasVesting = sa.vesting_overrides?.[st] != null;
     const hasMva = sa.mva_overrides?.[st] != null;
-    if (hasBonus || hasSurrender || hasVesting || hasMva) {
-      const parts = [];
-      if (hasBonus) parts.push(`bonus: ${sa.bonus_overrides![st]}%`);
-      if (hasSurrender) parts.push("custom surrender schedule");
-      if (hasVesting) parts.push("custom vesting schedule");
-      if (hasMva) parts.push("MVA override");
-      return {
-        type: "info" as const,
-        msg: `Applied ${st} overrides — ${parts.join(", ")}.`,
-      };
-    }
-    return null;
+    const applied: string[] = [];
+    if (hasBonus) applied.push(`bonus: ${sa.bonus_overrides![st]}%`);
+    if (hasSurrender) applied.push("custom surrender schedule");
+    const noted: string[] = [];
+    if (hasVesting) noted.push("custom vesting schedule");
+    if (hasMva) noted.push("MVA override");
+    if (applied.length === 0 && noted.length === 0) return null;
+    const parts: string[] = [];
+    if (applied.length > 0) parts.push(`applied — ${applied.join(", ")}`);
+    if (noted.length > 0) parts.push(`noted (not modeled) — ${noted.join(", ")}`);
+    return {
+      type: "info" as const,
+      msg: `${st} overrides: ${parts.join("; ")}.`,
+    };
   })();
 
   // Handle formula type change - apply product defaults
@@ -211,9 +218,14 @@ export function NewAccountSection() {
           const selectedCustom = customProductId
             ? customProducts.find((p) => p.id === customProductId)
             : null;
-          const customGrowth = customProducts.filter((p) => p.category === "growth");
-          const customIncome = customProducts.filter((p) => p.category === "income");
+          // Favorited products surface in their own group at the top for quick
+          // access. To avoid rendering the same SelectItem value twice (Base UI
+          // tracks selection by value — duplicates make selection ambiguous and
+          // light up two checkmarks), exclude favorites from the Growth/Income
+          // groups they'd otherwise also appear in.
           const favorites = customProducts.filter((p) => p.is_favorite);
+          const customGrowth = customProducts.filter((p) => p.category === "growth" && !p.is_favorite);
+          const customIncome = customProducts.filter((p) => p.category === "income" && !p.is_favorite);
           return (
             <Field>
               <div className="flex items-center gap-2">
