@@ -46,6 +46,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       // Product Preset
       // Priority: client value > user default > system default
       blueprint_type: client?.blueprint_type ?? (ud.blueprint_type as ClientFormData["blueprint_type"]) ?? "fia",
+      custom_product_id: client?.custom_product_id ?? null,
 
       // Section 1: Client Data
       scenario_name: client?.scenario_name ?? null,

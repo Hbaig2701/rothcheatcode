@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
@@ -25,12 +26,125 @@ import {
 } from "@/lib/config/products";
 import { GI_PRODUCT_DATA } from "@/lib/config/gi-product-data";
 import type { GuaranteedIncomeFormulaType } from "@/lib/config/products";
-import { Lock } from "lucide-react";
+import { Lock, Sparkles, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useProducts } from "@/lib/queries/products";
+import { ARCHETYPE_LABELS } from "@/lib/products/types";
+import type { CustomProductRow, ProductArchetype } from "@/lib/products/types";
+
+// Encoded picker value: "system:<formula>" or "custom:<uuid>"
+const SYSTEM = "system:";
+const CUSTOM = "custom:";
+
+interface ExtendedFormData extends ClientFormData {
+  custom_product_id?: string | null;
+}
 
 export function NewAccountSection() {
-  const form = useFormContext<ClientFormData>();
+  const form = useFormContext<ExtendedFormData>();
   const formulaType = form.watch("blueprint_type") as FormulaType;
+  const customProductId = form.watch("custom_product_id");
+  const { data: productsData } = useProducts();
+  const customProducts: CustomProductRow[] = productsData?.customDetailed ?? [];
+
+  const pickerValue = customProductId
+    ? `${CUSTOM}${customProductId}`
+    : `${SYSTEM}${formulaType}`;
+
+  const handlePickerChange = (encoded: string | null) => {
+    if (!encoded) return;
+    if (encoded.startsWith(SYSTEM)) {
+      const sys = encoded.slice(SYSTEM.length) as FormulaType;
+      form.setValue("custom_product_id", null);
+      handleFormulaTypeChange(sys);
+    } else if (encoded.startsWith(CUSTOM)) {
+      const id = encoded.slice(CUSTOM.length);
+      const product = customProducts.find((p) => p.id === id);
+      if (!product) return;
+      applyCustomProduct(product);
+    }
+  };
+
+  const applyCustomProduct = (product: CustomProductRow, overrideState?: string) => {
+    const cfg = product.config;
+    const sa = cfg.state_availability ?? null;
+    const clientState = (overrideState ?? form.getValues("state") ?? "").toUpperCase();
+
+    // Resolve state-specific overrides (fall back to base values)
+    const bonusPct = (sa?.bonus_overrides?.[clientState] as number | undefined) ?? cfg.bonus.percentage;
+    const surrenderSchedule =
+      (sa?.surrender_overrides?.[clientState] as number[] | undefined) ?? cfg.surrender.schedule;
+
+    form.setValue("custom_product_id", product.id);
+    form.setValue("blueprint_type", product.engine_preset);
+    form.setValue("carrier_name", product.carrier_name ?? product.name);
+    form.setValue("product_name", product.carrier_product_name ?? product.name);
+    form.setValue("bonus_percent", bonusPct);
+    form.setValue("surrender_years", cfg.surrender.years);
+    form.setValue("penalty_free_percent", cfg.withdrawals.penalty_free_percent);
+    form.setValue("rate_of_return", cfg.form_defaults?.rate_of_return ?? 7);
+    form.setValue("anniversary_bonus_percent", cfg.bonus.anniversary_rate ?? null);
+    form.setValue("anniversary_bonus_years", cfg.bonus.anniversary_years ?? null);
+    form.setValue("surrender_schedule", surrenderSchedule.length ? surrenderSchedule : null);
+
+    // Sync GI defaults from the engine_preset (custom products use system GI internals)
+    const giData = GI_PRODUCT_DATA[product.engine_preset as GuaranteedIncomeFormulaType];
+    if (giData) {
+      if (giData.hasRollUpOptions && giData.rollUp.defaultOption) {
+        form.setValue("roll_up_option", giData.rollUp.defaultOption as "simple" | "compound");
+      } else {
+        form.setValue("roll_up_option", null);
+      }
+      form.setValue("payout_option", giData.hasDualPayoutOption ? "level" : null);
+    } else {
+      form.setValue("roll_up_option", null);
+      form.setValue("payout_option", null);
+    }
+  };
+
+  // Re-apply state-specific overrides when client state changes (only if a custom product is selected)
+  const watchedState = form.watch("state");
+  useEffect(() => {
+    if (!customProductId) return;
+    const product = customProducts.find((p) => p.id === customProductId);
+    if (!product) return;
+    const sa = product.config.state_availability;
+    if (!sa) return;
+    const clientState = (watchedState ?? "").toUpperCase();
+    const stateBonus = sa.bonus_overrides?.[clientState];
+    const stateSurrender = sa.surrender_overrides?.[clientState];
+    if (stateBonus != null) form.setValue("bonus_percent", stateBonus);
+    if (stateSurrender) form.setValue("surrender_schedule", stateSurrender);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedState, customProductId]);
+
+  // Compute state-aware notice for UI
+  const stateNotice = (() => {
+    if (!customProductId) return null;
+    const product = customProducts.find((p) => p.id === customProductId);
+    const sa = product?.config.state_availability;
+    if (!sa || !watchedState) return null;
+    const st = watchedState.toUpperCase();
+    if ((sa.not_available ?? []).includes(st)) {
+      return { type: "error" as const, msg: `${product!.name} is not available in ${st}.` };
+    }
+    const hasBonus = sa.bonus_overrides?.[st] != null;
+    const hasSurrender = sa.surrender_overrides?.[st] != null;
+    const hasVesting = sa.vesting_overrides?.[st] != null;
+    const hasMva = sa.mva_overrides?.[st] != null;
+    if (hasBonus || hasSurrender || hasVesting || hasMva) {
+      const parts = [];
+      if (hasBonus) parts.push(`bonus: ${sa.bonus_overrides![st]}%`);
+      if (hasSurrender) parts.push("custom surrender schedule");
+      if (hasVesting) parts.push("custom vesting schedule");
+      if (hasMva) parts.push("MVA override");
+      return {
+        type: "info" as const,
+        msg: `Applied ${st} overrides — ${parts.join(", ")}.`,
+      };
+    }
+    return null;
+  })();
 
   // Handle formula type change - apply product defaults
   const handleFormulaTypeChange = (value: FormulaType | null) => {
@@ -38,6 +152,8 @@ export function NewAccountSection() {
     const product = ALL_PRODUCTS[value];
     if (!product) return;
 
+    // Selecting a system preset clears any custom product link
+    form.setValue("custom_product_id", null);
     // Update form with new formula type and product defaults
     form.setValue("blueprint_type", value);
     form.setValue("carrier_name", product.defaults.carrierName);
@@ -90,8 +206,14 @@ export function NewAccountSection() {
       <Controller
         name="blueprint_type"
         control={form.control}
-        render={({ field }) => {
-          const selectedProduct = ALL_PRODUCTS[field.value as FormulaType];
+        render={() => {
+          const selectedProduct = ALL_PRODUCTS[formulaType];
+          const selectedCustom = customProductId
+            ? customProducts.find((p) => p.id === customProductId)
+            : null;
+          const customGrowth = customProducts.filter((p) => p.category === "growth");
+          const customIncome = customProducts.filter((p) => p.category === "income");
+          const favorites = customProducts.filter((p) => p.is_favorite);
           return (
             <Field>
               <div className="flex items-center gap-2">
@@ -104,27 +226,71 @@ export function NewAccountSection() {
                 >
                   See our Preset List
                 </a>
+                <a
+                  href="/settings#products"
+                  className="ml-auto text-xs text-primary hover:underline"
+                >
+                  + Manage your products
+                </a>
               </div>
-              <Select value={field.value} onValueChange={handleFormulaTypeChange}>
+              <Select value={pickerValue} onValueChange={handlePickerChange}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select product preset">
-                    {selectedProduct?.label ?? "Select product preset"}
+                    {selectedCustom ? (
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="size-3.5 text-primary" />
+                        {selectedCustom.name}
+                      </span>
+                    ) : (
+                      selectedProduct?.label ?? "Select product preset"
+                    )}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
+                  {favorites.length > 0 && (
+                    <SelectGroup>
+                      <SelectLabel>Favorites</SelectLabel>
+                      {favorites.map((p) => (
+                        <SelectItem key={`fav-${p.id}`} value={`${CUSTOM}${p.id}`}>
+                          <span className="flex items-center gap-1.5">
+                            <Star className="size-3 fill-yellow-500 text-yellow-500" />
+                            {p.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  )}
                   <SelectGroup>
                     <SelectLabel>Growth</SelectLabel>
                     {Object.values(GROWTH_PRODUCTS).map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
+                      <SelectItem key={product.id} value={`${SYSTEM}${product.id}`}>
                         {product.label}
+                      </SelectItem>
+                    ))}
+                    {customGrowth.map((p) => (
+                      <SelectItem key={p.id} value={`${CUSTOM}${p.id}`}>
+                        <span className="flex items-center gap-1.5">
+                          <Sparkles className="size-3 text-primary/70" />
+                          {p.name}
+                          <span className="text-xs text-muted-foreground">(yours)</span>
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectGroup>
                   <SelectGroup>
                     <SelectLabel>Guaranteed Income</SelectLabel>
                     {Object.values(GUARANTEED_INCOME_PRODUCTS).map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
+                      <SelectItem key={product.id} value={`${SYSTEM}${product.id}`}>
                         {product.label}
+                      </SelectItem>
+                    ))}
+                    {customIncome.map((p) => (
+                      <SelectItem key={p.id} value={`${CUSTOM}${p.id}`}>
+                        <span className="flex items-center gap-1.5">
+                          <Sparkles className="size-3 text-primary/70" />
+                          {p.name}
+                          <span className="text-xs text-muted-foreground">(yours)</span>
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectGroup>
@@ -137,8 +303,21 @@ export function NewAccountSection() {
                 </SelectContent>
               </Select>
               <FieldDescription>
-                {ALL_PRODUCTS[formulaType]?.description || "Select a product template"}
+                {selectedCustom
+                  ? `${ARCHETYPE_LABELS[selectedCustom.archetype as ProductArchetype] ?? selectedCustom.archetype} · runs on ${selectedProduct?.label ?? formulaType} engine`
+                  : ALL_PRODUCTS[formulaType]?.description || "Select a product template"}
               </FieldDescription>
+              {stateNotice && (
+                <div
+                  className={`mt-2 rounded-md px-3 py-2 text-xs ${
+                    stateNotice.type === "error"
+                      ? "border border-red-300/40 bg-red-50/30 text-red-700 dark:bg-red-950/20 dark:text-red-400"
+                      : "border border-primary/30 bg-primary/5 text-primary"
+                  }`}
+                >
+                  {stateNotice.msg}
+                </div>
+              )}
               <p className="text-xs text-muted-foreground/60 mt-2 leading-relaxed">
                 The product archetypes shown are for illustrative purposes only. They represent general categories of fixed index annuity features. Actual product features, rates, and terms vary by carrier and state. Always verify with official carrier illustrations before presenting to clients.
               </p>

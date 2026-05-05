@@ -86,6 +86,8 @@ export const nonSSIIncomeEntrySchema = z.object({
 export const clientFormulaBaseSchema = z.object({
   // Product Preset
   blueprint_type: formulaTypeEnum.default("fia"),
+  // Custom product reference (when set, blueprint_type stores the engine_preset)
+  custom_product_id: z.string().uuid().nullable().optional(),
 
   // Section 1: Client Data
   scenario_name: z.string().max(100).optional().nullable().default(null),
@@ -270,6 +272,8 @@ export const clientFullBaseSchema = z.object({
 
   // Product Preset
   blueprint_type: formulaTypeEnum.default("fia"),
+  // Custom product reference (when set, blueprint_type stores the engine_preset)
+  custom_product_id: z.string().uuid().nullable().optional(),
 
   // GI-specific fields
   payout_type: z.enum(['individual', 'joint']).default('individual'),
@@ -395,6 +399,8 @@ export type ClientFormData = {
   // Product Preset
   blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth" | "high-bonus-long-term-growth" | "high-bonus-medium-term-growth"
     | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income" | "generic-income";
+  // Custom product reference (when set, blueprint_type holds the engine_preset)
+  custom_product_id?: string | null;
 
   // Section 1: Client Data
   scenario_name: string | null;

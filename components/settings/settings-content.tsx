@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { User } from "@supabase/supabase-js";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useUserSettings } from "@/lib/queries/settings";
@@ -12,6 +12,7 @@ import {
   CreditCard,
   Users,
   Palette,
+  Package,
   Loader2,
 } from "lucide-react";
 import { ProfileTab } from "./tabs/profile-tab";
@@ -21,6 +22,7 @@ import { DefaultsTab } from "./tabs/defaults-tab";
 import { BillingTab } from "./tabs/billing-tab";
 import { TeamTab } from "./tabs/team-tab";
 import { AppearanceTab } from "./tabs/appearance-tab";
+import { ProductsTab } from "./tabs/products-tab";
 
 interface TabDef {
   value: string;
@@ -33,6 +35,7 @@ const BASE_TABS: TabDef[] = [
   { value: "security", label: "Security", icon: Shield },
   { value: "business", label: "Business & Logo", icon: Building2 },
   { value: "defaults", label: "Default Values", icon: SlidersHorizontal },
+  { value: "products", label: "My Products", icon: Package },
   { value: "appearance", label: "Appearance", icon: Palette },
   { value: "billing", label: "Billing", icon: CreditCard },
 ];
@@ -54,6 +57,15 @@ export function SettingsContent({ user }: { user: User }) {
         setTeamMemberRole(data.teamMemberRole);
       })
       .catch(() => {});
+  }, []);
+
+  // Honor URL hash (e.g., /settings#products) to auto-select tab.
+  // MUST be called every render (no early-return above it) — Rules of Hooks.
+  const initialTab = useMemo(() => {
+    if (typeof window === "undefined") return "profile";
+    const hash = window.location.hash.slice(1);
+    const allTabValues = [...BASE_TABS.map((t) => t.value), TEAM_TAB.value];
+    return allTabValues.includes(hash) ? hash : "profile";
   }, []);
 
   if (isLoading) {
@@ -84,7 +96,7 @@ export function SettingsContent({ user }: { user: User }) {
 
       <div className="flex gap-8">
         {/* Left Tab Navigation */}
-        <Tabs defaultValue="profile" orientation="vertical" className="flex gap-8 w-full">
+        <Tabs defaultValue={initialTab} orientation="vertical" className="flex gap-8 w-full">
           <TabsList variant="line" className="w-[200px] shrink-0 flex-col items-stretch gap-1 bg-transparent p-0 border-0">
             {tabs.map((tab) => (
               <TabsTrigger
@@ -111,6 +123,9 @@ export function SettingsContent({ user }: { user: User }) {
             </TabsContent>
             <TabsContent value="defaults" className="mt-0">
               <DefaultsTab settings={settings} />
+            </TabsContent>
+            <TabsContent value="products" className="mt-0">
+              <ProductsTab />
             </TabsContent>
             <TabsContent value="appearance" className="mt-0">
               <AppearanceTab />
