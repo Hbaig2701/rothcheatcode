@@ -11,7 +11,8 @@ import { StoryMode } from "@/components/report/story-mode";
 import { GIStoryMode } from "@/components/report/gi-story-mode";
 import { AnnotationOverlay } from "@/components/report/annotation-overlay";
 import { ExportPdfDialog } from "@/components/report/export-pdf-dialog";
-import { Loader2, ArrowLeft, Settings2, ChevronDown, Play, Copy, Pencil, BookOpen, Download } from "lucide-react";
+import { Loader2, ArrowLeft, Settings2, ChevronDown, Play, Copy, Pencil, BookOpen, Download, Info, User, Heart, Wallet, Package } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import type { YearlyResult } from "@/lib/calculations";
 import type { Client } from "@/lib/types/client";
@@ -133,36 +134,79 @@ export default function ResultsPage({ params }: ResultsPageProps) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-0px)] overflow-hidden bg-background">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-8 py-3.5 border-b border-border-default bg-[rgba(0,0,0,0.2)] shrink-0">
-        <div className="flex items-center gap-3.5">
+      {/* Top bar — theme-aware surface (was a hardcoded translucent black
+          that read as a muddy gray block in light mode), tighter typography,
+          and the legal disclaimer collapsed behind an info icon to free up
+          vertical space. */}
+      <div className="flex items-center justify-between gap-4 px-6 py-3 border-b border-border-default bg-bg-card shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
           <a
             href={`/clients/${client.id}`}
-            className="flex items-center justify-center w-8 h-8 rounded-lg border border-border-default text-text-muted hover:bg-secondary transition-colors"
+            className="flex items-center justify-center w-8 h-8 rounded-lg border border-border-default text-text-muted hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+            aria-label="Back to client"
           >
             <ArrowLeft className="h-4 w-4" />
           </a>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="text-base font-medium text-foreground">
-                {client.name} <span className="text-text-muted font-normal mx-1">/</span> {client.scenario_name || client.product_name}
-              </span>
+          <div className="min-w-0">
+            {/* Title row: client name / scenario + delta badge + disclaimer info */}
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-base font-semibold text-foreground truncate">
+                {client.name}
+                <span className="text-text-muted font-normal mx-1.5">/</span>
+                <span className="font-medium text-foreground/90">{client.scenario_name || client.product_name}</span>
+              </h1>
               <span
-                className={`inline-block px-3 py-0.5 rounded-[20px] text-sm font-mono font-medium ${
-                  delta >= 0
-                    ? "bg-green-bg text-green"
-                    : "bg-red-bg text-red"
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-semibold shrink-0 ${
+                  delta >= 0 ? "bg-green-bg text-green" : "bg-red-bg text-red"
                 }`}
               >
                 {delta >= 0 ? "+" : ""}{delta}%
               </span>
+              <Tooltip>
+                <TooltipTrigger
+                  render={(props) => (
+                    <button
+                      {...props}
+                      type="button"
+                      className="text-text-dim hover:text-text-muted transition-colors shrink-0"
+                      aria-label="Disclaimer"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                />
+                <TooltipContent className="max-w-xs">
+                  This report is for educational and illustrative purposes only.
+                  Consult a qualified professional before making any financial decisions.
+                </TooltipContent>
+              </Tooltip>
             </div>
-            <p className="text-sm text-text-muted mt-0.5">
-              Age {client.age} · {client.filing_status === "married_filing_jointly" ? "MFJ" : client.filing_status === "single" ? "Single" : client.filing_status} · ${(client.qualified_account_value / 100000000).toFixed(1)}M · {client.product_name} · {client.carrier_name}
-            </p>
-            <p className="text-xs text-text-muted mt-1 italic">
-              This report is for educational and illustrative purposes only. Consult a qualified professional before making any financial decisions.
-            </p>
+            {/* Metadata row: chips with icons, more readable than the old
+                pipe-delimited string */}
+            <div className="flex items-center gap-3 mt-1 text-[13px] text-text-muted">
+              <span className="inline-flex items-center gap-1">
+                <User className="h-3.5 w-3.5 opacity-70" />
+                Age {client.age}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Heart className="h-3.5 w-3.5 opacity-70" />
+                {client.filing_status === "married_filing_jointly"
+                  ? "MFJ"
+                  : client.filing_status === "single"
+                  ? "Single"
+                  : client.filing_status === "married_filing_separately"
+                  ? "MFS"
+                  : "HoH"}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <Wallet className="h-3.5 w-3.5 opacity-70" />
+                ${(client.qualified_account_value / 100000000).toFixed(1)}M
+              </span>
+              <span className="inline-flex items-center gap-1 truncate">
+                <Package className="h-3.5 w-3.5 opacity-70 shrink-0" />
+                <span className="truncate">{client.product_name} · {client.carrier_name}</span>
+              </span>
+            </div>
           </div>
         </div>
 
