@@ -62,8 +62,15 @@ export function runBaselineScenario(
   const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
   const spouseSsAmount = client.spouse_ssi_annual_amount ?? client.ss_spouse ?? 0;
 
-  // Spouse age tracking
-  const useSpouseAgeBased = client.spouse_age !== undefined && client.spouse_age !== null && client.spouse_age > 0;
+  // Spouse age tracking — only carry spouse data when the filer is actually
+  // married. Stops a stale spouse_age from leaking into the year-by-year
+  // table after an advisor switches a client back to single/HoH.
+  const isMarriedFiler = client.filing_status === 'married_filing_jointly'
+    || client.filing_status === 'married_filing_separately';
+  const useSpouseAgeBased = isMarriedFiler
+    && client.spouse_age !== undefined
+    && client.spouse_age !== null
+    && client.spouse_age > 0;
   const initialSpouseAge = useSpouseAgeBased ? client.spouse_age! : null;
 
   const ssiColaRate = 0.02; // 2% annual COLA per spec
@@ -82,7 +89,7 @@ export function runBaselineScenario(
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
     const age = useAgeBased ? getAgeAtYearOffset(clientAge, yearOffset) : calculateAge(client.date_of_birth!, year);
-    const spouseAge = client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
+    const spouseAge = isMarriedFiler && client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
 
     // Beginning of Year balances
     const boyIRA = iraBalance;

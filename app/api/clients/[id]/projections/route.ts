@@ -13,7 +13,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 43; // v43: Voluntary IRA/Roth withdrawal schedule — engines now apply per-year withdrawals on top of RMDs/conversions, affecting balances + taxable income + 10% early-withdrawal penalty. All cached projections need recompute since balance trajectories shift even for clients with no withdrawals (the cache key now includes the schedule).
+const PRODUCT_CONFIG_VERSION = 45; // v45: All four engines (baseline, formula, growth-formula, GI) now suppress spouse_age in YearlyResult when filing_status is single/HoH so a stale spouse_age can no longer leak into the year-by-year table after an advisor switches a client back to single. Math was already gated; this fixes the display side. Cached projections need recompute since YearlyResult.spouseAge values change.
 
 function generateInputHash(client: Client, customProduct?: CustomProductRow | null): string {
   const relevantFields = {

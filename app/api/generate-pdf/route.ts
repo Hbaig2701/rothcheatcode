@@ -768,13 +768,12 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
   // Net legacy = final net worth (includes taxable account) minus heir taxes on traditional
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
-  // Get cumulative after-tax distributions for 'spent' scenario
+  // Cumulative after-tax distributions — kept for the Distributions row in
+  // the breakdown table; no longer rolled into Lifetime Wealth.
   const lastBaselineYear = projection.baseline_years[projection.baseline_years.length - 1];
   const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
-  // Lifetime wealth depends on RMD treatment
-  const baseLifetimeWealth = rmdTreatment === 'spent'
-    ? baseNetLegacy + baseCumulativeDistributions
-    : baseNetLegacy;
+  // Lifetime Wealth = net legacy on both sides (apples-to-apples).
+  const baseLifetimeWealth = baseNetLegacy;
   const baseTotalTaxes = baseTax + baseIrmaa + baseHeirTax;
 
   // RMD-attributable tax for baseline (marginal) — for each year with an RMD,

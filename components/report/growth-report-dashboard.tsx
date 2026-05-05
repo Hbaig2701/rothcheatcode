@@ -74,9 +74,16 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // by `selectedColumns.includes(...)` returns columns in the constants-file order, which
   // silently ignores the user's reorder. Mapping selectedColumns through a lookup
   // preserves the order the user actually picked.
+  // When the client isn't married, suppress the Spouse Age column even if a
+  // prior preference toggled it on.
+  const isMarriedFiler = client.filing_status === "married_filing_jointly"
+    || client.filing_status === "married_filing_separately";
   const orderedColumns = (() => {
     const defMap = new Map(COLUMN_DEFINITIONS.map((c) => [c.id, c]));
-    const resolved = selectedColumns.map((id) => defMap.get(id)).filter(Boolean) as typeof COLUMN_DEFINITIONS;
+    const resolved = selectedColumns
+      .filter((id) => isMarriedFiler || id !== "spouseAge")
+      .map((id) => defMap.get(id))
+      .filter(Boolean) as typeof COLUMN_DEFINITIONS;
     const frozen = resolved.filter((c) => c.frozen);
     const nonFrozen = resolved.filter((c) => !c.frozen);
     return [...frozen, ...nonFrozen];
@@ -126,12 +133,14 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const lastBaselineYear = projection.baseline_years[projection.baseline_years.length - 1];
   const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
 
-  // Lifetime wealth calculation depends on RMD treatment:
-  // - 'spent': Net Legacy + Cumulative Distributions (RMDs were spent, not in legacy)
-  // - 'reinvested'/'cash': Net Legacy only (RMDs are already in taxable balance)
-  const baseLifetimeWealth = rmdTreatment === 'spent'
-    ? baseNetLegacy + baseCumulativeDistributions
-    : baseNetLegacy;
+  // Lifetime Wealth = net legacy (apples-to-apples vs strategy).
+  // Previously, when rmd_treatment === 'spent', baseline lifetime wealth added
+  // cumulative after-tax RMDs to net legacy, but strategy never got an
+  // analogous credit for its tax-free Roth balance. That asymmetry made the
+  // strategy look weaker than the legacy comparison actually was.
+  // The "spent" mode still affects engine simulation (RMDs leave the taxable
+  // account) and is still surfaced in the Distributions card below.
+  const baseLifetimeWealth = baseNetLegacy;
   const baseTotalTaxes = baseTax + baseIrmaa + baseHeirTax;
 
   // Strategy calculations
@@ -821,8 +830,9 @@ function LifetimeWealthInfo({
     <>
       <p className="text-foreground font-medium">What is Lifetime Wealth?</p>
       <p>
-        Lifetime Wealth is the total value your family receives—what you pass to heirs (after their taxes)
-        plus any retirement distributions you received. Here's exactly how we calculated yours:
+        Lifetime Wealth is the net legacy your family receives — final account balances minus the taxes
+        heirs would owe on inherited Traditional IRA. Both baseline and strategy use the same formula
+        so the comparison is apples-to-apples.
       </p>
 
       {/* Starting Point */}
@@ -849,12 +859,6 @@ function LifetimeWealthInfo({
           <p>Gross Estate: {toUSD(projection.baseline_final_net_worth)}</p>
           <p className="text-red">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
           <p className="text-foreground font-medium">= Net Legacy to Heirs: {toUSD(baseNetLegacy)}</p>
-          {rmdTreatment === 'spent' && (
-            <>
-              <p className="text-text-muted mt-2">Plus distributions you received:</p>
-              <p>+ After-Tax RMDs Spent: {toUSD(baseCumulativeDistributions)}</p>
-            </>
-          )}
           <p className="text-text-muted">─────────────────────</p>
           <p className="text-foreground font-semibold text-base">Baseline Lifetime Wealth: {toUSD(baseLifetimeWealth)}</p>
         </div>

@@ -101,7 +101,12 @@ export function runGrowthFormulaScenario(
   const primarySsAmount = client.ssi_annual_amount ?? client.ss_self ?? 0;
   const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
   const spouseSsAmount = client.spouse_ssi_annual_amount ?? client.ss_spouse ?? 0;
-  const initialSpouseAge = client.spouse_age ?? null;
+  // Only carry spouse data when the filer is actually married. Stops a stale
+  // spouse_age from leaking into the year-by-year table after an advisor
+  // switches a client back to single/HoH.
+  const isMarriedFiler = client.filing_status === 'married_filing_jointly'
+    || client.filing_status === 'married_filing_separately';
+  const initialSpouseAge = isMarriedFiler ? (client.spouse_age ?? null) : null;
   const ssiColaRate = 0.02;
 
   // Birth year for RMD calculation (SECURE 2.0: RMD age depends on birth year)

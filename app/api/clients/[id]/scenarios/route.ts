@@ -64,18 +64,13 @@ export async function GET(
             ));
           } else {
             // Robust Growth Calculation matching frontend
+            // Lifetime Wealth = net legacy on both sides (apples-to-apples).
             const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
-            const rmdTreatment = client.rmd_treatment ?? 'reinvested';
-            
-            // Baseline 
+
+            // Baseline
             const baseHeirTax = Math.round(p.baseline_final_traditional * heirTaxRate);
-            const baseNetLegacy = p.baseline_final_net_worth - baseHeirTax;
-            const lastBaselineYear = p.baseline_years ? p.baseline_years[p.baseline_years.length - 1] : null;
-            const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
-            const baseLifetime = rmdTreatment === 'spent'
-              ? baseNetLegacy + baseCumulativeDistributions
-              : baseNetLegacy;
-              
+            const baseLifetime = p.baseline_final_net_worth - baseHeirTax;
+
             // Strategy
             const blueHeirTax = Math.round(p.blueprint_final_traditional * heirTaxRate);
             const blueLifetime = p.blueprint_final_net_worth - blueHeirTax;

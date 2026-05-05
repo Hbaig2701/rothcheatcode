@@ -80,13 +80,10 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
     return giTotalNet + netLegacy - conversionTaxes - totalIRMAA;
   };
 
-  const rmdTreatment = client.rmd_treatment ?? 'reinvested';
-  const calculateBaselineLifetimeWealth = (years: YearlyResult[], finalNetWorth: number) => {
+  // Lifetime Wealth = net legacy on both sides (apples-to-apples).
+  const calculateBaselineLifetimeWealth = (_years: YearlyResult[], finalNetWorth: number) => {
     const baseHeirTax = Math.round(projection.baseline_final_traditional * heirTaxRate);
-    const netLegacy = finalNetWorth - baseHeirTax;
-    const lastYear = years[years.length - 1];
-    const cumulativeDistributions = lastYear?.cumulativeDistributions ?? 0;
-    return rmdTreatment === 'spent' ? netLegacy + cumulativeDistributions : netLegacy;
+    return finalNetWorth - baseHeirTax;
   };
 
   const baseLifetime = calculateBaselineLifetimeWealth(
@@ -208,7 +205,9 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
           <h1 className="font-display text-[52px] font-normal mb-3">{client.name}</h1>
           <p className="text-lg text-text-muted">
             Age {client.age}
-            {client.spouse_name && ` & ${client.spouse_name}, ${client.spouse_age}`} ·{" "}
+            {(client.filing_status === "married_filing_jointly" || client.filing_status === "married_filing_separately")
+              && client.spouse_name
+              && ` & ${client.spouse_name}, ${client.spouse_age}`} ·{" "}
             {formatFilingStatus(client.filing_status)} ·{" "}
             ${(client.qualified_account_value / 100000000).toFixed(1)}M
           </p>

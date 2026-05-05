@@ -70,10 +70,28 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   const { scenario_name, ...clientData } = parsed.data;
 
   // Create update payload handling scenario_name to federal_bracket
-  const updatePayload = {
+  const updatePayload: Record<string, unknown> = {
     ...clientData,
     updated_at: new Date().toISOString()
   };
+
+  // When the advisor switches a client to a non-married filing status, force
+  // every spouse-derived column to null so the engine + UI can never read a
+  // stale value (e.g. spouse age leaking into the year-by-year table after a
+  // divorce/widowhood update). The form already hides these fields, but
+  // setValue(undefined) strips them from the JSON body — so the DB would
+  // otherwise retain the prior values.
+  const incomingFilingStatus = (clientData as Record<string, unknown>).filing_status;
+  if (typeof incomingFilingStatus === "string"
+    && incomingFilingStatus !== "married_filing_jointly"
+    && incomingFilingStatus !== "married_filing_separately") {
+    updatePayload.spouse_name = null;
+    updatePayload.spouse_age = null;
+    updatePayload.spouse_dob = null;
+    updatePayload.spouse_ssi_payout_age = null;
+    updatePayload.spouse_ssi_annual_amount = null;
+    updatePayload.ss_spouse = 0; // NOT NULL column — zero it out instead of nulling.
+  }
 
   // Only overwrite federal_bracket if scenario_name was explicitly provided with a value
   if (scenario_name) {

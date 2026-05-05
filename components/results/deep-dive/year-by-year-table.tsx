@@ -25,6 +25,7 @@ interface YearByYearTableProps {
   productType?: "growth" | "gi";
   nonSsiIncome?: NonSSIIncomeEntry[];
   clientId?: string; // Per-client column preferences
+  filingStatus?: string; // When non-married, the Spouse Age column is suppressed.
 }
 
 /**
@@ -35,7 +36,7 @@ interface YearByYearTableProps {
  * - Horizontal scroll
  * - Preferences saved to localStorage
  */
-export function YearByYearTable({ years, scenario, productType = "growth", nonSsiIncome, clientId }: YearByYearTableProps) {
+export function YearByYearTable({ years, scenario, productType = "growth", nonSsiIncome, clientId, filingStatus }: YearByYearTableProps) {
   const [modalOpen, setModalOpen] = useState(false);
 
   // Storage key is per-client so each client keeps its own column preferences.
@@ -78,9 +79,16 @@ export function YearByYearTable({ years, scenario, productType = "growth", nonSs
   // Frozen columns (Year/Age/Spouse Age) are forced to the front — CSS-sticky positioning
   // assumes they occupy the leftmost slots. Everything else honors the order the user
   // set in the column selector modal.
+  // When the client isn't married, suppress the Spouse Age column — even if a
+  // prior preference saved to localStorage had it toggled on. Otherwise the
+  // frozen column renders forever as "—" for single/HoH clients.
+  const isMarried = filingStatus === "married_filing_jointly" || filingStatus === "married_filing_separately";
   const activeColumns = (() => {
     const defMap = new Map(COLUMN_DEFINITIONS.map((c) => [c.id, c]));
-    const resolved = selectedColumns.map((id) => defMap.get(id)).filter(Boolean) as typeof COLUMN_DEFINITIONS;
+    const resolved = selectedColumns
+      .filter((id) => isMarried || id !== "spouseAge")
+      .map((id) => defMap.get(id))
+      .filter(Boolean) as typeof COLUMN_DEFINITIONS;
     const frozen = resolved.filter((c) => c.frozen);
     const nonFrozen = resolved.filter((c) => !c.frozen);
     return [...frozen, ...nonFrozen];

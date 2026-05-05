@@ -210,7 +210,9 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
           <h1 className="font-display text-[44px] font-normal mb-3">{client.name}</h1>
           <p className="text-base text-text-muted">
             Age {client.age}
-            {client.spouse_name && ` & ${client.spouse_name}, ${client.spouse_age}`} ·{" "}
+            {(client.filing_status === "married_filing_jointly" || client.filing_status === "married_filing_separately")
+              && client.spouse_name
+              && ` & ${client.spouse_name}, ${client.spouse_age}`} ·{" "}
             {formatFilingStatus(client.filing_status)} ·{" "}
             ${(client.qualified_account_value / 100000000).toFixed(1)}M
           </p>
