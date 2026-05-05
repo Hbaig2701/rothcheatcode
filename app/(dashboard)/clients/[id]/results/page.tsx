@@ -252,16 +252,23 @@ export default function ResultsPage({ params }: ResultsPageProps) {
         </div>
       </div>
 
-      {/* Main content area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Report Dashboard - Full width when drawer closed */}
+      {/* Main content area. The drawer is positioned absolutely so opening it
+          OVERLAYS the report instead of pushing the dashboard's flex-1 width
+          down — that's what was causing all the chart numbers + stat cards to
+          re-flow and look squished whenever the input panel was open. */}
+      <div className="relative flex flex-1 overflow-hidden">
+        {/* Report Dashboard - always full width */}
         <div className="flex-1 min-w-0 h-full overflow-hidden">
           <ReportDashboard clientId={id} />
         </div>
 
-        {/* Inputs Drawer - Slide out from right */}
+        {/* Inputs Drawer - slides over the right side of the report.
+            Width is 600px on desktop (gives the withdrawal table its 560px
+            min-width plus padding without horizontal scroll), full-width
+            on narrow screens. Solid background + shadow so it doesn't read
+            through the report behind it. */}
         {drawerOpen && (
-          <div className="w-[360px] shrink-0 h-full border-l border-border-default bg-[rgba(0,0,0,0.2)] overflow-hidden">
+          <div className="absolute right-0 top-0 bottom-0 w-full sm:w-[600px] max-w-[95vw] shrink-0 border-l border-border-default bg-background shadow-[0_0_40px_rgba(0,0,0,0.4)] overflow-hidden z-30">
             <InputDrawer client={client} onClose={() => setDrawerOpen(false)} />
           </div>
         )}
