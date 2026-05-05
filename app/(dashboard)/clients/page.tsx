@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useClients, useDeleteClient } from "@/lib/queries/clients";
 import { ClientCard } from "@/components/clients/client-card";
+import { ClientsListView } from "@/components/clients/clients-list-view";
 import { ClientsEmptyState } from "@/components/clients/clients-empty-state";
 import { IntakeLinkModal } from "@/components/clients/intake-link-modal";
 import { Button } from "@/components/ui/button";
@@ -12,13 +13,30 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Plus, Loader2, Search, UserPlus, Link2, ChevronDown } from "lucide-react";
+import { Plus, Loader2, Search, UserPlus, Link2, ChevronDown, LayoutGrid, List } from "lucide-react";
+
+type ClientsView = "grid" | "list";
+const VIEW_STORAGE_KEY = "clients-view";
 
 export default function ClientsPage() {
   const { data: clients, isLoading, isError, error } = useClients();
   const deleteClient = useDeleteClient();
   const [search, setSearch] = useState("");
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
+  // View preference is per-browser. Default to grid; load saved choice on mount
+  // (deferred so the initial server render doesn't try to read localStorage).
+  const [view, setView] = useState<ClientsView>("grid");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(VIEW_STORAGE_KEY);
+    if (saved === "list" || saved === "grid") setView(saved);
+  }, []);
+  const updateView = (next: ClientsView) => {
+    setView(next);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, next);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -92,32 +110,73 @@ export default function ClientsPage() {
         )}
       </div>
 
-      {/* Search */}
+      {/* Search + view toggle */}
       {hasClients && (
-        <div className="relative mb-6 max-w-sm">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-dim" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search clients..."
-            className="w-full pl-11 pr-4 py-3 bg-bg-input border border-border-default rounded-[10px] text-base text-foreground placeholder:text-text-dim focus:outline-none focus:border-border-hover transition-colors"
-          />
+        <div className="flex items-center gap-3 mb-6 flex-wrap">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-text-dim" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search clients..."
+              className="w-full pl-11 pr-4 py-3 bg-bg-input border border-border-default rounded-[10px] text-base text-foreground placeholder:text-text-dim focus:outline-none focus:border-border-hover transition-colors"
+            />
+          </div>
+          {/* Grid / List toggle. Selection is persisted to localStorage so
+              advisors who prefer the dense list view get it on every visit. */}
+          <div className="inline-flex rounded-[10px] border border-border-default bg-bg-input p-0.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => updateView("grid")}
+              aria-pressed={view === "grid"}
+              aria-label="Grid view"
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                view === "grid"
+                  ? "bg-bg-card text-foreground shadow-sm"
+                  : "text-text-muted hover:text-foreground"
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span className="hidden sm:inline">Grid</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => updateView("list")}
+              aria-pressed={view === "list"}
+              aria-label="List view"
+              className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-sm transition-colors ${
+                view === "list"
+                  ? "bg-bg-card text-foreground shadow-sm"
+                  : "text-text-muted hover:text-foreground"
+              }`}
+            >
+              <List className="h-4 w-4" />
+              <span className="hidden sm:inline">List</span>
+            </button>
+          </div>
         </div>
       )}
 
       {/* Content */}
       {hasClients ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredClients.map((client) => (
-            <ClientCard
-              key={client.id}
-              client={client}
-              delta={(client as any).delta ?? 0}
-              onDelete={(id) => deleteClient.mutate(id)}
-            />
-          ))}
-        </div>
+        view === "grid" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {filteredClients.map((client) => (
+              <ClientCard
+                key={client.id}
+                client={client}
+                delta={(client as any).delta ?? 0}
+                onDelete={(id) => deleteClient.mutate(id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <ClientsListView
+            clients={filteredClients as never}
+            onDelete={(id) => deleteClient.mutate(id)}
+          />
+        )
       ) : (
         <ClientsEmptyState />
       )}

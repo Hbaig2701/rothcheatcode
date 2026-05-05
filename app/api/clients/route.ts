@@ -32,6 +32,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: clientsResult.error.message }, { status: 500 });
   }
 
+  // Count rows per name BEFORE dedup so we can surface a scenario count
+  // on the list/grid views. (Duplicates with the same name are treated as
+  // sibling scenarios — see app/api/clients/[id]/scenarios/route.ts.)
+  const scenarioCountByName = new Map<string, number>();
+  for (const c of clientsResult.data ?? []) {
+    scenarioCountByName.set(c.name, (scenarioCountByName.get(c.name) ?? 0) + 1);
+  }
+
   let clients = clientsResult.data ?? [];
 
   // Group by name to only show ONE client card per name (treating duplicates as scenarios)
@@ -108,6 +116,7 @@ const extractScenarioName = (val: any) => {
     ...c,
     scenario_name: extractScenarioName(c.federal_bracket),
     delta: deltaMap.get(c.id) ?? null,
+    scenario_count: scenarioCountByName.get(c.name) ?? 1,
   }));
 
   return NextResponse.json(clientsWithDelta);
