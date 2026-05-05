@@ -102,46 +102,56 @@ export function ConversionSection() {
         />
       )}
 
-      {/* Protect Initial Premium */}
+      {/* Protect Initial Premium + Respect Carrier Penalty-Free Limit. Both
+          span the full row of the section grid (sm:col-span-2 lg:col-span-3)
+          so the title and description don't get squeezed into a narrow third
+          column. The previous horizontal layout in a 1/3-column slot caused
+          the label to wrap one word per line. */}
       <Controller
         name="protect_initial_premium"
         control={form.control}
         render={({ field }) => (
-          <Field orientation="horizontal">
+          <Field className="sm:col-span-2 lg:col-span-3 flex-row items-start gap-3 sm:gap-4">
             <Checkbox
               id="protect_initial_premium"
               checked={field.value}
               onCheckedChange={field.onChange}
+              className="mt-0.5 shrink-0"
             />
-            <FieldLabel htmlFor="protect_initial_premium">
-              Protect Initial Premium
-            </FieldLabel>
-            <FieldDescription>Prevent withdrawals from reducing original premium</FieldDescription>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <FieldLabel htmlFor="protect_initial_premium" className="cursor-pointer">
+                Protect Initial Premium
+              </FieldLabel>
+              <FieldDescription>
+                Prevent withdrawals from reducing original premium.
+              </FieldDescription>
+            </div>
           </Field>
         )}
       />
 
-      {/* Respect Carrier Penalty-Free Limit — caps each year's conversion at
-          penalty_free_percent × beginning-of-year IRA. Hidden when no_conversion. */}
       {conversionType !== "no_conversion" && (
         <Controller
           name="respect_penalty_free_limit"
           control={form.control}
           render={({ field }) => (
-            <Field orientation="horizontal">
+            <Field className="sm:col-span-2 lg:col-span-3 flex-row items-start gap-3 sm:gap-4">
               <Checkbox
                 id="respect_penalty_free_limit"
                 checked={field.value}
                 onCheckedChange={field.onChange}
+                className="mt-0.5 shrink-0"
               />
-              <FieldLabel htmlFor="respect_penalty_free_limit">
-                Respect Contract Penalty-Free Limit
-              </FieldLabel>
-              <FieldDescription>
-                Caps each year&apos;s conversion at the penalty-free withdrawal % of the remaining IRA
-                balance — for Allianz, American Equity, and similar carriers that don&apos;t allow
-                conversions beyond the free-withdrawal allowance without surrender charges.
-              </FieldDescription>
+              <div className="flex flex-col gap-0.5 min-w-0">
+                <FieldLabel htmlFor="respect_penalty_free_limit" className="cursor-pointer">
+                  Respect Contract Penalty-Free Limit
+                </FieldLabel>
+                <FieldDescription>
+                  Caps each year&apos;s conversion at the penalty-free withdrawal % of the remaining IRA
+                  balance — for Allianz, American Equity, and similar carriers that don&apos;t allow
+                  conversions beyond the free-withdrawal allowance without surrender charges.
+                </FieldDescription>
+              </div>
             </Field>
           )}
         />

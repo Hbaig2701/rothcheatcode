@@ -216,8 +216,8 @@ export function WithdrawalsTable() {
               <table className="text-sm min-w-full" style={{ minWidth: "560px" }}>
                 <thead className="bg-muted/50">
                   <tr>
-                    <th className="px-3 py-2 text-left font-medium w-[88px]">Year</th>
-                    <th className="px-3 py-2 text-left font-medium w-[72px]">Age</th>
+                    <th className="px-3 py-2 text-left font-medium w-[100px]">Year</th>
+                    <th className="px-3 py-2 text-left font-medium w-[80px]">Age</th>
                     <th className="px-3 py-2 text-left font-medium">Amount</th>
                     <th className="px-3 py-2 text-left font-medium w-[180px]">Source</th>
                     <th className="px-2 py-2 w-10"></th>
@@ -241,7 +241,9 @@ export function WithdrawalsTable() {
                                   form.setValue(`withdrawals.${idx}.age`, currentAge + (yr - currentYear));
                                 }
                               }}
-                              className="h-9"
+                              // Hide native number spinners — they steal ~17px
+                              // of content width and were truncating "2026".
+                              className="h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           )}
                         />
@@ -256,7 +258,7 @@ export function WithdrawalsTable() {
                               value={typeof f.value === "number" ? f.value : ""}
                               readOnly
                               tabIndex={-1}
-                              className="h-9 bg-muted/30"
+                              className="h-9 bg-muted/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
                           )}
                         />

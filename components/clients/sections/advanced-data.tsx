@@ -44,21 +44,27 @@ export function AdvancedDataSection() {
 
   return (
     <div className="space-y-4">
+      {/* Using a <span> instead of an <h3> here avoids the input-drawer's
+          global "[&_h3]:border-b ..." rule that was painting an underline
+          only under the label text — leaving the chevron + collapse hint
+          floating outside the underlined area. With a span we own the
+          border ourselves, applied to the whole button so the row reads
+          as a single clickable bar. */}
       <button
         type="button"
         onClick={() => setIsExpanded(!isExpanded)}
-        className="flex items-center gap-2 w-full text-left group"
+        className="flex items-center gap-2 w-full text-left group border-b border-border-default pb-2 hover:text-foreground transition-colors"
       >
         {isExpanded ? (
-          <ChevronDown className="size-4 text-muted-foreground" />
+          <ChevronDown className="size-4 text-muted-foreground shrink-0" />
         ) : (
-          <ChevronRight className="size-4 text-muted-foreground" />
+          <ChevronRight className="size-4 text-muted-foreground shrink-0" />
         )}
-        <h3 className="text-sm font-semibold group-hover:text-primary transition-colors">
+        <span className="text-xs font-medium uppercase tracking-[1.5px] text-text-muted group-hover:text-foreground transition-colors">
           8. Advanced Data
-        </h3>
-        <span className="text-xs text-muted-foreground">
-          {isExpanded ? "Click to collapse" : "Click to expand"}
+        </span>
+        <span className="ml-auto text-[11px] text-text-dim">
+          {isExpanded ? "Collapse" : "Expand"}
         </span>
       </button>
 
