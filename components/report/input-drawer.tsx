@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, FormProvider, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { clientFormulaSchema, type ClientFormData } from "@/lib/validations/client";
@@ -83,6 +83,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       widow_death_age: client?.widow_death_age ?? null,
       rmd_treatment: client?.rmd_treatment ?? "reinvested",
       fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
+      target_partial_amount: client?.target_partial_amount ?? null,
       surrender_schedule: client?.surrender_schedule ?? null,
       taxable_accounts: client?.taxable_accounts ?? 0,
       roth_ira: client?.roth_ira ?? 0,
@@ -90,6 +91,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
   });
 
   const isPending = updateClient.isPending || recalculateProjection.isPending;
+  const [submitErrors, setSubmitErrors] = useState<string[]>([]);
 
   // Sync form fields with formula type defaults on load
   useEffect(() => {
@@ -123,6 +125,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
   }, [form, client?.id]);
 
   const onSubmit = async (data: ClientFormData) => {
+    setSubmitErrors([]);
     try {
       // Filter out any invalid/ghost income entries
       if (data.non_ssi_income) {
@@ -175,11 +178,29 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
 
     } catch (error) {
       console.error("Form submission error:", error);
+      setSubmitErrors([error instanceof Error ? error.message : "Failed to update scenario"]);
     }
   };
 
   const onValidationError = (errors: Record<string, unknown>) => {
     console.error("Input drawer validation errors:", errors);
+    // Surface a human-readable list so a silently-failing submit no longer
+    // looks like "the button does nothing".
+    const messages: string[] = [];
+    const walk = (node: unknown, path: string[] = []) => {
+      if (!node || typeof node !== "object") return;
+      const obj = node as Record<string, unknown>;
+      if (typeof obj.message === "string") {
+        const label = path.join(".") || "form";
+        messages.push(`${label}: ${obj.message}`);
+        return;
+      }
+      for (const key of Object.keys(obj)) {
+        walk(obj[key], [...path, key]);
+      }
+    };
+    walk(errors);
+    setSubmitErrors(messages.length ? messages : ["Form is invalid — check the highlighted fields."]);
   };
 
   const formulaType = form.watch("blueprint_type") as FormulaType;
@@ -350,7 +371,15 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       </div>
 
       {/* Footer */}
-      <div className="px-7 py-5 border-t border-border-default shrink-0">
+      <div className="px-7 py-5 border-t border-border-default shrink-0 space-y-3">
+        {submitErrors.length > 0 && (
+          <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300 space-y-1 max-h-32 overflow-y-auto">
+            <p className="font-medium text-red-200">Couldn&apos;t update scenario:</p>
+            <ul className="list-disc pl-4 space-y-0.5">
+              {submitErrors.map((m, i) => <li key={i}>{m}</li>)}
+            </ul>
+          </div>
+        )}
         <button
           onClick={form.handleSubmit(onSubmit, onValidationError)}
           className="w-full h-11 bg-gold hover:bg-[rgba(212,175,55,0.9)] text-primary-foreground font-semibold text-sm rounded-[10px] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
@@ -367,6 +396,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
 function mapConversionTypeToStrategy(conversionType: string) {
   switch (conversionType) {
     case "optimized_amount": return "moderate";
+    case "partial_amount": return "moderate";
     case "fixed_amount": return "conservative";
     case "full_conversion": return "aggressive";
     case "no_conversion": return "conservative";

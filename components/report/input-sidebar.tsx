@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, FormProvider, Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { clientFormulaSchema, type ClientFormData } from "@/lib/validations/client";
@@ -67,6 +67,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             withdrawals: client?.withdrawals ?? [],
             conversion_type: client?.conversion_type ?? "optimized_amount",
             fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
+            target_partial_amount: client?.target_partial_amount ?? null,
             protect_initial_premium: client?.protect_initial_premium ?? true,
             withdrawal_type: client?.withdrawal_type ?? "no_withdrawals",
             payout_type: client?.payout_type ?? "individual",
@@ -90,6 +91,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
     });
 
     const isPending = updateClient.isPending || recalculateProjection.isPending;
+    const [submitErrors, setSubmitErrors] = useState<string[]>([]);
 
     // Sync form fields with formula type defaults on load
     // This ensures consistency when loading data that may have mismatched values
@@ -128,6 +130,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
     }, [form, client?.id]); // Re-run when client changes
 
     const onSubmit = async (data: ClientFormData) => {
+        setSubmitErrors([]);
         try {
             // Filter out any invalid/ghost income entries
             if (data.non_ssi_income) {
@@ -184,7 +187,27 @@ export function InputSidebar({ client }: InputSidebarProps) {
 
         } catch (error) {
             console.error("Form submission error:", error);
+            setSubmitErrors([error instanceof Error ? error.message : "Failed to update scenario"]);
         }
+    };
+
+    const onValidationError = (errors: Record<string, unknown>) => {
+        console.error("Input sidebar validation errors:", errors);
+        const messages: string[] = [];
+        const walk = (node: unknown, path: string[] = []) => {
+            if (!node || typeof node !== "object") return;
+            const obj = node as Record<string, unknown>;
+            if (typeof obj.message === "string") {
+                const label = path.join(".") || "form";
+                messages.push(`${label}: ${obj.message}`);
+                return;
+            }
+            for (const key of Object.keys(obj)) {
+                walk(obj[key], [...path, key]);
+            }
+        };
+        walk(errors);
+        setSubmitErrors(messages.length ? messages : ["Form is invalid — check the highlighted fields."]);
     };
 
     // Watch formula type for header display
@@ -306,7 +329,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             {/* Main Form Area - Stacked, Readable, Scrollable */}
             <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-[#3A3A3A] scrollbar-track-transparent">
                 <FormProvider {...form}>
-                    <form id="formula-form" onSubmit={form.handleSubmit(onSubmit)}
+                    <form id="formula-form" onSubmit={form.handleSubmit(onSubmit, onValidationError)}
                         className={cn(
                             "space-y-6",
 
@@ -345,9 +368,17 @@ export function InputSidebar({ client }: InputSidebarProps) {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-border-default bg-[#0A0A0A] shrink-0">
+            <div className="p-4 border-t border-border-default bg-[#0A0A0A] shrink-0 space-y-3">
+                {submitErrors.length > 0 && (
+                    <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-[11px] text-red-300 space-y-1 max-h-32 overflow-y-auto">
+                        <p className="font-semibold text-red-200">Couldn&apos;t update scenario:</p>
+                        <ul className="list-disc pl-4 space-y-0.5">
+                            {submitErrors.map((m, i) => <li key={i}>{m}</li>)}
+                        </ul>
+                    </div>
+                )}
                 <Button
-                    onClick={form.handleSubmit(onSubmit)}
+                    onClick={form.handleSubmit(onSubmit, onValidationError)}
                     className="w-full bg-[#F5B800] hover:bg-[#DEAD00] text-black font-bold h-9 uppercase text-xs tracking-widest shadow-lg hover:shadow-[0_0_20px_rgba(245,184,0,0.3)] transition-all"
                     disabled={isPending}
                 >
@@ -362,6 +393,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
 function mapConversionTypeToStrategy(conversionType: string) {
     switch (conversionType) {
         case "optimized_amount": return "moderate";
+        case "partial_amount": return "moderate";
         case "fixed_amount": return "conservative";
         case "full_conversion": return "aggressive";
         case "no_conversion": return "conservative";

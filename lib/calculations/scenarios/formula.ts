@@ -17,6 +17,7 @@ import {
   computeTaxableIncomeWithSS,
   calculateSSAwareOptimalConversion,
   calculateSSAwareIRAWithdrawalPlan,
+  calculateConversionTaxWithSS,
 } from '../tax-helpers';
 
 /**
@@ -76,7 +77,15 @@ export function runFormulaScenario(
   const spouseSsAmount = client.spouse_ssi_annual_amount ?? client.ss_spouse ?? 0;
 
   // Spouse age tracking
-  const useSpouseAgeBased = client.spouse_age !== undefined && client.spouse_age !== null && client.spouse_age > 0;
+  // Only carry spouse data when the filer is actually married. Stops a stale
+  // spouse_age from leaking into the year-by-year table after an advisor
+  // switches a client back to single/HoH.
+  const isMarriedFiler = client.filing_status === 'married_filing_jointly'
+    || client.filing_status === 'married_filing_separately';
+  const useSpouseAgeBased = isMarriedFiler
+    && client.spouse_age !== undefined
+    && client.spouse_age !== null
+    && client.spouse_age > 0;
   const initialSpouseAge = useSpouseAgeBased ? client.spouse_age! : null;
 
   const ssiColaRate = 0.02; // 2% annual COLA per spec
@@ -97,13 +106,26 @@ export function runFormulaScenario(
   // Tax payment source
   const payTaxFromIRA = client.tax_payment_source === 'from_ira';
 
+  // Conversion strategy controls (must mirror growth-formula.ts so the legacy
+  // dispatch path doesn't silently ignore advisor-selected conversion types).
+  const conversionType = client.conversion_type ?? 'optimized_amount';
+  const fixedConversionAmount = client.fixed_conversion_amount ?? 0;
+  const targetPartialAmount = client.target_partial_amount ?? 0;
+  const respectPenaltyFreeLimit = client.respect_penalty_free_limit ?? false;
+  const penaltyFreePercent = client.penalty_free_percent ?? 10;
+  const surrenderYears = client.surrender_years ?? 0;
+
+  // Cumulative converted across the projection — used by 'partial_amount' to
+  // cap total conversions across years.
+  let cumulativeConverted = 0;
+
   // Track conversion completion
   let conversionComplete = false;
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
     const age = useAgeBased ? getAgeAtYearOffset(clientAge, yearOffset) : calculateAge(client.date_of_birth!, year);
-    const spouseAge = client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
+    const spouseAge = isMarriedFiler && client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
 
     // Beginning of Year balances
     const boyIRA = iraBalance;
@@ -163,81 +185,188 @@ export function runFormulaScenario(
     let federalConversionTax = 0;
     let stateConversionTax = 0;
 
+    // Carrier penalty-free cap during the surrender period (Allianz/American
+    // Equity-style). Applies to the IRA amount available for the year's
+    // conversion + any tax withheld from it. Once surrender ends, no cap.
+    const inSurrenderPeriod = yearOffset < surrenderYears;
+    const carrierCap = respectPenaltyFreeLimit && inSurrenderPeriod
+      ? Math.round(boyIRA * penaltyFreePercent / 100)
+      : Number.POSITIVE_INFINITY;
+    const effectiveIraForConversion = Math.min(boyIRA, carrierCap);
+
     // Check if we should convert this year
     const shouldConvert = !conversionComplete &&
+                          conversionType !== 'no_conversion' &&
                           age >= conversionStartAge &&
                           age <= conversionEndAge &&
-                          boyIRA > 0;
+                          effectiveIraForConversion > 100;
 
     // The IRA withdrawal taxable for the year. For external tax payment, only
     // the conversion is a taxable distribution. For internal tax payment, the
     // withheld tax is ALSO a taxable distribution (same 1099-R), so the full
     // conversion + tax-from-IRA is what the IRS sees.
     let totalIRAWithdrawal = 0;
+    // True when the branch already produced authoritative tax numbers (planner
+    // path or solved full/fixed) so we shouldn't recompute marginal tax below.
+    let taxAlreadyComputed = false;
 
     if (shouldConvert) {
-      if (payTaxFromIRA) {
-        // Plan the full withdrawal (conversion + tax) as one bracket-filling
-        // distribution. Self-consistent: the marginal tax computed is
-        // exactly what gets withheld, and the net conversion equals the
-        // total minus that tax.
-        const plan = calculateSSAwareIRAWithdrawalPlan({
-          iraBalance: boyIRA,
-          otherIncome,
-          ssBenefits: ssIncome,
-          taxExemptInterest: taxExemptNonSSI,
-          deductions,
-          maxBracketRate: maxTaxRate,
-          filingStatus: client.filing_status,
-          taxYear: year,
-          state: client.state,
-          stateTaxRateDecimal,
-        });
-        conversionAmount = plan.conversion;
-        totalIRAWithdrawal = plan.totalIRAWithdrawal;
-        federalConversionTax = plan.federalTaxFromIRA;
-        stateConversionTax = plan.stateTaxFromIRA;
-        conversionTax = federalConversionTax + stateConversionTax;
-      } else {
-        // External tax: the conversion alone fills the bracket; client writes
-        // the tax check from outside funds.
-        conversionAmount = calculateSSAwareOptimalConversion({
-          iraBalance: boyIRA,
-          otherIncome,
-          ssBenefits: ssIncome,
-          taxExemptInterest: taxExemptNonSSI,
-          deductions,
-          maxBracketRate: maxTaxRate,
-          filingStatus: client.filing_status,
-          taxYear: year,
-        });
-        totalIRAWithdrawal = conversionAmount;
-
-        if (conversionAmount > 0) {
-          const taxInfoWithConv = computeTaxableIncomeWithSS({
-            otherIncome: otherIncome + conversionAmount,
+      // Branch on conversion strategy. Defaults match growth-formula.ts so
+      // both engines respect the same advisor controls.
+      if (conversionType === 'full_conversion') {
+        if (payTaxFromIRA) {
+          // Solve iteratively for: conversion + tax(conversion) = effectiveIra
+          let solved = effectiveIraForConversion * (1 - (maxTaxRate / 100 + stateTaxRateDecimal));
+          for (let i = 0; i < 5; i++) {
+            const t = calculateConversionTaxWithSS({
+              conversionAmount: solved,
+              otherIncome,
+              ssBenefits: ssIncome,
+              taxExemptInterest: taxExemptNonSSI,
+              deductions,
+              filingStatus: client.filing_status,
+              taxYear: year,
+              state: client.state ?? 'CA',
+              stateTaxRateDecimal,
+            });
+            solved = effectiveIraForConversion - t.federalTax - t.stateTax;
+          }
+          conversionAmount = Math.max(0, Math.round(solved));
+          const fcVerify = calculateConversionTaxWithSS({
+            conversionAmount,
+            otherIncome,
             ssBenefits: ssIncome,
             taxExemptInterest: taxExemptNonSSI,
             deductions,
             filingStatus: client.filing_status,
+            taxYear: year,
+            state: client.state ?? 'CA',
+            stateTaxRateDecimal,
           });
-          const fedWithConv = calculateFederalTax({
-            taxableIncome: taxInfoWithConv.taxableIncome,
+          federalConversionTax = fcVerify.federalTax;
+          stateConversionTax = fcVerify.stateTax;
+          totalIRAWithdrawal = conversionAmount + federalConversionTax + stateConversionTax;
+          taxAlreadyComputed = true;
+        } else {
+          conversionAmount = effectiveIraForConversion;
+          totalIRAWithdrawal = conversionAmount;
+        }
+      } else if (conversionType === 'fixed_amount' && fixedConversionAmount > 0) {
+        if (payTaxFromIRA) {
+          const estEffRate = maxTaxRate / 100 + stateTaxRateDecimal;
+          const maxConvWithTax = Math.floor(effectiveIraForConversion / (1 + estEffRate));
+          if (maxConvWithTax < fixedConversionAmount) {
+            // Not enough room — solve like full_conversion against effectiveIra
+            let solved = effectiveIraForConversion * (1 - estEffRate);
+            for (let i = 0; i < 5; i++) {
+              const t = calculateConversionTaxWithSS({
+                conversionAmount: solved,
+                otherIncome,
+                ssBenefits: ssIncome,
+                taxExemptInterest: taxExemptNonSSI,
+                deductions,
+                filingStatus: client.filing_status,
+                taxYear: year,
+                state: client.state ?? 'CA',
+                stateTaxRateDecimal,
+              });
+              solved = effectiveIraForConversion - t.federalTax - t.stateTax;
+            }
+            conversionAmount = Math.max(0, Math.round(solved));
+          } else {
+            conversionAmount = fixedConversionAmount;
+          }
+          const fxVerify = calculateConversionTaxWithSS({
+            conversionAmount,
+            otherIncome,
+            ssBenefits: ssIncome,
+            taxExemptInterest: taxExemptNonSSI,
+            deductions,
             filingStatus: client.filing_status,
             taxYear: year,
-          }).totalTax;
-          const stateWithConv = calculateStateTax({
-            taxableIncome: taxInfoWithConv.taxableIncome,
-            state: client.state,
-            filingStatus: client.filing_status,
-            overrideRate: stateTaxRateDecimal,
-          }).totalTax;
+            state: client.state ?? 'CA',
+            stateTaxRateDecimal,
+          });
+          federalConversionTax = fxVerify.federalTax;
+          stateConversionTax = fxVerify.stateTax;
+          totalIRAWithdrawal = conversionAmount + federalConversionTax + stateConversionTax;
+          taxAlreadyComputed = true;
+        } else {
+          conversionAmount = Math.min(fixedConversionAmount, effectiveIraForConversion);
+          totalIRAWithdrawal = conversionAmount;
+        }
+      } else if (conversionType === 'optimized_amount' || conversionType === 'partial_amount') {
+        // partial_amount: same as optimized, but cap by remaining cumulative cap.
+        const partialRemaining = conversionType === 'partial_amount'
+          ? Math.max(0, targetPartialAmount - cumulativeConverted)
+          : Number.POSITIVE_INFINITY;
+        const cappedIra = Math.min(effectiveIraForConversion, partialRemaining);
 
-          federalConversionTax = Math.max(0, fedWithConv - fedNoConv);
-          stateConversionTax = Math.max(0, stateWithConv - stateNoConv);
-          conversionTax = federalConversionTax + stateConversionTax;
+        if (cappedIra <= 0) {
+          // Cap exhausted — no conversion this year.
+          conversionAmount = 0;
+        } else if (payTaxFromIRA) {
+          const plan = calculateSSAwareIRAWithdrawalPlan({
+            iraBalance: cappedIra,
+            otherIncome,
+            ssBenefits: ssIncome,
+            taxExemptInterest: taxExemptNonSSI,
+            deductions,
+            maxBracketRate: maxTaxRate,
+            filingStatus: client.filing_status,
+            taxYear: year,
+            state: client.state,
+            stateTaxRateDecimal,
+          });
+          conversionAmount = plan.conversion;
+          totalIRAWithdrawal = plan.totalIRAWithdrawal;
+          federalConversionTax = plan.federalTaxFromIRA;
+          stateConversionTax = plan.stateTaxFromIRA;
+          taxAlreadyComputed = true;
+        } else {
+          conversionAmount = calculateSSAwareOptimalConversion({
+            iraBalance: cappedIra,
+            otherIncome,
+            ssBenefits: ssIncome,
+            taxExemptInterest: taxExemptNonSSI,
+            deductions,
+            maxBracketRate: maxTaxRate,
+            filingStatus: client.filing_status,
+            taxYear: year,
+          });
+          totalIRAWithdrawal = conversionAmount;
         }
       }
+
+      // For paths that haven't already produced authoritative tax numbers
+      // (external-tax full/fixed/optimized/partial), compute the SS-aware
+      // marginal conversion tax against the chosen conversion amount.
+      if (conversionAmount > 0 && !taxAlreadyComputed) {
+        const taxInfoWithConv = computeTaxableIncomeWithSS({
+          otherIncome: otherIncome + conversionAmount,
+          ssBenefits: ssIncome,
+          taxExemptInterest: taxExemptNonSSI,
+          deductions,
+          filingStatus: client.filing_status,
+        });
+        const fedWithConv = calculateFederalTax({
+          taxableIncome: taxInfoWithConv.taxableIncome,
+          filingStatus: client.filing_status,
+          taxYear: year,
+        }).totalTax;
+        const stateWithConv = calculateStateTax({
+          taxableIncome: taxInfoWithConv.taxableIncome,
+          state: client.state,
+          filingStatus: client.filing_status,
+          overrideRate: stateTaxRateDecimal,
+        }).totalTax;
+        federalConversionTax = Math.max(0, fedWithConv - fedNoConv);
+        stateConversionTax = Math.max(0, stateWithConv - stateNoConv);
+      }
+      conversionTax = federalConversionTax + stateConversionTax;
+
+      // Track cumulative converted for the partial cap.
+      cumulativeConverted += conversionAmount;
 
       if (boyIRA - conversionAmount <= 0) {
         conversionComplete = true;
