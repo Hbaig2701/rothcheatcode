@@ -86,11 +86,10 @@ export function CommentThread({ ticketId, comments, canPostInternal }: CommentTh
                   'flex size-6 items-center justify-center rounded-full text-[11px] font-semibold',
                   c.author?.isAdmin ? 'bg-gold/20 text-gold' : 'bg-muted text-foreground'
                 )}>
-                  {c.author?.initial ?? '?'}
+                  {c.author?.isAdmin ? 'S' : (c.author?.initial ?? '?')}
                 </div>
                 <span className="text-sm font-medium text-foreground">
-                  {c.author?.name ?? 'Unknown'}
-                  {c.author?.isAdmin && <span className="ml-1.5 text-xs text-gold font-semibold">SUPPORT</span>}
+                  {c.author?.isAdmin ? 'Support Team' : (c.author?.name ?? 'Unknown')}
                 </span>
                 <span className="text-xs text-text-dimmer">·</span>
                 <span className="text-xs text-text-dimmer">{formatTime(c.created_at)}</span>
