@@ -143,7 +143,7 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0">
+      <DialogContent className="sm:max-w-5xl max-h-[90vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
           <DialogTitle className="flex items-center gap-2 pr-8">
             {step !== "entry" && step !== "researching" && step !== "results" && (

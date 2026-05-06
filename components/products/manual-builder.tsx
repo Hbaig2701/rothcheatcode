@@ -37,6 +37,27 @@ const INCOME_ARCHETYPES: ProductArchetype[] = [
   "income-compound-split",
 ];
 
+// Plain-English explanations shown beneath each option in the structure
+// dropdown so advisors don't have to reverse-engineer our taxonomy.
+const ARCHETYPE_DESCRIPTIONS: Record<ProductArchetype, string> = {
+  "growth-vesting":
+    "Premium bonus is credited day 1 but partially forfeited if the client surrenders early (recapture schedule).",
+  "growth-phased":
+    "Bonus is paid out in pieces, usually as anniversary credits over the first few years.",
+  "growth-immediate":
+    "Premium bonus is credited in full on day 1 with no vesting (e.g., Athene Ascent Pro, Allianz, EquiTrust).",
+  "growth-no-bonus":
+    "No premium bonus. Just an FIA with index crediting and a surrender schedule.",
+  "income-simple-both":
+    "Income base grows linearly each year (simple roll-up). Bonus boosts both the account value and the income base.",
+  "income-simple-base":
+    "Same simple roll-up, but the bonus boosts only the income base — the account value gets no bonus.",
+  "income-compound-flat":
+    "Income base compounds year-over-year at a single flat rate (e.g., 7% every year).",
+  "income-compound-split":
+    "Income base compounds at one rate early, then a different rate later (e.g., 7% years 1-5, 4% years 6-10).",
+};
+
 // Display labels (shown inside SelectValue triggers — Base UI doesn't auto-render SelectItem labels)
 const CATEGORY_LABELS: Record<"growth" | "income", string> = {
   growth: "Growth",
@@ -291,21 +312,31 @@ export function ManualBuilder({
         </Field>
 
         <Field>
-          <FieldLabel>Archetype</FieldLabel>
+          <FieldLabel>Product structure</FieldLabel>
           <Select value={archetype} onValueChange={(v) => handleArchetypeChange(v as ProductArchetype)}>
             <SelectTrigger>
               <SelectValue>{ARCHETYPE_LABELS[archetype]}</SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-w-[480px]">
               <SelectGroup>
                 <SelectLabel>{category === "growth" ? "Growth" : "Income"}</SelectLabel>
                 {(category === "growth" ? GROWTH_ARCHETYPES : INCOME_ARCHETYPES).map((a) => (
-                  <SelectItem key={a} value={a}>{ARCHETYPE_LABELS[a]}</SelectItem>
+                  <SelectItem key={a} value={a}>
+                    <div className="flex flex-col gap-0.5 whitespace-normal py-0.5">
+                      <span className="font-medium text-foreground">{ARCHETYPE_LABELS[a]}</span>
+                      <span className="text-xs text-muted-foreground leading-snug">
+                        {ARCHETYPE_DESCRIPTIONS[a]}
+                      </span>
+                    </div>
+                  </SelectItem>
                 ))}
               </SelectGroup>
             </SelectContent>
           </Select>
-          <FieldDescription>Determines calculation behavior</FieldDescription>
+          <FieldDescription>
+            Tells the engine how to model bonuses and roll-ups for this product.{" "}
+            <span className="text-foreground/80">{ARCHETYPE_DESCRIPTIONS[archetype]}</span>
+          </FieldDescription>
         </Field>
       </div>
 

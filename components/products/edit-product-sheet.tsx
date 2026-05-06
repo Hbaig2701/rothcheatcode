@@ -22,7 +22,7 @@ export function EditProductSheet({ productId, onClose }: EditProductSheetProps) 
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="sm:max-w-2xl w-full flex flex-col p-0 gap-0">
+      <SheetContent className="sm:max-w-5xl w-full flex flex-col p-0 gap-0">
         <SheetHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
           <SheetTitle>Edit Product</SheetTitle>
           <SheetDescription>
