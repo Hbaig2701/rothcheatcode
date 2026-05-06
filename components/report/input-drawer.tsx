@@ -355,15 +355,37 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
               // Force stacked layout
               "[&_.grid]:!grid-cols-1 [&_.grid]:gap-3",
               "[&_[class*='col-span']]:!col-span-1",
-              // Styles - improved readability
-              "[&_label]:text-sm [&_label]:font-normal [&_label]:text-text-dim [&_label]:mb-1.5",
-              "[&_input]:bg-bg-input [&_input]:border-border-default [&_input]:h-10 [&_input]:text-sm [&_input]:text-foreground [&_input]:rounded-lg [&_input]:px-3.5",
-              "[&_input:focus]:border-[rgba(212,175,55,0.4)] [&_input:focus]:ring-0",
-              "[&_button[role=combobox]]:bg-bg-input [&_button[role=combobox]]:border-border-default [&_button[role=combobox]]:h-10 [&_button[role=combobox]]:text-sm [&_button[role=combobox]]:text-foreground [&_button[role=combobox]]:rounded-lg [&_button[role=combobox]]:px-3.5",
-              "[&_[data-slot=select-trigger]]:bg-bg-input [&_[data-slot=select-trigger]]:border-border-default [&_[data-slot=select-trigger]]:h-10 [&_[data-slot=select-trigger]]:text-sm [&_[data-slot=select-trigger]]:text-foreground [&_[data-slot=select-trigger]]:w-full",
-              // Section headers - improved readability
-              "[&_h3]:text-xs [&_h3]:font-medium [&_h3]:uppercase [&_h3]:tracking-[1.5px] [&_h3]:text-text-muted [&_h3]:border-b [&_h3]:border-border-default [&_h3]:pb-2 [&_h3]:mb-4",
-              "[&_p]:text-xs [&_p]:text-text-dim"
+              // Labels — bumped up so older advisors can scan the form quickly.
+              "[&_label]:!text-sm [&_label]:!font-medium [&_label]:!text-foreground/85 [&_label]:!mb-1.5",
+              // Inputs — theme-aware card elevation. Light mode uses pure
+              // white bg + slate-300 border so the field is clearly visible
+              // against the cream drawer background. Dark mode uses a
+              // white/8% wash + brighter border so it pops against
+              // near-black. The base Input component bakes in `dark:bg-input/30`
+              // which is too subtle in dark mode — forcing with `!` overrides it.
+              "[&_input:not([type=radio]):not([type=checkbox])]:!bg-white [&_input:not([type=radio]):not([type=checkbox])]:!border [&_input:not([type=radio]):not([type=checkbox])]:!border-slate-300 [&_input:not([type=radio]):not([type=checkbox])]:!h-10 [&_input:not([type=radio]):not([type=checkbox])]:!text-sm [&_input:not([type=radio]):not([type=checkbox])]:!font-medium [&_input:not([type=radio]):not([type=checkbox])]:!text-foreground [&_input:not([type=radio]):not([type=checkbox])]:!rounded-lg [&_input:not([type=radio]):not([type=checkbox])]:!px-3.5 [&_input:not([type=radio]):not([type=checkbox])]:!shadow-sm",
+              "dark:[&_input:not([type=radio]):not([type=checkbox])]:!bg-white/[0.08] dark:[&_input:not([type=radio]):not([type=checkbox])]:!border-white/[0.18] dark:[&_input:not([type=radio]):not([type=checkbox])]:!shadow-none",
+              "[&_input::placeholder]:!text-foreground/45",
+              "[&_input:hover]:!bg-slate-50 [&_input:hover]:!border-slate-400",
+              "dark:[&_input:hover]:!bg-white/[0.10] dark:[&_input:hover]:!border-white/[0.24]",
+              "[&_input:focus]:!bg-white [&_input:focus]:!border-gold [&_input:focus]:!ring-1 [&_input:focus]:!ring-gold/30",
+              "dark:[&_input:focus]:!bg-white/[0.10]",
+              "[&_input:not([type=radio]):not([type=checkbox])]:transition-colors",
+              // Comboboxes / Select triggers — same theme-aware treatment.
+              "[&_button[role=combobox]]:!bg-white [&_button[role=combobox]]:!border [&_button[role=combobox]]:!border-slate-300 [&_button[role=combobox]]:!h-10 [&_button[role=combobox]]:!text-sm [&_button[role=combobox]]:!font-medium [&_button[role=combobox]]:!text-foreground [&_button[role=combobox]]:!rounded-lg [&_button[role=combobox]]:!px-3.5 [&_button[role=combobox]]:!shadow-sm",
+              "dark:[&_button[role=combobox]]:!bg-white/[0.08] dark:[&_button[role=combobox]]:!border-white/[0.18] dark:[&_button[role=combobox]]:!shadow-none",
+              "[&_button[role=combobox]:hover]:!bg-slate-50 [&_button[role=combobox]:hover]:!border-slate-400",
+              "dark:[&_button[role=combobox]:hover]:!bg-white/[0.10] dark:[&_button[role=combobox]:hover]:!border-white/[0.24]",
+              "[&_button[role=combobox]]:transition-colors",
+              "[&_[data-slot=select-trigger]]:!bg-white [&_[data-slot=select-trigger]]:!border [&_[data-slot=select-trigger]]:!border-slate-300 [&_[data-slot=select-trigger]]:!h-10 [&_[data-slot=select-trigger]]:!text-sm [&_[data-slot=select-trigger]]:!font-medium [&_[data-slot=select-trigger]]:!text-foreground [&_[data-slot=select-trigger]]:!w-full [&_[data-slot=select-trigger]]:!shadow-sm",
+              "dark:[&_[data-slot=select-trigger]]:!bg-white/[0.08] dark:[&_[data-slot=select-trigger]]:!border-white/[0.18] dark:[&_[data-slot=select-trigger]]:!shadow-none",
+              "[&_[data-slot=select-trigger]:hover]:!bg-slate-50 [&_[data-slot=select-trigger]:hover]:!border-slate-400",
+              "dark:[&_[data-slot=select-trigger]:hover]:!bg-white/[0.10] dark:[&_[data-slot=select-trigger]:hover]:!border-white/[0.24]",
+              "[&_[data-slot=select-trigger]]:transition-colors",
+              // Section headers — slightly brighter so the section breaks
+              // are easy to find when scrolling.
+              "[&_h3]:text-xs [&_h3]:font-semibold [&_h3]:uppercase [&_h3]:tracking-[1.5px] [&_h3]:text-foreground/70 [&_h3]:border-b [&_h3]:border-white/[0.08] [&_h3]:pb-2 [&_h3]:mb-4",
+              "[&_p]:text-xs [&_p]:text-foreground/55"
             )}
           >
             <ClientDataSection />

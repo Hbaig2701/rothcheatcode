@@ -347,20 +347,37 @@ export function InputSidebar({ client }: InputSidebarProps) {
                             // Remove col-span classes that break layout in narrow sidebar
                             "[&_[class*='col-span']]:!col-span-1",
 
-                            // Styles
-                            "[&_label]:text-xs [&_label]:font-semibold [&_label]:text-[#A0A0A0] [&_label]:uppercase [&_label]:tracking-wide [&_label]:mb-1.5",
-                            "[&_input]:bg-[#1A1A1A] [&_input]:border-[#3A3A3A] [&_input]:h-8 [&_input]:text-xs [&_input]:text-foreground [&_input]:rounded-sm [&_input]:px-2.5",
-                            "[&_input:focus]:border-[#F5B800] [&_input:focus]:ring-0",
-                            "[&_button[role=combobox]]:bg-[#1A1A1A] [&_button[role=combobox]]:border-[#3A3A3A] [&_button[role=combobox]]:h-8 [&_button[role=combobox]]:text-xs [&_button[role=combobox]]:text-foreground [&_button[role=combobox]]:rounded-sm [&_button[role=combobox]]:px-2.5",
+                            // Labels — brighter so older advisors can scan input names quickly.
+                            "[&_label]:!text-xs [&_label]:!font-semibold [&_label]:!text-foreground/85 [&_label]:!uppercase [&_label]:!tracking-wide [&_label]:!mb-1.5",
+                            // Inputs — theme-aware card elevation. Light mode
+                            // uses white bg + slate-300 border (visible against
+                            // the cream sidebar). Dark mode uses white/8% wash +
+                            // brighter border (visible against near-black).
+                            "[&_input:not([type=radio]):not([type=checkbox])]:!bg-white [&_input:not([type=radio]):not([type=checkbox])]:!border [&_input:not([type=radio]):not([type=checkbox])]:!border-slate-300 [&_input:not([type=radio]):not([type=checkbox])]:!h-8 [&_input:not([type=radio]):not([type=checkbox])]:!text-xs [&_input:not([type=radio]):not([type=checkbox])]:!font-medium [&_input:not([type=radio]):not([type=checkbox])]:!text-foreground [&_input:not([type=radio]):not([type=checkbox])]:!rounded-md [&_input:not([type=radio]):not([type=checkbox])]:!px-2.5 [&_input:not([type=radio]):not([type=checkbox])]:!shadow-sm",
+                            "dark:[&_input:not([type=radio]):not([type=checkbox])]:!bg-white/[0.08] dark:[&_input:not([type=radio]):not([type=checkbox])]:!border-white/[0.18] dark:[&_input:not([type=radio]):not([type=checkbox])]:!shadow-none",
+                            "[&_input::placeholder]:!text-foreground/45",
+                            "[&_input:hover]:!bg-slate-50 [&_input:hover]:!border-slate-400",
+                            "dark:[&_input:hover]:!bg-white/[0.10] dark:[&_input:hover]:!border-white/[0.24]",
+                            "[&_input:focus]:!bg-white [&_input:focus]:!border-[#F5B800] [&_input:focus]:!ring-1 [&_input:focus]:!ring-[#F5B800]/30",
+                            "dark:[&_input:focus]:!bg-white/[0.10]",
+                            "[&_input:not([type=radio]):not([type=checkbox])]:transition-colors",
+                            // Comboboxes / Select triggers.
+                            "[&_button[role=combobox]]:!bg-white [&_button[role=combobox]]:!border [&_button[role=combobox]]:!border-slate-300 [&_button[role=combobox]]:!h-8 [&_button[role=combobox]]:!text-xs [&_button[role=combobox]]:!font-medium [&_button[role=combobox]]:!text-foreground [&_button[role=combobox]]:!rounded-md [&_button[role=combobox]]:!px-2.5 [&_button[role=combobox]]:!shadow-sm",
+                            "dark:[&_button[role=combobox]]:!bg-white/[0.08] dark:[&_button[role=combobox]]:!border-white/[0.18] dark:[&_button[role=combobox]]:!shadow-none",
+                            "[&_button[role=combobox]:hover]:!bg-slate-50 [&_button[role=combobox]:hover]:!border-slate-400",
+                            "dark:[&_button[role=combobox]:hover]:!bg-white/[0.10] dark:[&_button[role=combobox]:hover]:!border-white/[0.24]",
+                            "[&_button[role=combobox]]:transition-colors",
+                            "[&_[data-slot=select-trigger]]:!bg-white [&_[data-slot=select-trigger]]:!border [&_[data-slot=select-trigger]]:!border-slate-300 [&_[data-slot=select-trigger]]:!h-8 [&_[data-slot=select-trigger]]:!text-xs [&_[data-slot=select-trigger]]:!font-medium [&_[data-slot=select-trigger]]:!text-foreground [&_[data-slot=select-trigger]]:!w-full [&_[data-slot=select-trigger]]:!shadow-sm",
+                            "dark:[&_[data-slot=select-trigger]]:!bg-white/[0.08] dark:[&_[data-slot=select-trigger]]:!border-white/[0.18] dark:[&_[data-slot=select-trigger]]:!shadow-none",
+                            "[&_[data-slot=select-trigger]:hover]:!bg-slate-50 [&_[data-slot=select-trigger]:hover]:!border-slate-400",
+                            "dark:[&_[data-slot=select-trigger]:hover]:!bg-white/[0.10] dark:[&_[data-slot=select-trigger]:hover]:!border-white/[0.24]",
+                            "[&_[data-slot=select-trigger]]:transition-colors",
 
-                            // Select trigger styling for sidebar
-                            "[&_[data-slot=select-trigger]]:bg-[#1A1A1A] [&_[data-slot=select-trigger]]:border-[#3A3A3A] [&_[data-slot=select-trigger]]:h-8 [&_[data-slot=select-trigger]]:text-xs [&_[data-slot=select-trigger]]:text-foreground [&_[data-slot=select-trigger]]:w-full",
+                            // Section headers — keep gold but with a clean divider.
+                            "[&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-[#F5B800] [&_h3]:border-b [&_h3]:border-white/[0.08] [&_h3]:pb-1.5 [&_h3]:mb-3",
 
-                            // Headers
-                            "[&_h3]:text-xs [&_h3]:font-bold [&_h3]:text-[#F5B800] [&_h3]:border-b [&_h3]:border-border-default [&_h3]:pb-1 [&_h3]:mb-3",
-
-                            // Description text
-                            "[&_p]:text-xs [&_p]:text-[#6B6B6B]"
+                            // Helper / description text — slightly brighter than the old #6B6B6B.
+                            "[&_p]:text-xs [&_p]:text-foreground/55"
                         )}>
 
                         <ClientDataSection />
