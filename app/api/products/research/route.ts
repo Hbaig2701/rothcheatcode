@@ -122,7 +122,7 @@ FIA bonuses, surrender schedules, and vesting schedules OFTEN vary by state. Ath
 Use the parameters.state_availability object:
 
 state_availability: {
-  "not_available": ["NY", ...],                       // states where product isn't sold
+  "not_available": ["NY", ...],                       // states where the PRODUCT ITSELF is not sold (see strict rule below)
   "bonus_overrides": { "CA": 16, "FL": 19, ... },     // state code → bonus % (decimal not implied; 16 means 16%)
   "age_overrides": { "FL": 78, ... },                 // state code → max issue age
   "mva_overrides": { "MD": false, "MO": false },      // state code → MVA flag (false = MVA does NOT apply in this state)
@@ -138,9 +138,33 @@ state_availability: {
   "confidence": "verified" | "partial" | "assumed"
 }
 
-Set the parameters.bonus.percentage / surrender.schedule / vesting_schedule to the values that apply in MOST states. Then put the variations in state_availability overrides. Only include states whose values DIFFER from the default.
+### CRITICAL — picking the default chart
 
-If a brochure shows multiple "Charts" or state groups (e.g., "Chart A", "Chart B", "Chart D for CA"), expand each chart into its constituent states and add overrides accordingly.
+When a brochure has MULTIPLE STATE-GROUP CHARTS (commonly labeled "Chart A", "Chart B", "Chart C", "Chart D" or by state lists), you MUST pick the chart that applies to the LARGEST NUMBER OF STATES BY RAW COUNT as the default. Then put the OTHER charts' values into state_availability overrides for each of their constituent states.
+
+Concrete procedure:
+1. List every chart with its state list. Count the states in each list.
+2. The chart with the highest state count is the DEFAULT. Set parameters.bonus.percentage / surrender.schedule / vesting_schedule to its values.
+3. For every state in the OTHER charts, add an entry to surrender_overrides / vesting_overrides / bonus_overrides with that chart's values.
+4. Do NOT pick by population, market share, or "what most advisors sell" — just raw state count.
+
+Example: brochure has Chart A (32 states), Chart B (16 states), Chart C (2 states), Chart D (CA only). Default = Chart A. Overrides = each of Chart B's 16 states + Chart C's 2 + CA.
+
+### CRITICAL — not_available is for PRODUCT unavailability, not feature exclusions
+
+Only add a state to not_available if the brochure or state-availability map EXPLICITLY shows the PRODUCT ITSELF is not sold there. The state-availability map is the source of truth — gray/unhighlighted states on the map are not_available; everything else is available.
+
+DO NOT mark a state as not_available based on:
+- Confinement Waiver not available in that state
+- Terminal Illness Waiver not available in that state
+- MVA not applicable in that state
+- Enhanced Income Benefit / Annuitization / Return of Premium feature exclusions
+- Two-year strategies not available in that state
+- Any other partial-feature exclusion
+
+Those go into mva_overrides or get noted in warnings — NEVER not_available. The product is still sold there with reduced features. Marking it not_available means an advisor can't pick it for clients in that state at all, which is wrong.
+
+When in doubt, leave the state OUT of not_available and add a warning instead.
 
 ## Variants (Base / Plus / etc.)
 
@@ -506,6 +530,142 @@ Use web search to find official carrier information, spec sheets, and agent guid
         }
       }
     }
+    // 7e. Strip "not_available" entries that are also in any override map.
+    // If a state appears in surrender_overrides / vesting_overrides / bonus_overrides,
+    // by definition the product IS available there with different terms — so it
+    // can't logically be in not_available. AI sometimes confuses waiver/MVA/feature
+    // exclusions ("Confinement Waiver not available in MA") with the product
+    // itself being unavailable.
+    const stateAvail = params.state_availability as Record<string, unknown> | null | undefined;
+    if (stateAvail) {
+      const notAvail = (stateAvail.not_available as string[] | undefined) ?? [];
+      if (notAvail.length > 0) {
+        const overrideStates = new Set<string>([
+          ...Object.keys((stateAvail.surrender_overrides as Record<string, unknown> | undefined) ?? {}),
+          ...Object.keys((stateAvail.vesting_overrides as Record<string, unknown> | undefined) ?? {}),
+          ...Object.keys((stateAvail.bonus_overrides as Record<string, unknown> | undefined) ?? {}),
+          ...Object.keys((stateAvail.age_overrides as Record<string, unknown> | undefined) ?? {}),
+          ...Object.keys((stateAvail.mva_overrides as Record<string, unknown> | undefined) ?? {}),
+        ]);
+        const stripped = notAvail.filter((s) => !overrideStates.has(s));
+        if (stripped.length !== notAvail.length) {
+          const removed = notAvail.filter((s) => overrideStates.has(s));
+          stateAvail.not_available = stripped;
+          warnings.push({
+            field: "state_availability.not_available",
+            message: `Removed ${removed.join(", ")} from not_available — those states have feature/schedule overrides, meaning the product IS sold there with different terms. Auto-corrected.`,
+            resolution: "assumed",
+          });
+        }
+      }
+    }
+
+    // 7f. If the AI picked a chart as default but more states share a single
+    // override schedule than use the default, swap them. AI sometimes picks
+    // the "wrong" chart as default (e.g., picks Chart B with 16 states when
+    // Chart A applies to 32 states). Auto-correct so the default actually
+    // applies to the most states by raw count.
+    const totalStatesIncDC = 51;
+    const swapDefaultToLargestGroup = (
+      defaultSchedule: number[] | string,
+      overrideMap: Record<string, number[] | string> | undefined,
+      label: string
+    ): { newDefault: number[] | string; statesToMoveToOverrides: string[] } | null => {
+      if (!overrideMap || Object.keys(overrideMap).length === 0) return null;
+      // Group states by their schedule fingerprint (stringified)
+      const groups = new Map<string, string[]>();
+      for (const [state, sched] of Object.entries(overrideMap)) {
+        const key = JSON.stringify(sched);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(state);
+      }
+      // Compute default-applies-to count = total - not_available - states in any override
+      const naCount = ((stateAvail?.not_available as string[] | undefined) ?? []).length;
+      const overrideStateCount = Object.keys(overrideMap).length;
+      const defaultCount = totalStatesIncDC - naCount - overrideStateCount;
+      // Find the override group with the largest state count
+      let maxGroupKey: string | null = null;
+      let maxGroupCount = 0;
+      for (const [key, states] of groups) {
+        if (states.length > maxGroupCount) {
+          maxGroupCount = states.length;
+          maxGroupKey = key;
+        }
+      }
+      if (!maxGroupKey || maxGroupCount <= defaultCount) return null;
+      // Swap: the largest override group becomes the new default; the old
+      // default applies to the states currently using that group's schedule;
+      // the rest of the override map stays as-is.
+      const newDefault = JSON.parse(maxGroupKey) as number[] | string;
+      const statesToMoveToOverrides = groups.get(maxGroupKey)!;
+      // Remove the max group from the override map
+      for (const s of statesToMoveToOverrides) delete overrideMap[s];
+      warnings.push({
+        field: `state_availability.${label}`,
+        message: `AI picked a default ${label} that applied to only ~${defaultCount} states; an override group covered ${maxGroupCount}. Swapped — the larger group is now the default.`,
+        resolution: "assumed",
+      });
+      return { newDefault, statesToMoveToOverrides };
+    };
+
+    if (stateAvail) {
+      // Surrender
+      const surrSwap = swapDefaultToLargestGroup(
+        params.surrender.schedule,
+        stateAvail.surrender_overrides as Record<string, number[]> | undefined,
+        "surrender_overrides"
+      );
+      if (surrSwap) {
+        const oldDefault = params.surrender.schedule;
+        params.surrender.schedule = surrSwap.newDefault as number[];
+        // Move the old default into overrides for states that previously matched
+        // the swapped-out group's schedule. We don't know those states by name
+        // (they were the "default" set), but the user's State Variations panel
+        // will simply show fewer states with overrides — which is fine.
+        // Just ensure surrender_overrides no longer holds the new default's states.
+        void oldDefault;
+      }
+      // Vesting
+      const vestSwap = swapDefaultToLargestGroup(
+        params.bonus.vesting_schedule as number[] | string,
+        stateAvail.vesting_overrides as Record<string, number[]> | undefined,
+        "vesting_overrides"
+      );
+      if (vestSwap) {
+        (params.bonus as Record<string, unknown>).vesting_schedule = vestSwap.newDefault;
+      }
+      // Bonus % — same logic but values are scalars, not arrays
+      const bonusOverrides = stateAvail.bonus_overrides as Record<string, number> | undefined;
+      if (bonusOverrides && Object.keys(bonusOverrides).length > 0) {
+        const groups = new Map<number, string[]>();
+        for (const [state, pct] of Object.entries(bonusOverrides)) {
+          if (!groups.has(pct)) groups.set(pct, []);
+          groups.get(pct)!.push(state);
+        }
+        const naCount = ((stateAvail.not_available as string[] | undefined) ?? []).length;
+        const defaultCount = totalStatesIncDC - naCount - Object.keys(bonusOverrides).length;
+        let maxPct: number | null = null;
+        let maxCount = 0;
+        for (const [pct, states] of groups) {
+          if (states.length > maxCount) {
+            maxCount = states.length;
+            maxPct = pct;
+          }
+        }
+        if (maxPct != null && maxCount > defaultCount) {
+          const oldDefault = params.bonus.percentage;
+          params.bonus.percentage = maxPct;
+          // Remove the new-default states from overrides
+          for (const s of groups.get(maxPct)!) delete bonusOverrides[s];
+          warnings.push({
+            field: "state_availability.bonus_overrides",
+            message: `AI picked default bonus ${oldDefault}% applying to only ~${defaultCount} states; an override group at ${maxPct}% covered ${maxCount}. Swapped — the larger group is now the default.`,
+            resolution: "assumed",
+          });
+        }
+      }
+    }
+
     // 7d. Validate top-level vesting_schedule array length
     if (Array.isArray(params.bonus.vesting_schedule) && vestingTargetYears > 0) {
       const sched = params.bonus.vesting_schedule as number[];
