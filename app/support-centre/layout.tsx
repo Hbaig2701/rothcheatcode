@@ -3,14 +3,9 @@ import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import Link from 'next/link'
 
-export default async function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default async function SupportCentreLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) redirect('/login')
   await requireAdmin(supabase, user)
 
@@ -22,16 +17,16 @@ export default async function AdminLayout({
             <div className="flex items-center gap-3">
               <img src="/logo.png" alt="Retirement Expert" className="h-6 w-auto hidden dark:block" />
               <img src="/logo-light.png" alt="Retirement Expert" className="h-6 w-auto dark:hidden" />
-              <span className="text-lg font-semibold tracking-tight">Admin</span>
+              <span className="text-lg font-semibold tracking-tight">Support Centre</span>
             </div>
             <nav className="flex items-center gap-4 text-sm">
               <Link href="/admin" className="text-text-dim hover:text-foreground transition-colors">
-                Dashboard
+                Admin
               </Link>
               <Link href="/admin/advisors" className="text-text-dim hover:text-foreground transition-colors">
                 Advisors
               </Link>
-              <Link href="/support-centre" className="text-text-dim hover:text-foreground transition-colors">
+              <Link href="/support-centre" className="text-foreground font-medium">
                 Support
               </Link>
             </nav>
@@ -41,9 +36,7 @@ export default async function AdminLayout({
           </Link>
         </div>
       </header>
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {children}
-      </main>
+      <main className="max-w-7xl mx-auto px-6 py-8">{children}</main>
     </div>
   )
 }

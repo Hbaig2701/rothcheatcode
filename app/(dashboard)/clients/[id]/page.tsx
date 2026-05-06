@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import type { YearlyResult } from "@/lib/calculations";
+import { SupportTicketModal } from "@/components/support/support-ticket-modal";
 
 interface ClientDetailPageProps {
   params: Promise<{ id: string }>;
@@ -169,6 +170,7 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
             Client since {formatDate(client.created_at)}
           </p>
         </div>
+        <SupportTicketModal clientId={client.id} triggerLabel="Get Support" />
       </div>
 
       {/* Two-column layout */}
