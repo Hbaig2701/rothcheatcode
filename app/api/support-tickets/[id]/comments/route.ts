@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { isAdmin } from '@/lib/auth/requireAdmin'
+import { notifySlackNewComment } from '@/lib/notifications/slack'
 
 const createCommentSchema = z.object({
   body: z.string().trim().min(1, 'Comment cannot be empty').max(5000),
@@ -65,6 +66,29 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     old_value: null,
     new_value: null,
   })
+
+  // Slack notification on advisor (non-admin) replies. Skip internal notes
+  // and admin-authored public replies (those originate from the team).
+  if (!userIsAdmin && !isInternal) {
+    const [ticketRes, settingsRes] = await Promise.all([
+      supabase.from('support_tickets').select('subject, status').eq('id', id).maybeSingle(),
+      supabase.from('user_settings').select('first_name, last_name').eq('user_id', user.id).maybeSingle(),
+    ])
+    const authorName = [settingsRes.data?.first_name, settingsRes.data?.last_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim() || user.email || 'Advisor'
+    if (ticketRes.data) {
+      await notifySlackNewComment({
+        ticketId: id,
+        ticketSubject: ticketRes.data.subject,
+        ticketStatus: ticketRes.data.status,
+        authorName,
+        authorIsAdmin: false,
+        body: parsed.data.body,
+      })
+    }
+  }
 
   return NextResponse.json(data, { status: 201 })
 }

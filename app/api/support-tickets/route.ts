@@ -5,6 +5,7 @@ import {
   SUPPORT_SEVERITIES,
   SUPPORT_CATEGORIES,
 } from '@/lib/types/support'
+import { notifySlackNewTicket } from '@/lib/notifications/slack'
 
 const createTicketSchema = z.object({
   subject: z.string().trim().min(3, 'Subject too short').max(200),
@@ -52,6 +53,31 @@ export async function POST(request: NextRequest) {
     console.error('Error creating ticket:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  // Slack notification — best-effort. Failures are logged inside notifySlackNewTicket
+  // and never block the response. Resolve advisor display name + (optional) client
+  // name in parallel so this adds at most one short round-trip.
+  const [advisorSettingsRes, clientRes] = await Promise.all([
+    supabase.from('user_settings').select('first_name, last_name').eq('user_id', user.id).maybeSingle(),
+    data.client_id
+      ? supabase.from('clients').select('name').eq('id', data.client_id).maybeSingle()
+      : Promise.resolve({ data: null as { name: string } | null }),
+  ])
+  const advisorName = [advisorSettingsRes.data?.first_name, advisorSettingsRes.data?.last_name]
+    .filter(Boolean)
+    .join(' ')
+    .trim() || user.email || 'Advisor'
+
+  await notifySlackNewTicket({
+    ticketId: data.id,
+    subject: data.subject,
+    description: data.description,
+    severity: data.severity,
+    category: data.category,
+    advisorName,
+    advisorEmail: user.email ?? null,
+    clientName: (clientRes.data?.name as string | undefined) ?? null,
+  })
 
   return NextResponse.json(data, { status: 201 })
 }
