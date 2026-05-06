@@ -26,8 +26,11 @@ export default async function SupportCentreLayout({ children }: { children: Reac
               <Link href="/admin/advisors" className="text-text-dim hover:text-foreground transition-colors">
                 Advisors
               </Link>
-              <Link href="/support-centre" className="text-foreground font-medium">
-                Support
+              <Link href="/support-centre" className="text-text-dim hover:text-foreground transition-colors">
+                Tickets
+              </Link>
+              <Link href="/support-centre/analytics" className="text-text-dim hover:text-foreground transition-colors">
+                Analytics
               </Link>
             </nav>
           </div>
