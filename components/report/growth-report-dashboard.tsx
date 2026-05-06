@@ -147,6 +147,10 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const blueConversions = sum(projection.blueprint_years, "conversionAmount");
   const blueTax = sum(projection.blueprint_years, "federalTax") + sum(projection.blueprint_years, "stateTax");
   const blueIrmaa = sum(projection.blueprint_years, "irmaaSurcharge");
+  // Early-withdrawal penalty is its own tax line — combineRothAndAum sums
+  // both engines' contributions, so this reads the full Roth+AUM lifetime
+  // penalty when AUM is active and only the Roth side when it isn't.
+  const blueEarlyPenalty = sum(projection.blueprint_years, "earlyWithdrawalPenalty");
   const blueFinalTraditional = projection.blueprint_final_traditional;
   const blueFinalRoth = projection.blueprint_final_roth;
   // Heir tax only applies to remaining traditional IRA (if any)
@@ -155,13 +159,99 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
   // Lifetime wealth = net legacy (conversion taxes/IRMAA already deducted from taxable in engine)
   const blueLifetimeWealth = blueNetLegacy;
-  const blueTotalTaxes = blueTax + blueIrmaa + blueHeirTax;
+  // Lifetime tax cost includes the 10% early-withdrawal penalty alongside
+  // income tax + IRMAA + heir tax. Without the penalty line the card would
+  // under-state the actual cash cost when AUM is on under 59½.
+  const blueTotalTaxes = blueTax + blueIrmaa + blueHeirTax + blueEarlyPenalty;
 
   // Differences
   const lifetimeWealthDiff = blueLifetimeWealth - baseLifetimeWealth;
   const lifetimeWealthPct = baseLifetimeWealth !== 0 ? lifetimeWealthDiff / Math.abs(baseLifetimeWealth) : 0;
   const taxSavings = baseTotalTaxes - blueTotalTaxes;
   const legacyDiff = blueNetLegacy - baseNetLegacy;
+
+  // ===== AUM split-allocation metrics =====
+  // The AUM bucket is stored separately on the projection so we can describe
+  // it independently in tooltips ("how much got pulled from the IRA, how much
+  // tax was paid on the transfer, what's the bucket worth at death").
+  const aumActive = (client.aum_allocation_percent ?? 0) > 0 && !!projection.aum_years;
+  const aumYears = projection.aum_years ?? [];
+  const aumStartingPortion = Math.round((client.qualified_account_value ?? 0) * ((client.aum_allocation_percent ?? 0) / 100));
+  const aumTotalWithdrawnFromIra = aumYears.reduce((s, y) => s + (y.iraWithdrawal ?? 0), 0);
+  const aumTotalTaxPaid = aumYears.reduce((s, y) => s + y.totalTax, 0);
+  const aumEarlyWithdrawalPenalty = aumYears.reduce((s, y) => s + (y.earlyWithdrawalPenalty ?? 0), 0);
+  const aumFinalBalance = projection.aum_final_balance ?? 0;
+  const rothSidePortion = (client.qualified_account_value ?? 0) - aumStartingPortion;
+
+  // ===== Voluntary withdrawal metrics =====
+  // The withdrawal schedule is independent from RMDs/conversions. Surface the
+  // totals so the tooltip can explain the impact on the strategy bucket.
+  const blueIraVoluntaryWithdrawals = sum(projection.blueprint_years, "iraWithdrawal");
+  const blueRothVoluntaryWithdrawals = sum(projection.blueprint_years, "rothWithdrawal");
+  // The AUM IRA-to-AUM transfer also lands in iraWithdrawal — strip that out
+  // so the "voluntary advisor-scheduled" total is just the schedule-driven pulls.
+  const blueScheduledIraWithdrawals = blueIraVoluntaryWithdrawals - aumTotalWithdrawnFromIra;
+  const hasVoluntaryWithdrawals = (client.withdrawals?.length ?? 0) > 0
+    && (blueScheduledIraWithdrawals > 0 || blueRothVoluntaryWithdrawals > 0);
+
+  // ===== Conversion-type description for tooltips =====
+  const conversionType = client.conversion_type ?? 'optimized_amount';
+  const partialTarget = client.target_partial_amount ?? 0;
+  const fixedAmount = client.fixed_conversion_amount ?? 0;
+  const conversionTypeDescription = (() => {
+    switch (conversionType) {
+      case 'no_conversion':
+        return `No conversions are made. The strategy reduces to baseline behavior.`;
+      case 'full_conversion':
+        return `The IRA is converted in full as soon as the engine can, paying the resulting tax bill upfront.`;
+      case 'fixed_amount':
+        return `Convert ${toUSD(fixedAmount)} every year (or remaining balance if less).`;
+      case 'partial_amount':
+        return `Convert optimally each year, capping cumulative conversions at ${toUSD(partialTarget)}.`;
+      case 'optimized_amount':
+      default:
+        return `Each year, fill up to the target ${client.max_tax_rate ?? 24}% bracket. Continues until the IRA is empty or the projection ends.`;
+    }
+  })();
+
+  // ===== Tax payment source =====
+  // 'from_ira' grosses down the conversion (tax is also pulled from the IRA,
+  // which can trigger a 10% early-withdrawal penalty under 59½) and shifts
+  // tax expense from the taxable account to the IRA itself. 'from_taxable'
+  // means the client writes the tax check from outside funds.
+  const taxPaymentSource = client.tax_payment_source ?? 'from_taxable';
+  const conversionTaxesFromIRA = sum(projection.blueprint_years, 'taxesPaidFromIRA');
+  // Reuses the same combined Roth+AUM penalty already computed up at the
+  // strategy-metrics block; aliased here so the existing prop name stays.
+  const blueEarlyWithdrawalPenalty = blueEarlyPenalty;
+
+  // ===== Constraint / deferral / penalty-free cap =====
+  // (penaltyFreePercent / surrenderYears are also defined further down in
+  // their decimal/raw forms for the surrender-violation calculation; we read
+  // the raw client values directly here to keep tooltip props readable.)
+  const yearsToDefer = client.years_to_defer_conversion ?? 0;
+  const constraintType = client.constraint_type ?? 'none';
+  const respectPenaltyFreeLimit = client.respect_penalty_free_limit ?? false;
+  const penaltyFreePercentForTooltip = client.penalty_free_percent ?? 10;
+  const surrenderYearsForTooltip = client.surrender_years ?? 0;
+
+  // ===== Widow analysis =====
+  // When enabled, the projection switches the surviving spouse to single
+  // filing status starting at widow_death_age (or the heuristic default).
+  // That spike in baseline RMD taxation is a major driver of the strategy's
+  // advantage and should be called out.
+  const widowAnalysisActive = client.widow_analysis === true;
+  const widowDeathAge = client.widow_death_age ?? null;
+
+  // ===== Anniversary bonus =====
+  const hasAnniversaryBonus = client.anniversary_bonus_percent != null
+    && client.anniversary_bonus_years != null
+    && client.anniversary_bonus_percent > 0;
+
+  // ===== Non-SSI income / surrender period rate =====
+  const hasNonSsiIncome = (client.non_ssi_income?.length ?? 0) > 0;
+  const postContractRate = client.post_contract_rate ?? client.rate_of_return ?? 7;
+  const surrenderRateDiffers = postContractRate !== (client.rate_of_return ?? 7);
 
   // Conversion years data
   const conversionYears = projection.blueprint_years.filter(y => y.conversionAmount > 0);
@@ -299,6 +389,31 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 blueConversions={blueConversions}
                 rmdTreatment={rmdTreatment}
                 heirTaxRate={heirTaxRate}
+                aumActive={aumActive}
+                aumStartingPortion={aumStartingPortion}
+                aumTotalWithdrawnFromIra={aumTotalWithdrawnFromIra}
+                aumTotalTaxPaid={aumTotalTaxPaid}
+                aumFinalBalance={aumFinalBalance}
+                rothSidePortion={rothSidePortion}
+                conversionType={conversionType}
+                conversionTypeDescription={conversionTypeDescription}
+                hasVoluntaryWithdrawals={hasVoluntaryWithdrawals}
+                blueScheduledIraWithdrawals={blueScheduledIraWithdrawals}
+                blueRothVoluntaryWithdrawals={blueRothVoluntaryWithdrawals}
+                taxPaymentSource={taxPaymentSource}
+                conversionTaxesFromIRA={conversionTaxesFromIRA}
+                blueEarlyWithdrawalPenalty={blueEarlyWithdrawalPenalty}
+                yearsToDefer={yearsToDefer}
+                constraintType={constraintType}
+                respectPenaltyFreeLimit={respectPenaltyFreeLimit}
+                penaltyFreePercent={penaltyFreePercentForTooltip}
+                surrenderYears={surrenderYearsForTooltip}
+                widowAnalysisActive={widowAnalysisActive}
+                widowDeathAge={widowDeathAge}
+                hasAnniversaryBonus={hasAnniversaryBonus}
+                hasNonSsiIncome={hasNonSsiIncome}
+                postContractRate={postContractRate}
+                surrenderRateDiffers={surrenderRateDiffers}
               />
             }
           />
@@ -320,6 +435,10 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 blueHeirTax={blueHeirTax}
                 blueNetLegacy={blueNetLegacy}
                 heirTaxRate={heirTaxRate}
+                aumActive={aumActive}
+                aumFinalBalance={aumFinalBalance}
+                widowAnalysisActive={widowAnalysisActive}
+                widowDeathAge={widowDeathAge}
               />
             }
           />
@@ -341,11 +460,21 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 blueTotalTaxes={blueTotalTaxes}
                 blueConversions={blueConversions}
                 heirTaxRate={heirTaxRate}
+                aumActive={aumActive}
+                aumTotalTaxPaid={aumTotalTaxPaid}
+                aumEarlyWithdrawalPenalty={aumEarlyWithdrawalPenalty}
+                conversionType={conversionType}
+                taxPaymentSource={taxPaymentSource}
+                conversionTaxesFromIRA={conversionTaxesFromIRA}
+                blueEarlyWithdrawalPenalty={blueEarlyWithdrawalPenalty}
+                constraintType={constraintType}
+                widowAnalysisActive={widowAnalysisActive}
+                widowDeathAge={widowDeathAge}
               />
             }
           />
           <ComparisonCard
-            label={rmdTreatment === 'spent' ? "After-Tax Distributions" : "Gross Distributions"}
+            label={rmdTreatment === 'spent' ? "Forced Distributions (After-Tax)" : "Forced Distributions"}
             baseline={rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs}
             strategy={0}
             invertColor={rmdTreatment !== 'spent'}
@@ -355,6 +484,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 baseRMDs={baseRMDs}
                 baseCumulativeDistributions={baseCumulativeDistributions}
                 rmdTreatment={rmdTreatment}
+                aumActive={aumActive}
+                aumTotalWithdrawnFromIra={aumTotalWithdrawnFromIra}
+                aumStartingPortion={aumStartingPortion}
+                hasVoluntaryWithdrawals={hasVoluntaryWithdrawals}
+                blueScheduledIraWithdrawals={blueScheduledIraWithdrawals}
+                blueRothVoluntaryWithdrawals={blueRothVoluntaryWithdrawals}
+                yearsToDefer={yearsToDefer}
               />
             }
           />
@@ -725,7 +861,7 @@ function InfoModal({
           </button>
         </div>
         {/* Content */}
-        <div className="px-6 py-5 overflow-y-auto max-h-[60vh] text-sm text-text-muted space-y-4">
+        <div className="px-6 py-5 overflow-y-auto max-h-[60vh] text-sm text-foreground/85 space-y-4">
           {children}
         </div>
       </div>
@@ -797,6 +933,93 @@ function ComparisonCard({
   );
 }
 
+// ============================================================
+// Tooltip layout primitives
+// ============================================================
+// All four info modals share the same "rows of numbers with explanatory
+// notes" pattern. These helpers give them consistent visual hierarchy:
+// labels muted on the left, values foreground-bright on the right,
+// explanatory text smaller and dimmer underneath, with proper breathing
+// room between rows. Without them every line uses text-text-muted +
+// font-mono and reads as a flat text dump.
+
+type RowVariant = 'default' | 'muted' | 'positive' | 'negative' | 'subtotal' | 'total';
+
+function TipRow({
+  label,
+  value,
+  note,
+  variant = 'default',
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  note?: ReactNode;
+  variant?: RowVariant;
+}) {
+  const valueColor = variant === 'positive'
+    ? 'text-green'
+    : variant === 'negative'
+      ? 'text-red'
+      : variant === 'subtotal'
+        ? 'text-foreground font-medium'
+        : variant === 'total'
+          ? 'text-gold font-semibold'
+          : variant === 'muted'
+            ? 'text-text-muted'
+            : 'text-foreground';
+  const labelColor = variant === 'total'
+    ? 'text-gold font-semibold'
+    : variant === 'subtotal'
+      ? 'text-foreground font-medium'
+      : variant === 'muted'
+        ? 'text-text-muted'
+        : 'text-text-muted';
+  return (
+    <div className="py-1.5">
+      <div className="flex items-baseline justify-between gap-4">
+        <span className={cn('text-sm', labelColor)}>{label}</span>
+        <span className={cn('text-sm font-mono tabular-nums', valueColor)}>{value}</span>
+      </div>
+      {note && (
+        <p className="text-xs text-text-dim mt-1 leading-relaxed">{note}</p>
+      )}
+    </div>
+  );
+}
+
+function TipDivider() {
+  return <div className="my-1 border-t border-border-default/60" />;
+}
+
+function TipSection({
+  label,
+  variant = 'default',
+  children,
+}: {
+  label: string;
+  variant?: 'default' | 'gold';
+  children: ReactNode;
+}) {
+  const headerColor = variant === 'gold' ? 'text-gold' : 'text-foreground';
+  const wrapperBg = variant === 'gold'
+    ? 'bg-accent border border-gold-border'
+    : 'bg-bg-card border border-border-default/60';
+  return (
+    <div className={cn('rounded-xl p-5', wrapperBg)}>
+      <p className={cn('text-[11px] font-semibold uppercase tracking-[1.5px] mb-4', headerColor)}>{label}</p>
+      <div className="space-y-0.5 divide-y divide-border-default/30">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function TipNote({ children }: { children: ReactNode }) {
+  return (
+    <p className="text-xs text-text-dim leading-relaxed mt-3 pt-3 border-t border-border-default/30">{children}</p>
+  );
+}
+
 // Info Content Components
 function LifetimeWealthInfo({
   client,
@@ -805,7 +1028,6 @@ function LifetimeWealthInfo({
   baseFinalRoth,
   baseHeirTax,
   baseNetLegacy,
-  baseCumulativeDistributions,
   baseLifetimeWealth,
   baseTax,
   baseRMDs,
@@ -816,8 +1038,32 @@ function LifetimeWealthInfo({
   blueLifetimeWealth,
   blueTax,
   blueConversions,
-  rmdTreatment,
   heirTaxRate,
+  aumActive,
+  aumStartingPortion,
+  aumTotalWithdrawnFromIra,
+  aumTotalTaxPaid,
+  aumFinalBalance,
+  rothSidePortion,
+  conversionType,
+  conversionTypeDescription,
+  hasVoluntaryWithdrawals,
+  blueScheduledIraWithdrawals,
+  blueRothVoluntaryWithdrawals,
+  taxPaymentSource,
+  conversionTaxesFromIRA,
+  blueEarlyWithdrawalPenalty,
+  yearsToDefer,
+  constraintType,
+  respectPenaltyFreeLimit,
+  penaltyFreePercent,
+  surrenderYears,
+  widowAnalysisActive,
+  widowDeathAge,
+  hasAnniversaryBonus,
+  hasNonSsiIncome,
+  postContractRate,
+  surrenderRateDiffers,
 }: {
   client: Client;
   projection: Projection;
@@ -838,14 +1084,49 @@ function LifetimeWealthInfo({
   blueConversions: number;
   rmdTreatment: string;
   heirTaxRate: number;
+  aumActive: boolean;
+  aumStartingPortion: number;
+  aumTotalWithdrawnFromIra: number;
+  aumTotalTaxPaid: number;
+  aumFinalBalance: number;
+  rothSidePortion: number;
+  conversionType: string;
+  conversionTypeDescription: string;
+  hasVoluntaryWithdrawals: boolean;
+  blueScheduledIraWithdrawals: number;
+  blueRothVoluntaryWithdrawals: number;
+  taxPaymentSource: string;
+  conversionTaxesFromIRA: number;
+  blueEarlyWithdrawalPenalty: number;
+  yearsToDefer: number;
+  constraintType: string;
+  respectPenaltyFreeLimit: boolean;
+  penaltyFreePercent: number;
+  surrenderYears: number;
+  widowAnalysisActive: boolean;
+  widowDeathAge: number | null;
+  hasAnniversaryBonus: boolean;
+  hasNonSsiIncome: boolean;
+  postContractRate: number;
+  surrenderRateDiffers: boolean;
 }) {
   const heirTaxPct = Math.round(heirTaxRate * 100);
   const startingBalance = client.qualified_account_value ?? 0;
   const bonusAmount = Math.round(startingBalance * (client.bonus_percent ?? 0) / 100);
   const startingWithBonus = startingBalance + bonusAmount;
-  const hasAnniversaryBonus = client.anniversary_bonus_percent != null && client.anniversary_bonus_years != null;
   const projectionYears = (client.end_age ?? 100) - (client.age ?? 62);
   const wealthDiff = blueLifetimeWealth - baseLifetimeWealth;
+  const conversionStartAge = (client.age ?? 62) + yearsToDefer;
+  const isUnder59Half = (client.age ?? 62) < 60;
+  // blueTax already sums Roth-side and AUM-side federal+state taxes via
+  // combineRothAndAum. Split it back so we can label them separately —
+  // otherwise "Conversion Taxes Paid" overstates the conversion piece by
+  // including AUM income/cap-gains tax. Penalty is on top via
+  // blueEarlyWithdrawalPenalty (also already combined).
+  const aumYearsLW = projection.aum_years ?? [];
+  const aumPenaltyLW = aumYearsLW.reduce((s, y) => s + (y.earlyWithdrawalPenalty ?? 0), 0);
+  const aumIncomeDragLW = Math.max(0, aumTotalTaxPaid - aumPenaltyLW);
+  const rothSideConversionTaxLW = Math.max(0, blueTax - aumIncomeDragLW);
 
   return (
     <>
@@ -856,90 +1137,292 @@ function LifetimeWealthInfo({
         so the comparison is apples-to-apples.
       </p>
 
-      {/* Starting Point */}
-      <div className="bg-bg-card-hover rounded-lg p-4">
-        <p className="text-foreground font-medium text-xs uppercase tracking-wider mb-2">Your Starting Point</p>
-        <div className="space-y-1 font-mono text-sm">
-          <p>Initial Investment: {toUSD(startingBalance)}</p>
-          <p>Age: {client.age} → projecting to age {client.end_age} ({projectionYears} years)</p>
-          <p>Assumed Growth Rate: {client.rate_of_return}% annually</p>
-        </div>
-      </div>
+      <TipSection label="Your Starting Point">
+        <TipRow label="Initial investment" value={toUSD(startingBalance)} />
+        <TipRow
+          label="Projection horizon"
+          value={`age ${client.age} → ${client.end_age} (${projectionYears} yrs)`}
+          variant="muted"
+        />
+        <TipRow label="Filing status" value={client.filing_status?.replace(/_/g, ' ')} variant="muted" />
+        <TipRow
+          label="Assumed growth rate"
+          value={`${client.rate_of_return}% annually`}
+          note={surrenderRateDiffers
+            ? `${client.rate_of_return}% during the ${surrenderYears}-year surrender period, ${postContractRate}% afterward.`
+            : undefined}
+          variant="muted"
+        />
+      </TipSection>
 
-      {/* Baseline Calculation */}
+      {/* How the strategy works — conditional sections describing every
+          input that's driving the strategy column. */}
       <div className="bg-bg-card rounded-lg p-4 space-y-3">
-        <p className="text-foreground font-medium text-xs uppercase tracking-wider">Baseline: Keep Traditional IRA</p>
-        <p className="text-xs text-text-muted">
-          Your {toUSD(startingBalance)} stays in a Traditional IRA, growing at {client.rate_of_return}% with RMDs starting at 73:
-        </p>
-        <div className="space-y-1 font-mono text-sm border-t border-border-default pt-3">
-          <p>Final Traditional IRA: {toUSD(baseFinalTraditional)}</p>
-          <p>Final Roth IRA: {toUSD(baseFinalRoth)}</p>
-          <p>Final Taxable Account: {toUSD(Math.max(0, projection.baseline_final_taxable))}</p>
-          <p className="text-text-muted">─────────────────────</p>
-          <p>Gross Estate: {toUSD(projection.baseline_final_net_worth)}</p>
-          <p className="text-red">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
-          <p className="text-foreground font-medium">= Net Legacy to Heirs: {toUSD(baseNetLegacy)}</p>
-          <p className="text-text-muted">─────────────────────</p>
-          <p className="text-foreground font-semibold text-base">Baseline Lifetime Wealth: {toUSD(baseLifetimeWealth)}</p>
+        <p className="text-foreground font-medium text-xs uppercase tracking-wider">How the Strategy Works</p>
+
+        {/* Conversion type */}
+        <div className="space-y-1">
+          <p className="text-xs text-foreground font-medium">
+            Conversion strategy: {conversionType.replace(/_/g, ' ')}
+          </p>
+          <p className="text-xs text-text-muted">{conversionTypeDescription}</p>
         </div>
-        <p className="text-xs text-text-dim mt-2">
-          Over {projectionYears} years, you'd take {toUSD(baseRMDs)} in RMDs and pay {toUSD(baseTax)} in income taxes on them.
-        </p>
+
+        {/* Years to defer conversion */}
+        {yearsToDefer > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs text-foreground font-medium">
+              Conversion deferred {yearsToDefer} {yearsToDefer === 1 ? 'year' : 'years'}
+            </p>
+            <p className="text-xs text-text-muted">
+              Conversions don't start until age {conversionStartAge}. Lets the client coordinate with
+              SS timing or wait for a low-bracket year.
+            </p>
+          </div>
+        )}
+
+        {/* Tax payment source */}
+        <div className="space-y-1">
+          <p className="text-xs text-foreground font-medium">
+            Tax payment source: {taxPaymentSource === 'from_ira' ? 'paid from the IRA itself' : 'paid from outside funds'}
+          </p>
+          <p className="text-xs text-text-muted">
+            {taxPaymentSource === 'from_ira' ? (
+              <>
+                Each year's conversion is grossed-down — the engine pulls enough extra from the IRA to
+                cover the resulting tax. Total funded from the IRA for taxes: {toUSD(conversionTaxesFromIRA)}.
+                {isUnder59Half && (
+                  <> Because the client is under 59½, the IRA-funded tax also incurs a 10% early-withdrawal
+                  penalty ({toUSD(blueEarlyWithdrawalPenalty)} total).</>
+                )}
+              </>
+            ) : (
+              <>The client writes the tax check from a taxable account or external cash, so the entire
+              conversion lands in the Roth as principal. No early-withdrawal penalty applies.</>
+            )}
+          </p>
+        </div>
+
+        {/* IRMAA / penalty-free constraints */}
+        {(constraintType === 'irmaa_threshold' || respectPenaltyFreeLimit) && (
+          <div className="space-y-1">
+            <p className="text-xs text-foreground font-medium">Per-year conversion caps</p>
+            <p className="text-xs text-text-muted">
+              {constraintType === 'irmaa_threshold' && (
+                <>From age 63+, the engine caps each year's conversion so MAGI doesn't push into a higher
+                IRMAA tier. </>
+              )}
+              {respectPenaltyFreeLimit && (
+                <>During the {surrenderYears}-year surrender period, conversions are capped at {penaltyFreePercent}% of
+                beginning-of-year IRA (carrier penalty-free withdrawal limit).</>
+              )}
+            </p>
+          </div>
+        )}
+
+        {/* Voluntary withdrawals */}
+        {hasVoluntaryWithdrawals && (
+          <div className="space-y-1">
+            <p className="text-xs text-foreground font-medium">Voluntary withdrawals scheduled</p>
+            <p className="text-xs text-text-muted">
+              Advisor-scheduled pulls on top of RMDs and conversions:&nbsp;
+              {blueScheduledIraWithdrawals > 0 && <>{toUSD(blueScheduledIraWithdrawals)} from the IRA (taxable income)</>}
+              {blueScheduledIraWithdrawals > 0 && blueRothVoluntaryWithdrawals > 0 && <> · </>}
+              {blueRothVoluntaryWithdrawals > 0 && <>{toUSD(blueRothVoluntaryWithdrawals)} from the Roth (tax-free, qualified)</>}
+              .
+              {isUnder59Half && blueScheduledIraWithdrawals > 0 && (
+                <> 10% early-withdrawal penalty applies to the IRA portion since the client is under 59½.</>
+              )}
+            </p>
+          </div>
+        )}
+
+        {/* AUM allocation */}
+        {aumActive && (
+          <div className="space-y-1">
+            <p className="text-xs text-foreground font-medium">
+              AUM split: {client.aum_allocation_percent}% to a managed brokerage account
+            </p>
+            <p className="text-xs text-text-muted">
+              {toUSD(rothSidePortion)} stays for Roth conversion. {toUSD(aumStartingPortion)} pulls from
+              the IRA over {client.aum_withdrawal_years} {client.aum_withdrawal_years === 1 ? 'year' : 'years'}
+              {' '}— total IRA-to-AUM transfer (with growth while waiting): {toUSD(aumTotalWithdrawnFromIra)}.
+              The brokerage charges {client.aum_fee_percent}%/yr in fees and incurs annual tax drag on
+              dividends ({client.aum_dividend_yield}%/yr at LTCG) plus realized cap-gains turnover
+              ({client.aum_turnover_percent}% at LTCG). Total tax + penalty paid on the AUM bucket:
+              {' '}{toUSD(aumTotalTaxPaid)}. Final AUM balance: {toUSD(aumFinalBalance)} (taxable account,
+              step-up in basis at death).
+            </p>
+          </div>
+        )}
+
+        {/* Anniversary bonus */}
+        {hasAnniversaryBonus && (
+          <div className="space-y-1">
+            <p className="text-xs text-foreground font-medium">Anniversary bonus</p>
+            <p className="text-xs text-text-muted">
+              An additional {client.anniversary_bonus_percent}% bonus is applied at the end of years
+              1–{client.anniversary_bonus_years} on top of the {client.bonus_percent}% upfront premium bonus.
+            </p>
+          </div>
+        )}
+
+        {/* Widow analysis */}
+        {widowAnalysisActive && (
+          <div className="space-y-1">
+            <p className="text-xs text-foreground font-medium">Widow's penalty modeled</p>
+            <p className="text-xs text-text-muted">
+              {widowDeathAge != null
+                ? <>First-death age set to {widowDeathAge}. </>
+                : <>First death uses the heuristic default (older spouse + 85). </>}
+              After that year the surviving spouse files single — narrower brackets and a smaller
+              standard deduction make every baseline RMD dollar more expensive, which is part of why
+              the strategy comes out ahead.
+            </p>
+          </div>
+        )}
+
+        {/* Other taxable income */}
+        {hasNonSsiIncome && (
+          <div className="space-y-1">
+            <p className="text-xs text-foreground font-medium">Non-SSI income factored in</p>
+            <p className="text-xs text-text-muted">
+              The advisor-entered annual taxable income lines (pension, rental, wages, etc.) raise the
+              client's bracket fill each year, leaving less room for low-rate Roth conversions.
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Strategy Calculation */}
-      <div className="bg-accent border border-gold-border rounded-lg p-4 space-y-3">
-        <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy: Roth Conversions</p>
-        <p className="text-xs text-text-muted">
-          Your {toUSD(startingBalance)} + {client.bonus_percent}% premium bonus ({toUSD(bonusAmount)}) = {toUSD(startingWithBonus)} starting balance
-          {hasAnniversaryBonus && <>, plus {client.anniversary_bonus_percent}% anniversary bonus applied at end of years 1-{client.anniversary_bonus_years}</>}
-          , converted to Roth over time:
+      <TipSection label="Baseline · Keep Traditional IRA">
+        <p className="text-xs text-text-dim leading-relaxed mb-2">
+          Your {toUSD(startingBalance)} stays in a Traditional IRA, growing at {client.rate_of_return}% with RMDs starting at 73.
         </p>
-        <div className="space-y-1 font-mono text-sm border-t border-gold-border pt-3">
-          <p>Total Converted to Roth: {toUSD(blueConversions)}</p>
-          <p>Conversion Taxes Paid: {toUSD(blueTax)}</p>
-          <p className="text-text-muted">─────────────────────</p>
-          <p>Final Traditional IRA: {toUSD(blueFinalTraditional)}</p>
-          <p className="text-green">Final Roth IRA: {toUSD(blueFinalRoth)}</p>
-          <p>Final Taxable Account: {toUSD(Math.max(0, projection.blueprint_final_taxable))}</p>
-          <p className="text-text-muted">─────────────────────</p>
-          <p>Gross Estate: {toUSD(projection.blueprint_final_net_worth)}</p>
-          <p className="text-red">− Heir Tax on Traditional ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
-          <p className="text-gold font-semibold text-base">Strategy Lifetime Wealth: {toUSD(blueLifetimeWealth)}</p>
-        </div>
-        <p className="text-xs text-text-dim mt-2">
-          No RMDs required from Roth. Your heirs inherit {toUSD(blueFinalRoth)} completely tax-free.
+        <TipRow label="Final Traditional IRA" value={toUSD(baseFinalTraditional)} />
+        <TipRow label="Final Roth IRA" value={toUSD(baseFinalRoth)} />
+        <TipRow label="Final taxable account" value={toUSD(Math.max(0, projection.baseline_final_taxable))} />
+        <TipDivider />
+        <TipRow label="Gross estate" value={toUSD(projection.baseline_final_net_worth)} />
+        <TipRow label={`− Heir tax on Traditional (${heirTaxPct}%)`} value={toUSD(baseHeirTax)} variant="negative" />
+        <TipRow label="Net legacy to heirs" value={toUSD(baseNetLegacy)} variant="subtotal" />
+        <TipDivider />
+        <TipRow label="Baseline lifetime wealth" value={toUSD(baseLifetimeWealth)} variant="subtotal" />
+        <TipNote>
+          Over {projectionYears} years, you'd take {toUSD(baseRMDs)} in RMDs and pay {toUSD(baseTax)} in income taxes on them.
+        </TipNote>
+      </TipSection>
+
+      <TipSection
+        label={`Strategy · ${aumActive ? 'Roth Conversion + AUM Split' : 'Roth Conversions'}`}
+        variant="gold"
+      >
+        <p className="text-xs text-text-dim leading-relaxed mb-2">
+          Your {toUSD(startingBalance)} + {client.bonus_percent}% premium bonus ({toUSD(bonusAmount)}) ={' '}
+          {toUSD(startingWithBonus)} starting balance
+          {hasAnniversaryBonus && <>, plus {client.anniversary_bonus_percent}% anniversary bonus at end of years 1–{client.anniversary_bonus_years}</>}
+          {aumActive
+            ? <>. Roth-conversion side runs on {toUSD(rothSidePortion)} ({100 - (client.aum_allocation_percent ?? 0)}%); the remaining {toUSD(aumStartingPortion)} ({client.aum_allocation_percent}%) is pulled from the IRA into a managed brokerage account.</>
+            : <>, converted to Roth over time.</>}
         </p>
-      </div>
+        <TipRow label="Total converted to Roth" value={toUSD(blueConversions)} />
+        {aumActive ? (
+          <>
+            <TipRow label="Roth-side conversion tax" value={toUSD(rothSideConversionTaxLW)} variant="negative" />
+            <TipRow label="AUM income + cap-gains drag tax" value={toUSD(aumIncomeDragLW)} variant="negative" />
+          </>
+        ) : (
+          <TipRow label="Conversion taxes paid" value={toUSD(blueTax)} variant="negative" />
+        )}
+        {taxPaymentSource === 'from_ira' && conversionTaxesFromIRA > 0 && (
+          <TipNote>{toUSD(conversionTaxesFromIRA)} of conversion tax was pulled from the IRA itself.</TipNote>
+        )}
+        {blueEarlyWithdrawalPenalty > 0 && (
+          <TipRow
+            label="10% early-withdrawal penalty (under 59½)"
+            value={toUSD(blueEarlyWithdrawalPenalty)}
+            note={aumActive && aumPenaltyLW > 0 ? <>{toUSD(aumPenaltyLW)} of this came from the AUM transfers.</> : undefined}
+            variant="negative"
+          />
+        )}
+
+        {aumActive && (
+          <>
+            <TipDivider />
+            <p className="text-[11px] uppercase tracking-[1.5px] text-foreground font-medium pt-1">AUM Bucket Detail</p>
+            <TipRow
+              label="Total IRA-to-AUM transfer"
+              value={toUSD(aumTotalWithdrawnFromIra)}
+              note={<>{toUSD(aumStartingPortion)} starting portion + tax-deferred growth while waiting.</>}
+            />
+            <TipRow
+              label="Final AUM balance"
+              value={toUSD(aumFinalBalance)}
+              note="Sits in the brokerage; heirs get step-up in basis at death."
+              variant="positive"
+            />
+          </>
+        )}
+
+        <TipDivider />
+        <TipRow label="Final Traditional IRA" value={toUSD(blueFinalTraditional)} />
+        <TipRow label="Final Roth IRA" value={toUSD(blueFinalRoth)} variant="positive" />
+        <TipRow
+          label="Final taxable account"
+          value={toUSD(Math.max(0, projection.blueprint_final_taxable))}
+          note={aumActive ? <>Includes the {toUSD(aumFinalBalance)} AUM bucket.</> : undefined}
+        />
+        <TipDivider />
+        <TipRow label="Gross estate" value={toUSD(projection.blueprint_final_net_worth)} />
+        <TipRow label={`− Heir tax on Traditional (${heirTaxPct}%)`} value={toUSD(blueHeirTax)} variant="negative" />
+        <TipDivider />
+        <TipRow label="Strategy lifetime wealth" value={toUSD(blueLifetimeWealth)} variant="total" />
+        <TipNote>
+          No RMDs required from Roth. Your heirs inherit {toUSD(blueFinalRoth)} completely tax-free
+          {aumActive && <> plus {toUSD(aumFinalBalance)} from the AUM bucket (step-up in basis erases unrealized cap gains)</>}.
+        </TipNote>
+      </TipSection>
 
       {/* The Difference */}
       <div className={cn(
-        "rounded-lg p-4",
-        wealthDiff > 0
-          ? "bg-green-bg border border-green/20"
-          : "bg-red-bg border border-red/20"
+        'rounded-xl p-5',
+        wealthDiff > 0 ? 'bg-green-bg border border-green/30' : 'bg-red-bg border border-red/30',
       )}>
-        <p className={cn("font-medium", wealthDiff > 0 ? "text-green" : "text-red")}>
-          The Bottom Line: {wealthDiff > 0 ? "+" : ""}{toUSD(wealthDiff)}
-        </p>
-        <p className="mt-2 text-sm">
+        <div className="flex items-baseline justify-between gap-4 mb-3">
+          <p className={cn('text-[11px] font-semibold uppercase tracking-[1.5px]', wealthDiff > 0 ? 'text-green' : 'text-red')}>
+            The Bottom Line
+          </p>
+          <p className={cn('text-base font-mono tabular-nums font-semibold', wealthDiff > 0 ? 'text-green' : 'text-red')}>
+            {wealthDiff > 0 ? '+' : ''}{toUSD(wealthDiff)}
+          </p>
+        </div>
+        <p className="text-sm text-foreground/85 leading-relaxed">
           {wealthDiff > 0 ? (
-            <>
-              The Roth conversion strategy creates <strong>{toUSD(wealthDiff)} more</strong> in total family wealth.
-              This comes from:
-            </>
+            <>The Roth conversion strategy creates <strong className="text-foreground">{toUSD(wealthDiff)} more</strong> in total family wealth. This comes from:</>
           ) : (
             <>The baseline scenario results in {toUSD(Math.abs(wealthDiff))} more lifetime wealth in this case.</>
           )}
         </p>
         {wealthDiff > 0 && (
-          <ul className="list-disc pl-5 space-y-1 mt-2 text-sm">
-            <li><strong>{client.bonus_percent}% premium bonus</strong> adding {toUSD(bonusAmount)} upfront{hasAnniversaryBonus && <> + <strong>{client.anniversary_bonus_percent}% anniversary bonus</strong> for {client.anniversary_bonus_years} years</>}</li>
-            <li><strong>Tax-free Roth growth</strong> at {client.rate_of_return}% for {projectionYears} years</li>
-            <li><strong>No heir taxes</strong> on {toUSD(blueFinalRoth)} Roth balance (vs {heirTaxPct}% on Traditional)</li>
-            <li><strong>No forced RMDs</strong> keeping money invested longer</li>
+          <ul className="list-disc pl-5 space-y-1.5 mt-3 text-sm text-foreground/85 leading-relaxed">
+            <li><strong className="text-foreground">{client.bonus_percent}% premium bonus</strong> adding {toUSD(bonusAmount)} upfront{hasAnniversaryBonus && <> + <strong className="text-foreground">{client.anniversary_bonus_percent}% anniversary bonus</strong> for {client.anniversary_bonus_years} years</>}</li>
+            <li><strong className="text-foreground">Tax-free Roth growth</strong> at {client.rate_of_return}% for {projectionYears} years</li>
+            <li><strong className="text-foreground">No heir taxes</strong> on {toUSD(blueFinalRoth)} Roth balance (vs {heirTaxPct}% on Traditional)</li>
+            <li><strong className="text-foreground">No forced RMDs</strong> keeping money invested longer</li>
+            {widowAnalysisActive && (
+              <li><strong className="text-foreground">Widow's penalty avoided</strong> — surviving spouse doesn't get hit with single-bracket RMDs on a still-large Traditional IRA</li>
+            )}
+            {aumActive && (
+              <li><strong className="text-foreground">AUM bucket adds {toUSD(aumFinalBalance)}</strong> in liquid taxable wealth with step-up at death — but pure Roth would beat the split since AUM has fees + annual tax drag and pays withdrawal tax upfront at the marginal rate. The split is a liquidity/diversification choice, not a wealth-maximizing one.</li>
+            )}
           </ul>
+        )}
+        {wealthDiff <= 0 && aumActive && (
+          <p className="mt-2 text-sm text-text-dim">
+            The AUM portion has annual fees + tax drag and pays withdrawal tax upfront at the marginal
+            rate, which can outweigh the Roth-conversion benefit on a raw wealth basis. The split is
+            usually justified by liquidity, diversification, or the client's preference for taxable
+            funds — not by wealth maximization.
+          </p>
         )}
       </div>
     </>
@@ -959,6 +1442,10 @@ function LegacyToHeirsInfo({
   blueHeirTax,
   blueNetLegacy,
   heirTaxRate,
+  aumActive,
+  aumFinalBalance,
+  widowAnalysisActive,
+  widowDeathAge,
 }: {
   client: Client;
   baseFinalTraditional: number;
@@ -972,49 +1459,74 @@ function LegacyToHeirsInfo({
   blueHeirTax: number;
   blueNetLegacy: number;
   heirTaxRate: number;
+  aumActive: boolean;
+  aumFinalBalance: number;
+  widowAnalysisActive: boolean;
+  widowDeathAge: number | null;
 }) {
   const heirTaxPct = Math.round(heirTaxRate * 100);
+  // The "non-AUM" portion of the strategy's taxable balance — i.e. the
+  // client's original taxable account plus any RMD/conversion-tax flows.
+  const blueNonAumTaxable = aumActive
+    ? Math.max(0, blueFinalTaxable - aumFinalBalance)
+    : Math.max(0, blueFinalTaxable);
 
   return (
     <>
       <p className="text-foreground font-medium">What is Legacy to Heirs?</p>
       <p>
         This is the net amount your beneficiaries actually receive after paying any taxes owed on inherited accounts.
-        Roth IRAs pass tax-free, but Traditional IRAs are taxed as income to your heirs.
+        Roth IRAs pass tax-free, Traditional IRAs are taxed as income to your heirs, and taxable
+        brokerage accounts get a step-up in basis at death (heirs owe no tax on unrealized gains).
       </p>
 
-      <div className="bg-bg-card rounded-lg p-4 space-y-3">
-        <p className="text-foreground font-medium text-xs uppercase tracking-wider">Baseline Inheritance</p>
-        <p className="text-xs text-text-muted">Your heirs receive:</p>
-        <div className="space-y-1 font-mono text-sm">
-          <p>Traditional IRA Balance: {toUSD(baseFinalTraditional)}</p>
-          <p className="text-red">− Heir's Income Tax ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
-          <p>+ Roth IRA (tax-free): {toUSD(baseFinalRoth)}</p>
-          <p>+ Taxable Account: {toUSD(Math.max(0, baseFinalTaxable))}</p>
-          <p className="border-t border-border-default pt-2 text-foreground font-medium">
-            = Net Legacy: {toUSD(baseNetLegacy)}
-          </p>
-        </div>
-      </div>
+      <TipSection label="Baseline Inheritance">
+        <TipRow label="Traditional IRA balance" value={toUSD(baseFinalTraditional)} />
+        <TipRow label={`− Heir's income tax (${heirTaxPct}%)`} value={toUSD(baseHeirTax)} variant="negative" />
+        <TipRow label="+ Roth IRA (tax-free)" value={toUSD(baseFinalRoth)} variant="positive" />
+        <TipRow label="+ Taxable account (step-up)" value={toUSD(Math.max(0, baseFinalTaxable))} />
+        <TipDivider />
+        <TipRow label="Net legacy" value={toUSD(baseNetLegacy)} variant="subtotal" />
+      </TipSection>
 
-      <div className="bg-accent border border-gold-border rounded-lg p-4 space-y-3">
-        <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy Inheritance</p>
-        <p className="text-xs text-text-muted">Your heirs receive:</p>
-        <div className="space-y-1 font-mono text-sm">
-          <p>Traditional IRA Balance: {toUSD(blueFinalTraditional)}</p>
-          <p className="text-red">− Heir's Income Tax ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
-          <p className="text-green">+ Roth IRA (tax-free): {toUSD(blueFinalRoth)}</p>
-          <p>+ Taxable Account: {toUSD(Math.max(0, blueFinalTaxable))}</p>
-          <p className="border-t border-gold-border pt-2 text-gold font-medium">
-            = Net Legacy: {toUSD(blueNetLegacy)}
-          </p>
-        </div>
-      </div>
+      <TipSection label="Strategy Inheritance" variant="gold">
+        <TipRow label="Traditional IRA balance" value={toUSD(blueFinalTraditional)} />
+        <TipRow label={`− Heir's income tax (${heirTaxPct}%)`} value={toUSD(blueHeirTax)} variant="negative" />
+        <TipRow label="+ Roth IRA (tax-free)" value={toUSD(blueFinalRoth)} variant="positive" />
+        {aumActive ? (
+          <>
+            <TipRow label="+ Original taxable account (step-up)" value={toUSD(blueNonAumTaxable)} />
+            <TipRow label="+ AUM brokerage (step-up)" value={toUSD(aumFinalBalance)} />
+          </>
+        ) : (
+          <TipRow label="+ Taxable account (step-up)" value={toUSD(Math.max(0, blueFinalTaxable))} />
+        )}
+        <TipDivider />
+        <TipRow label="Net legacy" value={toUSD(blueNetLegacy)} variant="total" />
+        {aumActive && (
+          <TipNote>
+            Step-up in basis at death means heirs inherit the AUM brokerage at its fair market value —
+            none of the unrealized capital gains accumulated during life are taxed to them.
+          </TipNote>
+        )}
+      </TipSection>
 
-      <p className="text-text-muted text-xs">
+      <p className="text-xs text-text-dim leading-relaxed">
         Note: We assume your heirs will be in the {heirTaxPct}% tax bracket when they inherit.
-        Under current law, non-spouse beneficiaries must withdraw inherited IRAs within 10 years.
+        Under current law, non-spouse beneficiaries must withdraw inherited IRAs within 10 years
+        (the SECURE Act's "10-year rule"), which is why concentrating wealth in a Traditional IRA
+        creates a heavier tax bill for them than spreading it across Roth + taxable.
       </p>
+      {widowAnalysisActive && (
+        <p className="text-xs text-text-dim leading-relaxed">
+          Widow's penalty modeled: {widowDeathAge != null
+            ? <>first death at age {widowDeathAge}.</>
+            : <>using the heuristic default for first-death age.</>}
+          {' '}After first death, the surviving spouse files single — so any remaining Traditional IRA
+          distributions land in narrower brackets, increasing the lifetime tax cost on the baseline side.
+          That's part of why the strategy's net legacy beats baseline.
+        </p>
+      )}
     </>
   );
 }
@@ -1031,6 +1543,16 @@ function TotalTaxesInfo({
   blueTotalTaxes,
   blueConversions,
   heirTaxRate,
+  aumActive,
+  aumTotalTaxPaid,
+  aumEarlyWithdrawalPenalty,
+  conversionType,
+  taxPaymentSource,
+  conversionTaxesFromIRA,
+  blueEarlyWithdrawalPenalty,
+  constraintType,
+  widowAnalysisActive,
+  widowDeathAge,
 }: {
   client: Client;
   baseTax: number;
@@ -1043,61 +1565,138 @@ function TotalTaxesInfo({
   blueTotalTaxes: number;
   blueConversions: number;
   heirTaxRate: number;
+  aumActive: boolean;
+  aumTotalTaxPaid: number;
+  aumEarlyWithdrawalPenalty: number;
+  conversionType: string;
+  taxPaymentSource: string;
+  conversionTaxesFromIRA: number;
+  blueEarlyWithdrawalPenalty: number;
+  constraintType: string;
+  widowAnalysisActive: boolean;
+  widowDeathAge: number | null;
 }) {
   const heirTaxPct = Math.round(heirTaxRate * 100);
+  // blueTax already includes AUM income/cap-gains tax (combineRothAndAum
+  // sums federalTax + stateTax across both buckets). The ONLY tax line in
+  // the AUM totals that isn't already in blueTax is the 10% early-
+  // withdrawal penalty — and that's now folded into blueTotalTaxes via
+  // blueEarlyWithdrawalPenalty. So the strategy total is just
+  // blueTotalTaxes; nothing to add on top. Earlier versions of this
+  // tooltip double-counted AUM tax (~$506K extra) — fixed by reading
+  // the AUM federal+state PORTION of blueTax for the breakdown row only.
+  const aumIncomeAndDragTax = aumActive ? Math.max(0, aumTotalTaxPaid - aumEarlyWithdrawalPenalty) : 0;
+  const rothSideConversionTax = Math.max(0, blueTax - aumIncomeAndDragTax);
   const taxSavings = baseTotalTaxes - blueTotalTaxes;
 
   return (
     <>
       <p className="text-foreground font-medium">What are Total Taxes Paid?</p>
       <p>
-        This includes all taxes paid by you AND your heirs over the projection period—income taxes on
-        distributions/conversions, Medicare IRMAA surcharges, and the taxes your heirs pay on inherited IRAs.
+        This includes every tax line that touches the client AND their heirs across the projection —
+        income tax on RMDs, conversions, and any voluntary withdrawals; the 10% early-withdrawal
+        penalty when applicable; Medicare IRMAA surcharges; AUM ordinary-income tax on transfers and
+        ongoing tax drag (dividends, realized cap gains); and the heir's income tax on any remaining
+        Traditional IRA balance.
       </p>
 
-      <div className="bg-bg-card rounded-lg p-4 space-y-3">
-        <p className="text-foreground font-medium text-xs uppercase tracking-wider">Baseline Taxes</p>
-        <div className="space-y-1 font-mono text-sm">
-          <p>Income Tax on RMDs: {toUSD(baseTax)}</p>
-          <p>Medicare IRMAA Surcharges: {toUSD(baseIrmaa)}</p>
-          <p>Heir's Tax on Inheritance ({heirTaxPct}%): {toUSD(baseHeirTax)}</p>
-          <p className="border-t border-border-default pt-2 text-red font-medium">
-            = Total Taxes: {toUSD(baseTotalTaxes)}
-          </p>
-        </div>
-      </div>
+      <TipSection label="Baseline Taxes">
+        <TipRow label="Income tax on RMDs (lifetime)" value={toUSD(baseTax)} variant="negative" />
+        <TipRow label="Medicare IRMAA surcharges" value={toUSD(baseIrmaa)} variant="negative" />
+        <TipRow label={`Heir's tax on inheritance (${heirTaxPct}%)`} value={toUSD(baseHeirTax)} variant="negative" />
+        <TipDivider />
+        <TipRow label="Total taxes" value={toUSD(baseTotalTaxes)} variant="subtotal" />
+        {widowAnalysisActive && (
+          <TipNote>
+            Widow's penalty modeled: from {widowDeathAge != null ? `age ${widowDeathAge}` : 'the heuristic first-death age'}{' '}
+            onward, the surviving spouse files single — same RMDs but at narrower brackets, so baseline tax climbs.
+          </TipNote>
+        )}
+      </TipSection>
 
-      <div className="bg-accent border border-gold-border rounded-lg p-4 space-y-3">
-        <p className="text-gold font-medium text-xs uppercase tracking-wider">Strategy Taxes</p>
-        <div className="space-y-1 font-mono text-sm">
-          <p>Income Tax on Conversions: {toUSD(blueTax)}</p>
-          <p className="text-xs text-text-muted">
-            (Converted {toUSD(blueConversions)} staying in {client.max_tax_rate}% bracket)
-          </p>
-          <p>Medicare IRMAA Surcharges: {toUSD(blueIrmaa)}</p>
-          <p>Heir's Tax on Remaining Traditional ({heirTaxPct}%): {toUSD(blueHeirTax)}</p>
-          <p className="border-t border-gold-border pt-2 text-gold font-medium">
-            = Total Taxes: {toUSD(blueTotalTaxes)}
-          </p>
-        </div>
-      </div>
+      <TipSection label="Strategy Taxes" variant="gold">
+        {conversionType !== 'no_conversion' && (
+          <TipRow
+            label={aumActive ? 'Income tax on conversions (Roth side)' : 'Income tax on conversions'}
+            value={toUSD(rothSideConversionTax)}
+            note={
+              <>
+                Converted {toUSD(blueConversions)} via {conversionType.replace(/_/g, ' ')}
+                {conversionType === 'optimized_amount' && <>, staying in the {client.max_tax_rate}% bracket</>}.
+                {taxPaymentSource === 'from_ira' && conversionTaxesFromIRA > 0 && (
+                  <> {toUSD(conversionTaxesFromIRA)} of that tax was pulled from the IRA itself (gross-down).</>
+                )}
+              </>
+            }
+            variant="negative"
+          />
+        )}
+        {aumActive && (
+          <TipRow
+            label="AUM withdrawal + tax drag"
+            value={toUSD(aumIncomeAndDragTax)}
+            note="Ordinary-income tax on the IRA-to-AUM transfer + annual dividend tax + realized cap-gains turnover tax."
+            variant="negative"
+          />
+        )}
+        {blueEarlyWithdrawalPenalty > 0 && (
+          <TipRow
+            label="10% early-withdrawal penalty (under 59½)"
+            value={toUSD(blueEarlyWithdrawalPenalty)}
+            note={
+              aumActive && aumEarlyWithdrawalPenalty > 0
+                ? <>{toUSD(aumEarlyWithdrawalPenalty)} of this came from the AUM transfers.</>
+                : undefined
+            }
+            variant="negative"
+          />
+        )}
+        <TipRow
+          label="Medicare IRMAA surcharges"
+          value={toUSD(blueIrmaa)}
+          note={
+            constraintType === 'irmaa_threshold'
+              ? "IRMAA constraint is on — each year's conversion is sized so MAGI doesn't push into a higher Medicare premium tier from age 63+."
+              : undefined
+          }
+          variant="negative"
+        />
+        <TipRow
+          label={`Heir's tax on remaining Traditional (${heirTaxPct}%)`}
+          value={toUSD(blueHeirTax)}
+          variant="negative"
+        />
+        <TipDivider />
+        <TipRow label="Total taxes" value={toUSD(blueTotalTaxes)} variant="total" />
+        {aumActive && (
+          <TipNote>
+            AUM bucket pays ordinary-income tax up front on the IRA-to-AUM transfer (no bracket optimization — flat marginal rate),
+            then ongoing tax drag every year on dividends and realized cap-gains turnover.
+          </TipNote>
+        )}
+      </TipSection>
 
       <div className={cn(
-        "rounded-lg p-4",
-        taxSavings > 0
-          ? "bg-green-bg border border-green/20"
-          : "bg-red-bg border border-red/20"
+        'rounded-xl p-5',
+        taxSavings > 0 ? 'bg-green-bg border border-green/30' : 'bg-red-bg border border-red/30',
       )}>
-        <p className={taxSavings > 0 ? "text-green font-medium" : "text-red font-medium"}>
-          {taxSavings > 0 ? "Tax Savings" : "Additional Taxes"}
-        </p>
-        <p className="mt-2">
+        <div className="flex items-baseline justify-between gap-4 mb-2">
+          <p className={cn('text-[11px] font-semibold uppercase tracking-[1.5px]', taxSavings > 0 ? 'text-green' : 'text-red')}>
+            {taxSavings > 0 ? 'Tax Savings' : 'Additional Taxes'}
+          </p>
+          <p className={cn('text-base font-mono tabular-nums font-semibold', taxSavings > 0 ? 'text-green' : 'text-red')}>
+            {taxSavings > 0 ? '−' : '+'}{toUSD(Math.abs(taxSavings))}
+          </p>
+        </div>
+        <p className="text-sm text-foreground/85 leading-relaxed">
           {taxSavings > 0 ? (
-            <>The strategy saves {toUSD(taxSavings)} in total taxes because you're converting at a {client.max_tax_rate}%
-            rate now instead of your heirs paying {heirTaxPct}% later. Lower taxes = more wealth for your family.</>
+            <>The strategy saves {toUSD(taxSavings)} in total taxes because the client converts at a
+            {' '}{client.max_tax_rate}% rate now instead of heirs paying {heirTaxPct}% later. Lower
+            taxes = more wealth for the family.</>
           ) : (
-            <>The strategy results in {toUSD(Math.abs(taxSavings))} more in taxes, but this is offset by
-            greater tax-free growth in the Roth account.</>
+            <>The strategy results in {toUSD(Math.abs(taxSavings))} more in taxes
+            {aumActive && <> (mostly from AUM withdrawal tax + ongoing drag — that's the cost of routing money to the brokerage instead of keeping it in tax-deferred / tax-free wrappers)</>},
+            potentially offset by greater tax-free growth in the Roth account and more flexibility.</>
           )}
         </p>
       </div>
@@ -1110,61 +1709,120 @@ function DistributionsInfo({
   baseRMDs,
   baseCumulativeDistributions,
   rmdTreatment,
+  aumActive,
+  aumTotalWithdrawnFromIra,
+  aumStartingPortion,
+  hasVoluntaryWithdrawals,
+  blueScheduledIraWithdrawals,
+  blueRothVoluntaryWithdrawals,
+  yearsToDefer,
 }: {
   client: Client;
   baseRMDs: number;
   baseCumulativeDistributions: number;
   rmdTreatment: string;
+  aumActive: boolean;
+  aumTotalWithdrawnFromIra: number;
+  aumStartingPortion: number;
+  hasVoluntaryWithdrawals: boolean;
+  blueScheduledIraWithdrawals: number;
+  blueRothVoluntaryWithdrawals: number;
+  yearsToDefer: number;
 }) {
   return (
     <>
-      <p className="text-foreground font-medium">
-        {rmdTreatment === 'spent' ? "What are After-Tax Distributions?" : "What are Gross Distributions?"}
+      <p className="text-foreground font-medium">What are Forced Distributions?</p>
+      <p>
+        Required Minimum Distributions (RMDs) the IRS forces the client to take from a Traditional IRA
+        starting at age 73 — and the income tax owed on them. The strategy shows $0 here because Roth
+        IRAs have no RMDs. Voluntary withdrawals and AUM transfers DO happen in the strategy, but
+        they're elective (advisor-scheduled), not forced — they're surfaced separately below.
       </p>
 
       {rmdTreatment === 'spent' ? (
         <>
-          <p>
-            After-Tax Distributions represent the actual money you received and spent during retirement
-            from Required Minimum Distributions, after paying income taxes on them.
-          </p>
-          <div className="bg-bg-card rounded-lg p-4 space-y-2">
-            <p className="font-mono text-sm">Gross RMDs Taken: {toUSD(baseRMDs)}</p>
-            <p className="font-mono text-sm">After Taxes: {toUSD(baseCumulativeDistributions)}</p>
-          </div>
-          <p className="text-text-muted text-xs">
-            Since you selected "Spent on Living Expenses" for RMD treatment, these distributions
-            are added to your Lifetime Wealth calculation (money you received and used).
-          </p>
+          <TipSection label="Baseline Forced Distributions">
+            <TipRow label="Gross RMDs taken" value={toUSD(baseRMDs)} />
+            <TipRow label="After taxes (what reaches the client)" value={toUSD(baseCumulativeDistributions)} variant="subtotal" />
+            <TipNote>
+              "Spent on Living Expenses" RMD treatment is selected — those after-tax dollars leave the
+              simulation rather than being reinvested in a taxable account.
+            </TipNote>
+          </TipSection>
         </>
       ) : (
         <>
-          <p>
-            Gross Distributions represent the total Required Minimum Distributions (RMDs) you're
-            forced to take from your Traditional IRA starting at age 73, before taxes.
-          </p>
-          <div className="bg-bg-card rounded-lg p-4 space-y-2">
-            <p className="font-mono text-sm">Total Gross RMDs: {toUSD(baseRMDs)}</p>
-            <p className="text-xs text-text-muted">
-              (These are taxed as ordinary income each year)
-            </p>
-          </div>
+          <TipSection label="Baseline Forced Distributions">
+            <TipRow label="Total gross RMDs" value={toUSD(baseRMDs)} variant="subtotal" />
+            <TipNote>
+              Taxed as ordinary income each year. The {rmdTreatment === 'reinvested' ? 'reinvested' : 'cash'} treatment
+              keeps the after-tax remainder in the {rmdTreatment === 'reinvested' ? 'taxable account where it earns interest' : 'cash bucket without earning interest'}.
+            </TipNote>
+          </TipSection>
         </>
       )}
 
-      <div className="bg-accent border border-gold-border rounded-lg p-4">
-        <p className="text-gold font-medium">Strategy: No Forced Distributions</p>
-        <p className="mt-2">
-          With the Roth conversion strategy, you convert to a Roth IRA which has <strong>no Required
-          Minimum Distributions</strong>. This means:
+      <TipSection label="Strategy · No Forced Roth Distributions" variant="gold">
+        <p className="text-sm text-foreground/85 leading-relaxed mb-3">
+          The Roth IRA has <strong className="text-foreground">no Required Minimum Distributions</strong>. Whatever's in
+          the Roth stays invested and growing tax-free for as long as the client (and their heirs) want.
         </p>
-        <ul className="list-disc pl-5 space-y-1 mt-2">
-          <li>Your money stays invested and growing tax-free</li>
-          <li>You choose when (or if) to take distributions</li>
-          <li>No forced taxable income that could push you into higher brackets</li>
-          <li>More control over your retirement income and tax situation</li>
+        <ul className="list-disc pl-5 space-y-1.5 text-sm text-foreground/85 leading-relaxed mb-3">
+          <li>No forced taxable income that could push the client into higher brackets</li>
+          <li>More control over retirement income timing</li>
+          <li>Tax-free legacy to heirs</li>
         </ul>
-      </div>
+
+        {(hasVoluntaryWithdrawals || aumActive) && (
+          <>
+            <TipDivider />
+            <p className="text-[11px] uppercase tracking-[1.5px] text-gold font-semibold pt-2 pb-1">
+              Distributions that DO happen in the strategy
+            </p>
+            {hasVoluntaryWithdrawals && (
+              <>
+                {blueScheduledIraWithdrawals > 0 && (
+                  <TipRow
+                    label="Voluntary IRA pulls (taxable income)"
+                    value={toUSD(blueScheduledIraWithdrawals)}
+                  />
+                )}
+                {blueRothVoluntaryWithdrawals > 0 && (
+                  <TipRow
+                    label="Voluntary Roth pulls (tax-free)"
+                    value={toUSD(blueRothVoluntaryWithdrawals)}
+                    variant="positive"
+                  />
+                )}
+                <TipNote>
+                  These are pulls the advisor entered on the withdrawal schedule — separate from RMDs and conversions,
+                  reducing the buckets year-by-year.
+                </TipNote>
+              </>
+            )}
+            {aumActive && (
+              <TipRow
+                label={`IRA-to-AUM transfer (over ${client.aum_withdrawal_years} ${client.aum_withdrawal_years === 1 ? 'year' : 'years'})`}
+                value={toUSD(aumTotalWithdrawnFromIra)}
+                note={
+                  <>
+                    The {client.aum_allocation_percent}% AUM slice. Engine pulls pendingIRA / yearsRemaining each year
+                    to spread the tax burden evenly. Total exceeds the {toUSD(aumStartingPortion)} starting portion
+                    because the IRA grows tax-deferred while waiting.
+                  </>
+                }
+              />
+            )}
+          </>
+        )}
+
+        {yearsToDefer > 0 && (
+          <TipNote>
+            Conversion is deferred {yearsToDefer} {yearsToDefer === 1 ? 'year' : 'years'} —
+            distribution patterns shift accordingly. Conversions don't begin until age {(client.age ?? 62) + yearsToDefer}.
+          </TipNote>
+        )}
+      </TipSection>
     </>
   );
 }
