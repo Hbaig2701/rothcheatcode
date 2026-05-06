@@ -151,15 +151,22 @@ export function ManualBuilder({
     }
   };
 
-  // When archetype changes, reseed config defaults (but keep name/etc)
+  // When archetype changes, reseed only the archetype-specific parts of the
+  // config (bonus shape + income roll-up shape). Preserve surrender schedule,
+  // fees, withdrawals, state availability, and other — those are independent
+  // of archetype and an advisor correcting an AI mismatch shouldn't lose
+  // values they just verified on the Product Found screen.
   const handleArchetypeChange = (a: ProductArchetype) => {
     setArchetype(a);
     if (productId) return; // don't reset when editing
-    if (a.startsWith("growth-")) {
-      setConfig(defaultGrowthConfig(a));
-    } else {
-      setConfig(defaultIncomeConfig(a));
-    }
+    const fresh = a.startsWith("growth-")
+      ? defaultGrowthConfig(a)
+      : defaultIncomeConfig(a);
+    setConfig((prev) => ({
+      ...prev,
+      bonus: fresh.bonus,
+      income: fresh.income ?? null,
+    }));
   };
 
   const updateConfig = <K extends keyof ProductConfigPayload>(
