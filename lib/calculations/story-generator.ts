@@ -4,9 +4,16 @@ import type { Projection } from '@/lib/types/projection';
 
 // Story entry types
 export type StoryTrigger =
+  | 'strategy_setup'        // NEW: opening card describing the chosen strategy
   | 'conversion_start'
   | 'conversion_year'
   | 'conversion_end'
+  | 'partial_cap_reached'   // NEW: cumulative conversions hit target_partial_amount
+  | 'aum_transfer_start'    // NEW: first AUM IRA-to-AUM pull
+  | 'aum_transfer_complete' // NEW: AUM withdrawal phase finishes
+  | 'voluntary_withdrawal'  // NEW: advisor-scheduled IRA/Roth pull happens
+  | 'widow_first_death'     // NEW: widow_death_age reached
+  | 'early_withdrawal_penalty' // NEW: 10% penalty incurred under 59½
   | 'social_security_start'
   | 'spouse_ss_start'
   | 'rmd_age'
@@ -40,6 +47,13 @@ export interface StoryEntry {
   headline: string;
   body: string;
   metrics?: StoryMetric[];
+  /**
+   * Structured plan details rendered as a vertical labeled list. Used by
+   * cards (like the strategy_setup opener) where the content is best read
+   * as discrete facts rather than prose. Renders as label-left / value-right
+   * rows with subtle dividers — same pattern as the report-page tooltips.
+   */
+  details?: StoryMetric[];
   comparison?: string;
   runningTotals: RunningTotals;
   icon: StoryIcon;
@@ -89,6 +103,146 @@ export function generateStory(
   const spouseSsStartAge = client.spouse_ssi_payout_age ?? 67;
   const primarySsAmount = client.ssi_annual_amount ?? 0;
   const spouseSsAmount = client.spouse_ssi_annual_amount ?? 0;
+
+  // ===== Strategy-specific context =====
+  // These drive the conditional cards below. Computed once and reused so the
+  // story narrative reflects every dimension the engine actually modeled.
+  const conversionType = client.conversion_type ?? 'optimized_amount';
+  const partialTarget = client.target_partial_amount ?? 0;
+  const fixedAmount = client.fixed_conversion_amount ?? 0;
+  const yearsToDefer = client.years_to_defer_conversion ?? 0;
+  const taxPaymentSource = client.tax_payment_source ?? 'from_taxable';
+
+  // AUM split context — pulled from the projection's separate aum_years array.
+  const aumActive = (client.aum_allocation_percent ?? 0) > 0
+    && Array.isArray(projection.aum_years)
+    && projection.aum_years.length > 0;
+  const aumYears = projection.aum_years ?? [];
+  const aumWithdrawalYears = client.aum_withdrawal_years ?? 5;
+  const aumStartingPortion = Math.round(originalIRA * ((client.aum_allocation_percent ?? 0) / 100));
+  const aumTotalWithdrawn = aumYears.reduce((s, y) => s + (y.iraWithdrawal ?? 0), 0);
+  const aumFinalBalance = projection.aum_final_balance ?? 0;
+  // Year index when the AUM transfer phase ends (last year an iraWithdrawal
+  // happens on the AUM side). Used to fire the "transfer complete" card.
+  const aumTransferEndIndex = (() => {
+    for (let i = aumYears.length - 1; i >= 0; i--) {
+      if ((aumYears[i].iraWithdrawal ?? 0) > 0) return i;
+    }
+    return -1;
+  })();
+
+  // Widow analysis context.
+  const widowAnalysisActive = client.widow_analysis === true;
+  const widowDeathAge = client.widow_death_age ?? null;
+
+  // Voluntary withdrawals — the advisor's hand-scheduled pulls. Engine writes
+  // these into the projection's iraWithdrawal/rothWithdrawal fields. In the
+  // combined blueprint_years, the AUM transfer also lands in iraWithdrawal,
+  // so a year's "voluntary" IRA pull = total iraWithdrawal − whatever the AUM
+  // engine recorded for that same year.
+  const hasScheduledWithdrawals = (client.withdrawals?.length ?? 0) > 0;
+  const aumIraWithdrawalsByYear = aumYears.map(y => y.iraWithdrawal ?? 0);
+  let aumTransferStartFired = false;
+
+  // Early-withdrawal penalty tracking — fires once the first year a penalty
+  // appears in the combined data (under 59½).
+  let earlyPenaltyFired = false;
+
+  // Partial-cap tracking — fires when cumulative conversions reach the
+  // configured target_partial_amount.
+  let partialCapFired = false;
+
+  // ===== STRATEGY SETUP (opening card) =====
+  // Frames what the advisor configured: conversion type, AUM split, deferral,
+  // tax-from-IRA, etc. Renders as a clean label/value list (via the `details`
+  // field) rather than a paragraph — easier to scan, and the advisor can
+  // point at any single line during a meeting.
+  const setupDetails: StoryMetric[] = [];
+
+  // Conversion plan — one line summarizing the chosen type + parameters.
+  switch (conversionType) {
+    case 'no_conversion':
+      setupDetails.push({ label: 'Conversion plan', value: 'No conversions (baseline behavior)' });
+      break;
+    case 'full_conversion':
+      setupDetails.push({ label: 'Conversion plan', value: 'Full conversion — empty the IRA upfront' });
+      break;
+    case 'fixed_amount':
+      setupDetails.push({ label: 'Conversion plan', value: `Fixed ${formatCurrency(fixedAmount)}/year` });
+      break;
+    case 'partial_amount':
+      setupDetails.push({ label: 'Conversion plan', value: `Partial — capped at ${formatCurrency(partialTarget)} cumulative` });
+      break;
+    default:
+      setupDetails.push({ label: 'Conversion plan', value: `Optimized to fill the ${targetBracket}% bracket` });
+  }
+
+  if (yearsToDefer > 0) {
+    setupDetails.push({
+      label: 'Deferred',
+      value: `${yearsToDefer} ${yearsToDefer === 1 ? 'year' : 'years'} — starts age ${(client.age ?? 62) + yearsToDefer}`,
+    });
+  }
+
+  setupDetails.push({
+    label: 'Tax payment source',
+    value: taxPaymentSource === 'from_ira' ? 'From the IRA itself (gross-down)' : 'From outside funds',
+  });
+
+  if (aumActive) {
+    setupDetails.push({
+      label: 'Split allocation',
+      value: `${100 - (client.aum_allocation_percent ?? 0)}% Roth · ${client.aum_allocation_percent}% AUM (${formatCurrency(aumStartingPortion)})`,
+    });
+    setupDetails.push({
+      label: 'AUM transfer',
+      value: `Over ${aumWithdrawalYears} ${aumWithdrawalYears === 1 ? 'year' : 'years'} · ${client.aum_fee_percent ?? 1}% annual fee`,
+    });
+  }
+
+  if (hasScheduledWithdrawals) {
+    setupDetails.push({
+      label: 'Voluntary withdrawals',
+      value: `${client.withdrawals?.length ?? 0} scheduled — separate from RMDs and conversions`,
+    });
+  }
+
+  if (widowAnalysisActive) {
+    setupDetails.push({
+      label: "Widow's penalty",
+      value: widowDeathAge != null
+        ? `Modeled · first-death age ${widowDeathAge}`
+        : 'Modeled · first-death age uses default heuristic',
+    });
+  }
+
+  // Short framing sentence — cards above the timeline orient the advisor.
+  // Detail rows do the heavy lifting underneath.
+  const setupBody = aumActive || conversionType === 'no_conversion' || hasScheduledWithdrawals || widowAnalysisActive
+    ? "Here's how this scenario is configured. Each line below is a parameter the advisor chose that drives the numbers in the rest of the timeline."
+    : `Here's the plan. Roth conversions over ${totalConversionYears} ${totalConversionYears === 1 ? 'year' : 'years'} starting at age ${(client.age ?? 62) + yearsToDefer}, paid for from ${taxPaymentSource === 'from_ira' ? 'the IRA itself' : 'outside funds'}.`;
+
+  storyEntries.push({
+    year: years[0]?.year ?? new Date().getFullYear(),
+    age: client.age ?? years[0]?.age ?? 62,
+    trigger: 'strategy_setup',
+    headline: 'How This Strategy Is Built',
+    body: setupBody,
+    details: setupDetails,
+    metrics: [
+      { label: 'Starting IRA', value: formatCurrency(originalIRA) },
+      ...(client.bonus_percent && client.bonus_percent > 0 ? [{ label: 'Premium Bonus', value: `${client.bonus_percent}%` }] : []),
+      ...(aumActive ? [{ label: 'AUM Split', value: `${client.aum_allocation_percent}%` }] : []),
+    ],
+    runningTotals: {
+      totalConverted: formatCurrency(0),
+      totalTaxPaid: formatCurrency(0),
+      rothBalance: formatCurrency(client.roth_ira ?? 0),
+      iraBalance: formatCurrency(originalIRA),
+    },
+    icon: 'start',
+    sentiment: 'neutral',
+  });
 
   years.forEach((year, index) => {
     const prevYear = index > 0 ? years[index - 1] : null;
@@ -180,6 +334,173 @@ export function generateStory(
       // Non-conversion year - still update totals
       totalConverted += year.conversionAmount || 0;
       totalTaxPaid += taxPaidThisYear || 0;
+    }
+
+    // ============================================================
+    // STRATEGY-SPECIFIC EVENT CARDS — fire conditionally based on the
+    // advisor's configuration. Each is gated so it only fires when the
+    // corresponding feature is active and the relevant year arrives.
+    // ============================================================
+
+    // AUM TRANSFER START — first year an IRA-to-AUM pull happens.
+    const aumIraThisYear = aumIraWithdrawalsByYear[index] ?? 0;
+    if (aumActive && !aumTransferStartFired && aumIraThisYear > 0) {
+      aumTransferStartFired = true;
+      storyEntries.push({
+        year: year.year,
+        age: year.age,
+        trigger: 'aum_transfer_start',
+        headline: 'AUM Transfer Begins',
+        body: `Year 1 of the IRA-to-AUM transfer. We pull ${formatCurrency(aumIraThisYear)} from the Traditional IRA and route the after-tax amount into a managed brokerage account. Spreading the transfer over ${aumWithdrawalYears} ${aumWithdrawalYears === 1 ? 'year' : 'years'} keeps the client out of a single-year tax bracket spike.`,
+        metrics: [
+          { label: 'IRA Pull This Year', value: formatCurrency(aumIraThisYear) },
+          { label: 'Total Allocation', value: formatCurrency(aumStartingPortion) },
+          { label: 'Schedule', value: `${aumWithdrawalYears} ${aumWithdrawalYears === 1 ? 'year' : 'years'}` },
+        ],
+        runningTotals: {
+          totalConverted: formatCurrency(totalConverted),
+          totalTaxPaid: formatCurrency(totalTaxPaid),
+          rothBalance: formatCurrency(year.rothBalance),
+          iraBalance: formatCurrency(year.traditionalBalance),
+        },
+        icon: 'progress',
+        sentiment: 'neutral',
+      });
+    }
+
+    // AUM TRANSFER COMPLETE — last year the IRA-to-AUM pull happens.
+    if (aumActive && index === aumTransferEndIndex && aumTransferEndIndex >= 0) {
+      const aumEoyBalance = aumYears[index]?.taxableBalance ?? 0;
+      storyEntries.push({
+        year: year.year,
+        age: year.age,
+        trigger: 'aum_transfer_complete',
+        headline: 'AUM Transfer Complete',
+        body: `The IRA-to-AUM transfer is finished. ${formatCurrency(aumTotalWithdrawn)} flowed out of the IRA over ${aumTransferEndIndex + 1} ${aumTransferEndIndex === 0 ? 'year' : 'years'} and now sits in the managed brokerage account at ${formatCurrency(aumEoyBalance)}. From here it grows subject to AUM fees and annual tax drag (dividends + realized cap gains), with step-up in basis at death so heirs don't owe tax on the embedded gains.`,
+        metrics: [
+          { label: 'Total Transferred', value: formatCurrency(aumTotalWithdrawn) },
+          { label: 'AUM Balance', value: formatCurrency(aumEoyBalance) },
+          { label: 'AUM Fee', value: `${client.aum_fee_percent ?? 1}%/yr` },
+        ],
+        runningTotals: {
+          totalConverted: formatCurrency(totalConverted),
+          totalTaxPaid: formatCurrency(totalTaxPaid),
+          rothBalance: formatCurrency(year.rothBalance),
+          iraBalance: formatCurrency(year.traditionalBalance),
+        },
+        icon: 'milestone',
+        sentiment: 'neutral',
+      });
+    }
+
+    // PARTIAL CAP REACHED — fires when cumulative conversions hit the cap.
+    if (
+      conversionType === 'partial_amount'
+      && partialTarget > 0
+      && !partialCapFired
+      && totalConverted >= partialTarget
+      && totalConverted > 0
+    ) {
+      partialCapFired = true;
+      const leftInIra = year.traditionalBalance;
+      storyEntries.push({
+        year: year.year,
+        age: year.age,
+        trigger: 'partial_cap_reached',
+        headline: 'Partial-Conversion Cap Reached',
+        body: `Cumulative conversions have hit the configured target of ${formatCurrency(partialTarget)}. From this point forward, no more Roth conversions happen — the remaining ${formatCurrency(leftInIra)} stays in the Traditional IRA and grows tax-deferred until RMD age.`,
+        metrics: [
+          { label: 'Target', value: formatCurrency(partialTarget) },
+          { label: 'Converted', value: formatCurrency(totalConverted) },
+          { label: 'Remaining in IRA', value: formatCurrency(leftInIra) },
+        ],
+        runningTotals: {
+          totalConverted: formatCurrency(totalConverted),
+          totalTaxPaid: formatCurrency(totalTaxPaid),
+          rothBalance: formatCurrency(year.rothBalance),
+          iraBalance: formatCurrency(year.traditionalBalance),
+        },
+        icon: 'milestone',
+        sentiment: 'neutral',
+      });
+    }
+
+    // VOLUNTARY WITHDRAWAL — surfaces an advisor-scheduled pull (separate
+    // from RMDs, conversions, and the AUM transfer). We compute "voluntary
+    // IRA" as combined iraWithdrawal minus the AUM bucket's pull for that
+    // same year, so the AUM transfer doesn't double-trigger this card.
+    if (hasScheduledWithdrawals) {
+      const voluntaryIra = Math.max(0, (year.iraWithdrawal ?? 0) - aumIraThisYear);
+      const voluntaryRoth = year.rothWithdrawal ?? 0;
+      if (voluntaryIra > 0 || voluntaryRoth > 0) {
+        const parts: string[] = [];
+        if (voluntaryIra > 0) parts.push(`${formatCurrency(voluntaryIra)} from the Traditional IRA (taxable income)`);
+        if (voluntaryRoth > 0) parts.push(`${formatCurrency(voluntaryRoth)} from the Roth (tax-free, qualified)`);
+        storyEntries.push({
+          year: year.year,
+          age: year.age,
+          trigger: 'voluntary_withdrawal',
+          headline: 'Voluntary Withdrawal',
+          body: `The advisor's withdrawal schedule pulls ${parts.join(' and ')} this year. These are elective distributions on top of any RMDs or conversions — they reduce the bucket they came from for future years.`,
+          metrics: [
+            ...(voluntaryIra > 0 ? [{ label: 'IRA Pull', value: formatCurrency(voluntaryIra) }] : []),
+            ...(voluntaryRoth > 0 ? [{ label: 'Roth Pull', value: formatCurrency(voluntaryRoth) }] : []),
+          ],
+          runningTotals: {
+            totalConverted: formatCurrency(totalConverted),
+            totalTaxPaid: formatCurrency(totalTaxPaid),
+            rothBalance: formatCurrency(year.rothBalance),
+            iraBalance: formatCurrency(year.traditionalBalance),
+          },
+          icon: 'progress',
+          sentiment: 'neutral',
+        });
+      }
+    }
+
+    // EARLY-WITHDRAWAL PENALTY — first year a 10% penalty is incurred.
+    const penaltyThisYear = year.earlyWithdrawalPenalty ?? 0;
+    if (!earlyPenaltyFired && penaltyThisYear > 0) {
+      earlyPenaltyFired = true;
+      storyEntries.push({
+        year: year.year,
+        age: year.age,
+        trigger: 'early_withdrawal_penalty',
+        headline: '10% Early-Withdrawal Penalty',
+        body: `Because the client is under 59½, IRA distributions used for ${aumActive ? 'the AUM transfer' : 'tax payment'} this year incur a 10% early-withdrawal penalty of ${formatCurrency(penaltyThisYear)} on top of the ordinary income tax. This applies every year the client is still under 59½ and the IRA gets pulled — once they cross that threshold, the penalty stops.`,
+        metrics: [
+          { label: 'Penalty This Year', value: formatCurrency(penaltyThisYear) },
+        ],
+        runningTotals: {
+          totalConverted: formatCurrency(totalConverted),
+          totalTaxPaid: formatCurrency(totalTaxPaid),
+          rothBalance: formatCurrency(year.rothBalance),
+          iraBalance: formatCurrency(year.traditionalBalance),
+        },
+        icon: 'warning',
+        sentiment: 'caution',
+      });
+    }
+
+    // WIDOW FIRST DEATH — fires the year first death occurs (when widow
+    // analysis is on). The card flags that surviving-spouse single-bracket
+    // RMDs are about to crush the baseline side, justifying the strategy.
+    if (widowAnalysisActive && widowDeathAge != null && year.age === widowDeathAge) {
+      storyEntries.push({
+        year: year.year,
+        age: year.age,
+        trigger: 'widow_first_death',
+        headline: 'Filing Status Switches to Single',
+        body: `In this year, the widow-analysis model assumes the first death occurs. From here on, the surviving spouse files single — narrower tax brackets and a smaller standard deduction. In the baseline scenario, every remaining RMD dollar is now taxed harder, which is one of the strategy's biggest advantages: the Roth has no RMDs to expose to those single brackets.`,
+        runningTotals: {
+          totalConverted: formatCurrency(totalConverted),
+          totalTaxPaid: formatCurrency(totalTaxPaid),
+          rothBalance: formatCurrency(year.rothBalance),
+          iraBalance: formatCurrency(year.traditionalBalance),
+        },
+        icon: 'warning',
+        sentiment: 'caution',
+      });
     }
 
     // HALFWAY CONVERTED
@@ -385,12 +706,18 @@ export function generateStory(
   const strategyLegacy = projection.blueprint_final_net_worth - strategyHeirTax;
   const difference = strategyLegacy - baselineNetLegacy;
 
+  // Tailor the body so the legacy story reflects what's actually in the
+  // estate: Roth alone if no split, or Roth + AUM brokerage when AUM is on.
+  const legacyBody = aumActive
+    ? `When you pass, your heirs receive ${formatCurrency(strategyLegacy)}. The Roth IRA (${formatCurrency(finalYear.rothBalance)}) passes completely tax-free, and the AUM brokerage (${formatCurrency(aumFinalBalance)}) gets a step-up in basis at death — heirs owe nothing on the unrealized gains accumulated during life.`
+    : `When you pass, your heirs receive ${formatCurrency(strategyLegacy)} — your Roth IRA passes completely tax-free, with no income tax, no waiting, no complications.`;
+
   storyEntries.push({
     year: finalYear.year,
     age: finalYear.age,
     trigger: 'death_legacy',
     headline: 'What Your Heirs Receive',
-    body: `When you pass, your heirs receive ${formatCurrency(strategyLegacy)} — your Roth IRA passes completely tax-free, with no income tax, no waiting, no complications.`,
+    body: legacyBody,
     comparison: `Without this strategy, heirs would receive approximately ${formatCurrency(baselineNetLegacy)} after paying ${formatCurrency(baseHeirTax)} in taxes on the inherited Traditional IRA.`,
     metrics: [
       { label: 'Strategy: To Heirs', value: formatCurrency(strategyLegacy) },
@@ -420,22 +747,31 @@ export function generateStory(
   return uniqueEntries;
 }
 
-// Priority for same-year events
+// Priority for same-year events. Lower = appears first.
+// New triggers slotted in so AUM/withdrawal/widow events read in a
+// natural order alongside the existing milestones.
 function getTrigggerPriority(trigger: StoryTrigger): number {
   const priorities: Record<StoryTrigger, number> = {
-    'conversion_start': 1,
-    'conversion_year': 2,
-    'halfway_converted': 3,
-    'conversion_end': 4,
-    'fully_converted': 5,
-    'break_even': 6,
-    'roth_exceeds_original': 7,
-    'social_security_start': 8,
-    'spouse_ss_start': 9,
-    'rmd_age': 10,
-    'decade_snapshot': 11,
-    'projection_end': 12,
-    'death_legacy': 13,
+    'strategy_setup': 0,            // Always first if the year matches
+    'aum_transfer_start': 1,        // Same-year as conversion_start usually
+    'conversion_start': 2,
+    'conversion_year': 3,
+    'voluntary_withdrawal': 4,
+    'aum_transfer_complete': 5,
+    'halfway_converted': 6,
+    'conversion_end': 7,
+    'partial_cap_reached': 8,
+    'fully_converted': 9,
+    'early_withdrawal_penalty': 10,
+    'break_even': 11,
+    'roth_exceeds_original': 12,
+    'social_security_start': 13,
+    'spouse_ss_start': 14,
+    'widow_first_death': 15,
+    'rmd_age': 16,
+    'decade_snapshot': 17,
+    'projection_end': 18,
+    'death_legacy': 19,
   };
   return priorities[trigger] ?? 99;
 }

@@ -172,6 +172,27 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
           {entry.body}
         </p>
 
+        {/* Plan details (label-left, value-right rows). Used by the
+            strategy_setup opener so the configuration reads as a clean list
+            instead of a paragraph wall. Subtle dividers between rows. */}
+        {entry.details && entry.details.length > 0 && (
+          <div className="bg-bg-input/60 border border-border-default rounded-xl px-5 py-3 mb-5 divide-y divide-border-default/40">
+            {entry.details.map((detail, idx) => (
+              <div
+                key={idx}
+                className="flex items-baseline justify-between gap-4 py-2.5"
+              >
+                <span className="text-xs uppercase tracking-[1.5px] text-text-dim">
+                  {detail.label}
+                </span>
+                <span className="text-sm text-foreground text-right">
+                  {detail.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Metrics */}
         {entry.metrics && entry.metrics.length > 0 && (
           <div className="flex flex-wrap gap-3 mb-5">
