@@ -146,6 +146,12 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // Strategy calculations
   const blueConversions = sum(projection.blueprint_years, "conversionAmount");
   const blueTax = sum(projection.blueprint_years, "federalTax") + sum(projection.blueprint_years, "stateTax");
+  // True conversion-only tax (federal + state). Distinct from blueTax, which
+  // also rolls up ordinary-income tax on Social Security, non-SSI income,
+  // RMDs after the conversion phase, and state tax on all of those. Use this
+  // wherever the label says "conversion tax" — using blueTax there inflated
+  // the conversion cost by every other strategy tax line.
+  const blueConversionTax = sum(projection.blueprint_years, "federalTaxOnConversions") + sum(projection.blueprint_years, "stateTaxOnConversions");
   const blueIrmaa = sum(projection.blueprint_years, "irmaaSurcharge");
   // Early-withdrawal penalty is its own tax line — combineRothAndAum sums
   // both engines' contributions, so this reads the full Roth+AUM lifetime
@@ -255,7 +261,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
   // Conversion years data
   const conversionYears = projection.blueprint_years.filter(y => y.conversionAmount > 0);
-  const avgTaxRate = blueConversions > 0 ? (blueTax / blueConversions) * 100 : 0;
+  const avgTaxRate = blueConversions > 0 ? (blueConversionTax / blueConversions) * 100 : 0;
 
   // Penalty-free withdrawal check — only if client has a surrender schedule
   const penaltyFreePercent = (client.penalty_free_percent ?? 10) / 100;
@@ -386,6 +392,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 blueNetLegacy={blueNetLegacy}
                 blueLifetimeWealth={blueLifetimeWealth}
                 blueTax={blueTax}
+                blueConversionTax={blueConversionTax}
                 blueConversions={blueConversions}
                 rmdTreatment={rmdTreatment}
                 heirTaxRate={heirTaxRate}
@@ -455,6 +462,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 baseHeirTax={baseHeirTax}
                 baseTotalTaxes={baseTotalTaxes}
                 blueTax={blueTax}
+                blueConversionTax={blueConversionTax}
                 blueIrmaa={blueIrmaa}
                 blueHeirTax={blueHeirTax}
                 blueTotalTaxes={blueTotalTaxes}
@@ -525,7 +533,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               <p className="text-sm text-text-muted">
                 Total Converted: <span className="font-mono text-foreground">{toUSD(blueConversions)}</span>
                 {" · "}
-                Total Conversion Taxes: <span className="font-mono text-foreground">{toUSD(blueTax)}</span>
+                Total Conversion Taxes: <span className="font-mono text-foreground">{toUSD(blueConversionTax)}</span>
                 {" · "}
                 Avg Tax Rate: <span className="font-mono text-foreground">{avgTaxRate.toFixed(1)}%</span>
               </p>
@@ -1037,6 +1045,7 @@ function LifetimeWealthInfo({
   blueNetLegacy,
   blueLifetimeWealth,
   blueTax,
+  blueConversionTax,
   blueConversions,
   heirTaxRate,
   aumActive,
@@ -1081,6 +1090,7 @@ function LifetimeWealthInfo({
   blueNetLegacy: number;
   blueLifetimeWealth: number;
   blueTax: number;
+  blueConversionTax: number;
   blueConversions: number;
   rmdTreatment: string;
   heirTaxRate: number;
@@ -1118,15 +1128,15 @@ function LifetimeWealthInfo({
   const wealthDiff = blueLifetimeWealth - baseLifetimeWealth;
   const conversionStartAge = (client.age ?? 62) + yearsToDefer;
   const isUnder59Half = (client.age ?? 62) < 60;
-  // blueTax already sums Roth-side and AUM-side federal+state taxes via
-  // combineRothAndAum. Split it back so we can label them separately —
-  // otherwise "Conversion Taxes Paid" overstates the conversion piece by
-  // including AUM income/cap-gains tax. Penalty is on top via
-  // blueEarlyWithdrawalPenalty (also already combined).
+  // blueTax sums Roth-side and AUM-side federal+state taxes across the entire
+  // strategy. Split it into the actual conversion tax (from blueConversionTax,
+  // which only includes federal+state on the conversion amount) vs. the rest
+  // — tax on Social Security, non-SSI income, post-conversion RMDs, AUM
+  // dividend/cap-gains drag, and state tax on all of it.
   const aumYearsLW = projection.aum_years ?? [];
   const aumPenaltyLW = aumYearsLW.reduce((s, y) => s + (y.earlyWithdrawalPenalty ?? 0), 0);
   const aumIncomeDragLW = Math.max(0, aumTotalTaxPaid - aumPenaltyLW);
-  const rothSideConversionTaxLW = Math.max(0, blueTax - aumIncomeDragLW);
+  const otherStrategyTaxLW = Math.max(0, blueTax - blueConversionTax - aumIncomeDragLW);
 
   return (
     <>
@@ -1325,13 +1335,16 @@ function LifetimeWealthInfo({
             : <>, converted to Roth over time.</>}
         </p>
         <TipRow label="Total converted to Roth" value={toUSD(blueConversions)} />
-        {aumActive ? (
-          <>
-            <TipRow label="Roth-side conversion tax" value={toUSD(rothSideConversionTaxLW)} variant="negative" />
-            <TipRow label="AUM income + cap-gains drag tax" value={toUSD(aumIncomeDragLW)} variant="negative" />
-          </>
-        ) : (
-          <TipRow label="Conversion taxes paid" value={toUSD(blueTax)} variant="negative" />
+        <TipRow label="Tax paid on conversions" value={toUSD(blueConversionTax)} variant="negative" />
+        {otherStrategyTaxLW > 0 && (
+          <TipRow
+            label="Other strategy taxes (SS, RMDs, ordinary, state)"
+            value={toUSD(otherStrategyTaxLW)}
+            variant="negative"
+          />
+        )}
+        {aumActive && aumIncomeDragLW > 0 && (
+          <TipRow label="AUM income + cap-gains drag tax" value={toUSD(aumIncomeDragLW)} variant="negative" />
         )}
         {taxPaymentSource === 'from_ira' && conversionTaxesFromIRA > 0 && (
           <TipNote>{toUSD(conversionTaxesFromIRA)} of conversion tax was pulled from the IRA itself.</TipNote>
@@ -1538,6 +1551,7 @@ function TotalTaxesInfo({
   baseHeirTax,
   baseTotalTaxes,
   blueTax,
+  blueConversionTax,
   blueIrmaa,
   blueHeirTax,
   blueTotalTaxes,
@@ -1560,6 +1574,7 @@ function TotalTaxesInfo({
   baseHeirTax: number;
   baseTotalTaxes: number;
   blueTax: number;
+  blueConversionTax: number;
   blueIrmaa: number;
   blueHeirTax: number;
   blueTotalTaxes: number;
@@ -1577,16 +1592,17 @@ function TotalTaxesInfo({
   widowDeathAge: number | null;
 }) {
   const heirTaxPct = Math.round(heirTaxRate * 100);
-  // blueTax already includes AUM income/cap-gains tax (combineRothAndAum
-  // sums federalTax + stateTax across both buckets). The ONLY tax line in
-  // the AUM totals that isn't already in blueTax is the 10% early-
-  // withdrawal penalty — and that's now folded into blueTotalTaxes via
-  // blueEarlyWithdrawalPenalty. So the strategy total is just
-  // blueTotalTaxes; nothing to add on top. Earlier versions of this
-  // tooltip double-counted AUM tax (~$506K extra) — fixed by reading
-  // the AUM federal+state PORTION of blueTax for the breakdown row only.
+  // Split blueTax (= total federal+state across the strategy) into three
+  // labeled buckets so the row labels match the values:
+  //   1. Conversion tax — the tax actually owed on the Roth conversions
+  //      themselves (federalTaxOnConversions + stateTaxOnConversions).
+  //   2. AUM income + cap-gains drag — only relevant when AUM is active;
+  //      excludes the 10% penalty (that's its own row).
+  //   3. Other strategy income tax — everything else fed+state taxed during
+  //      the strategy: tax on Social Security, non-SSI ordinary income, any
+  //      post-conversion RMDs, and state tax on those.
   const aumIncomeAndDragTax = aumActive ? Math.max(0, aumTotalTaxPaid - aumEarlyWithdrawalPenalty) : 0;
-  const rothSideConversionTax = Math.max(0, blueTax - aumIncomeAndDragTax);
+  const otherStrategyTax = Math.max(0, blueTax - blueConversionTax - aumIncomeAndDragTax);
   const taxSavings = baseTotalTaxes - blueTotalTaxes;
 
   return (
@@ -1617,8 +1633,8 @@ function TotalTaxesInfo({
       <TipSection label="Strategy Taxes" variant="gold">
         {conversionType !== 'no_conversion' && (
           <TipRow
-            label={aumActive ? 'Income tax on conversions (Roth side)' : 'Income tax on conversions'}
-            value={toUSD(rothSideConversionTax)}
+            label="Income tax on conversions"
+            value={toUSD(blueConversionTax)}
             note={
               <>
                 Converted {toUSD(blueConversions)} via {conversionType.replace(/_/g, ' ')}
@@ -1628,6 +1644,14 @@ function TotalTaxesInfo({
                 )}
               </>
             }
+            variant="negative"
+          />
+        )}
+        {otherStrategyTax > 0 && (
+          <TipRow
+            label="Other strategy income tax"
+            value={toUSD(otherStrategyTax)}
+            note="Federal + state tax on Social Security, non-SSI ordinary income, post-conversion RMDs, and state tax on the conversions themselves. Always present even when conversions are optimal."
             variant="negative"
           />
         )}
