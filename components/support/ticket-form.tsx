@@ -24,13 +24,6 @@ interface ClientOption {
   name: string
 }
 
-interface ReportOption {
-  id: string
-  title: string | null
-  file_name: string
-  client_name: string | null
-}
-
 interface TicketFormProps {
   initialClientId?: string
   /** Called after a successful submission. Receives the new ticket id. */
@@ -48,41 +41,32 @@ export function TicketForm({ initialClientId, onSuccess, onCancel, compact = fal
   const supabase = createClient()
 
   const [clients, setClients] = useState<ClientOption[]>([])
-  const [reports, setReports] = useState<ReportOption[]>([])
 
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [severity, setSeverity] = useState<SupportSeverity>('medium')
   const [category, setCategory] = useState<SupportCategory>('question')
   const [clientId, setClientId] = useState<string>(initialClientId ?? '')
-  const [reportId, setReportId] = useState<string>('')
   const [files, setFiles] = useState<File[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Fetch the user's clients & reports for the dropdowns
+  // Fetch the user's clients for the dropdown
   useEffect(() => {
     let cancelled = false
     async function load() {
-      const [clientsRes, reportsRes] = await Promise.all([
-        fetch('/api/clients').then((r) => (r.ok ? r.json() : [])),
-        fetch('/api/reports').then((r) => (r.ok ? r.json() : { reports: [] })),
-      ])
+      const clientsRes = await fetch('/api/clients').then((r) => (r.ok ? r.json() : []))
       if (cancelled) return
       const clientList: ClientOption[] = Array.isArray(clientsRes)
         ? clientsRes.map((c: { id: string; name: string }) => ({ id: c.id, name: c.name }))
         : []
       setClients(clientList)
-      const reportList: ReportOption[] = Array.isArray(reportsRes?.reports) ? reportsRes.reports : []
-      setReports(reportList)
     }
     void load()
     return () => {
       cancelled = true
     }
   }, [])
-
-  const filteredReports = clientId ? reports.filter((r) => r.client_name && clients.find((c) => c.id === clientId)?.name === r.client_name) : reports
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(e.target.files ?? [])
@@ -125,7 +109,6 @@ export function TicketForm({ initialClientId, onSuccess, onCancel, compact = fal
           severity,
           category,
           client_id: clientId || null,
-          report_id: reportId || null,
         }),
       })
       if (!res.ok) {
@@ -223,41 +206,18 @@ export function TicketForm({ initialClientId, onSuccess, onCancel, compact = fal
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground/85">Related Client (optional)</label>
-          <select
-            value={clientId}
-            onChange={(e) => {
-              setClientId(e.target.value)
-              setReportId('')
-            }}
-            className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-2.5 text-sm shadow-xs"
-          >
-            <option value="">— None —</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-foreground/85">Related Report (optional)</label>
-          <select
-            value={reportId}
-            onChange={(e) => setReportId(e.target.value)}
-            className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-2.5 text-sm shadow-xs"
-            disabled={filteredReports.length === 0}
-          >
-            <option value="">— None —</option>
-            {filteredReports.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.title || r.file_name}
-                {r.client_name ? ` · ${r.client_name}` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className="space-y-1.5">
+        <label className="text-sm font-medium text-foreground/85">Related Client (optional)</label>
+        <select
+          value={clientId}
+          onChange={(e) => setClientId(e.target.value)}
+          className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-2.5 text-sm shadow-xs"
+        >
+          <option value="">— None —</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
       </div>
 
       <div className="space-y-1.5">
@@ -276,7 +236,7 @@ export function TicketForm({ initialClientId, onSuccess, onCancel, compact = fal
       <div className="space-y-2">
         <label className="text-sm font-medium text-foreground/85">Attachments</label>
         <p className="text-xs text-text-dim">
-          Optional. Up to {MAX_ATTACHMENTS_PER_TICKET} files (PNG, JPEG, WEBP, PDF — 25MB each).
+          Drop the report PDF and any screenshots here. Up to {MAX_ATTACHMENTS_PER_TICKET} files (PNG, JPEG, WEBP, PDF — 25MB each).
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <label className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-border bg-white dark:bg-input/30 px-3 py-1.5 text-sm hover:bg-accent transition-colors">

@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { ChevronLeft, LifeBuoy, Calendar, User as UserIcon, Folder, FileText } from 'lucide-react'
+import { ChevronLeft, LifeBuoy, Calendar, User as UserIcon, Folder } from 'lucide-react'
 import { CommentThread } from '@/components/support/comment-thread'
 import { AttachmentList } from '@/components/support/attachment-list'
 import { AdminTicketControls } from '@/components/support/admin-ticket-controls'
@@ -57,12 +57,6 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
   if (ticket.client_id) {
     const { data: c } = await supabase.from('clients').select('name').eq('id', ticket.client_id).maybeSingle()
     clientName = (c?.name as string | undefined) ?? null
-  }
-
-  let reportInfo: { title: string | null; file_name: string } | null = null
-  if (ticket.report_id) {
-    const { data: r } = await supabase.from('report_history').select('title, file_name').eq('id', ticket.report_id).maybeSingle()
-    if (r) reportInfo = { title: (r.title as string | null) ?? null, file_name: r.file_name as string }
   }
 
   const advisorProfile = profiles.get(ticket.user_id)
@@ -186,15 +180,6 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
                   <span>Related Client</span>
                 </div>
                 <Link href={`/clients/${ticket.client_id}`} className="text-sm text-foreground hover:text-gold transition-colors">{clientName}</Link>
-              </div>
-            )}
-            {reportInfo && (
-              <div>
-                <div className="flex items-center gap-1.5 text-xs text-text-dimmer mb-1">
-                  <FileText className="size-3.5" />
-                  <span>Related Report</span>
-                </div>
-                <p className="text-sm text-foreground">{reportInfo.title || reportInfo.file_name}</p>
               </div>
             )}
             <div>
