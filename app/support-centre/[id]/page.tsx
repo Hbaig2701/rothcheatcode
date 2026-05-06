@@ -6,6 +6,7 @@ import { CommentThread } from '@/components/support/comment-thread'
 import { AttachmentList } from '@/components/support/attachment-list'
 import { AdminTicketControls } from '@/components/support/admin-ticket-controls'
 import { SeverityBadge } from '@/components/support/status-badge'
+import { DeleteTicketButton } from '@/components/support/delete-ticket-button'
 import {
   fetchTicketWithRelations,
   fetchProfilesByIds,
@@ -80,13 +81,16 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
 
   return (
     <div>
-      <Link
-        href="/support-centre"
-        className="inline-flex items-center gap-1 text-sm text-text-dim hover:text-foreground mb-6 transition-colors"
-      >
-        <ChevronLeft className="size-4" />
-        Back to Support Centre
-      </Link>
+      <div className="flex items-center justify-between mb-6">
+        <Link
+          href="/support-centre"
+          className="inline-flex items-center gap-1 text-sm text-text-dim hover:text-foreground transition-colors"
+        >
+          <ChevronLeft className="size-4" />
+          Back to Support Centre
+        </Link>
+        <DeleteTicketButton ticketId={ticket.id} subject={ticket.subject} />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* Main column */}

@@ -95,3 +95,45 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
   return NextResponse.json(updated)
 }
+
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (!(await isAdmin(supabase, user.id))) {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  // Pull attachment paths up-front — the FK cascade will drop the rows when
+  // the ticket is deleted, but Storage objects are independent and would
+  // otherwise be orphaned indefinitely.
+  const { data: attachments } = await supabase
+    .from('support_ticket_attachments')
+    .select('file_path')
+    .eq('ticket_id', id)
+  const paths = ((attachments ?? []) as Array<{ file_path: string }>).map((a) => a.file_path)
+
+  const { error: deleteError } = await supabase
+    .from('support_tickets')
+    .delete()
+    .eq('id', id)
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 })
+  }
+
+  if (paths.length > 0) {
+    const { error: storageError } = await supabase.storage
+      .from('support-attachments')
+      .remove(paths)
+    if (storageError) {
+      // Non-fatal — the ticket is gone, but log so we can investigate
+      // orphaned files later if this happens repeatedly.
+      console.error('[support-tickets] Storage cleanup failed for ticket', id, storageError)
+    }
+  }
+
+  return NextResponse.json({ success: true })
+}
