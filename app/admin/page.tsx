@@ -38,6 +38,8 @@ interface Advisor {
   priceInterval: string | null
   discountPercent: number
   discountLabel: string | null
+  cancelAtPeriodEnd: boolean
+  canceledAt: string | null
 }
 
 interface ActivityPoint {
@@ -48,7 +50,7 @@ interface ActivityPoint {
 type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status' | 'subscriptionStatus' | 'netMonthly' | 'currentPeriodEnd'
 type SortDir = 'asc' | 'desc'
 type DateRange = 'today' | '7d' | '30d' | 'mtd' | 'all' | 'custom'
-type AdvisorView = 'active' | 'churned' | 'all'
+type AdvisorView = 'active' | 'cancelling' | 'churned' | 'all'
 
 const DATE_RANGE_OPTIONS: { value: DateRange; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -173,8 +175,12 @@ export default function AdminDashboard() {
 
   const filtered = useMemo(() => {
     let result = advisors.filter(a => {
-      // Active/Churned/All view filter — operates on subscription status.
+      // Active/Cancelling/Churned/All view filter — operates on sub state.
+      // "Cancelling" = sub is still active (paying) but customer hit cancel
+      // and it'll lapse at current_period_end. They're a separate cohort
+      // from churned (already canceled) and from healthy active subscribers.
       if (advisorView === 'active' && a.subscriptionStatus === 'canceled') return false
+      if (advisorView === 'cancelling' && (!a.cancelAtPeriodEnd || a.subscriptionStatus === 'canceled')) return false
       if (advisorView === 'churned' && a.subscriptionStatus !== 'canceled') return false
       if (statusFilter !== 'all' && a.status !== statusFilter) return false
       if (search) {
@@ -218,6 +224,11 @@ export default function AdminDashboard() {
 
   const churnedCount = useMemo(
     () => advisors.filter(a => a.subscriptionStatus === 'canceled').length,
+    [advisors]
+  )
+
+  const cancellingCount = useMemo(
+    () => advisors.filter(a => a.cancelAtPeriodEnd && a.subscriptionStatus !== 'canceled').length,
     [advisors]
   )
 
@@ -416,7 +427,13 @@ export default function AdminDashboard() {
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-semibold uppercase tracking-[1.5px] text-text-muted">
-              {advisorView === 'churned' ? 'Churned Advisors' : advisorView === 'all' ? 'All Advisors' : 'Paying Advisors'}
+              {advisorView === 'churned'
+                ? 'Churned Advisors'
+                : advisorView === 'cancelling'
+                ? 'Cancelling Advisors'
+                : advisorView === 'all'
+                ? 'All Advisors'
+                : 'Paying Advisors'}
             </h2>
             <span className="text-xs text-text-dim font-mono">{filtered.length}</span>
           </div>
@@ -428,9 +445,10 @@ export default function AdminDashboard() {
               onChange={e => setSearch(e.target.value)}
               className="px-3 py-1.5 text-xs bg-bg-card-hover border border-border-default rounded-lg text-foreground placeholder:text-text-muted outline-none focus:border-[#d4af37]"
             />
-            {/* Active / Churned / All — replaces the old standalone toggle. */}
+            {/* Active / Cancelling / Churned / All — Cancelling = paying but
+                will lapse at current_period_end (Stripe cancel_at_period_end). */}
             <div className="flex gap-1 bg-bg-card-hover rounded-lg p-1">
-              {(['active', 'churned', 'all'] as const).map(v => (
+              {(['active', 'cancelling', 'churned', 'all'] as const).map(v => (
                 <button
                   key={v}
                   onClick={() => setAdvisorView(v)}
@@ -438,12 +456,16 @@ export default function AdminDashboard() {
                     advisorView === v
                       ? v === 'churned'
                         ? 'bg-[rgba(239,68,68,0.18)] text-[#ef4444] font-medium'
+                        : v === 'cancelling'
+                        ? 'bg-[rgba(245,158,11,0.18)] text-[#f59e0b] font-medium'
                         : 'bg-[#d4af37] text-black font-medium'
                       : 'text-text-muted hover:text-foreground'
                   }`}
                 >
                   {v === 'churned' && churnedCount > 0
                     ? `Churned (${churnedCount})`
+                    : v === 'cancelling' && cancellingCount > 0
+                    ? `Cancelling (${cancellingCount})`
                     : v}
                 </button>
               ))}
@@ -528,17 +550,24 @@ export default function AdminDashboard() {
                 <td className="px-4 py-3 text-sm text-foreground">{a.name ?? <span className="text-text-dimmer">—</span>}</td>
                 <td className="px-4 py-3 text-sm text-foreground">{a.email}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    a.subscriptionStatus === 'active'
-                      ? 'bg-[rgba(74,222,128,0.15)] text-green'
-                      : a.subscriptionStatus === 'canceled'
-                        ? 'bg-[rgba(239,68,68,0.15)] text-[#ef4444]'
-                        : a.subscriptionStatus === 'past_due'
-                          ? 'bg-[rgba(245,158,11,0.15)] text-[#f59e0b]'
-                          : 'bg-secondary text-text-dim'
-                  }`}>
-                    {a.subscriptionStatus}{a.billingCycle ? ` (${a.billingCycle})` : ''}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      a.subscriptionStatus === 'active'
+                        ? 'bg-[rgba(74,222,128,0.15)] text-green'
+                        : a.subscriptionStatus === 'canceled'
+                          ? 'bg-[rgba(239,68,68,0.15)] text-[#ef4444]'
+                          : a.subscriptionStatus === 'past_due'
+                            ? 'bg-[rgba(245,158,11,0.15)] text-[#f59e0b]'
+                            : 'bg-secondary text-text-dim'
+                    }`}>
+                      {a.subscriptionStatus}{a.billingCycle ? ` (${a.billingCycle})` : ''}
+                    </span>
+                    {a.cancelAtPeriodEnd && a.subscriptionStatus !== 'canceled' && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-[rgba(245,158,11,0.18)] text-[#f59e0b]">
+                        Cancels {a.currentPeriodEnd ? new Date(a.currentPeriodEnd).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'soon'}
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-foreground">
                   {a.netInterval != null ? (

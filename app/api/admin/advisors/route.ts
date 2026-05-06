@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     const showChurned = searchParams.get('churned') === 'true';
     let profilesQuery = admin
       .from('profiles')
-      .select('id, email, created_at, role, is_active, plan, subscription_status, billing_cycle, stripe_customer_id, stripe_subscription_id, current_period_end')
+      .select('id, email, created_at, role, is_active, plan, subscription_status, billing_cycle, stripe_customer_id, stripe_subscription_id, current_period_end, cancel_at_period_end, canceled_at')
       .eq('role', 'advisor')
       .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
       .not('stripe_customer_id', 'is', null)
@@ -101,6 +101,8 @@ export async function GET(request: NextRequest) {
       discountPercent: number; // 0-100; combined effective discount on this cycle
       discountLabel: string | null; // human-readable coupon name(s)
       currentPeriodEnd: number | null; // unix seconds; from Stripe (more accurate than profiles)
+      cancelAtPeriodEnd: boolean; // true once customer hits cancel; status stays 'active' until period ends
+      canceledAt: number | null; // unix seconds; when the cancellation was scheduled
     };
     const pricingMap = new Map<string, Pricing>();
 
@@ -121,6 +123,9 @@ export async function GET(request: NextRequest) {
         discountPercent: 0,
         discountLabel: null,
         currentPeriodEnd: null,
+        // Seed from DB; pass 2 overlays with the live Stripe truth.
+        cancelAtPeriodEnd: p.cancel_at_period_end === true,
+        canceledAt: null,
       });
     }
 
@@ -174,6 +179,16 @@ export async function GET(request: NextRequest) {
             ? Math.round(((listPrice - netInterval) / listPrice) * 1000) / 10
             : 0;
 
+          // Stripe is the source of truth for cancellation state — read it
+          // directly off the live subscription. The DB's column will catch
+          // up via webhook on the next event, but until then we surface the
+          // fresher Stripe value in the admin UI.
+          const subAny = sub as unknown as {
+            current_period_end?: number | null;
+            cancel_at_period_end?: boolean;
+            canceled_at?: number | null;
+          };
+
           pricingMap.set(p.id, {
             netMonthly: interval === 'year' ? netInterval / 12 : netInterval,
             netInterval,
@@ -181,8 +196,26 @@ export async function GET(request: NextRequest) {
             interval,
             discountPercent,
             discountLabel: discountLabels.length > 0 ? Array.from(new Set(discountLabels)).join(', ') : null,
-            currentPeriodEnd: (sub as unknown as { current_period_end?: number | null }).current_period_end ?? null,
+            currentPeriodEnd: subAny.current_period_end ?? null,
+            cancelAtPeriodEnd: subAny.cancel_at_period_end === true,
+            canceledAt: subAny.canceled_at ?? null,
           });
+
+          // Mirror back into the DB if it disagrees. Keeps the column fresh
+          // for analytics queries and means the next webhook write isn't the
+          // first time we see a pending cancellation.
+          if (
+            (subAny.cancel_at_period_end === true) !== (p.cancel_at_period_end === true)
+            || (subAny.canceled_at != null) !== (p.canceled_at != null)
+          ) {
+            await admin
+              .from('profiles')
+              .update({
+                cancel_at_period_end: subAny.cancel_at_period_end === true,
+                canceled_at: subAny.canceled_at ? new Date(subAny.canceled_at * 1000).toISOString() : null,
+              })
+              .eq('id', p.id);
+          }
         } catch (err) {
           // Stripe fetch failed (sub deleted, network blip, etc.) — keep
           // the list-price seed from pass 1 so the column doesn't go blank.
@@ -216,6 +249,10 @@ export async function GET(request: NextRequest) {
         currentPeriodEnd: pricing?.currentPeriodEnd
           ? new Date(pricing.currentPeriodEnd * 1000).toISOString()
           : (p.current_period_end ?? null),
+        cancelAtPeriodEnd: pricing?.cancelAtPeriodEnd ?? p.cancel_at_period_end === true,
+        canceledAt: pricing?.canceledAt
+          ? new Date(pricing.canceledAt * 1000).toISOString()
+          : (p.canceled_at ?? null),
         // Pricing — null when no Stripe sub or fetch failed.
         netMonthly: pricing?.netMonthly ?? null,
         netInterval: pricing?.netInterval ?? null,

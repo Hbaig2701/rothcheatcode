@@ -196,11 +196,23 @@ export async function POST(request: NextRequest) {
           const { plan, cycle } = planResult;
           console.log(`[Stripe Webhook] Mapped priceId=${priceId} → plan=${plan}, cycle=${cycle}`);
 
+          // Capture cancel-at-period-end state. Stripe sets this to true the
+          // moment a customer hits cancel; subscription.status stays 'active'
+          // until the period actually ends. Without this column the admin
+          // dashboard had no visibility into pending cancellations.
+          const cancelAtPeriodEnd = subscription.cancel_at_period_end === true;
+          const canceledAtUnix = subscription.canceled_at as number | null | undefined;
+          const canceledAtIso = canceledAtUnix
+            ? new Date(canceledAtUnix * 1000).toISOString()
+            : null;
+
           const updateData: Record<string, unknown> = {
             plan,
             billing_cycle: cycle,
             subscription_status: subscription.status as string,
             stripe_subscription_id: subscription.id as string,
+            cancel_at_period_end: cancelAtPeriodEnd,
+            canceled_at: canceledAtIso,
             // Bump updated_at on every webhook write so we have an audit trail
             // for "when did this profile last change?". The default Supabase
             // schema doesn't auto-update this column on UPDATE, so without an
@@ -298,6 +310,10 @@ export async function POST(request: NextRequest) {
             stripe_subscription_id: null,
             billing_cycle: null,
             current_period_end: null,
+            // Once the sub actually ends, the "pending cancellation" flag is
+            // no longer meaningful — they're in the churned bucket now.
+            cancel_at_period_end: false,
+            canceled_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
           .eq("stripe_customer_id", customerId);
