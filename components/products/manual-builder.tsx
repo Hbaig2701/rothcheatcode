@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   ARCHETYPE_LABELS,
   type ProductArchetype,
@@ -133,18 +133,23 @@ export function ManualBuilder({
   const updateMut = useUpdateProduct(productId ?? "");
   const isPending = createMut.isPending || updateMut.isPending;
 
-  // When category changes (only for new products), reset archetype + config
-  useEffect(() => {
-    if (productId) return; // don't auto-reset when editing
-    if (category === "growth") {
+  // When the user actively changes the category, reset archetype + config to
+  // sane defaults for that side of the engine. Implemented as an event handler
+  // instead of an effect on [category] — the effect form ran on initial mount
+  // and silently blew away initialConfig/initialArchetype passed in from the
+  // AI research handoff, so the manual builder showed default preset numbers
+  // instead of the values the user just verified on the "Product Found" screen.
+  const handleCategoryChange = (newCategory: "growth" | "income") => {
+    setCategory(newCategory);
+    if (productId) return; // editing — don't reset
+    if (newCategory === "growth") {
       setArchetype("growth-vesting");
       setConfig(defaultGrowthConfig("growth-vesting"));
     } else {
       setArchetype("income-simple-both");
       setConfig(defaultIncomeConfig("income-simple-both"));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [category]);
+  };
 
   // When archetype changes, reseed config defaults (but keep name/etc)
   const handleArchetypeChange = (a: ProductArchetype) => {
@@ -300,7 +305,7 @@ export function ManualBuilder({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field>
           <FieldLabel>Category</FieldLabel>
-          <Select value={category} onValueChange={(v) => setCategory(v as "growth" | "income")} disabled={!!productId}>
+          <Select value={category} onValueChange={(v) => handleCategoryChange(v as "growth" | "income")} disabled={!!productId}>
             <SelectTrigger>
               <SelectValue>{CATEGORY_LABELS[category]}</SelectValue>
             </SelectTrigger>
