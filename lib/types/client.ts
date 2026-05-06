@@ -129,6 +129,18 @@ export interface Client {
   widow_death_age: number | null;
   rmd_treatment: 'spent' | 'reinvested' | 'cash'; // How RMDs are treated in baseline
 
+  // ===== AUM Split Allocation =====
+  // When aum_allocation_percent > 0, the engine splits the IRA balance: the
+  // first (100 - aum_allocation_percent)% runs through the existing Roth
+  // conversion engine; the remainder runs through the AUM brokerage engine.
+  // 0 means "no AUM" — current behavior preserved.
+  aum_allocation_percent: number;     // 0-100
+  aum_fee_percent: number;            // Annual AUM fee (default 1)
+  aum_dividend_yield: number;         // Annual dividend yield % (default 2) — taxed at LTCG
+  aum_turnover_percent: number;       // Annual turnover % of unrealized gains (default 10) — taxed at LTCG
+  aum_withdrawal_years: number;       // Years to spread the IRA-to-AUM transfer over (default 5)
+  ltcg_rate: number;                  // Long-term capital gains rate (default 15) — used for AUM tax drag
+
   // ===== Legacy fields (kept for backwards compatibility) =====
   date_of_birth: string | null;  // ISO date string YYYY-MM-DD (deprecated, use age)
   spouse_dob: string | null;

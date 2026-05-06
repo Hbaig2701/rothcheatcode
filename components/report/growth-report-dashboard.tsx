@@ -242,12 +242,33 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           </div>
 
           <div className="pt-5 border-t border-border-default">
-            <p className="text-base text-text-muted">
-              Convert {toUSD(blueConversions)} over {conversionYears.length} years · Stay in the {getTargetBracket()} bracket
-            </p>
-            <p className="text-sm text-text-dim mt-1">
-              Projected final Roth balance: {toUSD(blueFinalRoth)} (tax-free)
-            </p>
+            {blueConversions > 0 ? (
+              <>
+                <p className="text-base text-text-muted">
+                  Convert {toUSD(blueConversions)} over {conversionYears.length} years · Stay in the {getTargetBracket()} bracket
+                </p>
+                <p className="text-sm text-text-dim mt-1">
+                  Projected final Roth balance: {toUSD(blueFinalRoth)} (tax-free)
+                </p>
+              </>
+            ) : (
+              // 100% allocation to AUM — nothing flows through the Roth
+              // conversion engine, so the "convert $X" copy would be
+              // nonsense ("Convert $0 over 0 years"). Show a tighter
+              // sentence that matches what the strategy actually is.
+              <p className="text-base text-text-muted">
+                No Roth conversion this scenario · Full balance routed to AUM brokerage
+              </p>
+            )}
+            {(client.aum_allocation_percent ?? 0) > 0 && projection.aum_years && (
+              <p className="text-sm text-gold mt-2">
+                Split allocation:&nbsp;
+                <span className="font-medium">{(100 - (client.aum_allocation_percent ?? 0)).toFixed(0)}%</span>
+                &nbsp;Roth conversion ·&nbsp;
+                <span className="font-medium">{(client.aum_allocation_percent ?? 0).toFixed(0)}%</span>
+                &nbsp;AUM (final balance {toUSD(projection.aum_final_balance ?? 0)})
+              </p>
+            )}
           </div>
         </div>
 

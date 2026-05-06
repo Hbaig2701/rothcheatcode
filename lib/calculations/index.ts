@@ -48,6 +48,10 @@ export type { GIMetrics, GIYearData } from './guaranteed-income/types';
 // Growth FIA Engine
 export { runGrowthSimulation } from './growth-engine';
 
+// AUM (Assets Under Management) bucket — used by split-allocation feature
+export { runAumScenario, summarizeAumScenario } from './scenarios/aum';
+export type { AumScenarioInput } from './scenarios/aum';
+
 // Widow scenario (Phase 08)
 export { runWidowScenario } from './scenarios/widow';
 export type { WidowScenarioInput } from './scenarios/widow';

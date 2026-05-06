@@ -12,7 +12,7 @@ import { WithdrawalsTable } from "@/components/clients/withdrawals-table";
 export function RothWithdrawalsSection() {
   return (
     <FormSection
-      title="6. IRA / Roth Withdrawals"
+      title="8. IRA / Roth Withdrawals"
       description="Schedule voluntary withdrawals from the qualified buckets, in addition to RMDs and any Roth conversions."
     >
       <div className="sm:col-span-2 lg:col-span-3">

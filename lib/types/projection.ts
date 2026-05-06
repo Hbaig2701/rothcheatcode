@@ -92,6 +92,13 @@ export interface Projection {
   gi_break_even_age: number | null;
   gi_percent_improvement: number | null;
   gi_baseline_yearly_data: GIYearlyData[] | null;
+
+  // AUM split-allocation. Populated when the client has aum_allocation_percent > 0
+  // — each year of the AUM bucket is stored separately so the report can
+  // toggle between the Roth side, the AUM side, and the combined view.
+  // Null when AUM allocation is off (current behavior).
+  aum_years: YearlyResult[] | null;
+  aum_final_balance: number | null;
 }
 
 export type ProjectionInsert = Omit<Projection, 'id' | 'created_at'>;

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { runSimulation, createSimulationInput, runGuaranteedIncomeSimulation, runGrowthSimulation } from '@/lib/calculations';
+import { runSimulation, createSimulationInput, runGuaranteedIncomeSimulation, runGrowthSimulation, runAumScenario } from '@/lib/calculations';
 import type { Client } from '@/lib/types/client';
 import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projection';
-import type { SimulationResult } from '@/lib/calculations';
+import type { SimulationResult, YearlyResult } from '@/lib/calculations';
 import type { GIMetrics } from '@/lib/calculations/guaranteed-income/types';
 import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage } from '@/lib/usage';
@@ -13,7 +13,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 45; // v45: All four engines (baseline, formula, growth-formula, GI) now suppress spouse_age in YearlyResult when filing_status is single/HoH so a stale spouse_age can no longer leak into the year-by-year table after an advisor switches a client back to single. Math was already gated; this fixes the display side. Cached projections need recompute since YearlyResult.spouseAge values change.
+const PRODUCT_CONFIG_VERSION = 46; // v46: AUM split-allocation. When client.aum_allocation_percent > 0, the IRA is split — the Roth side runs on (qualified × (1-pct)) through the existing engine, and the AUM side runs through the new aum-engine on (qualified × pct). The blueprint_years column carries the COMBINED state (Roth + AUM) so existing display logic keeps working; aum_years is stored separately for bucket-level breakdown in the year-by-year table.
 
 function generateInputHash(client: Client, customProduct?: CustomProductRow | null): string {
   const relevantFields = {
@@ -93,6 +93,13 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     // GI 4-phase model fields
     gi_conversion_years: client.gi_conversion_years,
     gi_conversion_bracket: client.gi_conversion_bracket,
+    // AUM split-allocation
+    aum_allocation_percent: client.aum_allocation_percent,
+    aum_fee_percent: client.aum_fee_percent,
+    aum_dividend_yield: client.aum_dividend_yield,
+    aum_turnover_percent: client.aum_turnover_percent,
+    aum_withdrawal_years: client.aum_withdrawal_years,
+    ltcg_rate: client.ltcg_rate,
   };
   return crypto.createHash('sha256').update(JSON.stringify(relevantFields)).digest('hex');
 }
@@ -109,16 +116,111 @@ function getStrategyFromConversionType(conversionType?: string): string {
   }
 }
 
+/**
+ * Combine the Roth-side YearlyResult array with the AUM-side YearlyResult
+ * array element-wise. Used by the split-allocation feature so the dashboard's
+ * existing display logic (which reads blueprint_years for the strategy
+ * column) sees one combined trajectory across both buckets.
+ *
+ * Sums balances + cash flows; adopts the Roth side for "who's the client"
+ * fields like spouseAge, totalIncome breakdowns, etc. The AUM-only array is
+ * stored separately so the report can show the bucket-level breakdown.
+ */
+function combineRothAndAum(roth: YearlyResult[], aum: YearlyResult[]): YearlyResult[] {
+  const length = Math.min(roth.length, aum.length);
+  const combined: YearlyResult[] = [];
+  for (let i = 0; i < length; i++) {
+    const r = roth[i];
+    const a = aum[i];
+    combined.push({
+      // Identifiers come from the Roth side — they're the same calendar
+      // year/age either way.
+      year: r.year,
+      age: r.age,
+      spouseAge: r.spouseAge,
+
+      // Balances: sum across both buckets.
+      traditionalBalance: r.traditionalBalance + a.traditionalBalance,
+      rothBalance: r.rothBalance + a.rothBalance,
+      taxableBalance: r.taxableBalance + a.taxableBalance,
+
+      // Cash flows
+      rmdAmount: r.rmdAmount + a.rmdAmount,
+      conversionAmount: r.conversionAmount + a.conversionAmount,
+      ssIncome: r.ssIncome,
+      pensionIncome: r.pensionIncome,
+      otherIncome: r.otherIncome,
+      totalIncome: r.totalIncome + (a.totalIncome ?? 0),
+
+      // Taxes — both engines compute their own slice. Sum.
+      federalTax: r.federalTax + a.federalTax,
+      stateTax: r.stateTax + a.stateTax,
+      niitTax: r.niitTax + a.niitTax,
+      irmaaSurcharge: r.irmaaSurcharge + a.irmaaSurcharge,
+      totalTax: r.totalTax + a.totalTax,
+
+      taxableSS: r.taxableSS,
+      netWorth: r.netWorth + a.netWorth,
+
+      // Surrender / cumulative — Roth side authoritative
+      surrenderChargePercent: r.surrenderChargePercent,
+      surrenderValue: r.surrenderValue,
+      cumulativeDistributions: r.cumulativeDistributions,
+
+      // Extended fields — sum where both buckets contribute
+      traditionalBOY: (r.traditionalBOY ?? 0) + (a.traditionalBOY ?? 0),
+      rothBOY: (r.rothBOY ?? 0) + (a.rothBOY ?? 0),
+      taxableBOY: (r.taxableBOY ?? 0) + (a.taxableBOY ?? 0),
+      traditionalGrowth: (r.traditionalGrowth ?? 0) + (a.traditionalGrowth ?? 0),
+      rothGrowth: (r.rothGrowth ?? 0) + (a.rothGrowth ?? 0),
+      taxableGrowth: (r.taxableGrowth ?? 0) + (a.taxableGrowth ?? 0),
+      productBonusApplied: r.productBonusApplied,
+      magi: r.magi,
+      agi: r.agi,
+      standardDeduction: r.standardDeduction,
+      taxableIncome: r.taxableIncome,
+      federalTaxBracket: r.federalTaxBracket,
+      irmaaTier: r.irmaaTier,
+      federalTaxOnSS: r.federalTaxOnSS,
+      federalTaxOnConversions: r.federalTaxOnConversions,
+      federalTaxOnOrdinaryIncome: (r.federalTaxOnOrdinaryIncome ?? 0) + (a.federalTaxOnOrdinaryIncome ?? 0),
+      stateTaxOnSS: r.stateTaxOnSS,
+      stateTaxOnConversions: r.stateTaxOnConversions,
+      stateTaxOnOrdinaryIncome: (r.stateTaxOnOrdinaryIncome ?? 0) + (a.stateTaxOnOrdinaryIncome ?? 0),
+      totalIRAWithdrawal: (r.totalIRAWithdrawal ?? 0) + (a.totalIRAWithdrawal ?? 0),
+      taxesPaidFromIRA: r.taxesPaidFromIRA,
+      earlyWithdrawalPenalty: r.earlyWithdrawalPenalty,
+      iraWithdrawal: (r.iraWithdrawal ?? 0) + (a.iraWithdrawal ?? 0),
+      rothWithdrawal: r.rothWithdrawal,
+
+      // GI fields stay on the Roth side
+      incomeRiderValue: r.incomeRiderValue,
+      accumulationValue: r.accumulationValue,
+      incomePayoutAmount: r.incomePayoutAmount,
+      riderFee: r.riderFee,
+      giPhase: r.giPhase,
+      giIncomeNet: r.giIncomeNet,
+      giCumulativeIncome: r.giCumulativeIncome,
+      giRollUpGrowth: r.giRollUpGrowth,
+      giPayoutRate: r.giPayoutRate,
+      giConversionTax: r.giConversionTax,
+    });
+  }
+  return combined;
+}
+
 function simulationToProjection(
   clientId: string,
   userId: string,
   client: Client,
   result: SimulationResult,
   inputHash: string,
-  giMetrics?: GIMetrics
+  giMetrics?: GIMetrics,
+  aumYears: YearlyResult[] | null = null,
 ): ProjectionInsert {
   const lastBaseline = result.baseline[result.baseline.length - 1];
   const lastFormula = result.formula[result.formula.length - 1];
+  const lastAum = aumYears && aumYears.length > 0 ? aumYears[aumYears.length - 1] : null;
 
   // Determine strategy from conversion_type or legacy strategy field
   const strategy = client.conversion_type
@@ -181,7 +283,54 @@ function simulationToProjection(
     gi_break_even_age: giMetrics?.comparison?.breakEvenAge ?? null,
     gi_percent_improvement: giMetrics?.comparison?.percentImprovement ?? null,
     gi_baseline_yearly_data: giMetrics?.baselineYearlyData ?? null,
+
+    // AUM bucket — null when split-allocation isn't active.
+    aum_years: aumYears,
+    aum_final_balance: lastAum ? lastAum.taxableBalance : null,
   };
+}
+
+/**
+ * Run the AUM bucket if the client has aum_allocation_percent > 0, then
+ * return the combined Roth+AUM YearlyResult array (replacing result.formula)
+ * + the AUM-only array stored separately.
+ *
+ * The Roth engine still ran on the SPLIT slice — we don't re-run it here.
+ * What we do is take its already-computed strategy years and fold the AUM
+ * bucket on top, so blueprint_years carries the combined trajectory.
+ */
+function runAumOverlay(client: Client, result: SimulationResult): { combinedFormula: YearlyResult[]; aumYears: YearlyResult[] | null } {
+  const pct = client.aum_allocation_percent ?? 0;
+  if (pct <= 0) return { combinedFormula: result.formula, aumYears: null };
+
+  const startingIraPortion = Math.round((client.qualified_account_value ?? 0) * (pct / 100));
+  if (startingIraPortion <= 0) return { combinedFormula: result.formula, aumYears: null };
+
+  const startYear = result.formula[0]?.year ?? new Date().getFullYear();
+  const projectionYears = result.formula.length;
+
+  const aumYears = runAumScenario({
+    startingIraPortion,
+    client,
+    startYear,
+    projectionYears,
+  });
+
+  const combinedFormula = combineRothAndAum(result.formula, aumYears);
+  return { combinedFormula, aumYears };
+}
+
+/**
+ * Build a "split client" — a shallow copy of the client whose
+ * qualified_account_value is reduced to the Roth-side slice. Used so the
+ * existing Roth engines run on the right starting balance when split
+ * allocation is on.
+ */
+function buildRothSideClient(client: Client): Client {
+  const pct = client.aum_allocation_percent ?? 0;
+  if (pct <= 0) return client;
+  const reduced = Math.round((client.qualified_account_value ?? 0) * (1 - pct / 100));
+  return { ...client, qualified_account_value: reduced };
 }
 
 export async function GET(
@@ -251,20 +400,50 @@ export async function GET(
     // Run simulation - dispatch to GI or standard engine based on product type.
     // customProduct (loaded above) is passed through so the resolver can overlay
     // its config on top of the system preset for engine-internal data.
-    const simulationInput = createSimulationInput(typedClient, customProduct);
+    //
+    // When client.aum_allocation_percent > 0, we additionally:
+    //   1. Run the chosen Roth engine on the REDUCED slice (Roth side)
+    //   2. Run the AUM engine on the AUM slice
+    //   3. Combine year-by-year so blueprint_years reflects the FULL strategy
+    //   The baseline always runs on the full IRA — that's the "do nothing"
+    //   comparison the advisor wants to anchor against.
     const formulaType = typedClient.blueprint_type as FormulaType;
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
+    const rothSideClient = buildRothSideClient(typedClient);
+    const baselineSimInput = createSimulationInput(typedClient, customProduct);
+    const rothSimInput = createSimulationInput(rothSideClient, customProduct);
     let projectionInsert: ProjectionInsert;
     if (isGI) {
-      const giResult = runGuaranteedIncomeSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, typedClient, giResult, inputHash, giResult.giMetrics);
+      // For GI products with split-allocation, the GI calculation also needs
+      // to run against the reduced Roth-side balance. The baseline-side of
+      // the GI result is replaced with a full-balance baseline below so the
+      // "do nothing" comparison stays honest.
+      const giSplitResult = runGuaranteedIncomeSimulation(rothSimInput);
+      const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
+        ? runGuaranteedIncomeSimulation(baselineSimInput).baseline
+        : giSplitResult.baseline;
+      const splitWithFullBaseline = { ...giSplitResult, baseline: baselineFull };
+      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giSplitResult.giMetrics, aumYears);
     } else if (isGrowthProduct(formulaType)) {
-      // Growth FIA: uses growth formula with anniversary bonus, standard baseline with RMDs
-      const result = runGrowthSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, typedClient, result, inputHash);
+      const splitResult = runGrowthSimulation(rothSimInput);
+      const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
+        ? runGrowthSimulation(baselineSimInput).baseline
+        : splitResult.baseline;
+      const splitWithFullBaseline = { ...splitResult, baseline: baselineFull };
+      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     } else {
-      const result = runSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, typedClient, result, inputHash);
+      const splitResult = runSimulation(rothSimInput);
+      const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
+        ? runSimulation(baselineSimInput).baseline
+        : splitResult.baseline;
+      const splitWithFullBaseline = { ...splitResult, baseline: baselineFull };
+      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     }
 
     const { data: newProjection, error: insertError } = await supabase
@@ -332,22 +511,43 @@ export async function POST(
       : null;
 
     const inputHash = generateInputHash(typedClient, customProduct);
-    const simulationInput = createSimulationInput(typedClient, customProduct);
+    // Same split-allocation flow as the GET handler — runs the chosen Roth
+    // engine on the reduced slice, the AUM engine on the AUM slice, combines
+    // them, and stores aum_years separately.
     const formulaType = typedClient.blueprint_type as FormulaType;
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
+    const rothSideClient = buildRothSideClient(typedClient);
+    const baselineSimInput = createSimulationInput(typedClient, customProduct);
+    const rothSimInput = createSimulationInput(rothSideClient, customProduct);
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {
-      const giResult = runGuaranteedIncomeSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, typedClient, giResult, inputHash, giResult.giMetrics);
+      const giSplitResult = runGuaranteedIncomeSimulation(rothSimInput);
+      const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
+        ? runGuaranteedIncomeSimulation(baselineSimInput).baseline
+        : giSplitResult.baseline;
+      const splitWithFullBaseline = { ...giSplitResult, baseline: baselineFull };
+      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giSplitResult.giMetrics, aumYears);
     } else if (isGrowthProduct(formulaType)) {
-      // Growth FIA: uses growth engine with anniversary bonus support
-      const result = runGrowthSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, typedClient, result, inputHash);
+      const splitResult = runGrowthSimulation(rothSimInput);
+      const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
+        ? runGrowthSimulation(baselineSimInput).baseline
+        : splitResult.baseline;
+      const splitWithFullBaseline = { ...splitResult, baseline: baselineFull };
+      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     } else {
-      // Legacy: use standard simulation
-      const result = runSimulation(simulationInput);
-      projectionInsert = simulationToProjection(clientId, user.id, typedClient, result, inputHash);
+      const splitResult = runSimulation(rothSimInput);
+      const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
+        ? runSimulation(baselineSimInput).baseline
+        : splitResult.baseline;
+      const splitWithFullBaseline = { ...splitResult, baseline: baselineFull };
+      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     }
 
     const { data: newProjection, error: insertError } = await supabase

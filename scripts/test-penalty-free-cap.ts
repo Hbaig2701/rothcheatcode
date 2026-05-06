@@ -49,6 +49,8 @@ function makeClient(overrides: Partial<Client>): Client {
     target_partial_amount: null,
     respect_penalty_free_limit: false,
     protect_initial_premium: false, // Keep simple — disable floor
+  // AUM split-allocation (off by default)
+  aum_allocation_percent: 0, aum_fee_percent: 1, aum_dividend_yield: 2, aum_turnover_percent: 10, aum_withdrawal_years: 5, ltcg_rate: 15,
     withdrawal_type: "no_withdrawals",
     payout_type: "individual",
     income_start_age: 65,

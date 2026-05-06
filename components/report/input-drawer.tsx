@@ -21,6 +21,7 @@ import { NewAccountSection } from "@/components/clients/sections/new-account";
 import { TaxDataSection } from "@/components/clients/sections/tax-data";
 import { TaxableIncomeSection } from "@/components/clients/sections/taxable-income";
 import { ConversionSection } from "@/components/clients/sections/conversion";
+import { AumAllocationSection } from "@/components/clients/sections/aum-allocation";
 import { RothWithdrawalsSection } from "@/components/clients/sections/roth-withdrawals";
 import { AdvancedDataSection } from "@/components/clients/sections/advanced-data";
 
@@ -84,6 +85,13 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       rmd_treatment: client?.rmd_treatment ?? "reinvested",
       fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
       target_partial_amount: client?.target_partial_amount ?? null,
+      // AUM split-allocation defaults — 0 means feature off.
+      aum_allocation_percent: client?.aum_allocation_percent ?? 0,
+      aum_fee_percent: client?.aum_fee_percent ?? 1,
+      aum_dividend_yield: client?.aum_dividend_yield ?? 2,
+      aum_turnover_percent: client?.aum_turnover_percent ?? 10,
+      aum_withdrawal_years: client?.aum_withdrawal_years ?? 5,
+      ltcg_rate: client?.ltcg_rate ?? 15,
       surrender_schedule: client?.surrender_schedule ?? null,
       taxable_accounts: client?.taxable_accounts ?? 0,
       roth_ira: client?.roth_ira ?? 0,
@@ -364,6 +372,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
             <TaxDataSection />
             <TaxableIncomeSection />
             <ConversionSection />
+            <AumAllocationSection />
             <RothWithdrawalsSection />
             <AdvancedDataSection />
           </form>

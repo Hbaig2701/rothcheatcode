@@ -21,6 +21,7 @@ import { NewAccountSection } from "./sections/new-account";
 import { TaxDataSection } from "./sections/tax-data";
 import { TaxableIncomeSection } from "./sections/taxable-income";
 import { ConversionSection } from "./sections/conversion";
+import { AumAllocationSection } from "./sections/aum-allocation";
 import { RothWithdrawalsSection } from "./sections/roth-withdrawals";
 import { AdvancedDataSection } from "./sections/advanced-data";
 
@@ -114,6 +115,13 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
       widow_analysis: client?.widow_analysis ?? false,
       widow_death_age: client?.widow_death_age ?? null,
       rmd_treatment: client?.rmd_treatment ?? (ud.rmd_treatment as ClientFormData["rmd_treatment"]) ?? "reinvested",
+      // AUM split-allocation defaults — 0% means feature off (current behavior).
+      aum_allocation_percent: client?.aum_allocation_percent ?? 0,
+      aum_fee_percent: client?.aum_fee_percent ?? 1,
+      aum_dividend_yield: client?.aum_dividend_yield ?? 2,
+      aum_turnover_percent: client?.aum_turnover_percent ?? 10,
+      aum_withdrawal_years: client?.aum_withdrawal_years ?? 5,
+      ltcg_rate: client?.ltcg_rate ?? 15,
 
       // Additional fields needed
       taxable_accounts: client?.taxable_accounts ?? 0,
@@ -331,6 +339,7 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
             <TaxDataSection />
             <TaxableIncomeSection />
             <ConversionSection />
+            <AumAllocationSection />
             <RothWithdrawalsSection />
             <AdvancedDataSection />
 

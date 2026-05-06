@@ -61,7 +61,7 @@ export function AdvancedDataSection() {
           <ChevronRight className="size-4 text-muted-foreground shrink-0" />
         )}
         <span className="text-xs font-medium uppercase tracking-[1.5px] text-text-muted group-hover:text-foreground transition-colors">
-          8. Advanced Data
+          9. Advanced Data
         </span>
         <span className="ml-auto text-[11px] text-text-dim">
           {isExpanded ? "Collapse" : "Expand"}

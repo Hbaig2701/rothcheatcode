@@ -22,6 +22,7 @@ import { NewAccountSection } from "@/components/clients/sections/new-account";
 import { TaxDataSection } from "@/components/clients/sections/tax-data";
 import { TaxableIncomeSection } from "@/components/clients/sections/taxable-income";
 import { ConversionSection } from "@/components/clients/sections/conversion";
+import { AumAllocationSection } from "@/components/clients/sections/aum-allocation";
 import { RothWithdrawalsSection } from "@/components/clients/sections/roth-withdrawals";
 import { AdvancedDataSection } from "@/components/clients/sections/advanced-data";
 
@@ -68,6 +69,13 @@ export function InputSidebar({ client }: InputSidebarProps) {
             conversion_type: client?.conversion_type ?? "optimized_amount",
             fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
             target_partial_amount: client?.target_partial_amount ?? null,
+            // AUM split-allocation defaults — 0 means feature off.
+            aum_allocation_percent: client?.aum_allocation_percent ?? 0,
+            aum_fee_percent: client?.aum_fee_percent ?? 1,
+            aum_dividend_yield: client?.aum_dividend_yield ?? 2,
+            aum_turnover_percent: client?.aum_turnover_percent ?? 10,
+            aum_withdrawal_years: client?.aum_withdrawal_years ?? 5,
+            ltcg_rate: client?.ltcg_rate ?? 15,
             protect_initial_premium: client?.protect_initial_premium ?? true,
             withdrawal_type: client?.withdrawal_type ?? "no_withdrawals",
             payout_type: client?.payout_type ?? "individual",
@@ -361,6 +369,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
                         <TaxDataSection />
                         <TaxableIncomeSection />
                         <ConversionSection />
+                        <AumAllocationSection />
                         <RothWithdrawalsSection />
                         <AdvancedDataSection />
                     </form>
