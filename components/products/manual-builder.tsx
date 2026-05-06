@@ -635,7 +635,7 @@ export function ManualBuilder({
               value={config.withdrawals.penalty_free_percent}
               onChange={(e) => updateConfig("withdrawals", { ...config.withdrawals, penalty_free_percent: parseFloat(e.target.value) || 0 })}
             />
-            <FieldDescription>% the client can withdraw each year with no surrender charge. Most FIAs allow 10%.</FieldDescription>
+            <FieldDescription>% the client can withdraw each year with no surrender charge. Most FIAs allow 10% (Athene Base: 5%). When this product is selected on a client, the engine will plan conversions within this cap during the surrender period.</FieldDescription>
           </Field>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

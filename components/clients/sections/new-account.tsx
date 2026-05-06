@@ -82,6 +82,12 @@ export function NewAccountSection() {
     form.setValue("bonus_percent", bonusPct);
     form.setValue("surrender_years", cfg.surrender.years);
     form.setValue("penalty_free_percent", cfg.withdrawals.penalty_free_percent);
+    // Auto-engage the carrier penalty-free cap. Picking a custom product is an
+    // explicit statement that "this carrier limits withdrawals to X% during the
+    // surrender period" — so the engine should respect that when planning
+    // conversions, not silently exceed it. Without this, products like
+    // Athene Base (5% cap) would display "5%" but plan 20%/yr conversions.
+    form.setValue("respect_penalty_free_limit", true);
     form.setValue("rate_of_return", cfg.form_defaults?.rate_of_return ?? 7);
     form.setValue("anniversary_bonus_percent", cfg.bonus.anniversary_rate ?? null);
     form.setValue("anniversary_bonus_years", cfg.bonus.anniversary_years ?? null);
