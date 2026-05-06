@@ -226,6 +226,25 @@ export interface YearlyResult {
   iraWithdrawal?: number;
   rothWithdrawal?: number;
 
+  // AUM split-allocation bucket fields. Populated by combineRothAndAum on
+  // the COMBINED YearlyResult only (i.e. blueprint_years when a client has
+  // aum_allocation_percent > 0). Undefined when AUM is off so the year-by-
+  // year deep-dive table can hide these columns automatically.
+  // - aumBalance: end-of-year balance of the managed brokerage portion
+  //   (a SUBSET of taxableBalance, which is the combined Roth-side taxable +
+  //   AUM brokerage)
+  // - aumTransfer: this year's IRA-to-AUM pull (a SUBSET of iraWithdrawal,
+  //   which combines AUM-engine transfers + advisor-scheduled voluntary IRA
+  //   withdrawals — splitting these out keeps each column's meaning clean)
+  // - aumTax: total AUM-side tax for the year (ordinary tax on the transfer
+  //   + dividend drag + realized cap-gains turnover + 10% penalty if any).
+  //   This is a SUBSET of totalTax — it's ALREADY counted in federalTax +
+  //   stateTax + earlyWithdrawalPenalty on the combined row, so don't add
+  //   it on top when computing lifetime tax cost.
+  aumBalance?: number;
+  aumTransfer?: number;
+  aumTax?: number;
+
   // Guaranteed Income-specific (optional, for GI products)
   incomeRiderValue?: number; // Income benefit base (in cents)
   accumulationValue?: number; // Account accumulation value (in cents)

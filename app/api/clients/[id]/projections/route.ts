@@ -13,7 +13,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 46; // v46: AUM split-allocation. When client.aum_allocation_percent > 0, the IRA is split — the Roth side runs on (qualified × (1-pct)) through the existing engine, and the AUM side runs through the new aum-engine on (qualified × pct). The blueprint_years column carries the COMBINED state (Roth + AUM) so existing display logic keeps working; aum_years is stored separately for bucket-level breakdown in the year-by-year table.
+const PRODUCT_CONFIG_VERSION = 48; // v48: combineRothAndAum also writes per-year aumBalance / aumTransfer / aumTax onto the combined blueprint_years rows so the year-by-year deep-dive table can render AUM bucket columns. Cached projections need recompute for any client with AUM allocation > 0; non-AUM projections are unaffected (fields stay undefined).
 
 function generateInputHash(client: Client, customProduct?: CustomProductRow | null): string {
   const relevantFields = {
@@ -189,9 +189,19 @@ function combineRothAndAum(roth: YearlyResult[], aum: YearlyResult[]): YearlyRes
       stateTaxOnOrdinaryIncome: (r.stateTaxOnOrdinaryIncome ?? 0) + (a.stateTaxOnOrdinaryIncome ?? 0),
       totalIRAWithdrawal: (r.totalIRAWithdrawal ?? 0) + (a.totalIRAWithdrawal ?? 0),
       taxesPaidFromIRA: r.taxesPaidFromIRA,
-      earlyWithdrawalPenalty: r.earlyWithdrawalPenalty,
+      // Both engines can produce early-withdrawal penalties (Roth side: when
+      // tax is paid from the IRA under 59½; AUM side: on every IRA-to-AUM
+      // pull under 59½). Sum so the dashboard sees the full lifetime amount.
+      earlyWithdrawalPenalty: (r.earlyWithdrawalPenalty ?? 0) + (a.earlyWithdrawalPenalty ?? 0),
       iraWithdrawal: (r.iraWithdrawal ?? 0) + (a.iraWithdrawal ?? 0),
       rothWithdrawal: r.rothWithdrawal,
+      // AUM bucket subset fields — surface the AUM-side numbers separately
+      // so the year-by-year deep-dive table can show "AUM Bucket Balance,"
+      // "AUM Transfer," and "AUM Tax" columns without the advisor having to
+      // mentally subtract the AUM portion out of taxableBalance / iraWithdrawal.
+      aumBalance: a.taxableBalance,
+      aumTransfer: a.iraWithdrawal ?? 0,
+      aumTax: a.totalTax,
 
       // GI fields stay on the Roth side
       incomeRiderValue: r.incomeRiderValue,

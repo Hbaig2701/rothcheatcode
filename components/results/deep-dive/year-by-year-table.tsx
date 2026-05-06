@@ -26,6 +26,15 @@ interface YearByYearTableProps {
   nonSsiIncome?: NonSSIIncomeEntry[];
   clientId?: string; // Per-client column preferences
   filingStatus?: string; // When non-married, the Spouse Age column is suppressed.
+  /**
+   * When widow analysis is on, the engine doesn't tag each year with a filing
+   * status — but the report needs to surface the MFJ → Single switch in the
+   * "Filing Status" column. We compute the per-year value at render time
+   * using the death age + the row's age. Pass these through so the table can
+   * inject the right value before the formatter runs.
+   */
+  widowAnalysis?: boolean;
+  widowDeathAge?: number | null;
 }
 
 /**
@@ -36,7 +45,16 @@ interface YearByYearTableProps {
  * - Horizontal scroll
  * - Preferences saved to localStorage
  */
-export function YearByYearTable({ years, scenario, productType = "growth", nonSsiIncome, clientId, filingStatus }: YearByYearTableProps) {
+export function YearByYearTable({
+  years,
+  scenario,
+  productType = "growth",
+  nonSsiIncome,
+  clientId,
+  filingStatus,
+  widowAnalysis = false,
+  widowDeathAge = null,
+}: YearByYearTableProps) {
   const [modalOpen, setModalOpen] = useState(false);
 
   // Storage key is per-client so each client keeps its own column preferences.
@@ -46,22 +64,48 @@ export function YearByYearTable({ years, scenario, productType = "growth", nonSs
   // Inject per-type income breakdowns into each row so columns like
   // "Pension", "Rental Income", etc. can display values. This is computed
   // at the display layer — the engine doesn't track income by type.
+  // Also injects a per-year filing status string when widow analysis is on,
+  // so the "Filing Status" column shows the MFJ → Single switch at the
+  // configured death age. Engine doesn't track filing status per year.
   const enrichedYears = useMemo(() => {
-    if (!nonSsiIncome || nonSsiIncome.length === 0) return years;
+    // Build the per-year non-SSI income breakdown lookup.
     const byYear = new Map<number, Record<string, number>>();
-    for (const entry of nonSsiIncome) {
+    for (const entry of nonSsiIncome ?? []) {
       const colId = INCOME_TYPE_TO_COLUMN[entry.type ?? "other"] ?? "incomeOther";
       if (!colId) continue;
       const existing = byYear.get(entry.year) ?? {};
       existing[colId] = (existing[colId] ?? 0) + entry.gross_taxable;
       byYear.set(entry.year, existing);
     }
-    if (byYear.size === 0) return years;
+
+    // Map filing_status enum -> human label for the column.
+    const filingStatusLabel = (() => {
+      switch (filingStatus) {
+        case "married_filing_jointly": return "MFJ";
+        case "married_filing_separately": return "MFS";
+        case "head_of_household": return "HoH";
+        case "single": return "Single";
+        default: return "—";
+      }
+    })();
+
     return years.map((y) => {
       const typeBreakdown = byYear.get(y.year);
-      return typeBreakdown ? { ...y, ...typeBreakdown } : y;
+      // Filing status: defaults to the client's status. When widow analysis
+      // is on AND the row is at-or-after the configured death age, the
+      // surviving spouse files single — same heuristic the engine uses.
+      let perYearFilingStatus: string = filingStatusLabel;
+      if (widowAnalysis && widowDeathAge != null && y.age >= widowDeathAge && filingStatusLabel === "MFJ") {
+        perYearFilingStatus = "Single (Widow)";
+      }
+      const merged: YearlyResult & Record<string, unknown> = {
+        ...y,
+        ...(typeBreakdown ?? {}),
+        filingStatus: perYearFilingStatus,
+      };
+      return merged;
     });
-  }, [years, nonSsiIncome]);
+  }, [years, nonSsiIncome, filingStatus, widowAnalysis, widowDeathAge]);
 
   // Load column preferences from localStorage (or use defaults).
   // Key includes clientId so each client keeps its own column selection.

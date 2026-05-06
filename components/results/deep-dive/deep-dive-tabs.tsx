@@ -89,12 +89,28 @@ export function DeepDiveTabs({ projection, client }: DeepDiveTabsProps) {
 
       {/* Baseline Tab */}
       <TabsContent value="baseline" className="mt-6">
-        <YearByYearTable years={projection.baseline_years} scenario="baseline" nonSsiIncome={client.non_ssi_income} clientId={client.id} filingStatus={client.filing_status} />
+        <YearByYearTable
+          years={projection.baseline_years}
+          scenario="baseline"
+          nonSsiIncome={client.non_ssi_income}
+          clientId={client.id}
+          filingStatus={client.filing_status}
+          widowAnalysis={client.widow_analysis}
+          widowDeathAge={client.widow_death_age}
+        />
       </TabsContent>
 
       {/* Formula Tab */}
       <TabsContent value="formula" className="mt-6">
-        <YearByYearTable years={projection.blueprint_years} scenario="formula" nonSsiIncome={client.non_ssi_income} clientId={client.id} filingStatus={client.filing_status} />
+        <YearByYearTable
+          years={projection.blueprint_years}
+          scenario="formula"
+          nonSsiIncome={client.non_ssi_income}
+          clientId={client.id}
+          filingStatus={client.filing_status}
+          widowAnalysis={client.widow_analysis}
+          widowDeathAge={client.widow_death_age}
+        />
       </TabsContent>
 
       {/* Schedule Tab */}

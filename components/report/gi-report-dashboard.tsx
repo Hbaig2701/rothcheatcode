@@ -618,6 +618,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
               nonSsiIncome={client.non_ssi_income}
               clientId={client.id}
               filingStatus={client.filing_status}
+              widowAnalysis={client.widow_analysis}
+              widowDeathAge={client.widow_death_age}
             />
           </div>
 
