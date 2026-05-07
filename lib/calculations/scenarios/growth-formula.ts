@@ -557,7 +557,11 @@ export function runGrowthFormulaScenario(
     const magi = calculateMAGI(grossNonSSIncome, taxExemptNonSSI) + ssIncome;
     const standardDeduction = deductions;
     const taxableIncomeForTax = finalTaxInfo.taxableIncome;
-    const federalTaxBracket = getMarginalBracket(taxableIncomeForTax, client.filing_status);
+    // Pass year so the bracket lookup uses the right inflation-adjusted thresholds.
+    // Without year, the function defaults to 2026 — which made the year-by-year
+    // display show much higher marginal brackets than the actual conversion math
+    // was using (the conversion engine itself uses inflation-adjusted brackets).
+    const federalTaxBracket = getMarginalBracket(taxableIncomeForTax, client.filing_status, year);
 
     // Full federal/state tax on the year's total taxable income.
     const totalFederalTax = calculateFederalTax({
