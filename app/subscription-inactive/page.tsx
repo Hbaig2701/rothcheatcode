@@ -1,96 +1,62 @@
-'use client'
+import { redirect } from 'next/navigation'
+import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { SubscriptionInactiveContent } from './subscription-inactive-content'
 
-import { useEffect, useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle } from 'lucide-react'
+// Server component. Runs the SAME subscription-status check the dashboard
+// layout uses, but in REVERSE — if the user IS actually entitled to access
+// the dashboard, we redirect them straight there.
+//
+// This is what makes the page self-healing: anyone who got stuck on this
+// route from a transient outage (bad RLS policy, stale Stripe webhook, etc.)
+// automatically lands on /dashboard the next time they hit any page in the
+// app. No log-out / log-in required.
+export default async function SubscriptionInactivePage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-export default function SubscriptionInactivePage() {
-  const [isTeamMember, setIsTeamMember] = useState<boolean | null>(null)
-  const [hasStripeSubscription, setHasStripeSubscription] = useState(false)
+  // Not signed in → bounce to login
+  if (!user) {
+    redirect('/login')
+  }
 
-  useEffect(() => {
-    fetch('/api/billing/usage')
-      .then((res) => res.json())
-      .then((data) => {
-        setIsTeamMember(data.isTeamMember ?? false)
-        setHasStripeSubscription(data.hasStripeSubscription ?? false)
-      })
-      .catch(() => {
-        setIsTeamMember(false)
-        setHasStripeSubscription(false)
-      })
-  }, [])
+  // Same shape of check the dashboard layout runs
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_active, plan, subscription_status, stripe_customer_id, team_owner_id')
+    .eq('id', user.id)
+    .single()
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[rgba(245,158,11,0.15)]">
-            <AlertCircle className="h-6 w-6 text-[#f59e0b]" />
-          </div>
-          <CardTitle>Subscription Inactive</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 text-center">
-          {isTeamMember ? (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Your team owner&apos;s subscription is no longer active. Please contact your team owner to restore access.
-              </p>
-              <div className="flex flex-col gap-2">
-                <a href="/plans">
-                  <Button className="w-full">
-                    Get Your Own Subscription
-                  </Button>
-                </a>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Your subscription is no longer active. {hasStripeSubscription
-                  ? 'Please update your payment method to continue using the platform.'
-                  : 'Please subscribe to continue using the platform.'}
-              </p>
-              <div className="flex flex-col gap-2">
-                {hasStripeSubscription && (
-                  <Button
-                    className="w-full"
-                    onClick={async () => {
-                      const res = await fetch('/api/billing/portal', { method: 'POST' })
-                      const data = await res.json()
-                      if (data.url) window.location.href = data.url
-                    }}
-                  >
-                    Update Payment Method
-                  </Button>
-                )}
+  if (profile?.is_active === false) {
+    // Truly deactivated — show the static page
+    return <SubscriptionInactiveContent />
+  }
 
-                <a href="/plans">
-                  <Button variant={hasStripeSubscription ? "outline" : "default"} className="w-full">
-                    {hasStripeSubscription ? 'View Plans' : 'Subscribe Now'}
-                  </Button>
-                </a>
-              </div>
-            </>
-          )}
+  // Resolve the effective profile (the team owner's billing if team member,
+  // otherwise the user's own).
+  let billingProfile = profile
+  if (profile?.team_owner_id) {
+    const adminClient = createAdminClient()
+    const { data: owner } = await adminClient
+      .from('profiles')
+      .select('plan, subscription_status, stripe_customer_id')
+      .eq('id', profile.team_owner_id)
+      .single()
+    billingProfile = owner ? { ...profile, ...owner } : profile
+  }
 
-          <button
-            type="button"
-            onClick={async () => {
-              try {
-                await fetch('/api/auth/signout', { method: 'POST' })
-              } catch {
-                // Sign out failed, redirect anyway to clear client state
-              }
-              window.location.href = '/login'
-            }}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Or sign out
-          </button>
-        </CardContent>
-      </Card>
-    </div>
-  )
+  const isGrandfathered =
+    (billingProfile?.plan === 'pro' || billingProfile?.plan === 'standard') &&
+    !billingProfile?.stripe_customer_id
+  const hasActiveSubscription =
+    ['standard', 'starter', 'pro'].includes(billingProfile?.plan ?? '') &&
+    ['active', 'trialing'].includes(billingProfile?.subscription_status ?? '')
+
+  if (isGrandfathered || hasActiveSubscription) {
+    // User is actually fine — they got redirected here in error (e.g., from
+    // the RLS outage on 2026-05-07). Send them to the dashboard.
+    redirect('/dashboard')
+  }
+
+  return <SubscriptionInactiveContent />
 }
