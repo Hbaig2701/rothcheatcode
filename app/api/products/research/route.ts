@@ -138,17 +138,80 @@ state_availability: {
   "confidence": "verified" | "partial" | "assumed"
 }
 
-### CRITICAL — picking the default chart
+### CRITICAL — multi-chart brochures (use chart_state_groups)
 
-When a brochure has MULTIPLE STATE-GROUP CHARTS (commonly labeled "Chart A", "Chart B", "Chart C", "Chart D" or by state lists), you MUST pick the chart that applies to the LARGEST NUMBER OF STATES BY RAW COUNT as the default. Then put the OTHER charts' values into state_availability overrides for each of their constituent states.
+Many FIA brochures (Athene, American Equity, Allianz, etc.) have MULTIPLE STATE-GROUP CHARTS — labeled "Chart A", "Chart B", "Chart C", "Chart D" or by explicit state lists. Each chart has its own surrender schedule, vesting schedule, and sometimes its own bonus tier.
 
-Concrete procedure:
-1. List every chart with its state list. Count the states in each list.
-2. The chart with the highest state count is the DEFAULT. Set parameters.bonus.percentage / surrender.schedule / vesting_schedule to its values.
-3. For every state in the OTHER charts, add an entry to surrender_overrides / vesting_overrides / bonus_overrides with that chart's values.
-4. Do NOT pick by population, market share, or "what most advisors sell" — just raw state count.
+When the brochure has multiple charts, you MUST output a top-level chart_state_groups field listing EVERY chart with its EXPLICIT state list and values. The server will then deterministically pick the largest chart as the default and construct overrides — DO NOT make this judgment yourself.
 
-Example: brochure has Chart A (32 states), Chart B (16 states), Chart C (2 states), Chart D (CA only). Default = Chart A. Overrides = each of Chart B's 16 states + Chart C's 2 + CA.
+Schema:
+
+"chart_state_groups": [
+  {
+    "name": "Chart A",
+    "states": ["AL", "AZ", "AR", ...],   // every state assigned to this chart
+    "surrender_schedule": [12, 12, 12, 11, 10, 9, 8, 7, 6, 4],
+    "vesting_schedule": [0, 0, 0, 0, 0, 0, 20, 40, 60, 80],
+    "bonus_percentage": 22                // for the variant you're extracting (e.g., Plus)
+  },
+  {
+    "name": "Chart B",
+    "states": ["AK", "CT", "DE", ...],
+    "surrender_schedule": [8.3, 8.0, 7.1, 6.2, 5.3, 4.4, 3.5, 2.6, 1.6, 0.9],
+    "vesting_schedule": [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+    "bonus_percentage": 20
+  },
+  ...
+]
+
+Rules:
+1. Every state assigned to any chart in the brochure MUST appear in exactly one states array.
+2. If a chart only varies one dimension (e.g., only surrender, not vesting or bonus), copy the default chart's values for the unchanged dimensions.
+3. Don't omit charts because they only apply to 1-2 states (e.g., CA-only chart). Include all of them.
+4. If the brochure does NOT have multiple charts, OMIT chart_state_groups entirely and just fill parameters.surrender / parameters.bonus normally.
+
+When chart_state_groups is provided, the server will:
+- Pick the chart with the LARGEST state count as the default (parameters.surrender.schedule, bonus.vesting_schedule, bonus.percentage all get its values)
+- Add every state from EVERY OTHER chart to surrender_overrides / vesting_overrides / bonus_overrides with that chart's values
+
+So you don't need to populate parameters.surrender.schedule, bonus.vesting_schedule, bonus.percentage, or state_availability.{surrender,vesting,bonus}_overrides yourself when chart_state_groups is provided — the server constructs them. (Other state_availability fields like not_available, age_overrides, mva_overrides, min_premium_overrides still need to be populated normally.)
+
+### Worked example — Athene Performance Elite 10
+
+Brochure has 4 charts. The correct chart_state_groups output is:
+
+[
+  {
+    "name": "Chart A",
+    "states": ["AL", "AZ", "AR", "CO", "DC", "GA", "HI", "IL", "IN", "IA", "KS", "KY", "MA", "ME", "MI", "MO", "MS", "MT", "NE", "NH", "NM", "NC", "ND", "RI", "SD", "TN", "VT", "VA", "WV", "WI", "WY"],  // 31 states (FL ages 0-64 handled separately if needed)
+    "surrender_schedule": [12, 12, 12, 11, 10, 9, 8, 7, 6, 4],
+    "vesting_schedule": [0, 0, 0, 0, 0, 0, 20, 40, 60, 80],
+    "bonus_percentage": 22
+  },
+  {
+    "name": "Chart B",
+    "states": ["AK", "CT", "DE", "ID", "LA", "MN", "NJ", "NV", "OH", "OK", "OR", "PA", "SC", "TX", "UT", "WA"],  // 16 states
+    "surrender_schedule": [8.3, 8.0, 7.1, 6.2, 5.3, 4.4, 3.5, 2.6, 1.6, 0.9],
+    "vesting_schedule": [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+    "bonus_percentage": 20
+  },
+  {
+    "name": "Chart C",
+    "states": ["FL", "MD"],
+    "surrender_schedule": [10, 10, 10, 10, 9, 8, 7, 6, 5, 4],
+    "vesting_schedule": [0, 0, 0, 0, 0, 0, 20, 40, 60, 80],
+    "bonus_percentage": 20
+  },
+  {
+    "name": "Chart D",
+    "states": ["CA"],
+    "surrender_schedule": [8.2, 7.7, 6.6, 5.6, 4.5, 3.4, 2.3, 1.2, 0.1, 0],
+    "vesting_schedule": [10, 20, 30, 40, 50, 60, 70, 80, 90, 100],
+    "bonus_percentage": 19
+  }
+]
+
+Server picks Chart A (31 states) as default. The other 19 states (Chart B's 16 + Chart C's 2 + Chart D's 1) get overrides automatically.
 
 ### CRITICAL — not_available is for PRODUCT unavailability, not feature exclusions
 
@@ -231,11 +294,28 @@ Respond with ONE JSON object enclosed in <json>...</json> tags. No prose outside
       "confidence": "verified"
     },
     "state_availability": {
-      "not_available": ["CA", "CT", "ID", "MN", "MT", "NJ", "NY", "OH", "OR", "PA", "UT", "WA"],
-      "bonus_overrides": {"IN": 14, "DE": 15},
-      "age_overrides": {},
-      "confidence": "partial"
+      "not_available": ["NY"],
+      "age_overrides": {"FL": 78, "MD": 50},
+      "mva_overrides": {"MD": false, "MO": false},
+      "min_premium_overrides": {"AK": 5000, "CT": 5000, "DE": 5000, "ID": 5000, "IL": 5000, "LA": 5000, "MN": 5000, "MO": 5000, "MT": 5000, "NC": 5000, "NH": 5000, "NJ": 5000, "NV": 5000, "OH": 5000, "OK": 5000, "OR": 5000, "PA": 5000, "RI": 5000, "TX": 5000, "UT": 5000, "VA": 5000, "VT": 5000, "WA": 5000},
+      "confidence": "verified"
     },
+    "chart_state_groups": [
+      {
+        "name": "Chart A",
+        "states": ["AL", "AZ", "AR", "CO", "DC", "GA", "HI", "IL", "IN", "IA", "KS", "KY", "MA", "ME", "MI", "MO", "MS", "MT", "NE", "NH", "NM", "NC", "ND", "RI", "SD", "TN", "VT", "VA", "WV", "WI", "WY"],
+        "surrender_schedule": [12, 12, 12, 11, 10, 9, 8, 7, 6, 4],
+        "vesting_schedule": [0, 0, 0, 0, 0, 0, 20, 40, 60, 80],
+        "bonus_percentage": 22
+      },
+      {
+        "name": "Chart B",
+        "states": ["AK", "CT", "DE", "ID", "LA", "MN", "NJ", "NV", "OH", "OK", "OR", "PA", "SC", "TX", "UT", "WA"],
+        "surrender_schedule": [8.3, 8.0, 7.1, 6.2, 5.3, 4.4, 3.5, 2.6, 1.6, 0.9],
+        "vesting_schedule": [0, 10, 20, 30, 40, 50, 60, 70, 80, 90],
+        "bonus_percentage": 20
+      }
+    ],
     "form_defaults": {
       "rate_of_return": 7
     }
@@ -442,6 +522,91 @@ Use web search to find official carrier information, spec sheets, and agent guid
     const warnings = Array.isArray(parsed.warnings)
       ? (parsed.warnings as Array<Record<string, unknown>>)
       : [];
+
+    // ---------- chart_state_groups: deterministic default + override construction ----------
+    // When the brochure has multi-state charts (Athene Performance Elite, etc.),
+    // the AI is unreliable about which chart is "most common" — it sometimes
+    // picks a smaller chart and silently leaves the larger chart's states using
+    // the wrong default. So if the AI provided a chart_state_groups list, we
+    // ignore whatever it put in surrender.schedule / bonus.vesting_schedule /
+    // bonus.percentage / surrender_overrides / vesting_overrides / bonus_overrides
+    // and reconstruct from chart_state_groups directly.
+    const rawGroups = (rawParams.chart_state_groups as Array<Record<string, unknown>> | undefined) ?? [];
+    if (Array.isArray(rawGroups) && rawGroups.length >= 2) {
+      const groups = rawGroups
+        .map((g) => ({
+          name: typeof g.name === "string" ? g.name : "Unnamed",
+          states: Array.isArray(g.states) ? (g.states as string[]).map((s) => s.toUpperCase()) : [],
+          surrender_schedule: Array.isArray(g.surrender_schedule) ? (g.surrender_schedule as number[]) : null,
+          vesting_schedule: Array.isArray(g.vesting_schedule) ? (g.vesting_schedule as number[]) : null,
+          bonus_percentage: typeof g.bonus_percentage === "number" ? g.bonus_percentage : null,
+        }))
+        .filter((g) => g.states.length > 0);
+
+      if (groups.length >= 2) {
+        // Pick the chart with the most states as default
+        const defaultGroup = [...groups].sort((a, b) => b.states.length - a.states.length)[0];
+        const otherGroups = groups.filter((g) => g.name !== defaultGroup.name);
+
+        // Set defaults from the largest chart
+        if (defaultGroup.surrender_schedule) {
+          params.surrender.schedule = defaultGroup.surrender_schedule;
+          params.surrender.years = defaultGroup.surrender_schedule.length;
+        }
+        if (defaultGroup.vesting_schedule) {
+          (params.bonus as Record<string, unknown>).vesting_schedule = defaultGroup.vesting_schedule;
+          params.bonus.vesting_years = defaultGroup.vesting_schedule.length;
+        }
+        if (defaultGroup.bonus_percentage != null) {
+          params.bonus.percentage = defaultGroup.bonus_percentage;
+        }
+
+        // Reconstruct overrides from the other charts
+        const sa = (params.state_availability as Record<string, unknown> | null) ?? {
+          not_available: [],
+          confidence: "verified" as const,
+        };
+        params.state_availability = sa;
+        const surrenderOverrides: Record<string, number[]> = {};
+        const vestingOverrides: Record<string, number[]> = {};
+        const bonusOverrides: Record<string, number> = {};
+
+        for (const g of otherGroups) {
+          for (const state of g.states) {
+            if (g.surrender_schedule && JSON.stringify(g.surrender_schedule) !== JSON.stringify(defaultGroup.surrender_schedule)) {
+              surrenderOverrides[state] = g.surrender_schedule;
+            }
+            if (g.vesting_schedule && JSON.stringify(g.vesting_schedule) !== JSON.stringify(defaultGroup.vesting_schedule)) {
+              vestingOverrides[state] = g.vesting_schedule;
+            }
+            if (g.bonus_percentage != null && g.bonus_percentage !== defaultGroup.bonus_percentage) {
+              bonusOverrides[state] = g.bonus_percentage;
+            }
+          }
+        }
+
+        // Merge with any existing overrides the AI populated (for fields not in chart_state_groups)
+        const existingSurrender = (sa.surrender_overrides as Record<string, number[]> | undefined) ?? {};
+        const existingVesting = (sa.vesting_overrides as Record<string, number[]> | undefined) ?? {};
+        const existingBonus = (sa.bonus_overrides as Record<string, number> | undefined) ?? {};
+
+        sa.surrender_overrides = Object.keys(surrenderOverrides).length > 0
+          ? { ...existingSurrender, ...surrenderOverrides }
+          : existingSurrender;
+        sa.vesting_overrides = Object.keys(vestingOverrides).length > 0
+          ? { ...existingVesting, ...vestingOverrides }
+          : existingVesting;
+        sa.bonus_overrides = Object.keys(bonusOverrides).length > 0
+          ? { ...existingBonus, ...bonusOverrides }
+          : existingBonus;
+
+        warnings.push({
+          field: "chart_state_groups",
+          message: `Brochure has ${groups.length} state-group charts. Using ${defaultGroup.name} (${defaultGroup.states.length} states) as default; ${otherGroups.reduce((s, g) => s + g.states.length, 0)} states across other charts moved to overrides.`,
+          resolution: "assumed",
+        });
+      }
+    }
 
     // ---------- GUARDRAILS: auto-correct AI contradictions ----------
 
