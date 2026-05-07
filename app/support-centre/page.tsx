@@ -36,8 +36,9 @@ function formatRelative(iso: string) {
 
 export default async function SupportCentrePage({ searchParams }: PageProps) {
   const params = await searchParams
-  const view = params.view === 'kanban' ? 'kanban' : 'list'
+  const view = params.view === 'list' ? 'list' : 'kanban'
   const supabase = await createClient()
+  const { data: { user: viewer } } = await supabase.auth.getUser()
 
   // Fetch tickets — apply filters server-side via supabase query
   let q = supabase.from('support_tickets').select('*').order('created_at', { ascending: false })
@@ -110,11 +111,31 @@ export default async function SupportCentrePage({ searchParams }: PageProps) {
     name: profileDisplayName(advisorAndAdminProfiles.get(id)),
   })).sort((a, b) => a.name.localeCompare(b.name))
 
+  // Build a set of ticket IDs with unread support_ticket_reply notifications
+  // for the *viewing* admin. Each advisor reply creates one notification per
+  // admin (see comments POST handler), so this surfaces tickets that have
+  // activity the current viewer hasn't acknowledged. Marking the notification
+  // read (via the bell or by opening the ticket) clears the indicator.
+  const unreadTicketIds = new Set<string>()
+  if (viewer && ticketIds.length > 0) {
+    const { data: unreadRows } = await supabase
+      .from('notifications')
+      .select('related_id')
+      .eq('user_id', viewer.id)
+      .eq('type', 'support_ticket_reply')
+      .eq('is_read', false)
+      .in('related_id', ticketIds)
+    for (const r of (unreadRows ?? []) as Array<{ related_id: string | null }>) {
+      if (r.related_id) unreadTicketIds.add(r.related_id)
+    }
+  }
+
   const enrichedTickets = tickets.map((t) => ({
     ...t,
     advisorName: profileDisplayName(profileMap.get(t.user_id)),
     clientName: t.client_id ? clientMap.get(t.client_id) ?? null : null,
     commentCount: commentCounts.get(t.id) ?? 0,
+    hasUnread: unreadTicketIds.has(t.id),
   }))
 
   return (
@@ -159,11 +180,24 @@ export default async function SupportCentrePage({ searchParams }: PageProps) {
               </thead>
               <tbody>
                 {enrichedTickets.map((t) => (
-                  <tr key={t.id} className="border-b border-border-default last:border-b-0 hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                  <tr
+                    key={t.id}
+                    className={`border-b border-border-default last:border-b-0 hover:bg-[rgba(255,255,255,0.02)] transition-colors ${t.hasUnread ? 'bg-gold/[0.04]' : ''}`}
+                  >
                     <td className="px-4 py-3">
-                      <Link href={`/support-centre/${t.id}`} className="text-foreground hover:text-gold font-medium">
-                        {t.subject}
-                      </Link>
+                      <span className="inline-flex items-center gap-2">
+                        {t.hasUnread && (
+                          <span className="size-2 shrink-0 rounded-full bg-gold" aria-label="Unread reply" />
+                        )}
+                        <Link href={`/support-centre/${t.id}`} className={`hover:text-gold ${t.hasUnread ? 'text-foreground font-semibold' : 'text-foreground font-medium'}`}>
+                          {t.subject}
+                        </Link>
+                        {t.hasUnread && (
+                          <span className="inline-flex items-center rounded-full bg-gold/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gold">
+                            New reply
+                          </span>
+                        )}
+                      </span>
                       {t.commentCount > 0 && (
                         <span className="ml-2 text-xs text-text-dimmer">· {t.commentCount} {t.commentCount === 1 ? 'reply' : 'replies'}</span>
                       )}

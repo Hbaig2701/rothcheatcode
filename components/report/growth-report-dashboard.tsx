@@ -6,7 +6,8 @@ import type { Client } from "@/lib/types/client";
 import type { YearlyResult } from "@/lib/calculations";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData } from "@/lib/calculations/transforms";
-import { ChevronDown, ChevronUp, Info, X, Settings2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Info, X, Settings2, Loader2 } from "lucide-react";
+import { useUpdateClient } from "@/lib/queries/clients";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
 import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
@@ -38,6 +39,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const [tableView, setTableView] = useState<"strategy" | "baseline" | "comparison">("strategy");
   const [productDetailsOpen, setProductDetailsOpen] = useState(false);
   const [columnModalOpen, setColumnModalOpen] = useState(false);
+  const updateClient = useUpdateClient();
 
   // Column preferences are SHARED across the Strategy / Baseline / Comparison
   // table views — advisors expect the columns they configure on one view to
@@ -570,10 +572,19 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               </svg>
             </summary>
             <div className="px-6 pb-6 pt-0">
-              <p className="text-xs text-text-muted mb-4">
-                The following conversions exceed the {client.penalty_free_percent ?? 10}% annual penalty-free withdrawal allowance during the surrender period.
-                Surrender charges may apply to the excess amount.
-              </p>
+              <div className="mb-4 space-y-2">
+                <p className="text-xs text-text-muted">
+                  These conversions exceed the {client.penalty_free_percent ?? 10}% annual penalty-free withdrawal allowance during the surrender period.
+                  Surrender charges may apply to the excess amount.
+                </p>
+                {!respectPenaltyFreeLimit && (
+                  <p className="text-xs text-text-muted">
+                    <span className="text-foreground font-medium">Why this is showing:</span>{" "}
+                    The &quot;Stay within penalty-free limit&quot; option is currently <span className="text-red font-medium">off</span>, so the model is converting whatever your strategy specifies — even when that goes over the cap.
+                    Turn it on to cap each year&apos;s conversion at {client.penalty_free_percent ?? 10}% of the IRA balance and eliminate these charges entirely (the strategy will simply convert more slowly).
+                  </p>
+                )}
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -612,9 +623,35 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   </tfoot>
                 </table>
               </div>
-              <p className="text-xs text-text-dimmer mt-3 italic">
-                Consider adjusting conversion amounts or using a fixed conversion within the penalty-free limit to avoid surrender charges.
-              </p>
+              {!respectPenaltyFreeLimit ? (
+                <div className="mt-4 flex items-start gap-3 rounded-lg border border-gold/30 bg-gold/5 p-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground">One-click fix</p>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      Cap conversions at the {client.penalty_free_percent ?? 10}% penalty-free limit each year and re-run the projection.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updateClient.mutate({ id: client.id, data: { respect_penalty_free_limit: true } })}
+                    disabled={updateClient.isPending}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-gold px-3 py-1.5 text-xs font-medium text-bg-base hover:bg-gold/90 disabled:opacity-60 transition-colors"
+                  >
+                    {updateClient.isPending ? (
+                      <>
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Applying…
+                      </>
+                    ) : (
+                      "Stay within limit"
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <p className="text-xs text-text-dimmer mt-3 italic">
+                  &quot;Stay within penalty-free limit&quot; is on but your strategy is still pushing conversions above the {client.penalty_free_percent ?? 10}% cap — check the conversion type / fixed amount on this scenario.
+                </p>
+              )}
             </div>
           </details>
         )}

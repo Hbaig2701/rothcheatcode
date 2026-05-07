@@ -17,6 +17,7 @@ interface KanbanTicket extends SupportTicket {
   advisorName: string
   clientName: string | null
   commentCount: number
+  hasUnread: boolean
 }
 
 const COLUMNS: { status: SupportStatus; accent: string }[] = [
@@ -76,14 +77,33 @@ export function KanbanBoard({ tickets }: { tickets: KanbanTicket[] }) {
               {items.map((t) => (
                 <div
                   key={t.id}
-                  className="rounded-[10px] border border-border-default bg-bg-card p-3 hover:border-gold-border transition-colors"
+                  className={cn(
+                    'rounded-[10px] border bg-bg-card p-3 hover:border-gold-border transition-colors',
+                    t.hasUnread ? 'border-gold/60 bg-gold/[0.04]' : 'border-border-default'
+                  )}
                 >
                   <Link href={`/support-centre/${t.id}`} className="block mb-2">
-                    <p className="text-sm font-medium text-foreground line-clamp-2">{t.subject}</p>
+                    <div className="flex items-start gap-2">
+                      {t.hasUnread && (
+                        <span
+                          className="mt-1.5 size-2 shrink-0 rounded-full bg-gold"
+                          aria-label="Unread reply"
+                        />
+                      )}
+                      <p className={cn(
+                        'text-sm line-clamp-2',
+                        t.hasUnread ? 'font-semibold text-foreground' : 'font-medium text-foreground'
+                      )}>{t.subject}</p>
+                    </div>
                   </Link>
                   <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                     <PriorityBadge priority={t.priority} />
                     <SeverityBadge severity={t.severity} />
+                    {t.hasUnread && (
+                      <span className="inline-flex items-center rounded-full bg-gold/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-gold">
+                        New reply
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs text-text-dim space-y-0.5">
                     <p className="truncate">{t.advisorName}</p>

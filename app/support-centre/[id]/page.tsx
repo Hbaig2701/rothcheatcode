@@ -41,6 +41,19 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
   const { ticket, comments, attachments, events } = await fetchTicketWithRelations(supabase, id)
   if (!ticket) notFound()
 
+  // Clear any unread "advisor replied" bell notifications for this admin on
+  // this ticket — opening the page is the equivalent of acknowledging them.
+  // Best-effort: a failed update must never block rendering.
+  if (viewer) {
+    void supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('user_id', viewer.id)
+      .eq('type', 'support_ticket_reply')
+      .eq('related_id', id)
+      .eq('is_read', false)
+  }
+
   // Resolve all involved user_ids
   const userIds = new Set<string>([ticket.user_id])
   if (ticket.assigned_to) userIds.add(ticket.assigned_to)

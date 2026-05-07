@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { requireAdmin } from '@/lib/auth/requireAdmin'
 import Link from 'next/link'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 
 export default async function SupportCentreLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -34,9 +35,12 @@ export default async function SupportCentreLayout({ children }: { children: Reac
               </Link>
             </nav>
           </div>
-          <Link href="/dashboard" className="text-sm text-text-dim hover:text-foreground transition-colors">
-            Back to App
-          </Link>
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <Link href="/dashboard" className="text-sm text-text-dim hover:text-foreground transition-colors">
+              Back to App
+            </Link>
+          </div>
         </div>
       </header>
       <main className="max-w-7xl mx-auto px-6 py-8">{children}</main>

@@ -90,8 +90,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
   }
 
-  // Slack notification on advisor (non-admin) replies. Skip internal notes
-  // and admin-authored public replies (those originate from the team).
+  // Slack notification + in-app bell for admins on advisor (non-admin) replies.
+  // Skip internal notes (admins-only anyway) and admin-authored public replies
+  // (those originate from the team).
   if (!userIsAdmin && !isInternal) {
     const [ticketRes, settingsRes] = await Promise.all([
       supabase.from('support_tickets').select('subject, status').eq('id', id).maybeSingle(),
@@ -110,6 +111,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         authorIsAdmin: false,
         body: parsed.data.body,
       })
+
+      // In-app bell for every admin so the support centre surfaces new replies
+      // without requiring a Slack check. Uses the admin client (same pattern as
+      // the advisor-side notification above) so RLS doesn't block writes to
+      // other users' notification rows.
+      const { data: adminProfiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'admin')
+      for (const admin of (adminProfiles ?? []) as Array<{ id: string }>) {
+        await createNotification({
+          user_id: admin.id,
+          type: 'support_ticket_reply',
+          title: `${authorName} replied`,
+          body: `Re: ${ticketRes.data.subject}`,
+          link_url: `/support-centre/${id}`,
+          related_id: id,
+        })
+      }
     }
   }
 
