@@ -666,6 +666,7 @@
   <div class="page">
     {{{pageHeader "Baseline - Income During RMD Phase"}}}
     <h1 class="section-title">Baseline Income During RMD Phase</h1>
+    <p style="font-size: 9pt; color: #666; margin-bottom: 12px;">"Net (After-Tax)" is the total spendable income hitting your bank account each year — Social Security, RMDs, and other income, minus all federal/state taxes and Medicare IRMAA.</p>
     <table class="data-table">
       <tr>
         <th>Year</th>
@@ -678,6 +679,7 @@
         <th>AGI</th>
         <th>Deduc.</th>
         <th>Income (Taxable)</th>
+        <th>Net (After-Tax)</th>
       </tr>
       {{#each baseline.taxableIncome}}
       <tr>
@@ -691,6 +693,7 @@
         <td>{{this.agi}}</td>
         <td>{{this.deduction}}</td>
         <td>{{this.taxableIncome}}</td>
+        <td><strong>{{this.netIncome}}</strong></td>
       </tr>
       {{/each}}
       <tr class="totals-row">
@@ -703,6 +706,7 @@
         <td>{{baseline.taxableIncomeTotals.agi}}</td>
         <td>{{baseline.taxableIncomeTotals.deduction}}</td>
         <td>{{baseline.taxableIncomeTotals.taxableIncome}}</td>
+        <td><strong>{{baseline.taxableIncomeTotals.netIncome}}</strong></td>
       </tr>
     </table>
     {{{brandingFooter}}}
@@ -763,6 +767,7 @@
   <div class="page">
     {{{pageHeader "Strategy - Income During Conversion Phase"}}}
     <h1 class="section-title">Strategy Income During Conversion Phase</h1>
+    <p style="font-size: 9pt; color: #666; margin-bottom: 12px;">"Net (After-Tax)" is the total spendable income hitting your bank account each year — Social Security and other income, minus all federal/state taxes and Medicare IRMAA. Roth conversions are excluded because converted dollars stay inside the Roth (not spendable that year).</p>
     <table class="data-table">
       <tr>
         <th>Year</th>
@@ -775,6 +780,7 @@
         <th>AGI</th>
         <th>Deduc.</th>
         <th>Income (Taxable)</th>
+        <th>Net (After-Tax)</th>
       </tr>
       {{#each strategy.taxableIncome}}
       <tr>
@@ -788,6 +794,7 @@
         <td>{{this.agi}}</td>
         <td>{{this.deduction}}</td>
         <td>{{this.taxableIncome}}</td>
+        <td><strong>{{this.netIncome}}</strong></td>
       </tr>
       {{/each}}
       <tr class="totals-row">
@@ -800,6 +807,7 @@
         <td>{{strategy.taxableIncomeTotals.agi}}</td>
         <td>{{strategy.taxableIncomeTotals.deduction}}</td>
         <td>{{strategy.taxableIncomeTotals.taxableIncome}}</td>
+        <td><strong>{{strategy.taxableIncomeTotals.netIncome}}</strong></td>
       </tr>
     </table>
     {{{brandingFooter}}}

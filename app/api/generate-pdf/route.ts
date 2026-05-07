@@ -140,6 +140,7 @@ interface TaxableIncomeTotalsRow {
   agi: string;
   deduction: string;
   taxableIncome: string;
+  netIncome: string;
 }
 
 interface ConversionDetailsTotalsRow {
@@ -333,6 +334,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
   // interest, income flows); balances and rates are not.
   let totDistIra = 0, totTaxesIra = 0, totRiderFee = 0, totConverted = 0, totDistRoth = 0, totInterest = 0;
   let totSsi = 0, totTaxableSs = 0, totTaxableNonSsi = 0, totExemptNonSsi = 0, totAgi = 0, totDeduction = 0, totTaxableIncome = 0;
+  let totNetIncome = 0;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   years.forEach((year: any, index: number) => {
@@ -443,8 +445,11 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       irmaaTotal: '',
       taxableNonIra: '',
       taxExemptNonIra: '',
-      taxesTotal: '',
-      netIncome: '',
+      taxesTotal: formatCurrency(year.totalTax + year.irmaaSurcharge),
+      // Net (after-tax) spendable income — what actually hits the client's
+      // bank account this year. Conversions are backed out of the strategy
+      // side because converted dollars stay inside the Roth (not spendable).
+      netIncome: formatCurrency(netIncomeVal),
       riderFeeAmount: '',
     });
 
@@ -520,6 +525,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     totAgi += agi;
     totDeduction += deduction;
     totTaxableIncome += taxableIncomeVal;
+    totNetIncome += netIncomeVal;
   });
 
   return {
@@ -544,6 +550,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       agi: formatCurrency(totAgi),
       deduction: formatCurrency(totDeduction),
       taxableIncome: formatCurrency(totTaxableIncome),
+      netIncome: formatCurrency(totNetIncome),
     },
   };
 }
