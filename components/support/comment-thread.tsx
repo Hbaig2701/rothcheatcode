@@ -6,6 +6,7 @@ import { Loader2, Lock, Send } from 'lucide-react'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { LinkifiedText } from '@/components/support/linkified-text'
 import type { SupportTicketComment } from '@/lib/types/support'
 
 interface CommentAuthor {
@@ -100,7 +101,9 @@ export function CommentThread({ ticketId, comments, canPostInternal }: CommentTh
                   </span>
                 )}
               </div>
-              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{c.body}</p>
+              <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                <LinkifiedText>{c.body}</LinkifiedText>
+              </p>
             </li>
           ))}
         </ul>

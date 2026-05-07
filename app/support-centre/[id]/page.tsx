@@ -7,6 +7,7 @@ import { AttachmentList } from '@/components/support/attachment-list'
 import { AdminTicketControls } from '@/components/support/admin-ticket-controls'
 import { SeverityBadge } from '@/components/support/status-badge'
 import { DeleteTicketButton } from '@/components/support/delete-ticket-button'
+import { LinkifiedText } from '@/components/support/linkified-text'
 import {
   fetchTicketWithRelations,
   fetchProfilesByIds,
@@ -112,7 +113,9 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
 
           <div className="rounded-[14px] bg-bg-card border border-border-default p-6 mb-5">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-3">Description</h2>
-            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ticket.description}</p>
+            <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+              <LinkifiedText>{ticket.description}</LinkifiedText>
+            </p>
           </div>
 
           <div className="rounded-[14px] bg-bg-card border border-border-default p-6 mb-5">

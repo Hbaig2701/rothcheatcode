@@ -6,6 +6,7 @@ import { StatusBadge, SeverityBadge } from '@/components/support/status-badge'
 import { CommentThread } from '@/components/support/comment-thread'
 import { AttachmentList } from '@/components/support/attachment-list'
 import { ReopenButton } from '@/components/support/reopen-button'
+import { LinkifiedText } from '@/components/support/linkified-text'
 import {
   fetchTicketWithRelations,
   fetchProfilesByIds,
@@ -130,7 +131,9 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
 
       <div className="rounded-[14px] bg-bg-card border border-border-default p-6 mb-6">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-3">Description</h2>
-        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ticket.description}</p>
+        <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+          <LinkifiedText>{ticket.description}</LinkifiedText>
+        </p>
       </div>
 
       <div className="rounded-[14px] bg-bg-card border border-border-default p-6 mb-6">
