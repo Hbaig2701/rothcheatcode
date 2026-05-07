@@ -1,17 +1,26 @@
--- The original admin_dashboard migration (20260225120000) declared an
--- "Admins can view all profiles" SELECT policy on profiles, but it's not
--- present in the live database (likely never applied or dropped at some
--- point). Without it, admin pages that look up other users' profiles for
--- display — support centre detail, advisors list, etc. — get filtered to
--- only the admin's own row by RLS, so submitters/assignees rendered as
--- "Unknown" instead of their actual name + email.
+-- Admins need to read other users' profiles for the admin dashboard, support
+-- centre, and advisors list. Original migration declared a policy with a
+-- recursive subquery into profiles itself, which Postgres treats as
+-- effectively broken — it blocked profile reads entirely, locking users out
+-- of the dashboard via the subscription-status check.
 --
--- Re-applying the policy. The recursive subquery is safe because
--- "Users can view own profile" already lets the user read their own
--- row to determine role, so the subquery doesn't loop.
+-- Replaced with a SECURITY DEFINER helper that returns the caller's own
+-- role without triggering RLS recursion. Safe because the function only
+-- ever returns the role of the current user (auth.uid()), not anyone else.
+
+CREATE OR REPLACE FUNCTION public.current_user_role()
+RETURNS text
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+  SELECT role FROM profiles WHERE id = auth.uid()
+$$;
+
+REVOKE ALL ON FUNCTION public.current_user_role() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.current_user_role() TO authenticated;
 
 DROP POLICY IF EXISTS "Admins can view all profiles" ON profiles;
 CREATE POLICY "Admins can view all profiles" ON profiles
-  FOR SELECT USING (
-    (SELECT role FROM profiles WHERE id = auth.uid()) = 'admin'
-  );
+  FOR SELECT USING (public.current_user_role() = 'admin');
