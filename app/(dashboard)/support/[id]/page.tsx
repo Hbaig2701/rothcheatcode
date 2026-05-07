@@ -30,6 +30,17 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
   const { ticket, comments, attachments, events } = await fetchTicketWithRelations(supabase, id)
   if (!ticket) notFound()
 
+  // Clear unread support notifications for this ticket — opening the page
+  // means the advisor has seen the activity. Mirrors the admin-side detail
+  // page behavior. Best-effort: a failed update must never block rendering.
+  void supabase
+    .from('notifications')
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .eq('related_id', id)
+    .eq('is_read', false)
+    .in('type', ['support_ticket_reply', 'support_ticket_status_change'])
+
   // Look up authors for comments + status events
   const userIds = new Set<string>([ticket.user_id])
   for (const c of comments) userIds.add(c.user_id)

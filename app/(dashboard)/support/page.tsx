@@ -32,6 +32,17 @@ export default async function SupportPage() {
   const list = (tickets ?? []) as SupportTicket[]
   const openCount = list.filter((t) => t.status !== 'closed' && t.status !== 'resolved').length
 
+  // Clear the sidebar "Support" badge — the advisor is on the list page,
+  // they've seen there's activity. Per-ticket detail clearing still happens
+  // on the ticket detail page for the bell dropdown's row-level state.
+  // Best-effort: a failed update must never block rendering.
+  void supabase
+    .from('notifications')
+    .update({ is_read: true, read_at: new Date().toISOString() })
+    .eq('user_id', user.id)
+    .eq('is_read', false)
+    .in('type', ['support_ticket_reply', 'support_ticket_status_change'])
+
   return (
     <div className="p-10 max-w-6xl">
       <div className="flex items-start justify-between gap-6 mb-8">
