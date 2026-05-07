@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { intakeFormSchema, intakeToClientData } from "@/lib/validations/intake";
 import { checkClientLimit } from "@/lib/usage";
+import { createNotification } from "@/lib/notifications/create";
 
 // GET /api/intake/[token] - Validate an intake link
 export async function GET(
@@ -141,6 +142,17 @@ export async function POST(
     .from("intake_links")
     .update({ status: "completed", client_id: client.id })
     .eq("id", link.id);
+
+  // Notify the advisor that their client finished the questionnaire and is
+  // now in their account. Best-effort — never block the submission response.
+  await createNotification({
+    user_id: link.user_id as string,
+    type: 'intake_completed',
+    title: 'New client from questionnaire',
+    body: clientData.name ? `${clientData.name} just submitted their info` : 'A client just submitted their information',
+    link_url: `/clients/${client.id}`,
+    related_id: client.id,
+  });
 
   return NextResponse.json(
     { message: "Your information has been submitted successfully." },

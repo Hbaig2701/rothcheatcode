@@ -5,9 +5,11 @@ import { isAdmin } from '@/lib/auth/requireAdmin'
 import {
   SUPPORT_STATUSES,
   SUPPORT_PRIORITIES,
+  STATUS_LABELS,
   type SupportStatus,
   type SupportPriority,
 } from '@/lib/types/support'
+import { createNotification } from '@/lib/notifications/create'
 
 const adminUpdateSchema = z.object({
   status: z.enum(SUPPORT_STATUSES).optional(),
@@ -91,6 +93,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
   if (events.length > 0) {
     await supabase.from('support_ticket_events').insert(events)
+  }
+
+  // In-app notification when an admin changes the status of an advisor's ticket.
+  // Skip when the advisor is re-opening their own ticket — they triggered the
+  // change themselves, no need to notify them about it.
+  if (userIsAdmin && updates.status && updates.status !== existing.status && existing.user_id !== user.id) {
+    const { data: ticketRow } = await supabase
+      .from('support_tickets')
+      .select('subject')
+      .eq('id', id)
+      .maybeSingle()
+    await createNotification({
+      user_id: existing.user_id as string,
+      type: 'support_ticket_status_change',
+      title: `Status changed to ${STATUS_LABELS[updates.status]}`,
+      body: ticketRow?.subject ? `Re: ${ticketRow.subject}` : null,
+      link_url: `/support/${id}`,
+      related_id: id,
+    })
   }
 
   return NextResponse.json(updated)

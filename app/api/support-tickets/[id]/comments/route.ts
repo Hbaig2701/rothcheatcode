@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { isAdmin } from '@/lib/auth/requireAdmin'
 import { notifySlackNewComment } from '@/lib/notifications/slack'
+import { createNotification } from '@/lib/notifications/create'
 
 const createCommentSchema = z.object({
   body: z.string().trim().min(1, 'Comment cannot be empty').max(5000),
@@ -66,6 +67,28 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     old_value: null,
     new_value: null,
   })
+
+  // In-app notification: when an admin posts a public reply, the advisor
+  // who owns the ticket gets a bell notification linking to their ticket.
+  // Skip internal notes (advisor can't see them) and advisor-authored
+  // comments (they wrote it themselves).
+  if (userIsAdmin && !isInternal) {
+    const { data: ticketRow } = await supabase
+      .from('support_tickets')
+      .select('user_id, subject')
+      .eq('id', id)
+      .maybeSingle()
+    if (ticketRow && ticketRow.user_id !== user.id) {
+      await createNotification({
+        user_id: ticketRow.user_id as string,
+        type: 'support_ticket_reply',
+        title: 'Support Team replied',
+        body: `Re: ${ticketRow.subject}`,
+        link_url: `/support/${id}`,
+        related_id: id,
+      })
+    }
+  }
 
   // Slack notification on advisor (non-admin) replies. Skip internal notes
   // and admin-authored public replies (those originate from the team).

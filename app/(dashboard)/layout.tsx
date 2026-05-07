@@ -6,6 +6,7 @@ import { SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { PaymentFailedBanner } from '@/components/payment-failed-banner'
 import { PaymentWallModal } from '@/components/payment-wall-modal'
+import { NotificationBell } from '@/components/notifications/notification-bell'
 
 export default async function DashboardLayout({
   children,
@@ -98,6 +99,9 @@ export default async function DashboardLayout({
           subscriptionStatus={profile?.subscription_status ?? null}
           isTeamMember={!!profile?.team_owner_id}
         />
+        <header className="flex items-center justify-end gap-2 px-6 h-12 border-b border-border-default/50 bg-background/95 backdrop-blur sticky top-0 z-30">
+          <NotificationBell />
+        </header>
         <div className="flex-1">
           {children}
         </div>
