@@ -15,20 +15,31 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Fetch clients and latest projections in parallel.
-  // Explicit user_id filter is required: as of the support centre admin RLS
-  // fix, admins can SELECT every client in the table — without this filter,
-  // an admin's own dashboard would surface other advisors' clients.
+  // Resolve the set of user_ids whose clients this viewer should see:
+  //   - their own clients, always
+  //   - their team owner's clients, if they're a team member
+  // Explicit filter is required because the support-centre admin RLS lets
+  // admins SELECT every client — without this, an admin's own dashboard
+  // would surface every advisor's clients (the Sharon Veasie bug).
+  const { data: viewerProfile } = await supabase
+    .from("profiles")
+    .select("team_owner_id")
+    .eq("id", user.id)
+    .single();
+  const visibleUserIds = [user.id];
+  if (viewerProfile?.team_owner_id) visibleUserIds.push(viewerProfile.team_owner_id);
+
+  // Fetch clients and latest projections in parallel
   const [clientsResult, projectionsResult] = await Promise.all([
     supabase
       .from("clients")
       .select("*")
-      .eq("user_id", user.id)
+      .in("user_id", visibleUserIds)
       .order("created_at", { ascending: false }),
     supabase
       .from("projections")
       .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, gi_tax_free_wealth_created, baseline_final_traditional, blueprint_final_traditional, baseline_years")
-      .eq("user_id", user.id)
+      .in("user_id", visibleUserIds)
       .order("created_at", { ascending: false }),
   ]);
 
