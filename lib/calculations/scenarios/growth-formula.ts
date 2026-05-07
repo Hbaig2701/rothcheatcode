@@ -608,15 +608,30 @@ export function runGrowthFormulaScenario(
     const voluntaryWithdrawalPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
     const earlyWithdrawalPenalty = conversionTaxPenalty + voluntaryWithdrawalPenalty;
 
-    // Taxes paid from external funds (taxable account goes negative)
+    // Taxes paid from external funds (may reduce taxable balance — see below)
     const totalTax = federalTax + stateTax + irmaaSurcharge + earlyWithdrawalPenalty;
 
-    // When payTaxFromIRA, the conversion tax portion was already deducted from
-    // the IRA balance above (via conversionTaxFromIRA). Only the non-conversion
-    // taxes (RMD tax + IRMAA + penalty) should reduce the taxable account.
-    const taxFromTaxableAccount = payTaxFromIRA
-      ? Math.max(0, totalTax - conversionTaxFromIRA)
-      : totalTax;
+    // ---- Symmetric tax accounting between baseline and strategy ----
+    // The taxable account previously absorbed every tax line in the strategy
+    // (wage tax, SS tax, RMD tax) but the BASELINE engine only does that in
+    // 'cash'/'reinvested' modes — in 'spent' mode the baseline keeps taxable
+    // flat (baseline.ts:217). That asymmetry punished any 'spent'-mode client
+    // who had real wages or other taxable income before/during their
+    // conversion phase: the same wage tax got modeled on the strategy side
+    // but ignored on the baseline side, dragging Lifetime Wealth After down
+    // by tens to hundreds of thousands of dollars.
+    //
+    // Fix: in 'spent' mode, only deduct CONVERSION-related tax that's
+    // genuinely paid from external/taxable funds (i.e. when payTaxFromIRA is
+    // false). Non-conversion tax (wages, SS, RMD) is paid from the income
+    // that generated it and exists identically in both scenarios — modeling
+    // it on one side only is wrong. In 'cash'/'reinvested' modes, baseline
+    // also deducts the full totalTax (lines 220/223 of baseline.ts) so we
+    // keep the legacy behavior there to stay symmetric on both sides.
+    const conversionFedStateTax = conversionFederalTax + conversionStateTax;
+    const taxFromTaxableAccount = rmdTreatment === 'spent'
+      ? (payTaxFromIRA ? 0 : conversionFedStateTax)
+      : (payTaxFromIRA ? Math.max(0, totalTax - conversionTaxFromIRA) : totalTax);
 
     // Cash flow: RMD proceeds flow INTO taxable account (per rmd_treatment)
     // Conversion taxes flow OUT (paid from external funds, reducing taxable balance)

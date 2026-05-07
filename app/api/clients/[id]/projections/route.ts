@@ -13,7 +13,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 48; // v48: combineRothAndAum also writes per-year aumBalance / aumTransfer / aumTax onto the combined blueprint_years rows so the year-by-year deep-dive table can render AUM bucket columns. Cached projections need recompute for any client with AUM allocation > 0; non-AUM projections are unaffected (fields stay undefined).
+const PRODUCT_CONFIG_VERSION = 49; // v49: Fixed baseline/strategy asymmetry where strategy taxable balance was being drained by non-conversion taxes (wages, SS, RMD) while baseline only did the same in cash/reinvested modes — punishing 'spent'-mode clients with significant taxable income before their conversion phase (e.g., Carlos Parra with $200K wages over 6 years saw -$287K of phantom drag, strategy displayed -78% instead of the real +47%). Strategy taxable now matches baseline rules per rmd_treatment. Affects: every cached projection — recomputes once on next load.
 
 function generateInputHash(client: Client, customProduct?: CustomProductRow | null): string {
   const relevantFields = {

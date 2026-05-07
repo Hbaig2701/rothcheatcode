@@ -114,6 +114,9 @@ export function runFormulaScenario(
   const respectPenaltyFreeLimit = client.respect_penalty_free_limit ?? false;
   const penaltyFreePercent = client.penalty_free_percent ?? 10;
   const surrenderYears = client.surrender_years ?? 0;
+  // RMD treatment matters for the taxable-account update logic — see the
+  // big comment further down where taxableBalance is set each year.
+  const rmdTreatment = client.rmd_treatment ?? 'reinvested';
 
   // Cumulative converted across the projection — used by 'partial_amount' to
   // cap total conversions across years.
@@ -436,15 +439,23 @@ export function runFormulaScenario(
     iraBalance = iraAfterConversion + iraInterest;
     rothBalance = rothAfterConversion + rothInterest;
 
-    // Taxable account: deduct non-IRA-funded portion of the year's tax.
-    // When payTaxFromIRA, the conversion's marginal tax is already funded by
-    // the IRA; only IRMAA, penalty, and any residual (e.g. tax on non-SS
-    // income the IRA didn't fund) come from the taxable account.
-    if (payTaxFromIRA) {
-      taxableBalance = boyTaxable - Math.max(0, totalTax - conversionTaxFromIRA);
-    } else {
-      taxableBalance = boyTaxable - totalTax;
-    }
+    // ---- Symmetric tax accounting between baseline and strategy ----
+    // The taxable account previously absorbed every tax line in the strategy
+    // (wage tax, SS tax, RMD tax) but the BASELINE engine only does that in
+    // 'cash'/'reinvested' modes — in 'spent' mode the baseline keeps taxable
+    // flat (baseline.ts:217). That asymmetry punished any 'spent'-mode client
+    // who had real wages or other taxable income before/during their
+    // conversion phase. Fix: in 'spent' mode only deduct conversion-related
+    // tax that's genuinely paid from external/taxable funds. Non-conversion
+    // tax (wages, SS, RMD) is paid from the income that generated it and
+    // exists identically in both scenarios. In 'cash'/'reinvested' modes,
+    // baseline also deducts the full totalTax (lines 220/223 of baseline.ts)
+    // so we keep the legacy behavior there to stay symmetric.
+    const conversionFedStateTax = federalConversionTax + stateConversionTax;
+    const taxFromTaxableAccount = rmdTreatment === 'spent'
+      ? (payTaxFromIRA ? 0 : conversionFedStateTax)
+      : (payTaxFromIRA ? Math.max(0, totalTax - conversionTaxFromIRA) : totalTax);
+    taxableBalance = boyTaxable - taxFromTaxableAccount;
 
     // Split federal/state tax between "on conversion" and "on ordinary/SS income"
     // for display breakdowns. Ordinary portion is what remains after subtracting
