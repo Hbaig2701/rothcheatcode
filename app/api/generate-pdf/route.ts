@@ -745,6 +745,29 @@ function computeMarginalRMDTax(years: any[], client: any): number {
   return total;
 }
 
+// Build the display name shown on the cover and Client Data row. When the
+// filing status is MFJ and we have a spouse name on file, both names are
+// shown ("Robert & Amy Sprengel") so the spouse is acknowledged on the
+// report — advisors flagged that omitting the spouse felt dismissive. Falls
+// back to the primary name when MFS/single/HoH or no spouse_name is set.
+function buildDisplayName(client: { name?: string | null; filing_status?: string | null; spouse_name?: string | null }): string {
+  const primary = (client.name ?? '').trim() || 'Client'
+  if (client.filing_status !== 'married_filing_jointly') return primary
+  const spouse = (client.spouse_name ?? '').trim()
+  if (!spouse) return primary
+  // Shared last name — collapse to "First & SpouseFirst Last" when the spouse
+  // is given as a single word (typical case on this form). Otherwise show
+  // both full names joined.
+  const primaryParts = primary.split(/\s+/)
+  const primaryLast = primaryParts.length > 1 ? primaryParts[primaryParts.length - 1] : null
+  const primaryFirst = primaryParts.length > 1 ? primaryParts.slice(0, -1).join(' ') : primary
+  const spouseIsOneWord = !spouse.includes(' ')
+  if (primaryLast && spouseIsOneWord) {
+    return `${primaryFirst} & ${spouse} ${primaryLast}`
+  }
+  return `${primary} & ${spouse}`
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function prepareTemplateData(reportData: any, branding: BrandingData): TemplateData {
   const { client, projection, customProduct } = reportData as { client: any; projection: any; customProduct: CustomProductRow | null }; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -908,7 +931,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const strategyNetOutOfPocketTax = blueConversionTaxOnly - premiumBonusDollars;
 
   return {
-    clientName: client.name,
+    clientName: buildDisplayName(client),
     clientAge: client.age,
     filingStatus: filingStatusMap[client.filing_status] || client.filing_status,
     initialDeposit: formatCurrency(client.qualified_account_value),
@@ -1341,7 +1364,7 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
   const payoutTypeDisplay = client.payout_type === 'joint' ? 'Joint Life' : 'Single Life';
 
   return {
-    clientName: client.name,
+    clientName: buildDisplayName(client),
     reportDate: new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
