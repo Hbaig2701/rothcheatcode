@@ -76,6 +76,7 @@ export interface SupportTicketComment {
   body: string
   is_internal: boolean
   created_at: string
+  updated_at: string | null
 }
 
 export interface SupportTicketEvent {

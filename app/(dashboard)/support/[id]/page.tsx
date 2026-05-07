@@ -7,6 +7,7 @@ import { CommentThread } from '@/components/support/comment-thread'
 import { AttachmentList } from '@/components/support/attachment-list'
 import { ReopenButton } from '@/components/support/reopen-button'
 import { LinkifiedText } from '@/components/support/linkified-text'
+import { LocalTime } from '@/components/support/local-time'
 import {
   fetchTicketWithRelations,
   fetchProfilesByIds,
@@ -19,10 +20,6 @@ import {
   type SupportCategory,
   type SupportStatus,
 } from '@/lib/types/support'
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-}
 
 export default async function SupportTicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -96,7 +93,7 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
             <Calendar className="size-3.5" />
             <span>Submitted</span>
           </div>
-          <p className="text-sm text-foreground">{formatDate(ticket.created_at)}</p>
+          <p className="text-sm text-foreground"><LocalTime iso={ticket.created_at} format="date-time" /></p>
         </div>
         <div className="rounded-[10px] border border-border-default bg-bg-card px-4 py-3">
           <div className="flex items-center gap-1.5 text-xs text-text-dimmer mb-1">
@@ -116,7 +113,7 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
             <Folder className="size-3.5" />
             <span>Last Updated</span>
           </div>
-          <p className="text-sm text-foreground">{formatDate(ticket.updated_at)}</p>
+          <p className="text-sm text-foreground"><LocalTime iso={ticket.updated_at} format="date-time" /></p>
         </div>
       </div>
 
@@ -148,7 +145,7 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
             {statusEvents.map((e) => (
               <li key={e.id} className="text-text-dim">
                 <span className="text-foreground font-medium">{STATUS_LABELS[e.new_value as SupportStatus] ?? e.new_value}</span>
-                <span className="text-text-dimmer"> — {formatDate(e.created_at)}</span>
+                <span className="text-text-dimmer"> — <LocalTime iso={e.created_at} format="date-time" /></span>
               </li>
             ))}
           </ul>
@@ -157,7 +154,7 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
 
       <div className="rounded-[14px] bg-bg-card border border-border-default p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-3">Conversation</h2>
-        <CommentThread ticketId={ticket.id} comments={enrichedComments} canPostInternal={false} />
+        <CommentThread ticketId={ticket.id} comments={enrichedComments} canPostInternal={false} currentUserId={user.id} />
       </div>
     </div>
   )

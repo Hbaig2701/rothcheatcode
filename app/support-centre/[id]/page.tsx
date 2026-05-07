@@ -8,6 +8,7 @@ import { AdminTicketControls } from '@/components/support/admin-ticket-controls'
 import { SeverityBadge } from '@/components/support/status-badge'
 import { DeleteTicketButton } from '@/components/support/delete-ticket-button'
 import { LinkifiedText } from '@/components/support/linkified-text'
+import { LocalTime } from '@/components/support/local-time'
 import {
   fetchTicketWithRelations,
   fetchProfilesByIds,
@@ -23,10 +24,6 @@ import {
   type SupportPriority,
 } from '@/lib/types/support'
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-}
-
 function eventLabel(event_type: string, oldValue: string | null, newValue: string | null) {
   if (event_type === 'status_change') return `Status changed: ${STATUS_LABELS[oldValue as SupportStatus] ?? oldValue} → ${STATUS_LABELS[newValue as SupportStatus] ?? newValue}`
   if (event_type === 'priority_change') return `Priority changed: ${PRIORITY_LABELS[oldValue as SupportPriority] ?? oldValue} → ${PRIORITY_LABELS[newValue as SupportPriority] ?? newValue}`
@@ -39,6 +36,7 @@ function eventLabel(event_type: string, oldValue: string | null, newValue: strin
 export default async function AdminTicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+  const { data: { user: viewer } } = await supabase.auth.getUser()
 
   const { ticket, comments, attachments, events } = await fetchTicketWithRelations(supabase, id)
   if (!ticket) notFound()
@@ -106,7 +104,15 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
               </p>
               <h1 className="text-2xl font-display font-bold text-foreground leading-tight">{ticket.subject}</h1>
               <p className="text-sm text-text-dim mt-1">
-                Submitted by {profileDisplayName(advisorProfile)}{advisorProfile?.email && ` (${advisorProfile.email})`} · {formatDate(ticket.created_at)}
+                Submitted by {profileDisplayName(advisorProfile)}{advisorProfile?.email && ` (${advisorProfile.email})`} · <LocalTime iso={ticket.created_at} format="date-time" />
+              </p>
+              <p className="text-sm text-text-dim mt-1">
+                <span className="text-text-dimmer">Re: </span>
+                {clientName && ticket.client_id ? (
+                  <Link href={`/clients/${ticket.client_id}`} className="text-foreground hover:text-gold transition-colors font-medium">{clientName}</Link>
+                ) : (
+                  <span className="text-text-dimmer italic">No client linked</span>
+                )}
               </p>
             </div>
           </div>
@@ -125,7 +131,7 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
 
           <div className="rounded-[14px] bg-bg-card border border-border-default p-6 mb-5">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-3">Conversation</h2>
-            <CommentThread ticketId={ticket.id} comments={enrichedComments} canPostInternal={true} />
+            <CommentThread ticketId={ticket.id} comments={enrichedComments} canPostInternal={true} currentUserId={viewer?.id ?? ''} />
           </div>
 
           {events.length > 0 && (
@@ -138,7 +144,7 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
                     <li key={e.id} className="text-text-dim">
                       <span className="text-foreground">{profileDisplayName(author)}</span>
                       <span> {eventLabel(e.event_type, e.old_value, e.new_value).replace(/^([A-Z])/, (m) => m.toLowerCase())}</span>
-                      <span className="text-text-dimmer"> · {formatDate(e.created_at)}</span>
+                      <span className="text-text-dimmer"> · <LocalTime iso={e.created_at} format="date-time" /></span>
                     </li>
                   )
                 })}
@@ -194,7 +200,7 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
                 <Calendar className="size-3.5" />
                 <span>Last Updated</span>
               </div>
-              <p className="text-sm text-foreground">{formatDate(ticket.updated_at)}</p>
+              <p className="text-sm text-foreground"><LocalTime iso={ticket.updated_at} format="date-time" /></p>
             </div>
           </div>
         </aside>
