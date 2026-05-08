@@ -28,6 +28,9 @@ export default async function AdminLayout({
               <Link href="/admin" className="text-text-dim hover:text-foreground transition-colors">
                 Dashboard
               </Link>
+              <Link href="/admin/today" className="text-text-dim hover:text-foreground transition-colors">
+                Today
+              </Link>
               <Link href="/admin/advisors" className="text-text-dim hover:text-foreground transition-colors">
                 Advisors
               </Link>
