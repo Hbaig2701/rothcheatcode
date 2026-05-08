@@ -17,7 +17,15 @@ interface AffiliateView {
 interface PortalStats {
   conversions: number;
   active_annual: number;
+  abandoned_count: number;
   recent_conversions: Array<{ created_at: string; status: string | null; cycle: string | null }>;
+  recent_abandons: Array<{
+    expired_at: string;
+    amount_cents: number | null;
+    plan: string | null;
+    cycle: string | null;
+    has_email: boolean;
+  }>;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -45,12 +53,22 @@ export default async function AffiliatePortalPage({
   const statsRow = ((statsRows ?? []) as Array<{
     conversions: number | string | bigint;
     active_annual: number | string | bigint;
+    abandoned_count: number | string | bigint;
     recent_conversions: Array<{ created_at: string; status: string | null; cycle: string | null }>;
+    recent_abandons: Array<{
+      expired_at: string;
+      amount_cents: number | null;
+      plan: string | null;
+      cycle: string | null;
+      has_email: boolean;
+    }>;
   }>)[0];
   const stats: PortalStats = {
     conversions: Number(statsRow?.conversions ?? 0),
     active_annual: Number(statsRow?.active_annual ?? 0),
+    abandoned_count: Number(statsRow?.abandoned_count ?? 0),
     recent_conversions: statsRow?.recent_conversions ?? [],
+    recent_abandons: statsRow?.recent_abandons ?? [],
   };
 
   // Revenue and commission baselines — derived from the discounted annual

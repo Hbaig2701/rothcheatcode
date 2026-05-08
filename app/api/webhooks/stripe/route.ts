@@ -196,6 +196,60 @@ export async function POST(request: NextRequest) {
       }
 
       // =================================================================
+      // CHECKOUT EXPIRED — Affiliate abandoned-cart tracking
+      // =================================================================
+      // Fires when a Stripe Checkout session times out without completion
+      // (default ~24h). If the customer entered an affiliate code we record
+      // it so the affiliate sees "almost-buyers" in their portal.
+      case "checkout.session.expired": {
+        const session = event.data.object as unknown as Record<string, unknown>;
+        const sessionId = session.id as string;
+        const discounts = session.discounts as Array<{ promotion_code?: string | null }> | undefined;
+        const promotionCodeId = discounts?.[0]?.promotion_code ?? null;
+
+        if (!promotionCodeId) {
+          console.log(`[Stripe Webhook] Session ${sessionId} expired without an affiliate code — skipping abandon log`);
+          break;
+        }
+
+        const { data: affiliate } = await supabase
+          .from("affiliates")
+          .select("id")
+          .eq("stripe_promotion_code_id", promotionCodeId)
+          .maybeSingle();
+
+        if (!affiliate) {
+          console.warn(`[Stripe Webhook] Expired session used promo ${promotionCodeId} but no matching affiliate row`);
+          break;
+        }
+
+        const customerDetails = (session.customer_details as Record<string, unknown>) ?? {};
+        const metadata = (session.metadata as Record<string, string>) ?? {};
+        // amount_total is post-discount in cents — what the customer would
+        // have paid had they completed the checkout.
+        const amountCents = typeof session.amount_total === "number" ? session.amount_total : null;
+
+        await supabase
+          .from("affiliate_abandoned_checkouts")
+          .upsert(
+            {
+              affiliate_id: affiliate.id,
+              stripe_session_id: sessionId,
+              customer_email: (customerDetails.email as string | undefined) ?? null,
+              customer_name: (customerDetails.name as string | undefined) ?? null,
+              amount_cents: amountCents,
+              plan: metadata.plan ?? null,
+              cycle: metadata.cycle ?? null,
+              expired_at: new Date().toISOString(),
+            },
+            { onConflict: "stripe_session_id" }
+          );
+
+        console.log(`[Stripe Webhook] Logged abandoned checkout ${sessionId} for affiliate ${affiliate.id}`);
+        break;
+      }
+
+      // =================================================================
       // SUBSCRIPTION CREATED / UPDATED — Updates plan, cycle, status
       // =================================================================
       case "customer.subscription.updated":

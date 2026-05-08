@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Copy, Check, ExternalLink } from "lucide-react";
+import { Loader2, Plus, Copy, Check, ExternalLink, ShoppingCart } from "lucide-react";
 
 interface AffiliateWithStats {
   id: string;
@@ -20,6 +21,7 @@ interface AffiliateWithStats {
     activeAnnual: number;
     annualRevenue: number;
     annualCommission: number;
+    abandoned: number;
   };
 }
 
@@ -96,9 +98,10 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
       acc.activeAnnual += a.stats.activeAnnual;
       acc.annualRevenue += a.stats.annualRevenue;
       acc.annualCommission += a.stats.annualCommission;
+      acc.abandoned += a.stats.abandoned;
       return acc;
     },
-    { conversions: 0, activeAnnual: 0, annualRevenue: 0, annualCommission: 0 }
+    { conversions: 0, activeAnnual: 0, annualRevenue: 0, annualCommission: 0, abandoned: 0 }
   );
 
   return (
@@ -111,18 +114,27 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
             get <strong className="text-foreground">20% off the annual plan, forever</strong>. Commissions accrue on every renewal.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm((v) => !v)}
-          className="inline-flex items-center gap-2 rounded-md bg-gold px-4 py-2 text-sm font-medium text-bg-base hover:bg-gold/90 transition-colors"
-        >
-          <Plus className="size-4" />
-          Add Affiliate
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/affiliates/abandoned"
+            className="inline-flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-400 hover:bg-amber-500/20 transition-colors"
+          >
+            <ShoppingCart className="size-4" />
+            Abandoned ({totals.abandoned})
+          </Link>
+          <button
+            type="button"
+            onClick={() => setShowForm((v) => !v)}
+            className="inline-flex items-center gap-2 rounded-md bg-gold px-4 py-2 text-sm font-medium text-bg-base hover:bg-gold/90 transition-colors"
+          >
+            <Plus className="size-4" />
+            Add Affiliate
+          </button>
+        </div>
       </div>
 
       {/* Roll-up tiles */}
-      <div className="grid grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-5 gap-3 mb-8">
         <div className="rounded-[10px] border border-border-default bg-bg-card px-4 py-3">
           <p className="text-xs uppercase tracking-wider text-text-dimmer mb-1">Total affiliates</p>
           <p className="text-xl font-semibold text-foreground">{affiliates.length}</p>
@@ -130,6 +142,10 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
         <div className="rounded-[10px] border border-border-default bg-bg-card px-4 py-3">
           <p className="text-xs uppercase tracking-wider text-text-dimmer mb-1">Active annual subs</p>
           <p className="text-xl font-semibold text-foreground">{totals.activeAnnual}</p>
+        </div>
+        <div className="rounded-[10px] border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+          <p className="text-xs uppercase tracking-wider text-text-dimmer mb-1">Abandoned carts</p>
+          <p className="text-xl font-semibold text-amber-400">{totals.abandoned}</p>
         </div>
         <div className="rounded-[10px] border border-border-default bg-bg-card px-4 py-3">
           <p className="text-xs uppercase tracking-wider text-text-dimmer mb-1">Attributed annual revenue</p>
@@ -245,6 +261,7 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
                 <th className="px-4 py-2.5 font-semibold">Commission</th>
                 <th className="px-4 py-2.5 font-semibold text-right">Conversions</th>
                 <th className="px-4 py-2.5 font-semibold text-right">Active annual</th>
+                <th className="px-4 py-2.5 font-semibold text-right">Abandoned</th>
                 <th className="px-4 py-2.5 font-semibold text-right">Annual revenue</th>
                 <th className="px-4 py-2.5 font-semibold text-right">Commission/yr</th>
                 <th className="px-4 py-2.5 font-semibold text-right">Status</th>
@@ -297,6 +314,13 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
                   <td className="px-4 py-3 text-text-dim">{a.commission_pct}%</td>
                   <td className="px-4 py-3 text-right text-text-dim font-mono">{a.stats.conversions}</td>
                   <td className="px-4 py-3 text-right text-text-dim font-mono">{a.stats.activeAnnual}</td>
+                  <td className="px-4 py-3 text-right font-mono">
+                    {a.stats.abandoned > 0 ? (
+                      <span className="text-amber-400">{a.stats.abandoned}</span>
+                    ) : (
+                      <span className="text-text-dimmer">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right text-foreground font-mono">{fmtUSD(a.stats.annualRevenue)}</td>
                   <td className="px-4 py-3 text-right text-foreground font-mono font-medium">{fmtUSD(a.stats.annualCommission)}</td>
                   <td className="px-4 py-3 text-right">

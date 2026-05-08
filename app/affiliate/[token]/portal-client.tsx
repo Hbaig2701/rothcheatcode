@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, ExternalLink, AlertCircle } from "lucide-react";
+import { Copy, Check, AlertCircle, ShoppingCart } from "lucide-react";
 
 interface AffiliateView {
   id: string;
@@ -17,7 +17,15 @@ interface AffiliateView {
 interface PortalStats {
   conversions: number;
   active_annual: number;
+  abandoned_count: number;
   recent_conversions: Array<{ created_at: string; status: string | null; cycle: string | null }>;
+  recent_abandons: Array<{
+    expired_at: string;
+    amount_cents: number | null;
+    plan: string | null;
+    cycle: string | null;
+    has_email: boolean;
+  }>;
 }
 
 const fmtUSD = (dollars: number) =>
@@ -167,6 +175,54 @@ export function AffiliatePortalClient({
             </div>
           </div>
         </div>
+
+        {/* Almost-buyers (abandoned checkouts) */}
+        {stats.abandoned_count > 0 && (
+          <div className="rounded-[14px] border border-amber-500/20 bg-amber-500/5 p-6 mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="size-4 text-amber-400" />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer">
+                  Almost-buyers
+                </h2>
+                <span className="rounded-full bg-amber-500/15 text-amber-400 text-xs px-2 py-0.5 font-medium">
+                  {stats.abandoned_count}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-text-dim mb-3">
+              These prospects entered your code at checkout but didn&apos;t finish.
+              Showing the last {stats.recent_abandons.length}. We&apos;ll usually follow up with them
+              from our side, but if you have a relationship, a personal nudge often closes the deal.
+            </p>
+            <ul className="space-y-2">
+              {stats.recent_abandons.map((a, idx) => (
+                <li
+                  key={idx}
+                  className="flex items-center justify-between rounded-md border border-border-default bg-bg-base px-3 py-2 text-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-text-dim">{fmtDate(a.expired_at)}</span>
+                    {a.amount_cents != null && (
+                      <>
+                        <span className="text-text-dimmer">·</span>
+                        <span className="text-foreground font-mono">{fmtUSD(a.amount_cents / 100)}</span>
+                      </>
+                    )}
+                    {a.cycle && (
+                      <span className="text-xs rounded-full bg-muted px-2 py-0.5 text-text-dim capitalize">
+                        {a.cycle}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-text-dimmer">
+                    {a.has_email ? "Email captured" : "No email"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Recent conversions */}
         <div className="rounded-[14px] border border-border-default bg-bg-card p-6 mb-8">

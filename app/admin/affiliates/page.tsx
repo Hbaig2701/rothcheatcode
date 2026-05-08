@@ -32,10 +32,15 @@ export default async function AffiliatesPage() {
 
   const affiliates = (affiliatesRaw ?? []) as AffiliateRow[];
 
-  const { data: attributedProfiles } = await admin
-    .from("profiles")
-    .select("affiliate_id, subscription_status, billing_cycle")
-    .not("affiliate_id", "is", null);
+  const [{ data: attributedProfiles }, { data: abandonedRows }] = await Promise.all([
+    admin
+      .from("profiles")
+      .select("affiliate_id, subscription_status, billing_cycle")
+      .not("affiliate_id", "is", null),
+    admin
+      .from("affiliate_abandoned_checkouts")
+      .select("affiliate_id"),
+  ]);
 
   // Conversion + revenue/commission stats per affiliate. We use the
   // discounted annual list price as the per-customer baseline; precise
@@ -44,10 +49,22 @@ export default async function AffiliatesPage() {
   const annualListPrice = PLAN_PRICES.standard.annual.amount;
   const discountedAnnual = annualListPrice * (1 - 20 / 100);
 
-  type Stats = { conversions: number; activeAnnual: number; annualRevenue: number; annualCommission: number };
+  type Stats = {
+    conversions: number;
+    activeAnnual: number;
+    annualRevenue: number;
+    annualCommission: number;
+    abandoned: number;
+  };
   const statsByAffiliate = new Map<string, Stats>();
   for (const a of affiliates) {
-    statsByAffiliate.set(a.id, { conversions: 0, activeAnnual: 0, annualRevenue: 0, annualCommission: 0 });
+    statsByAffiliate.set(a.id, {
+      conversions: 0,
+      activeAnnual: 0,
+      annualRevenue: 0,
+      annualCommission: 0,
+      abandoned: 0,
+    });
   }
   for (const p of (attributedProfiles ?? []) as ProfileRow[]) {
     const s = statsByAffiliate.get(p.affiliate_id);
@@ -64,10 +81,20 @@ export default async function AffiliatesPage() {
       s.annualCommission += discountedAnnual * (rate / 100);
     }
   }
+  for (const r of ((abandonedRows ?? []) as Array<{ affiliate_id: string }>)) {
+    const s = statsByAffiliate.get(r.affiliate_id);
+    if (s) s.abandoned += 1;
+  }
 
   const enriched = affiliates.map((a) => ({
     ...a,
-    stats: statsByAffiliate.get(a.id) ?? { conversions: 0, activeAnnual: 0, annualRevenue: 0, annualCommission: 0 },
+    stats: statsByAffiliate.get(a.id) ?? {
+      conversions: 0,
+      activeAnnual: 0,
+      annualRevenue: 0,
+      annualCommission: 0,
+      abandoned: 0,
+    },
   }));
 
   return <AffiliatesPanel affiliates={enriched} />;
