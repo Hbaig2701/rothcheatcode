@@ -367,12 +367,20 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const taxableIncomeVal = year.taxableIncome ?? Math.max(0, agi - deduction);
     const bracket = year.federalTaxBracket ?? determineTaxBracket(taxableIncomeVal, client.filing_status, year.year);
     const magi = year.magi ?? (agi + taxExemptNonSSI + (year.ssIncome - (year.taxableSS ?? 0)));
+    // Net (After-Tax) = what actually hits the client's bank account this year.
+    // When tax_payment_source === 'from_ira' the conversion tax is debited
+    // directly from the IRA, never touching the client's wallet — so the
+    // column has to back that out, or it shows nonsense like "-$60K spendable
+    // income" for a client whose wallet only saw their Social Security check.
+    // taxesPaidFromIRA = conversion-tax-paid-from-IRA on the strategy side,
+    // 0 on the baseline side (RMD taxes are out-of-pocket by definition).
+    const taxesOutOfPocket = Math.max(0, year.totalTax - (year.taxesPaidFromIRA ?? 0));
     const netIncomeVal =
       year.otherIncome +
       taxExemptNonSSI +
       year.ssIncome +
       distIra -
-      year.totalTax -
+      taxesOutOfPocket -
       year.irmaaSurcharge -
       (scenario === 'formula' ? year.conversionAmount : 0);
 
