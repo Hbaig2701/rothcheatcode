@@ -369,24 +369,39 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const bracket = year.federalTaxBracket ?? determineTaxBracket(taxableIncomeVal, client.filing_status, year.year);
     const magi = year.magi ?? (agi + taxExemptNonSSI + (year.ssIncome - (year.taxableSS ?? 0)));
     // Net (After-Tax) = what actually hits the client's bank account this year.
-    // year.totalTax already bundles fed + state + IRMAA + early-withdrawal
-    // penalty — do NOT subtract IRMAA again here or it gets double-counted
-    // for any client over the IRMAA threshold. When tax_payment_source ===
-    // 'from_ira', the conversion tax is debited directly from the IRA and
-    // never touches the client's wallet, so the column backs that portion
-    // out via taxesPaidFromIRA (0 on baseline rows by construction).
-    // Roth withdrawals are tax-free spendable cash — they add to Net
-    // directly without adjusting taxes (already qualified by assumption).
-    const taxesOutOfPocket = Math.max(0, year.totalTax - (year.taxesPaidFromIRA ?? 0));
+    //
+    // Cash inflows the client receives:
+    //   - Social Security
+    //   - Other taxable / tax-exempt income
+    //   - RMDs (forced distributions — go to client whether the IRS or
+    //     not; in 'reinvested' mode they land in taxable, in 'spent' mode
+    //     in the bank, but in either case they're cash the client now
+    //     controls). Both baseline and strategy can have RMDs after age 73.
+    //   - Roth withdrawals (tax-free, qualified by assumption)
+    //
+    // Cash outflows (taxes the client actually pays out of their wallet):
+    //   - When tax_payment_source = 'from_ira' on the STRATEGY side, the
+    //     advisor has elected to fund all tax from the IRA — so the only
+    //     truly out-of-pocket cost is IRMAA (Medicare premium surcharge,
+    //     deducted from SS check, can't be paid from IRA).
+    //   - Otherwise, the full year.totalTax (already bundles fed + state
+    //     + IRMAA + early-withdrawal penalty) hits out-of-pocket.
+    //
+    // Conversions are NOT cash to the client — they move IRA → Roth and
+    // stay inside retirement accounts. Don't add them, don't subtract.
+    const payTaxFromIraStrategy = scenario === 'formula' && client.tax_payment_source === 'from_ira';
+    const taxesOutOfPocket = payTaxFromIraStrategy
+      ? (year.irmaaSurcharge ?? 0)
+      : year.totalTax;
+    const iraCashInflow = year.rmdAmount ?? 0;
     const rothCashIn = year.rothWithdrawal ?? 0;
     const netIncomeVal =
       year.otherIncome +
       taxExemptNonSSI +
       year.ssIncome +
-      distIra +
+      iraCashInflow +
       rothCashIn -
-      taxesOutOfPocket -
-      (scenario === 'formula' ? year.conversionAmount : 0);
+      taxesOutOfPocket;
 
     const baseRow = {
       year: year.year,
