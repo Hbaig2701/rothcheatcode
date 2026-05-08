@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Copy, Check } from "lucide-react";
+import { Loader2, Plus, Copy, Check, ExternalLink } from "lucide-react";
 
 interface AffiliateWithStats {
   id: string;
@@ -11,6 +11,7 @@ interface AffiliateWithStats {
   paypal_email: string | null;
   code: string;
   commission_pct: number;
+  portal_token: string;
   is_active: boolean;
   notes: string | null;
   created_at: string;
@@ -240,6 +241,7 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
               <tr className="text-left text-xs uppercase tracking-wider text-text-dimmer">
                 <th className="px-4 py-2.5 font-semibold">Name</th>
                 <th className="px-4 py-2.5 font-semibold">Code</th>
+                <th className="px-4 py-2.5 font-semibold">Portal</th>
                 <th className="px-4 py-2.5 font-semibold">Commission</th>
                 <th className="px-4 py-2.5 font-semibold text-right">Conversions</th>
                 <th className="px-4 py-2.5 font-semibold text-right">Active annual</th>
@@ -265,6 +267,32 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
                       {a.code}
                       {copiedCode === a.code ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3 text-text-dim" />}
                     </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => copyCode(`${typeof window !== 'undefined' ? window.location.origin : ''}/affiliate/${a.portal_token}`)}
+                        className="inline-flex items-center gap-1 text-xs text-text-dim hover:text-foreground transition-colors px-2 py-1"
+                        title="Copy portal URL — email this to the affiliate"
+                      >
+                        {copiedCode === `${typeof window !== 'undefined' ? window.location.origin : ''}/affiliate/${a.portal_token}` ? (
+                          <Check className="size-3 text-emerald-400" />
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
+                        Copy URL
+                      </button>
+                      <a
+                        href={`/affiliate/${a.portal_token}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-text-dim hover:text-foreground transition-colors px-1 py-1"
+                        title="Preview portal as the affiliate sees it"
+                      >
+                        <ExternalLink className="size-3" />
+                      </a>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-text-dim">{a.commission_pct}%</td>
                   <td className="px-4 py-3 text-right text-text-dim font-mono">{a.stats.conversions}</td>

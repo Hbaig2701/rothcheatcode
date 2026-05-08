@@ -10,6 +10,7 @@ interface AffiliateRow {
   code: string;
   commission_pct: number;
   stripe_promotion_code_id: string;
+  portal_token: string;
   is_active: boolean;
   notes: string | null;
   created_at: string;
