@@ -368,12 +368,12 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const bracket = year.federalTaxBracket ?? determineTaxBracket(taxableIncomeVal, client.filing_status, year.year);
     const magi = year.magi ?? (agi + taxExemptNonSSI + (year.ssIncome - (year.taxableSS ?? 0)));
     // Net (After-Tax) = what actually hits the client's bank account this year.
-    // When tax_payment_source === 'from_ira' the conversion tax is debited
-    // directly from the IRA, never touching the client's wallet — so the
-    // column has to back that out, or it shows nonsense like "-$60K spendable
-    // income" for a client whose wallet only saw their Social Security check.
-    // taxesPaidFromIRA = conversion-tax-paid-from-IRA on the strategy side,
-    // 0 on the baseline side (RMD taxes are out-of-pocket by definition).
+    // year.totalTax already bundles fed + state + IRMAA + early-withdrawal
+    // penalty — do NOT subtract IRMAA again here or it gets double-counted
+    // for any client over the IRMAA threshold. When tax_payment_source ===
+    // 'from_ira', the conversion tax is debited directly from the IRA and
+    // never touches the client's wallet, so the column backs that portion
+    // out via taxesPaidFromIRA (0 on baseline rows by construction).
     const taxesOutOfPocket = Math.max(0, year.totalTax - (year.taxesPaidFromIRA ?? 0));
     const netIncomeVal =
       year.otherIncome +
@@ -381,7 +381,6 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       year.ssIncome +
       distIra -
       taxesOutOfPocket -
-      year.irmaaSurcharge -
       (scenario === 'formula' ? year.conversionAmount : 0);
 
     const baseRow = {
@@ -776,8 +775,12 @@ function buildDisplayName(client: { name?: string | null; filing_status?: string
   const primaryParts = primary.split(/\s+/)
   const primaryLast = primaryParts.length > 1 ? primaryParts[primaryParts.length - 1] : null
   const primaryFirst = primaryParts.length > 1 ? primaryParts.slice(0, -1).join(' ') : primary
-  const spouseIsOneWord = !spouse.includes(' ')
-  if (primaryLast && spouseIsOneWord) {
+  // Treat the spouse field as a bare first name only when it has no spaces
+  // AND no hyphens. "Smith-Johnson" is a real surname, not a first name —
+  // collapsing it via the shared-last-name path would produce nonsense like
+  // "John & Smith-Johnson Doe".
+  const spouseIsBareFirstName = !/[\s-]/.test(spouse)
+  if (primaryLast && spouseIsBareFirstName) {
     return `${primaryFirst} & ${spouse} ${primaryLast}`
   }
   return `${primary} & ${spouse}`

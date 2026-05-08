@@ -116,20 +116,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       // without requiring a Slack check. Uses the admin client (same pattern as
       // the advisor-side notification above) so RLS doesn't block writes to
       // other users' notification rows.
+      // Run in parallel — sequential awaits added ~80ms × adminCount to the
+      // advisor's POST latency, which gets noticeable above 5–6 admins.
       const { data: adminProfiles } = await supabase
         .from('profiles')
         .select('id')
         .eq('role', 'admin')
-      for (const admin of (adminProfiles ?? []) as Array<{ id: string }>) {
-        await createNotification({
-          user_id: admin.id,
-          type: 'support_ticket_reply',
-          title: `${authorName} replied`,
-          body: `Re: ${ticketRes.data.subject}`,
-          link_url: `/support-centre/${id}`,
-          related_id: id,
-        })
-      }
+      await Promise.all(
+        ((adminProfiles ?? []) as Array<{ id: string }>).map((admin) =>
+          createNotification({
+            user_id: admin.id,
+            type: 'support_ticket_reply',
+            title: `${authorName} replied`,
+            body: `Re: ${ticketRes.data!.subject}`,
+            link_url: `/support-centre/${id}`,
+            related_id: id,
+          })
+        )
+      )
     }
   }
 

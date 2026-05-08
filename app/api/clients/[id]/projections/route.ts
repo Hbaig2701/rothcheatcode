@@ -8,6 +8,7 @@ import type { GIMetrics } from '@/lib/calculations/guaranteed-income/types';
 import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage } from '@/lib/usage';
 import { getCustomProduct } from '@/lib/products/repository';
+import { getVisibleUserIds } from '@/lib/auth/visibleUserIds';
 import type { CustomProductRow } from '@/lib/products/types';
 import crypto from 'crypto';
 
@@ -356,10 +357,14 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Scope by ownership (viewer + team_owner). Admins do NOT pull other
+    // advisors' projections through this route — same Sharon-Veasie reason.
+    const visibleUserIds = await getVisibleUserIds(supabase, user.id);
     const { data: client, error: clientError } = await supabase
       .from('clients')
       .select('*')
       .eq('id', clientId)
+      .in('user_id', visibleUserIds)
       .single();
 
     if (clientError) {
@@ -371,9 +376,14 @@ export async function GET(
 
     // Load the custom product config (if any) BEFORE hashing — its updated_at
     // and config must be part of the cache key so edits invalidate.
+    // Look it up under the CLIENT'S owner, not the viewer — when a team
+    // member views the team_owner's client, the custom_product_id belongs
+    // to the owner. Looking it up under the viewer would silently return
+    // null and the projection would fall back to system defaults (wrong
+    // bonus %, surrender schedule, etc.).
     const typedClient = client as Client;
     const customProduct = typedClient.custom_product_id
-      ? await getCustomProduct(user.id, typedClient.custom_product_id)
+      ? await getCustomProduct(typedClient.user_id, typedClient.custom_product_id)
       : null;
 
     const inputHash = generateInputHash(typedClient, customProduct);
@@ -487,10 +497,13 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Same ownership scope as GET — see comment there for why.
+    const visibleUserIdsForPost = await getVisibleUserIds(supabase, user.id);
     const { data: client, error: clientError } = await supabase
       .from('clients')
       .select('*')
       .eq('id', clientId)
+      .in('user_id', visibleUserIdsForPost)
       .single();
 
     if (clientError) {
@@ -516,8 +529,11 @@ export async function POST(
     }
 
     const typedClient = client as Client;
+    // Look up the custom product under the CLIENT'S owner — same reason as
+    // the GET handler. Team members would otherwise lose the configured
+    // carrier values and silently get system defaults.
     const customProduct = typedClient.custom_product_id
-      ? await getCustomProduct(user.id, typedClient.custom_product_id)
+      ? await getCustomProduct(typedClient.user_id, typedClient.custom_product_id)
       : null;
 
     const inputHash = generateInputHash(typedClient, customProduct);

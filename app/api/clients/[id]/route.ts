@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { clientFullPartialSchema } from "@/lib/validations/client";
+import { getVisibleUserIds } from "@/lib/auth/visibleUserIds";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -14,10 +15,15 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Scope to (viewer, team_owner). Admins do NOT get broader read here —
+  // the support-centre admin RLS is a separate path; mixing them was the
+  // Sharon Veasie leak.
+  const visibleUserIds = await getVisibleUserIds(supabase, user.id);
   const { data, error } = await supabase
     .from("clients")
     .select("*")
     .eq("id", id)
+    .in("user_id", visibleUserIds)
     .single();
 
   if (error) {
@@ -102,11 +108,16 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     delete (updatePayload as any).federal_bracket;
   }
 
-  // Update client and set updated_at timestamp
+  // Update client and set updated_at timestamp.
+  // Same visibility scope as GET: viewer + team_owner only. Admins do NOT
+  // edit other advisors' clients via this route (a separate admin tool would
+  // be needed if that's ever required).
+  const visibleUserIdsForUpdate = await getVisibleUserIds(supabase, user.id);
   const { data, error } = await supabase
     .from("clients")
     .update(updatePayload)
     .eq("id", id)
+    .in("user_id", visibleUserIdsForUpdate)
     .select()
     .single();
 
@@ -139,10 +150,14 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Same visibility scope as GET/PUT: viewer + team_owner only. Admins do
+  // NOT delete other advisors' clients via this route.
+  const visibleUserIdsForDelete = await getVisibleUserIds(supabase, user.id);
   const { error } = await supabase
     .from("clients")
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .in("user_id", visibleUserIdsForDelete);
 
   if (error) {
     console.error("Error deleting client:", error);

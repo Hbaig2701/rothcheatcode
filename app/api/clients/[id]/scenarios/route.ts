@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { isGuaranteedIncomeProduct } from "@/lib/config/products";
+import { getVisibleUserIds } from "@/lib/auth/visibleUserIds";
 
 export async function GET(
   request: NextRequest,
@@ -15,28 +16,37 @@ export async function GET(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // First, find the original client's name
+  // Same ownership scope as the other client endpoints — admins do not pull
+  // other advisors' scenarios via this route. Team members see owner +
+  // their own.
+  const visibleUserIds = await getVisibleUserIds(supabase, user.id);
+
+  // First, find the original client's name (scoped to ownership)
   const { data: originalClient, error: originalError } = await supabase
     .from("clients")
     .select("name")
     .eq("id", id)
+    .in("user_id", visibleUserIds)
     .single();
 
   if (originalError || !originalClient) {
     return NextResponse.json({ error: "Client not found" }, { status: 404 });
   }
 
-  // Get all scenarios for the exact same customer name (since parent_client_id is not applied)
+  // Get all scenarios for the exact same customer name across the visible
+  // owners (so a team member on the owner's client sees the team's variants,
+  // not just their own).
   const [clientsResult, projectionsResult] = await Promise.all([
     supabase
       .from("clients")
       .select("*")
       .eq("name", originalClient.name)
-      .eq("user_id", user.id)
+      .in("user_id", visibleUserIds)
       .order("created_at", { ascending: true }),
     supabase
       .from("projections")
       .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, gi_tax_free_wealth_created, baseline_final_traditional, blueprint_final_traditional, baseline_years")
+      .in("user_id", visibleUserIds)
       .order("created_at", { ascending: false }),
   ]);
 
