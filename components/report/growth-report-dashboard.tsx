@@ -1290,12 +1290,18 @@ function LifetimeWealthInfo({
                 <>
                   {toUSD(blueAumScheduledWithdrawals)} from the AUM brokerage (the qualified-side request the
                   Roth-side IRA balance couldn&apos;t cover at this AUM allocation — taxed as a brokerage
-                  liquidation, LTCG on the gain portion only)
+                  liquidation, LTCG on the gain portion only, NO 10% early-withdrawal penalty even under 59½)
                 </>
               )}
               .
               {isUnder59Half && blueScheduledIraWithdrawals > 0 && (
                 <> 10% early-withdrawal penalty applies to the IRA portion since the client is under 59½.</>
+              )}
+              {isUnder59Half && blueAumScheduledWithdrawals > 0 && (
+                <> The AUM brokerage portion does NOT incur the 10% penalty — the IRS treats a brokerage
+                liquidation as a sale, not an early IRA distribution. If the client&apos;s intent was to take
+                an under-59½ IRA pull (and accept the penalty), reduce the AUM allocation so the Roth-side
+                IRA balance can satisfy more of the schedule.</>
               )}
             </p>
           </div>
@@ -1885,7 +1891,9 @@ function DistributionsInfo({
                   reducing the buckets year-by-year.
                   {blueAumScheduledWithdrawals > 0 && (
                     <> The AUM brokerage line is the IRA-side request the Roth-side IRA balance couldn&apos;t satisfy
-                    at this allocation split — taxed as a brokerage liquidation rather than ordinary income.</>
+                    at this allocation split — taxed as a brokerage liquidation rather than ordinary income, and
+                    not subject to the 10% early-withdrawal penalty even under 59½ (the qualified tax was already
+                    paid on the IRA→AUM transfer).</>
                   )}
                 </TipNote>
               </>

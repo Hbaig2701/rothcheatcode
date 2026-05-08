@@ -342,7 +342,7 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     id: 'aumScheduledWithdrawal',
     label: 'AUM Spending W/D',
     category: 'distributions',
-    description: 'Advisor-scheduled spending withdrawal absorbed by the AUM brokerage. Fires when client.withdrawals tags an "ira"/"auto" pull but the Roth-side IRA balance is too small to satisfy it (typical at high aum_allocation_percent). Tax treatment is brokerage liquidation: pro-rata between basis (tax-free) and gain (LTCG); the LTCG cost is rolled into "Total Tax". Reduces the AUM bucket balance.',
+    description: 'Advisor-scheduled spending withdrawal absorbed by the AUM brokerage. Fires when client.withdrawals tags an "ira"/"auto" pull but the Roth-side IRA balance is too small to satisfy it (typical at high aum_allocation_percent). Tax treatment is brokerage liquidation: pro-rata between basis (tax-free) and gain (LTCG); the LTCG cost is rolled into "Total Tax". Reduces the AUM bucket balance. NOT subject to the 10% early-withdrawal penalty even under 59½ — the qualified tax was already paid on the IRA→AUM transfer, so the IRS treats this as a sale, not an early IRA distribution.',
     formatter: (v) => v != null && v > 0 ? formatCurrency(v) : '—',
     defaultVisible: false,
     visibleForProducts: ['all'],

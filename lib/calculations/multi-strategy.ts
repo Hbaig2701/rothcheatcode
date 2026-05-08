@@ -74,6 +74,19 @@ function determineBestStrategy(
  * @param startYear - First year of projection
  * @param endYear - Last year of projection
  * @returns MultiStrategyResult with all 4 outcomes, best strategy, and comparison metrics
+ *
+ * FIXME(aum-overlay): This entrypoint dispatches to `runSimulation` (legacy
+ * formula.ts engine) for every strategy and does NOT apply the AUM
+ * split-allocation overlay or the AUM-bucket scheduled-withdrawal absorption
+ * that `app/api/clients/[id]/projections/route.ts` plumbs through
+ * `runAumOverlay`. As of writing, `<MultiStrategyResults>` and the
+ * `/api/pdf/[clientId]` PDF route that depend on this are not mounted by any
+ * live UI, so no advisor sees the gap today. If/when this surface is
+ * re-enabled, mirror the dispatch + AUM overlay from the projections route
+ * so AUM clients don't see the strategy-comparison numbers diverge from
+ * their main report — the symptom would be: scheduled withdrawals at
+ * `aum_allocation_percent` ≥ ~50% silently clip to ≤ availableIRA and the
+ * comparison view shows different lifetime wealth than the main projection.
  */
 export function runMultiStrategySimulation(
   client: Client,
