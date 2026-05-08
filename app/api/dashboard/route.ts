@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { ALL_PRODUCTS } from "@/lib/config/products";
 import { getEffectivePlan } from "@/lib/usage";
 import { getPlanLimits } from "@/lib/config/plans";
+import { getVisibleUserIds } from "@/lib/auth/visibleUserIds";
 import type { Client } from "@/lib/types/client";
 import type { ProjectionSummary, ConversionPipelineItem } from "@/lib/types/dashboard";
 import type { YearlyResult } from "@/lib/calculations/types";
@@ -36,14 +37,22 @@ export async function GET() {
   const limits = getPlanLimits(plan);
   const now = new Date().toISOString();
 
+  // Same scoping as /api/clients — admins do NOT see other advisors'
+  // dashboard data; team members see their own + the team_owner's. Without
+  // this filter, the support-centre admin RLS leaks every client/projection
+  // into every admin's home dashboard.
+  const visibleUserIds = await getVisibleUserIds(supabase, user.id);
+
   const [clientsResult, projectionsResult, usageResult] = await Promise.all([
     supabase
       .from("clients")
       .select("*")
+      .in("user_id", visibleUserIds)
       .order("created_at", { ascending: false }),
     supabase
       .from("projections")
       .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, blueprint_final_roth, total_tax_savings, heir_benefit, gi_tax_free_wealth_created, blueprint_years, created_at")
+      .in("user_id", visibleUserIds)
       .order("created_at", { ascending: false }),
     supabase
       .from("usage")

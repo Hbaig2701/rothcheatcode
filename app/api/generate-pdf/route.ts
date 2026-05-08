@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getVisibleUserIds } from '@/lib/auth/visibleUserIds';
 import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
 import { hasFeature, hasFullAccess } from '@/lib/config/plans';
@@ -1497,6 +1498,30 @@ export async function POST(request: NextRequest) {
         { error: 'Missing required report data' },
         { status: 400 }
       );
+    }
+
+    // Defense-in-depth: validate that the authenticated user is allowed to
+    // render a report for the client referenced in reportData.client.id.
+    // The PDF is built from body data (so technically the attacker would
+    // already need to know the data to render it), BUT this stops:
+    //   - export_log rows being filed under another advisor's client_id
+    //   - future code that re-reads from the DB by client.id from leaking
+    //   - accidental cross-tenant exports via UI bug or copied URL
+    // Scope mirrors the rest of the client-detail endpoints.
+    if (reportData.client?.id) {
+      const visibleUserIdsForReport = await getVisibleUserIds(supabase, user.id);
+      const { data: authorizedClient } = await supabase
+        .from('clients')
+        .select('user_id')
+        .eq('id', reportData.client.id)
+        .in('user_id', visibleUserIdsForReport)
+        .maybeSingle();
+      if (!authorizedClient) {
+        return NextResponse.json(
+          { error: 'Forbidden — client not in your scope' },
+          { status: 403 }
+        );
+      }
     }
 
     // Fetch user settings for branding
