@@ -44,10 +44,21 @@ export interface AumScenarioInput {
   client: Client;
   startYear: number;
   projectionYears: number;
+  /**
+   * Per-year IRA-side withdrawal shortfall from the Roth-side engine, keyed
+   * by calendar year. When the user schedules `client.withdrawals` with
+   * `source: 'ira'` (or `'auto'` falling through to IRA) and `aum_allocation_percent`
+   * is high enough that the Roth-side IRA balance can't cover the request,
+   * the AUM brokerage absorbs the shortfall here as a brokerage liquidation
+   * (LTCG on the gain portion). Without this, those withdrawals silently
+   * clip to $0 — exactly what surfaced in support ticket 34b54286 ("100% AUM,
+   * $138K withdrawals scheduled, much less shows up in chart").
+   */
+  iraShortfallByYear?: Map<number, number>;
 }
 
 export function runAumScenario(input: AumScenarioInput): YearlyResult[] {
-  const { client, startYear, projectionYears, startingIraPortion } = input;
+  const { client, startYear, projectionYears, startingIraPortion, iraShortfallByYear } = input;
   const results: YearlyResult[] = [];
 
   const clientAge = client.age && client.age > 0 ? client.age : 62;
@@ -163,10 +174,40 @@ export function runAumScenario(input: AumScenarioInput): YearlyResult[] {
     // Defensive: balance should never drift below basis through fees alone.
     if (aumCostBasis > aumBalance) aumCostBasis = aumBalance;
 
+    // 7) Honor advisor-scheduled spending withdrawals against the brokerage --
+    // The Roth-side engine ran first and pulled what it could from the
+    // (reduced) IRA balance. Whatever it couldn't satisfy gets absorbed here,
+    // because the AUM brokerage is the post-tax destination of qualified
+    // money the user wanted to spend in retirement. Tax treatment is a
+    // brokerage liquidation: pro-rata between basis (tax-free) and gain
+    // (LTCG). No ordinary-income tax — the qualified tax was already paid
+    // on the IRA→AUM transfer above. Tax comes out of the brokerage
+    // (matches the dividend/realized-gains pattern).
+    const shortfallThisYear = iraShortfallByYear?.get(year) ?? 0;
+    let aumScheduledWithdrawal = 0;
+    let aumWithdrawalLtcgTax = 0;
+    if (shortfallThisYear > 0 && aumBalance > 0) {
+      aumScheduledWithdrawal = Math.min(shortfallThisYear, aumBalance);
+      const gainFraction = aumBalance > aumCostBasis
+        ? (aumBalance - aumCostBasis) / aumBalance
+        : 0;
+      const gainPortion = Math.round(aumScheduledWithdrawal * gainFraction);
+      const basisPortion = aumScheduledWithdrawal - gainPortion;
+      aumWithdrawalLtcgTax = Math.round(Math.max(0, gainPortion) * ltcgEffective);
+      aumBalance -= aumScheduledWithdrawal;
+      aumCostBasis = Math.max(0, aumCostBasis - basisPortion);
+      // Tax comes out of what's left in the brokerage.
+      aumBalance -= aumWithdrawalLtcgTax;
+      if (aumCostBasis > aumBalance) aumCostBasis = aumBalance;
+    }
+
     // Tax totals for this year ------------------------------------------------
     // Early-withdrawal penalty is a TAX in the IRS sense — surface it
     // alongside the income/cap-gains taxes so dashboards add it correctly.
-    const totalTaxThisYear = withdrawalTax + dividendTax + realizedTax + earlyWithdrawalPenalty;
+    // The new aumWithdrawalLtcgTax line is the LTCG paid on the brokerage
+    // liquidation (step 7). It's a real cash outflow from the AUM bucket
+    // and belongs in totalTax for lifetime-tax-cost rollups.
+    const totalTaxThisYear = withdrawalTax + dividendTax + realizedTax + earlyWithdrawalPenalty + aumWithdrawalLtcgTax;
 
     // YearlyResult shape — fields not relevant to AUM stay 0/null so the
     // existing display layer can sum across the Roth bucket and AUM bucket
@@ -198,12 +239,14 @@ export function runAumScenario(input: AumScenarioInput): YearlyResult[] {
       federalTax: Math.round(
         withdrawalTax * (ordinaryMarginalDecimal / Math.max(ordinaryEffective, 1e-9)) +
         dividendTax * (ltcgDecimal / Math.max(ltcgEffective, 1e-9)) +
-        realizedTax * (ltcgDecimal / Math.max(ltcgEffective, 1e-9))
+        realizedTax * (ltcgDecimal / Math.max(ltcgEffective, 1e-9)) +
+        aumWithdrawalLtcgTax * (ltcgDecimal / Math.max(ltcgEffective, 1e-9))
       ),
       stateTax: Math.round(
         withdrawalTax * (stateDecimal / Math.max(ordinaryEffective, 1e-9)) +
         dividendTax * (stateDecimal / Math.max(ltcgEffective, 1e-9)) +
-        realizedTax * (stateDecimal / Math.max(ltcgEffective, 1e-9))
+        realizedTax * (stateDecimal / Math.max(ltcgEffective, 1e-9)) +
+        aumWithdrawalLtcgTax * (stateDecimal / Math.max(ltcgEffective, 1e-9))
       ),
       niitTax: 0,
       irmaaSurcharge: 0,
@@ -222,6 +265,10 @@ export function runAumScenario(input: AumScenarioInput): YearlyResult[] {
       rothWithdrawal: 0,
       taxesPaidFromIRA: 0,
       earlyWithdrawalPenalty,
+      // The brokerage-spending withdrawal (step 7). Combined-row code reads
+      // this to surface "scheduled spending from AUM" separately from the
+      // IRA→AUM transfer (which uses iraWithdrawal above).
+      aumScheduledWithdrawal,
       // Tax breakdown — surface the AUM-specific buckets so advisors can
       // explain "this slice is the IRA pull, this slice is dividend drag."
       federalTaxOnConversions: 0,

@@ -83,3 +83,34 @@ export function earlyWithdrawalPenaltyOnIRA(age: number, iraPulled: number): num
   if (iraPulled <= 0 || age >= 59.5) return 0;
   return Math.round(iraPulled * 0.10);
 }
+
+/**
+ * Sum the user's voluntary withdrawal request for `year` that targets the
+ * QUALIFIED side (i.e. would normally come from the IRA). The AUM bucket
+ * holds the post-tax destination of qualified-money transfers, so when the
+ * Roth-side IRA balance can't satisfy these (typical with a high
+ * `aum_allocation_percent`), the AUM brokerage absorbs the shortfall.
+ *
+ * Sources counted:
+ *   - 'ira'  → explicit IRA pull
+ *   - 'auto' → defaults to "Roth first, then IRA"; the IRA-tail of an auto
+ *     entry can land here when Roth is dry
+ *
+ * Sources NOT counted: 'roth' (means specifically the Roth IRA — the AUM
+ * brokerage is not a Roth and shouldn't be used as a substitute).
+ */
+export function requestedFromQualifiedForYear(
+  client: { withdrawals?: Array<{ year: number; amount?: number; source?: 'ira' | 'roth' | 'auto' }> },
+  year: number,
+): number {
+  const list = client.withdrawals ?? [];
+  let total = 0;
+  for (const e of list) {
+    if (e.year !== year) continue;
+    const amt = Math.max(0, Math.round(e.amount ?? 0));
+    if (amt === 0) continue;
+    if (e.source === 'roth') continue;
+    total += amt;
+  }
+  return total;
+}

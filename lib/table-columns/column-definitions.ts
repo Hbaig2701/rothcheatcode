@@ -339,6 +339,17 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     minWidth: 130,
   },
   {
+    id: 'aumScheduledWithdrawal',
+    label: 'AUM Spending W/D',
+    category: 'distributions',
+    description: 'Advisor-scheduled spending withdrawal absorbed by the AUM brokerage. Fires when client.withdrawals tags an "ira"/"auto" pull but the Roth-side IRA balance is too small to satisfy it (typical at high aum_allocation_percent). Tax treatment is brokerage liquidation: pro-rata between basis (tax-free) and gain (LTCG); the LTCG cost is rolled into "Total Tax". Reduces the AUM bucket balance.',
+    formatter: (v) => v != null && v > 0 ? formatCurrency(v) : '—',
+    defaultVisible: false,
+    visibleForProducts: ['all'],
+    defaultWidth: 170,
+    minWidth: 140,
+  },
+  {
     id: 'taxesPaidFromIRA',
     label: 'Taxes Paid from IRA',
     category: 'distributions',

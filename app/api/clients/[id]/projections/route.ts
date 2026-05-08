@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { runSimulation, createSimulationInput, runGuaranteedIncomeSimulation, runGrowthSimulation, runAumScenario } from '@/lib/calculations';
+import { requestedFromQualifiedForYear } from '@/lib/calculations/utils/withdrawals';
 import type { Client } from '@/lib/types/client';
 import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projection';
 import type { SimulationResult, YearlyResult } from '@/lib/calculations';
@@ -14,7 +15,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 50; // v50: Calculation engine audit fixes (5 bugs). (1) AUM `totalIncome` no longer includes reinvested dividends — was inflating IRMAA chart tier for borderline cases. (2) `combineRothAndAum` now folds AUM's IRA-withdrawal into combined AGI/MAGI/taxableIncome — previously combined Total Income > AGI by tens of thousands. (3) Baseline 'spent' mode now allocates totalTax pro-rata between RMD and non-RMD income, fixing the working-retiree case where wage tax silently zeroed out cumulativeAfterTaxDistributions. (4) `formula.ts` (legacy fallback engine) now computes RMDs at age 73+ instead of hardcoding 0 — affects no current clients (all dispatch to GI/growth engines) but no longer produces silent post-73 IRA growth if a future product type lands here. (5) PDF Net (After-Tax) column now includes `rothWithdrawal` — Geo Rose alone had $11M of tax-free Roth withdrawals invisible to the column. Affects: every cached projection — recomputes once on next load.
+const PRODUCT_CONFIG_VERSION = 51; // v51: AUM bucket now honors advisor-scheduled withdrawals (`client.withdrawals`). When a client has both `aum_allocation_percent` > 0 AND scheduled IRA-source withdrawals, the Roth-side IRA balance was clipping requests to ≤ availableIRA — typically $0 at 100% AUM, silently dropping the entire schedule. The AUM brokerage now absorbs the per-year shortfall as a brokerage liquidation (LTCG on the gain portion, basis tax-free), exposed as `aumScheduledWithdrawal` on combined rows + summed into totalTax. Affects: any client with AUM enabled AND a withdrawal schedule. Surfaced by ticket 34b54286 ("100% AUM, $138K withdrawals, much less shows up in chart"). Recomputes on next load.
 
 function generateInputHash(client: Client, customProduct?: CustomProductRow | null): string {
   const relevantFields = {
@@ -211,6 +212,11 @@ function combineRothAndAum(roth: YearlyResult[], aum: YearlyResult[]): YearlyRes
       aumBalance: a.taxableBalance,
       aumTransfer: a.iraWithdrawal ?? 0,
       aumTax: a.totalTax,
+      // Brokerage-spending withdrawal absorbed by the AUM bucket (the
+      // shortfall the Roth-side IRA couldn't satisfy because of the
+      // allocation split). Already reflected in taxableBalance reduction —
+      // this field is for narration / dashboard tooltips.
+      aumScheduledWithdrawal: a.aumScheduledWithdrawal ?? 0,
 
       // GI fields stay on the Roth side
       incomeRiderValue: r.incomeRiderValue,
@@ -317,6 +323,14 @@ function simulationToProjection(
  * The Roth engine still ran on the SPLIT slice — we don't re-run it here.
  * What we do is take its already-computed strategy years and fold the AUM
  * bucket on top, so blueprint_years carries the combined trajectory.
+ *
+ * IRA-side shortfall plumbing: when the user schedules `client.withdrawals`
+ * but the AUM allocation pushed the Roth-side IRA balance below the
+ * requested amount, the Roth engine silently clipped the withdrawal to $0.
+ * We compute the per-year shortfall (requested-from-qualified MINUS what
+ * the Roth side actually pulled) and pass it into the AUM engine so the
+ * brokerage absorbs the difference. This is the fix for ticket 34b54286
+ * ("100% AUM, $138K/yr withdrawals, much less shows up in chart").
  */
 function runAumOverlay(client: Client, result: SimulationResult): { combinedFormula: YearlyResult[]; aumYears: YearlyResult[] | null } {
   const pct = client.aum_allocation_percent ?? 0;
@@ -328,11 +342,27 @@ function runAumOverlay(client: Client, result: SimulationResult): { combinedForm
   const startYear = result.formula[0]?.year ?? new Date().getFullYear();
   const projectionYears = result.formula.length;
 
+  // Build per-year IRA-side shortfall: what the Roth-side engine couldn't
+  // satisfy. We count both 'ira'-source and 'auto'-source entries, since
+  // 'auto' falls through to IRA after Roth is exhausted; the Roth side's
+  // (iraWithdrawal + rothWithdrawal) is the real-world satisfied amount
+  // for that pair of sources. 'roth'-only entries are excluded — the AUM
+  // brokerage isn't a Roth substitute.
+  const iraShortfallByYear = new Map<number, number>();
+  for (const ry of result.formula) {
+    const requested = requestedFromQualifiedForYear(client, ry.year);
+    if (requested <= 0) continue;
+    const satisfied = (ry.iraWithdrawal ?? 0) + (ry.rothWithdrawal ?? 0);
+    const shortfall = Math.max(0, requested - satisfied);
+    if (shortfall > 0) iraShortfallByYear.set(ry.year, shortfall);
+  }
+
   const aumYears = runAumScenario({
     startingIraPortion,
     client,
     startYear,
     projectionYears,
+    iraShortfallByYear,
   });
 
   const combinedFormula = combineRothAndAum(result.formula, aumYears);

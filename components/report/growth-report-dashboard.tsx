@@ -199,8 +199,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // The AUM IRA-to-AUM transfer also lands in iraWithdrawal — strip that out
   // so the "voluntary advisor-scheduled" total is just the schedule-driven pulls.
   const blueScheduledIraWithdrawals = blueIraVoluntaryWithdrawals - aumTotalWithdrawnFromIra;
+  // Brokerage-spending withdrawals: the AUM bucket absorbs IRA-side requests
+  // the Roth-side IRA couldn't satisfy (typical with high AUM allocation).
+  // Surface this as a third leg so the advisor sees the full lifetime
+  // withdrawal picture even when the qualified balance was redirected to AUM.
+  const blueAumScheduledWithdrawals = sum(projection.blueprint_years, "aumScheduledWithdrawal");
   const hasVoluntaryWithdrawals = (client.withdrawals?.length ?? 0) > 0
-    && (blueScheduledIraWithdrawals > 0 || blueRothVoluntaryWithdrawals > 0);
+    && (blueScheduledIraWithdrawals > 0 || blueRothVoluntaryWithdrawals > 0 || blueAumScheduledWithdrawals > 0);
 
   // ===== Conversion-type description for tooltips =====
   const conversionType = client.conversion_type ?? 'optimized_amount';
@@ -409,6 +414,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 hasVoluntaryWithdrawals={hasVoluntaryWithdrawals}
                 blueScheduledIraWithdrawals={blueScheduledIraWithdrawals}
                 blueRothVoluntaryWithdrawals={blueRothVoluntaryWithdrawals}
+                blueAumScheduledWithdrawals={blueAumScheduledWithdrawals}
                 taxPaymentSource={taxPaymentSource}
                 conversionTaxesFromIRA={conversionTaxesFromIRA}
                 blueEarlyWithdrawalPenalty={blueEarlyWithdrawalPenalty}
@@ -500,6 +506,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 hasVoluntaryWithdrawals={hasVoluntaryWithdrawals}
                 blueScheduledIraWithdrawals={blueScheduledIraWithdrawals}
                 blueRothVoluntaryWithdrawals={blueRothVoluntaryWithdrawals}
+                blueAumScheduledWithdrawals={blueAumScheduledWithdrawals}
                 yearsToDefer={yearsToDefer}
               />
             }
@@ -1096,6 +1103,7 @@ function LifetimeWealthInfo({
   hasVoluntaryWithdrawals,
   blueScheduledIraWithdrawals,
   blueRothVoluntaryWithdrawals,
+  blueAumScheduledWithdrawals,
   taxPaymentSource,
   conversionTaxesFromIRA,
   blueEarlyWithdrawalPenalty,
@@ -1142,6 +1150,7 @@ function LifetimeWealthInfo({
   hasVoluntaryWithdrawals: boolean;
   blueScheduledIraWithdrawals: number;
   blueRothVoluntaryWithdrawals: number;
+  blueAumScheduledWithdrawals: number;
   taxPaymentSource: string;
   conversionTaxesFromIRA: number;
   blueEarlyWithdrawalPenalty: number;
@@ -1274,8 +1283,16 @@ function LifetimeWealthInfo({
             <p className="text-xs text-text-muted">
               Advisor-scheduled pulls on top of RMDs and conversions:&nbsp;
               {blueScheduledIraWithdrawals > 0 && <>{toUSD(blueScheduledIraWithdrawals)} from the IRA (taxable income)</>}
-              {blueScheduledIraWithdrawals > 0 && blueRothVoluntaryWithdrawals > 0 && <> · </>}
+              {blueScheduledIraWithdrawals > 0 && (blueRothVoluntaryWithdrawals > 0 || blueAumScheduledWithdrawals > 0) && <> · </>}
               {blueRothVoluntaryWithdrawals > 0 && <>{toUSD(blueRothVoluntaryWithdrawals)} from the Roth (tax-free, qualified)</>}
+              {blueRothVoluntaryWithdrawals > 0 && blueAumScheduledWithdrawals > 0 && <> · </>}
+              {blueAumScheduledWithdrawals > 0 && (
+                <>
+                  {toUSD(blueAumScheduledWithdrawals)} from the AUM brokerage (the qualified-side request the
+                  Roth-side IRA balance couldn&apos;t cover at this AUM allocation — taxed as a brokerage
+                  liquidation, LTCG on the gain portion only)
+                </>
+              )}
               .
               {isUnder59Half && blueScheduledIraWithdrawals > 0 && (
                 <> 10% early-withdrawal penalty applies to the IRA portion since the client is under 59½.</>
@@ -1776,6 +1793,7 @@ function DistributionsInfo({
   hasVoluntaryWithdrawals,
   blueScheduledIraWithdrawals,
   blueRothVoluntaryWithdrawals,
+  blueAumScheduledWithdrawals,
   yearsToDefer,
 }: {
   client: Client;
@@ -1788,6 +1806,7 @@ function DistributionsInfo({
   hasVoluntaryWithdrawals: boolean;
   blueScheduledIraWithdrawals: number;
   blueRothVoluntaryWithdrawals: number;
+  blueAumScheduledWithdrawals: number;
   yearsToDefer: number;
 }) {
   return (
@@ -1855,9 +1874,19 @@ function DistributionsInfo({
                     variant="positive"
                   />
                 )}
+                {blueAumScheduledWithdrawals > 0 && (
+                  <TipRow
+                    label="Voluntary AUM brokerage pulls (LTCG on gain)"
+                    value={toUSD(blueAumScheduledWithdrawals)}
+                  />
+                )}
                 <TipNote>
                   These are pulls the advisor entered on the withdrawal schedule — separate from RMDs and conversions,
                   reducing the buckets year-by-year.
+                  {blueAumScheduledWithdrawals > 0 && (
+                    <> The AUM brokerage line is the IRA-side request the Roth-side IRA balance couldn&apos;t satisfy
+                    at this allocation split — taxed as a brokerage liquidation rather than ordinary income.</>
+                  )}
                 </TipNote>
               </>
             )}

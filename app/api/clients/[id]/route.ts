@@ -75,11 +75,28 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
   const { scenario_name, ...clientData } = parsed.data;
 
-  // Create update payload handling scenario_name to federal_bracket
+  // Build the update payload from ONLY the keys that were present in the
+  // raw request body. Zod's `.partial()` keeps `.default(...)` calls intact
+  // (verified empirically with zod 4) — so calling `safeParse({})` returns
+  // every default-bearing field populated with its default. Spreading
+  // `clientData` directly into the payload would then issue an UPDATE that
+  // overwrites the row with a "blank" client (withdrawals=[], balances=0,
+  // age=62, end_age=100, etc.) any time a small partial-update is sent
+  // (e.g. the dashboard's "Stay within penalty-free limit" button or the
+  // scenario-name inline edit, which post `{respect_penalty_free_limit:true}`
+  // or `{scenario_name: "..."}` only). This was the Paul Zuidema data-loss
+  // bug surfaced in support ticket 34b54286 — the client's whole row went to
+  // defaults the moment one of those tiny PUTs went through.
+  const bodyKeys = body && typeof body === "object" ? Object.keys(body) : [];
   const updatePayload: Record<string, unknown> = {
-    ...clientData,
     updated_at: new Date().toISOString()
   };
+  for (const key of bodyKeys) {
+    if (key === "scenario_name") continue; // handled below via federal_bracket
+    if (key in clientData) {
+      updatePayload[key] = (clientData as Record<string, unknown>)[key];
+    }
+  }
 
   // When the advisor switches a client to a non-married filing status, force
   // every spouse-derived column to null so the engine + UI can never read a

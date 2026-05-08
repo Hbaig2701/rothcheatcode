@@ -395,12 +395,21 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       : year.totalTax;
     const iraCashInflow = year.rmdAmount ?? 0;
     const rothCashIn = year.rothWithdrawal ?? 0;
+    // AUM-bucket spending withdrawals are real cash leaving the managed
+    // brokerage and arriving in the client's bank. The companion LTCG tax is
+    // already inside year.totalTax (subtracted via taxesOutOfPocket below),
+    // so adding the gross withdrawal here keeps the math symmetric with how
+    // rothWithdrawal is treated. Without this, advisor-scheduled spending
+    // funded out of the AUM bucket vanished from the Net (After-Tax) column
+    // when aum_allocation_percent was high enough to absorb the request.
+    const aumCashIn = year.aumScheduledWithdrawal ?? 0;
     const netIncomeVal =
       year.otherIncome +
       taxExemptNonSSI +
       year.ssIncome +
       iraCashInflow +
-      rothCashIn -
+      rothCashIn +
+      aumCashIn -
       taxesOutOfPocket;
 
     const baseRow = {

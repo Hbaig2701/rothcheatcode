@@ -245,6 +245,20 @@ export interface YearlyResult {
   aumTransfer?: number;
   aumTax?: number;
 
+  // AUM brokerage spending withdrawal — the portion of the user's scheduled
+  // `client.withdrawals` that the Roth-side engine couldn't satisfy (because
+  // the IRA balance was reduced by `aum_allocation_percent`) and that the
+  // AUM brokerage absorbed instead. Treated as a brokerage liquidation
+  // (LTCG on the gain portion) rather than ordinary income — the qualified
+  // tax was already paid during the IRA→AUM transfer, so charging ordinary
+  // income on the same dollars again would double-count.
+  // Populated by combineRothAndAum on the COMBINED row only. The dollar
+  // amount is ALSO already reflected in the year's taxableBalance reduction
+  // (the AUM bucket is a subset of taxableBalance), so don't add it on top
+  // when computing balances. The companion tax line is in `aumTax` /
+  // `totalTax`.
+  aumScheduledWithdrawal?: number;
+
   // Guaranteed Income-specific (optional, for GI products)
   incomeRiderValue?: number; // Income benefit base (in cents)
   accumulationValue?: number; // Account accumulation value (in cents)

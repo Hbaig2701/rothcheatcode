@@ -428,14 +428,19 @@ export function generateStory(
     // VOLUNTARY WITHDRAWAL — surfaces an advisor-scheduled pull (separate
     // from RMDs, conversions, and the AUM transfer). We compute "voluntary
     // IRA" as combined iraWithdrawal minus the AUM bucket's pull for that
-    // same year, so the AUM transfer doesn't double-trigger this card.
+    // same year, so the AUM transfer doesn't double-trigger this card. The
+    // AUM brokerage may also absorb the IRA-side request the Roth-side IRA
+    // couldn't satisfy (`aumScheduledWithdrawal` — taxed as a brokerage
+    // liquidation, LTCG on gain only) — surface that as a third leg.
     if (hasScheduledWithdrawals) {
       const voluntaryIra = Math.max(0, (year.iraWithdrawal ?? 0) - aumIraThisYear);
       const voluntaryRoth = year.rothWithdrawal ?? 0;
-      if (voluntaryIra > 0 || voluntaryRoth > 0) {
+      const voluntaryAum = year.aumScheduledWithdrawal ?? 0;
+      if (voluntaryIra > 0 || voluntaryRoth > 0 || voluntaryAum > 0) {
         const parts: string[] = [];
         if (voluntaryIra > 0) parts.push(`${formatCurrency(voluntaryIra)} from the Traditional IRA (taxable income)`);
         if (voluntaryRoth > 0) parts.push(`${formatCurrency(voluntaryRoth)} from the Roth (tax-free, qualified)`);
+        if (voluntaryAum > 0) parts.push(`${formatCurrency(voluntaryAum)} from the AUM brokerage (LTCG on the gain portion only)`);
         storyEntries.push({
           year: year.year,
           age: year.age,
@@ -445,6 +450,7 @@ export function generateStory(
           metrics: [
             ...(voluntaryIra > 0 ? [{ label: 'IRA Pull', value: formatCurrency(voluntaryIra) }] : []),
             ...(voluntaryRoth > 0 ? [{ label: 'Roth Pull', value: formatCurrency(voluntaryRoth) }] : []),
+            ...(voluntaryAum > 0 ? [{ label: 'AUM Pull', value: formatCurrency(voluntaryAum) }] : []),
           ],
           runningTotals: {
             totalConverted: formatCurrency(totalConverted),
