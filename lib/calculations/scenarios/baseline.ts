@@ -205,22 +205,42 @@ export function runBaselineScenario(
     iraBalance = iraAfterDistribution + iraInterest;
     rothBalance = rothAfterWithdrawal + rothInterest;
 
-    // Taxable balance handling depends on RMD treatment option
-    // After-tax RMD = RMD - taxes attributable to the RMD
-    const afterTaxRmd = rmdAmount - totalTax;
+    // Taxable balance handling depends on RMD treatment option.
+    //
+    // After-tax RMD must use ONLY the tax attributable to the RMD itself,
+    // not the year's full totalTax — totalTax includes tax on wages, SS,
+    // and other income, which the client pays out of THOSE income streams,
+    // not out of the RMD. Pro-rata allocation by share of taxable income
+    // is approximate (a true marginal calc would re-run the tax engine
+    // without the RMD), but it correctly stops the previous behavior where
+    // a working retiree with $50K RMD and $75K total tax saw afterTaxRmd
+    // clamp to 0 and "After taxes (what reaches the client)" undershoot
+    // by the wage-attributable tax portion.
+    const rmdShareOfTaxable = grossTaxableIncome > 0
+      ? rmdAmount / grossTaxableIncome
+      : 0;
+    const rmdAttributableTax = Math.round(totalTax * rmdShareOfTaxable);
+    const afterTaxRmd = rmdAmount - rmdAttributableTax;
+    // Non-RMD share of tax is paid from the taxable account in modes that
+    // track it ('cash'/'reinvested'). 'spent' mode keeps taxable flat as
+    // before — non-RMD tax in that mode is assumed funded externally
+    // (matches the "wages cover their own withholding" intuition).
+    const nonRmdTax = totalTax - rmdAttributableTax;
 
     if (rmdTreatment === 'spent') {
-      // RMDs are spent on living expenses - don't accumulate in taxable
-      // Track as distributions received (for Lifetime Wealth calculation)
+      // RMDs are spent on living expenses - don't accumulate in taxable.
+      // Track as distributions received (for Lifetime Wealth calculation).
       cumulativeAfterTaxDistributions += Math.max(0, afterTaxRmd);
-      // Taxable balance stays flat (no RMDs added, but also no tax deducted since paid from RMD)
+      // Taxable balance stays flat — same as before this fix.
       taxableBalance = boyTaxable;
     } else if (rmdTreatment === 'cash') {
-      // RMDs accumulate in cash but don't earn interest
-      taxableBalance = boyTaxable + rmdAmount - totalTax;
+      // RMDs accumulate in cash but don't earn interest. Non-RMD tax still
+      // comes out of the account.
+      taxableBalance = boyTaxable + rmdAmount - rmdAttributableTax - nonRmdTax;
     } else {
-      // 'reinvested' (default): RMDs go to taxable account and earn interest
-      taxableBalance = boyTaxable + rmdAmount + taxableInterest - totalTax;
+      // 'reinvested' (default): RMDs go to taxable account and earn interest.
+      // Non-RMD tax (wage tax, etc.) deducts from the taxable account.
+      taxableBalance = boyTaxable + rmdAmount + taxableInterest - rmdAttributableTax - nonRmdTax;
     }
 
     // Determine tax bracket

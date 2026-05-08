@@ -375,12 +375,16 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     // 'from_ira', the conversion tax is debited directly from the IRA and
     // never touches the client's wallet, so the column backs that portion
     // out via taxesPaidFromIRA (0 on baseline rows by construction).
+    // Roth withdrawals are tax-free spendable cash — they add to Net
+    // directly without adjusting taxes (already qualified by assumption).
     const taxesOutOfPocket = Math.max(0, year.totalTax - (year.taxesPaidFromIRA ?? 0));
+    const rothCashIn = year.rothWithdrawal ?? 0;
     const netIncomeVal =
       year.otherIncome +
       taxExemptNonSSI +
       year.ssIncome +
-      distIra -
+      distIra +
+      rothCashIn -
       taxesOutOfPocket -
       (scenario === 'formula' ? year.conversionAmount : 0);
 

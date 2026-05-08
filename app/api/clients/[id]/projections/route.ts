@@ -14,7 +14,7 @@ import crypto from 'crypto';
 
 // Increment this when product configurations change (payout tables, roll-up rates, etc.)
 // This ensures cached projections are invalidated when we update product data
-const PRODUCT_CONFIG_VERSION = 49; // v49: Fixed baseline/strategy asymmetry where strategy taxable balance was being drained by non-conversion taxes (wages, SS, RMD) while baseline only did the same in cash/reinvested modes — punishing 'spent'-mode clients with significant taxable income before their conversion phase (e.g., Carlos Parra with $200K wages over 6 years saw -$287K of phantom drag, strategy displayed -78% instead of the real +47%). Strategy taxable now matches baseline rules per rmd_treatment. Affects: every cached projection — recomputes once on next load.
+const PRODUCT_CONFIG_VERSION = 50; // v50: Calculation engine audit fixes (5 bugs). (1) AUM `totalIncome` no longer includes reinvested dividends — was inflating IRMAA chart tier for borderline cases. (2) `combineRothAndAum` now folds AUM's IRA-withdrawal into combined AGI/MAGI/taxableIncome — previously combined Total Income > AGI by tens of thousands. (3) Baseline 'spent' mode now allocates totalTax pro-rata between RMD and non-RMD income, fixing the working-retiree case where wage tax silently zeroed out cumulativeAfterTaxDistributions. (4) `formula.ts` (legacy fallback engine) now computes RMDs at age 73+ instead of hardcoding 0 — affects no current clients (all dispatch to GI/growth engines) but no longer produces silent post-73 IRA growth if a future product type lands here. (5) PDF Net (After-Tax) column now includes `rothWithdrawal` — Geo Rose alone had $11M of tax-free Roth withdrawals invisible to the column. Affects: every cached projection — recomputes once on next load.
 
 function generateInputHash(client: Client, customProduct?: CustomProductRow | null): string {
   const relevantFields = {
@@ -176,10 +176,18 @@ function combineRothAndAum(roth: YearlyResult[], aum: YearlyResult[]): YearlyRes
       rothGrowth: (r.rothGrowth ?? 0) + (a.rothGrowth ?? 0),
       taxableGrowth: (r.taxableGrowth ?? 0) + (a.taxableGrowth ?? 0),
       productBonusApplied: r.productBonusApplied,
-      magi: r.magi,
-      agi: r.agi,
+      // AGI/MAGI/taxableIncome must include the AUM-side IRA pull — that
+      // withdrawal IS taxable income at the IRS level. Without this the
+      // combined row showed Total Income > AGI by tens of thousands when
+      // both buckets are active, which is impossible by definition (AGI
+      // can only differ from total income by adjustments, not by missing
+      // entire income streams). Note: this is a DISPLAY consolidation —
+      // each engine still computes tax on its own slice independently
+      // (cross-engine bracket stacking is a v2 concern, see WISHLIST).
+      magi: (r.magi ?? 0) + ((a.iraWithdrawal ?? 0)),
+      agi: (r.agi ?? 0) + ((a.iraWithdrawal ?? 0)),
       standardDeduction: r.standardDeduction,
-      taxableIncome: r.taxableIncome,
+      taxableIncome: (r.taxableIncome ?? 0) + ((a.iraWithdrawal ?? 0)),
       federalTaxBracket: r.federalTaxBracket,
       irmaaTier: r.irmaaTier,
       federalTaxOnSS: r.federalTaxOnSS,

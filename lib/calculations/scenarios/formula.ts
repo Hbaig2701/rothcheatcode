@@ -136,6 +136,17 @@ export function runFormulaScenario(
     const boyTaxable = taxableBalance;
     const boyCombined = boyIRA + boyRoth;
 
+    // RMD (Required Minimum Distribution) — kicks in at the SECURE-Act
+    // age (73 for current cohorts). Conversions in the same year reduce
+    // the IRA but RMDs come off conceptually first. Previously this engine
+    // hardcoded rmdAmount: 0, silently letting the IRA grow past 73 with
+    // no forced distributions — wrong for any client who converts past
+    // RMD age. Other engines (growth-formula.ts, baseline.ts) compute it;
+    // this fallback now matches them.
+    const rmdResult = calculateRMD({ age, traditionalBalance: boyIRA, birthYear });
+    const rmdAmount = rmdResult.rmdAmount;
+    const iraAfterRmd = boyIRA - rmdAmount;
+
     // Primary SSI income (with COLA)
     const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
     const primarySsIncome = primaryYearsCollecting >= 0
@@ -163,8 +174,9 @@ export function runFormulaScenario(
 
     // Tax picture WITHOUT any conversion this year — used as the baseline for
     // marginal-conversion-tax math AND for tax owed in years we don't convert.
+    // RMDs ARE part of the no-conversion ordinary income (forced distribution).
     const taxInfoNoConv = computeTaxableIncomeWithSS({
-      otherIncome,
+      otherIncome: otherIncome + rmdAmount,
       ssBenefits: ssIncome,
       taxExemptInterest: taxExemptNonSSI,
       deductions,
@@ -195,7 +207,9 @@ export function runFormulaScenario(
     const carrierCap = respectPenaltyFreeLimit && inSurrenderPeriod
       ? Math.round(boyIRA * penaltyFreePercent / 100)
       : Number.POSITIVE_INFINITY;
-    const effectiveIraForConversion = Math.min(boyIRA, carrierCap);
+    // Conversions can only use the IRA balance LEFT after the RMD comes off
+    // (the RMD goes to ordinary income, not into the Roth).
+    const effectiveIraForConversion = Math.min(iraAfterRmd, carrierCap);
 
     // Check if we should convert this year
     const shouldConvert = !conversionComplete &&
@@ -371,7 +385,11 @@ export function runFormulaScenario(
       // Track cumulative converted for the partial cap.
       cumulativeConverted += conversionAmount;
 
-      if (boyIRA - conversionAmount <= 0) {
+      // Conversion is complete when nothing's left after the RMD AND this
+      // year's conversion. Previously this checked boyIRA only, which
+      // worked when rmdAmount was hardcoded to 0 but now needs to subtract
+      // the RMD too or post-73 clients would loop forever.
+      if (iraAfterRmd - conversionAmount <= 0) {
         conversionComplete = true;
       }
     }
@@ -379,19 +397,21 @@ export function runFormulaScenario(
     // Execute conversion. When payTaxFromIRA, the IRA funds both the
     // conversion and its marginal tax — together they equal totalIRAWithdrawal.
     const conversionTaxFromIRA = payTaxFromIRA ? (federalConversionTax + stateConversionTax) : 0;
-    const iraAfterConversion = boyIRA - conversionAmount - conversionTaxFromIRA;
+    // RMD has already been mentally pulled off the IRA above (iraAfterRmd).
+    // Now the conversion + tax-from-IRA come off too.
+    const iraAfterConversion = iraAfterRmd - conversionAmount - conversionTaxFromIRA;
     const rothAfterConversion = boyRoth + conversionAmount;
 
     // Interest = (B.O.Y. Balance − Distribution) × Rate
     const iraInterest = Math.round(iraAfterConversion * growthRate);
     const rothInterest = Math.round(rothAfterConversion * growthRate);
 
-    // Final tax picture. The IRS sees the full IRA distribution (conversion
-    // AND any tax withheld from the IRA), so we pass totalIRAWithdrawal —
-    // not just conversionAmount — when computing the year's taxable income.
-    const taxInfoFinal = totalIRAWithdrawal > 0
+    // Final tax picture. The IRS sees the full IRA distribution (RMD +
+    // conversion + any tax withheld from the IRA), so we pass them all
+    // when computing the year's taxable income.
+    const taxInfoFinal = (totalIRAWithdrawal + rmdAmount) > 0
       ? computeTaxableIncomeWithSS({
-          otherIncome: otherIncome + totalIRAWithdrawal,
+          otherIncome: otherIncome + rmdAmount + totalIRAWithdrawal,
           ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI,
           deductions,
@@ -411,10 +431,10 @@ export function runFormulaScenario(
     });
 
     // MAGI for IRMAA uses full SS (taxable + non-taxable portions) plus all
-    // IRA distributions. When paying tax from the IRA, the tax withholding
-    // is part of that distribution, so we use totalIRAWithdrawal not just
-    // conversionAmount — otherwise IRMAA tiers would be under-triggered.
-    const grossIncomeWithWithdrawal = otherIncome + totalIRAWithdrawal;
+    // IRA distributions (RMD + conversion + any tax-from-IRA). Without
+    // including the RMD here, IRMAA tiers would be under-triggered for any
+    // post-73 client.
+    const grossIncomeWithWithdrawal = otherIncome + rmdAmount + totalIRAWithdrawal;
     const magi = grossIncomeWithWithdrawal + taxExemptNonSSI + ssIncome;
     incomeHistory.set(year, magi);
 
@@ -455,7 +475,13 @@ export function runFormulaScenario(
     const taxFromTaxableAccount = rmdTreatment === 'spent'
       ? (payTaxFromIRA ? 0 : conversionFedStateTax)
       : (payTaxFromIRA ? Math.max(0, totalTax - conversionTaxFromIRA) : totalTax);
-    taxableBalance = boyTaxable - taxFromTaxableAccount;
+    // RMD proceeds either get spent (don't accumulate) or go to taxable
+    // account ('reinvested'/'cash'). Mirrors growth-formula.ts:638.
+    if (rmdTreatment === 'spent') {
+      taxableBalance = boyTaxable - taxFromTaxableAccount;
+    } else {
+      taxableBalance = boyTaxable + rmdAmount - taxFromTaxableAccount;
+    }
 
     // Split federal/state tax between "on conversion" and "on ordinary/SS income"
     // for display breakdowns. Ordinary portion is what remains after subtracting
@@ -475,7 +501,7 @@ export function runFormulaScenario(
       traditionalBalance: iraBalance,
       rothBalance,
       taxableBalance,
-      rmdAmount: 0, // No RMDs during conversion phase (converting before RMD age typically)
+      rmdAmount,
       conversionAmount,
       ssIncome,
       pensionIncome: 0,
@@ -518,7 +544,11 @@ export function runFormulaScenario(
       stateTaxOnOrdinaryIncome: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
         ? Math.round(stateTaxOnOrdinaryAndSS * otherIncome / (otherIncome + taxInfoFinal.taxableSS))
         : stateTaxOnOrdinaryAndSS,
-      totalIRAWithdrawal,
+      // The IRS sees the full IRA distribution this year — RMD + conversion +
+      // any tax pulled from the IRA. Stored field reflects all three so
+      // downstream display (Conversion Details, etc.) shows the correct
+      // gross distribution number.
+      totalIRAWithdrawal: rmdAmount + totalIRAWithdrawal,
       taxesPaidFromIRA: conversionTaxFromIRA,
       earlyWithdrawalPenalty,
     });

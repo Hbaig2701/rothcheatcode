@@ -185,7 +185,13 @@ export function runAumScenario(input: AumScenarioInput): YearlyResult[] {
       ssIncome: 0,
       pensionIncome: 0,
       otherIncome: 0,
-      totalIncome: withdrawalGross + dividendIncome,
+      // The IRA-to-AUM withdrawal is the only "income" the IRS sees here —
+      // dividends are reinvested via DRIP (they never hit the client's
+      // pocket and they're already taxed via dividendTax in totalTax). We
+      // used to include dividendIncome here, but downstream the IRMAA chart
+      // reads totalIncome as a MAGI proxy, so adding the dividends inflated
+      // the displayed IRMAA tier above the real one for borderline clients.
+      totalIncome: withdrawalGross,
       // Federal/state split is reported pro-rata against the ordinary vs LTCG
       // tax mix. Good enough for the column-level breakdown advisors care
       // about.
