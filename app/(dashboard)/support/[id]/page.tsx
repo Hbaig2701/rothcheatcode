@@ -146,7 +146,7 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
 
       <div className="rounded-[14px] bg-bg-card border border-border-default p-6 mb-6">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-3">Attachments</h2>
-        <AttachmentList ticketId={ticket.id} attachments={attachments} />
+        <AttachmentList ticketId={ticket.id} attachments={attachments.filter(a => !a.comment_id)} />
       </div>
 
       {statusEvents.length > 0 && (
@@ -165,7 +165,13 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
 
       <div className="rounded-[14px] bg-bg-card border border-border-default p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-3">Conversation</h2>
-        <CommentThread ticketId={ticket.id} comments={enrichedComments} canPostInternal={false} currentUserId={user.id} />
+        <CommentThread
+          ticketId={ticket.id}
+          comments={enrichedComments}
+          commentAttachments={attachments.filter(a => a.comment_id)}
+          canPostInternal={false}
+          currentUserId={user.id}
+        />
       </div>
     </div>
   )

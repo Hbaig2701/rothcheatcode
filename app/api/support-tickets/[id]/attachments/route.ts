@@ -16,6 +16,10 @@ const createAttachmentSchema = z.object({
     message: 'Unsupported file type',
   }),
   file_size: z.number().int().positive().max(MAX_ATTACHMENT_SIZE_BYTES),
+  // Optional — when set, the attachment is shown inline under that comment
+  // in the conversation thread. When omitted (the original ticket-form path),
+  // the attachment lands in the top-level Attachments section.
+  comment_id: z.string().uuid().optional(),
 })
 
 // Records a successful upload — file should already exist in storage at file_path.
@@ -44,17 +48,37 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     )
   }
 
-  // Cap attachments per ticket
-  const { count } = await supabase
-    .from('support_ticket_attachments')
-    .select('id', { count: 'exact', head: true })
-    .eq('ticket_id', id)
+  // Cap attachments per ticket — applies to TICKET-level uploads (the
+  // original form). Comment-level uploads are not counted toward this cap
+  // because each new comment is its own conversational unit; capping them
+  // would make a long thread feel arbitrarily blocked.
+  if (!parsed.data.comment_id) {
+    const { count } = await supabase
+      .from('support_ticket_attachments')
+      .select('id', { count: 'exact', head: true })
+      .eq('ticket_id', id)
+      .is('comment_id', null)
 
-  if ((count ?? 0) >= MAX_ATTACHMENTS_PER_TICKET) {
-    return NextResponse.json(
-      { error: `Max ${MAX_ATTACHMENTS_PER_TICKET} attachments per ticket` },
-      { status: 400 }
-    )
+    if ((count ?? 0) >= MAX_ATTACHMENTS_PER_TICKET) {
+      return NextResponse.json(
+        { error: `Max ${MAX_ATTACHMENTS_PER_TICKET} attachments per ticket` },
+        { status: 400 }
+      )
+    }
+  } else {
+    // Validate the comment belongs to this ticket (defense-in-depth — RLS
+    // also blocks cross-ticket comment access, but this gives a clean 400).
+    const { data: comment } = await supabase
+      .from('support_ticket_comments')
+      .select('id, ticket_id')
+      .eq('id', parsed.data.comment_id)
+      .maybeSingle()
+    if (!comment || comment.ticket_id !== id) {
+      return NextResponse.json(
+        { error: 'comment_id does not belong to this ticket' },
+        { status: 400 }
+      )
+    }
   }
 
   const { data, error } = await supabase

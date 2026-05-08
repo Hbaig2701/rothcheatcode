@@ -139,12 +139,18 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
 
           <div className="rounded-[14px] bg-bg-card border border-border-default p-6 mb-5">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-3">Attachments</h2>
-            <AttachmentList ticketId={ticket.id} attachments={attachments} />
+            <AttachmentList ticketId={ticket.id} attachments={attachments.filter(a => !a.comment_id)} />
           </div>
 
           <div className="rounded-[14px] bg-bg-card border border-border-default p-6 mb-5">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-3">Conversation</h2>
-            <CommentThread ticketId={ticket.id} comments={enrichedComments} canPostInternal={true} currentUserId={viewer?.id ?? ''} />
+            <CommentThread
+              ticketId={ticket.id}
+              comments={enrichedComments}
+              commentAttachments={attachments.filter(a => a.comment_id)}
+              canPostInternal={true}
+              currentUserId={viewer?.id ?? ''}
+            />
           </div>
 
           {events.length > 0 && (

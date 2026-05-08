@@ -67,6 +67,10 @@ export interface SupportTicketAttachment {
   mime_type: string
   file_size: number
   created_at: string
+  /** When set, the attachment is rendered inline under the matching
+   * comment in the conversation thread. NULL means it's a top-level
+   * ticket attachment (the original "drop the report PDF" form path). */
+  comment_id: string | null
 }
 
 export interface SupportTicketComment {
