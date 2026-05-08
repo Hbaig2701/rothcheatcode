@@ -31,6 +31,9 @@ export default async function AdminLayout({
               <Link href="/admin/advisors" className="text-text-dim hover:text-foreground transition-colors">
                 Advisors
               </Link>
+              <Link href="/admin/affiliates" className="text-text-dim hover:text-foreground transition-colors">
+                Affiliates
+              </Link>
               <Link href="/support-centre" className="text-text-dim hover:text-foreground transition-colors">
                 Support
               </Link>

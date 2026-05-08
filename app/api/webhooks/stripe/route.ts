@@ -161,6 +161,27 @@ export async function POST(request: NextRequest) {
             if (cycle) updateData.billing_cycle = cycle;
             updateData.subscription_status = "active";
 
+            // Affiliate attribution — when the customer redeemed an affiliate
+            // promotion code at Checkout, the session's discounts array
+            // includes the promotion_code id. Match it against our
+            // affiliates table so we can pay out commission for as long as
+            // this customer remains subscribed.
+            const discounts = session.discounts as Array<{ promotion_code?: string | null }> | undefined;
+            const promotionCodeId = discounts?.[0]?.promotion_code ?? null;
+            if (promotionCodeId) {
+              const { data: affiliate } = await supabase
+                .from("affiliates")
+                .select("id")
+                .eq("stripe_promotion_code_id", promotionCodeId)
+                .maybeSingle();
+              if (affiliate) {
+                updateData.affiliate_id = affiliate.id;
+                console.log(`[Stripe Webhook] Attributed profile ${profile.id} to affiliate ${affiliate.id} (promo ${promotionCodeId})`);
+              } else {
+                console.warn(`[Stripe Webhook] Promotion code ${promotionCodeId} used but no matching affiliate row`);
+              }
+            }
+
             await supabase
               .from("profiles")
               .update(updateData)

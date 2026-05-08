@@ -21,9 +21,10 @@ export async function POST(request: NextRequest) {
 
 
   try {
-    // Verify the Stripe session
+    // Verify the Stripe session. Expand `discounts` so we can attribute
+    // affiliate conversions when the customer redeemed an affiliate code.
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
-      expand: ["subscription"],
+      expand: ["subscription", "discounts"],
     });
 
     if (session.status !== "complete") {
@@ -84,6 +85,26 @@ export async function POST(request: NextRequest) {
       throw authError;
     }
 
+    // Affiliate attribution — if the Checkout session has a redeemed
+    // promotion code, look up the matching affiliate so we can record the
+    // attribution on the profile. Webhook does the same, but the welcome
+    // route handles the case where the profile is created here AFTER the
+    // webhook fires (so the webhook's profile lookup misses it).
+    let affiliateId: string | null = null;
+    const discounts = (session as { discounts?: Array<{ promotion_code?: string | { id?: string } | null }> }).discounts;
+    const rawPromo = discounts?.[0]?.promotion_code;
+    const promotionCodeId = typeof rawPromo === "string"
+      ? rawPromo
+      : (rawPromo && typeof rawPromo === "object" ? rawPromo.id ?? null : null);
+    if (promotionCodeId) {
+      const { data: affiliate } = await admin
+        .from("affiliates")
+        .select("id")
+        .eq("stripe_promotion_code_id", promotionCodeId)
+        .maybeSingle();
+      if (affiliate) affiliateId = affiliate.id;
+    }
+
     // Update their profile with Stripe info
     // The profile is created by a DB trigger on auth.users insert, but there's
     // a potential race condition. Retry the update a few times to handle this.
@@ -96,6 +117,7 @@ export async function POST(request: NextRequest) {
       billing_cycle: cycle,
       subscription_status: "active",
       current_period_end: periodEndIso,
+      affiliate_id: affiliateId,
     };
 
     let profileUpdated = false;
