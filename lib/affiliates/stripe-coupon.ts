@@ -7,7 +7,11 @@ import { getStripe } from "@/lib/stripe";
  * code string AND the commission rate (stored in our DB, not Stripe).
  */
 const COUPON_ID = "AFFILIATE_PROGRAM_20OFF";
-const COUPON_NAME = "Affiliate Program — 20% Off Forever (Annual Only)";
+// Stripe caps Coupon.name at 40 chars. Previous string was 53 chars and got
+// rejected at create time ("Invalid string: Affi...nly); must be at most 40
+// characters"). Plain ASCII hyphen instead of em-dash to avoid any
+// multi-byte counting weirdness with the limit.
+const COUPON_NAME = "Affiliate 20% Off Annual Forever";
 const DISCOUNT_PERCENT = 20;
 
 /**
