@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, AlertCircle, ShoppingCart } from "lucide-react";
+import { Copy, Check, AlertCircle, ShoppingCart, TrendingUp, Users, Sparkles } from "lucide-react";
 
 interface AffiliateView {
   id: string;
@@ -60,179 +60,222 @@ export function AffiliatePortalClient({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="max-w-5xl mx-auto px-6 py-12">
-        <header className="mb-10">
-          <p className="text-xs uppercase tracking-[2px] text-text-dimmer mb-2">Affiliate Portal</p>
-          <h1 className="text-[32px] font-display font-bold leading-tight">
+        {/* Header */}
+        <header className="mb-12">
+          <p className="text-xs uppercase tracking-[2.5px] text-gold font-semibold mb-3">
+            Affiliate Portal
+          </p>
+          <h1 className="text-[40px] md:text-[44px] font-display font-bold leading-[1.1] text-foreground">
             Welcome back, {affiliate.name.split(" ")[0]}
           </h1>
-          <p className="text-sm text-text-dim mt-2">
+          <p className="text-base text-foreground/70 mt-3 max-w-2xl">
             Here&apos;s how your referrals are doing. Bookmark this page — the URL is your private dashboard.
           </p>
         </header>
 
+        {/* Paused warning */}
         {!affiliate.is_active && (
-          <div className="mb-6 flex items-start gap-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="mb-8 flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-5">
             <AlertCircle className="size-5 text-amber-400 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-foreground">Your code is currently paused</p>
-              <p className="text-xs text-text-dim mt-0.5">
-                New customers can&apos;t redeem {affiliate.code} right now. Existing subscribers keep their
-                discount and you&apos;ll continue earning on their renewals. Reach out if this is unexpected.
+              <p className="text-sm font-semibold text-foreground">Your code is currently paused</p>
+              <p className="text-sm text-foreground/75 mt-1">
+                New customers can&apos;t redeem <span className="font-mono font-semibold">{affiliate.code}</span> right now.
+                Existing subscribers keep their discount and you&apos;ll continue earning on their renewals.
+                Reach out if this is unexpected.
               </p>
             </div>
           </div>
         )}
 
-        {/* Headline numbers */}
+        {/* Headline stats — three tiles, the commission one is the hero */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-          <div className="rounded-[14px] border border-gold-border bg-accent/30 p-5">
-            <p className="text-xs uppercase tracking-wider text-text-muted mb-2">Active subscribers</p>
-            <p className="text-[36px] font-display font-bold text-foreground leading-none">
+          <div className="rounded-2xl border border-border-default bg-bg-card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="size-4 text-foreground/60" />
+              <p className="text-xs uppercase tracking-wider text-foreground/60 font-semibold">
+                Active subscribers
+              </p>
+            </div>
+            <p className="text-[52px] font-display font-bold text-foreground leading-none">
               {stats.active_annual}
             </p>
-            <p className="text-xs text-text-dim mt-1.5">
-              {stats.conversions} total conversions ever
-            </p>
-          </div>
-          <div className="rounded-[14px] border border-gold-border bg-accent/30 p-5">
-            <p className="text-xs uppercase tracking-wider text-text-muted mb-2">Annual recurring commission</p>
-            <p className="text-[36px] font-display font-bold text-gold leading-none">
-              {fmtUSD(annualRecurringCommission)}
-            </p>
-            <p className="text-xs text-text-dim mt-1.5">
-              {fmtUSD(annualCommissionPerCustomer)} per active subscriber/year
-            </p>
-          </div>
-          <div className="rounded-[14px] border border-border-default bg-bg-card p-5">
-            <p className="text-xs uppercase tracking-wider text-text-muted mb-2">Your terms</p>
-            <p className="text-sm text-foreground">
-              <span className="font-mono font-bold text-foreground">{affiliate.commission_pct}%</span> commission
-            </p>
-            <p className="text-xs text-text-dim mt-1">
-              On {fmtUSD(discountedAnnualPerCustomer)}/yr per customer
-            </p>
-            <p className="text-xs text-text-dim mt-1">
-              Recurring on every renewal
-            </p>
-          </div>
-        </div>
-
-        {/* Share section */}
-        <div className="rounded-[14px] border border-border-default bg-bg-card p-6 mb-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-4">Your code</h2>
-          <div className="flex items-center gap-3 mb-5">
-            <button
-              type="button"
-              onClick={() => copyToClipboard(affiliate.code, "code")}
-              className="inline-flex items-center gap-3 rounded-md border border-gold-border bg-accent/40 hover:bg-accent transition-colors px-4 py-3 font-mono text-2xl font-bold text-foreground"
-            >
-              {affiliate.code}
-              {copiedItem === "code" ? (
-                <Check className="size-5 text-emerald-400" />
-              ) : (
-                <Copy className="size-5 text-text-dim" />
-              )}
-            </button>
-            <p className="text-sm text-text-dim">
-              Share this code. Customers enter it at checkout for{" "}
-              <strong className="text-foreground">20% off the annual plan</strong>, forever.
+            <p className="text-sm text-foreground/70 mt-3">
+              {stats.conversions === 0
+                ? "Waiting on your first conversion."
+                : `${stats.conversions} total conversion${stats.conversions === 1 ? "" : "s"} ever.`}
             </p>
           </div>
 
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-text-dimmer mb-1.5">Suggested message</p>
-              <button
-                type="button"
-                onClick={() => copyToClipboard(sharePitch, "pitch")}
-                className="w-full text-left rounded-md border border-border-default bg-bg-base hover:bg-accent/20 transition-colors px-4 py-3 text-sm text-foreground flex items-start justify-between gap-3"
-              >
-                <span>&ldquo;{sharePitch}&rdquo;</span>
-                {copiedItem === "pitch" ? (
-                  <Check className="size-4 text-emerald-400 shrink-0 mt-0.5" />
-                ) : (
-                  <Copy className="size-4 text-text-dim shrink-0 mt-0.5" />
-                )}
-              </button>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-text-dimmer mb-1.5">Direct link to checkout</p>
-              <button
-                type="button"
-                onClick={() => copyToClipboard("https://app.retirementexpert.ai", "link")}
-                className="w-full text-left rounded-md border border-border-default bg-bg-base hover:bg-accent/20 transition-colors px-4 py-3 text-sm text-foreground flex items-center justify-between gap-3"
-              >
-                <span className="font-mono">https://app.retirementexpert.ai</span>
-                {copiedItem === "link" ? (
-                  <Check className="size-4 text-emerald-400 shrink-0" />
-                ) : (
-                  <Copy className="size-4 text-text-dim shrink-0" />
-                )}
-              </button>
-              <p className="text-xs text-text-dimmer mt-1.5">
-                Customers click → choose Annual → enter <span className="font-mono text-foreground">{affiliate.code}</span> at the Stripe checkout step.
+          {/* Commission tile — gold accent, the headline number */}
+          <div className="rounded-2xl border border-gold/40 bg-gradient-to-br from-gold/10 to-gold/5 p-6 relative overflow-hidden">
+            <div className="absolute top-0 right-0 size-24 bg-gold/10 rounded-full blur-2xl -mr-12 -mt-12" />
+            <div className="relative">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="size-4 text-gold" />
+                <p className="text-xs uppercase tracking-wider text-gold font-semibold">
+                  Annual recurring commission
+                </p>
+              </div>
+              <p className="text-[52px] font-display font-bold text-gold leading-none">
+                {fmtUSD(annualRecurringCommission)}
+              </p>
+              <p className="text-sm text-foreground/80 mt-3">
+                {fmtUSD(annualCommissionPerCustomer)} per active subscriber, every year they stay.
               </p>
             </div>
           </div>
+
+          <div className="rounded-2xl border border-border-default bg-bg-card p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="size-4 text-foreground/60" />
+              <p className="text-xs uppercase tracking-wider text-foreground/60 font-semibold">
+                Your terms
+              </p>
+            </div>
+            <p className="text-[52px] font-display font-bold text-foreground leading-none">
+              {affiliate.commission_pct}<span className="text-foreground/40">%</span>
+            </p>
+            <p className="text-sm text-foreground/70 mt-3">
+              On {fmtUSD(discountedAnnualPerCustomer)}/yr per customer. Recurring on every renewal.
+            </p>
+          </div>
         </div>
+
+        {/* Code section */}
+        <section className="rounded-2xl border border-border-default bg-bg-card p-8 mb-8">
+          <div className="flex items-baseline justify-between mb-6">
+            <h2 className="text-lg font-display font-semibold text-foreground">Your code</h2>
+            <span className="text-xs text-foreground/60">Click anything to copy</span>
+          </div>
+
+          {/* Big code button + explanation */}
+          <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 items-center mb-8">
+            <button
+              type="button"
+              onClick={() => copyToClipboard(affiliate.code, "code")}
+              className="group flex items-center gap-4 rounded-xl border-2 border-gold-border bg-gradient-to-br from-gold/15 to-accent/40 hover:from-gold/25 hover:to-accent/60 transition-all px-7 py-5 font-mono text-[32px] font-bold text-foreground tracking-wide"
+            >
+              {affiliate.code}
+              {copiedItem === "code" ? (
+                <Check className="size-6 text-emerald-400" />
+              ) : (
+                <Copy className="size-6 text-foreground/50 group-hover:text-foreground/80 transition-colors" />
+              )}
+            </button>
+            <p className="text-base text-foreground/85 leading-relaxed">
+              Share this code anywhere your audience trusts you. Customers enter it at checkout for{" "}
+              <strong className="text-foreground font-semibold">20% off the annual plan</strong>, forever.
+              You earn commission as long as they stay subscribed.
+            </p>
+          </div>
+
+          {/* Share assets */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-foreground/60 font-semibold mb-2">
+                Suggested message
+              </p>
+              <button
+                type="button"
+                onClick={() => copyToClipboard(sharePitch, "pitch")}
+                className="group w-full text-left rounded-xl border border-border-default bg-bg-base hover:bg-accent/30 transition-colors px-4 py-3.5 text-sm text-foreground flex items-start justify-between gap-3"
+              >
+                <span className="leading-relaxed">&ldquo;{sharePitch}&rdquo;</span>
+                {copiedItem === "pitch" ? (
+                  <Check className="size-4 text-emerald-400 shrink-0 mt-0.5" />
+                ) : (
+                  <Copy className="size-4 text-foreground/40 group-hover:text-foreground/70 shrink-0 mt-0.5 transition-colors" />
+                )}
+              </button>
+            </div>
+            <div>
+              <p className="text-xs uppercase tracking-wider text-foreground/60 font-semibold mb-2">
+                Direct link
+              </p>
+              <button
+                type="button"
+                onClick={() => copyToClipboard("https://app.retirementexpert.ai", "link")}
+                className="group w-full text-left rounded-xl border border-border-default bg-bg-base hover:bg-accent/30 transition-colors px-4 py-3.5 text-sm text-foreground flex items-center justify-between gap-3"
+              >
+                <span className="font-mono">app.retirementexpert.ai</span>
+                {copiedItem === "link" ? (
+                  <Check className="size-4 text-emerald-400 shrink-0" />
+                ) : (
+                  <Copy className="size-4 text-foreground/40 group-hover:text-foreground/70 shrink-0 transition-colors" />
+                )}
+              </button>
+              <p className="text-xs text-foreground/60 mt-2 leading-relaxed">
+                Customers click → choose Annual → enter <span className="font-mono text-foreground font-semibold">{affiliate.code}</span> at Stripe checkout.
+              </p>
+            </div>
+          </div>
+        </section>
 
         {/* Almost-buyers (abandoned checkouts) */}
         {stats.abandoned_count > 0 && (
-          <div className="rounded-[14px] border border-amber-500/20 bg-amber-500/5 p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
+          <section className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.06] p-7 mb-8">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center justify-center size-9 rounded-lg bg-amber-500/20">
                 <ShoppingCart className="size-4 text-amber-400" />
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer">
+              </div>
+              <div>
+                <h2 className="text-lg font-display font-semibold text-foreground">
                   Almost-buyers
                 </h2>
-                <span className="rounded-full bg-amber-500/15 text-amber-400 text-xs px-2 py-0.5 font-medium">
-                  {stats.abandoned_count}
-                </span>
+                <p className="text-sm text-foreground/70">
+                  {stats.abandoned_count} {stats.abandoned_count === 1 ? "person" : "people"} entered your code but didn&apos;t finish.
+                </p>
               </div>
             </div>
-            <p className="text-xs text-text-dim mb-3">
-              These prospects entered your code at checkout but didn&apos;t finish.
-              Showing the last {stats.recent_abandons.length}. We&apos;ll usually follow up with them
-              from our side, but if you have a relationship, a personal nudge often closes the deal.
+            <p className="text-sm text-foreground/70 mb-4 leading-relaxed">
+              We follow up with these prospects on our side, but if you have a relationship,
+              a personal nudge often closes the deal. Showing the last {stats.recent_abandons.length}.
             </p>
             <ul className="space-y-2">
               {stats.recent_abandons.map((a, idx) => (
                 <li
                   key={idx}
-                  className="flex items-center justify-between rounded-md border border-border-default bg-bg-base px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-text-dim">{fmtDate(a.expired_at)}</span>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="text-foreground font-medium">{fmtDate(a.expired_at)}</span>
                     {a.amount_cents != null && (
                       <>
-                        <span className="text-text-dimmer">·</span>
-                        <span className="text-foreground font-mono">{fmtUSD(a.amount_cents / 100)}</span>
+                        <span className="text-foreground/30">·</span>
+                        <span className="text-foreground/80 font-mono">{fmtUSD(a.amount_cents / 100)}</span>
                       </>
                     )}
                     {a.cycle && (
-                      <span className="text-xs rounded-full bg-muted px-2 py-0.5 text-text-dim capitalize">
+                      <span className="text-xs rounded-full bg-foreground/10 px-2.5 py-0.5 text-foreground/70 capitalize font-medium">
                         {a.cycle}
                       </span>
                     )}
                   </div>
-                  <span className="text-xs text-text-dimmer">
+                  <span className="text-xs text-foreground/55">
                     {a.has_email ? "Email captured" : "No email"}
                   </span>
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         )}
 
         {/* Recent conversions */}
-        <div className="rounded-[14px] border border-border-default bg-bg-card p-6 mb-8">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-4">
+        <section className="rounded-2xl border border-border-default bg-bg-card p-7 mb-8">
+          <h2 className="text-lg font-display font-semibold text-foreground mb-5">
             Recent conversions
           </h2>
           {stats.recent_conversions.length === 0 ? (
-            <p className="text-sm text-text-dim italic">
-              No conversions yet. Once someone redeems your code at checkout, they&apos;ll show up here.
-            </p>
+            <div className="text-center py-10 px-4">
+              <div className="mx-auto mb-4 size-14 rounded-full bg-foreground/5 flex items-center justify-center">
+                <Sparkles className="size-6 text-foreground/40" />
+              </div>
+              <p className="text-base text-foreground/85 font-medium mb-1">No conversions yet</p>
+              <p className="text-sm text-foreground/60">
+                Once someone redeems your code at checkout, they&apos;ll show up here.
+              </p>
+            </div>
           ) : (
             <ul className="space-y-2">
               {stats.recent_conversions.map((c, idx) => {
@@ -240,23 +283,25 @@ export function AffiliatePortalClient({
                 return (
                   <li
                     key={idx}
-                    className="flex items-center justify-between rounded-md border border-border-default bg-bg-base px-3 py-2 text-sm"
+                    className="flex items-center justify-between rounded-lg border border-border-default bg-bg-base px-4 py-3 text-sm"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-text-dim">Customer #{stats.recent_conversions.length - idx}</span>
-                      <span className="text-text-dimmer">·</span>
-                      <span className="text-foreground">{fmtDate(c.created_at)}</span>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-foreground/65">
+                        Customer #{stats.recent_conversions.length - idx}
+                      </span>
+                      <span className="text-foreground/30">·</span>
+                      <span className="text-foreground font-medium">{fmtDate(c.created_at)}</span>
                       {c.cycle && (
-                        <span className="text-xs rounded-full bg-muted px-2 py-0.5 text-text-dim capitalize">
+                        <span className="text-xs rounded-full bg-foreground/10 px-2.5 py-0.5 text-foreground/70 capitalize font-medium">
                           {c.cycle}
                         </span>
                       )}
                     </div>
                     <span
-                      className={`text-xs rounded-full px-2 py-0.5 font-medium ${
+                      className={`text-xs rounded-full px-2.5 py-1 font-semibold ${
                         isActive
                           ? "bg-emerald-500/15 text-emerald-400"
-                          : "bg-muted text-text-dim"
+                          : "bg-foreground/10 text-foreground/65"
                       }`}
                     >
                       {c.status ?? "—"}
@@ -266,46 +311,56 @@ export function AffiliatePortalClient({
               })}
             </ul>
           )}
+        </section>
+
+        {/* Account + payout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+          <section className="rounded-2xl border border-border-default bg-bg-card p-6">
+            <h3 className="text-xs uppercase tracking-wider text-foreground/60 font-semibold mb-4">
+              Account
+            </h3>
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between items-baseline">
+                <dt className="text-foreground/65">Name</dt>
+                <dd className="text-foreground font-medium">{affiliate.name}</dd>
+              </div>
+              <div className="flex justify-between items-baseline gap-3">
+                <dt className="text-foreground/65 shrink-0">Email</dt>
+                <dd className="text-foreground font-medium truncate">{affiliate.email}</dd>
+              </div>
+              <div className="flex justify-between items-baseline">
+                <dt className="text-foreground/65">Joined</dt>
+                <dd className="text-foreground font-medium">{fmtDate(affiliate.created_at)}</dd>
+              </div>
+            </dl>
+          </section>
+          <section className="rounded-2xl border border-border-default bg-bg-card p-6">
+            <h3 className="text-xs uppercase tracking-wider text-foreground/60 font-semibold mb-4">
+              Payouts
+            </h3>
+            <dl className="space-y-3 text-sm">
+              <div className="flex justify-between items-baseline gap-3">
+                <dt className="text-foreground/65 shrink-0">PayPal</dt>
+                <dd className="font-medium truncate">
+                  {affiliate.paypal_email ? (
+                    <span className="text-foreground">{affiliate.paypal_email}</span>
+                  ) : (
+                    <span className="text-amber-400">Not set — email us to add it</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+            <p className="text-xs text-foreground/65 mt-4 leading-relaxed">
+              Commissions are paid monthly via PayPal once your accrued total exceeds $50.
+              If anything looks off, just reply to your welcome email.
+            </p>
+          </section>
         </div>
 
-        {/* Account info + payout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <div className="rounded-[14px] border border-border-default bg-bg-card p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-3">Account</h3>
-            <div className="space-y-1.5 text-sm">
-              <p>
-                <span className="text-text-dim">Name:</span>{" "}
-                <span className="text-foreground">{affiliate.name}</span>
-              </p>
-              <p>
-                <span className="text-text-dim">Email:</span>{" "}
-                <span className="text-foreground">{affiliate.email}</span>
-              </p>
-              <p>
-                <span className="text-text-dim">Joined:</span>{" "}
-                <span className="text-foreground">{fmtDate(affiliate.created_at)}</span>
-              </p>
-            </div>
-          </div>
-          <div className="rounded-[14px] border border-border-default bg-bg-card p-5">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-text-dimmer mb-3">Payouts</h3>
-            <div className="space-y-1.5 text-sm">
-              <p>
-                <span className="text-text-dim">PayPal:</span>{" "}
-                <span className="text-foreground">{affiliate.paypal_email ?? <em className="text-text-dimmer">not set — email us to add it</em>}</span>
-              </p>
-              <p className="text-xs text-text-dim mt-2">
-                Commissions are paid out monthly via PayPal once your accrued total exceeds $50.
-                If anything looks off, just reply to your invitation email.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <p className="text-xs text-text-dimmer text-center">
+        <p className="text-xs text-foreground/55 text-center leading-relaxed">
           Numbers reflect attributed customers from your code. Active subscribers and recurring
-          commission assume customers stay subscribed at the discounted annual rate. Actual payouts
-          reconcile against Stripe invoices.
+          commission assume customers stay subscribed at the discounted annual rate.
+          Actual payouts reconcile against Stripe invoices.
         </p>
       </div>
     </div>
