@@ -55,7 +55,7 @@ export function AffiliatePortalClient({
     setTimeout(() => setCopiedItem(null), 1500);
   }
 
-  const sharePitch = `Use code ${affiliate.code} at checkout to save 20% on the annual plan at app.retirementexpert.ai.`;
+  const sharePitch = `Use code ${affiliate.code} at checkout to save 20% on the annual plan at www.retirementexpert.ai.`;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -97,7 +97,7 @@ export function AffiliatePortalClient({
                 Active subscribers
               </p>
             </div>
-            <p className="text-[52px] font-display font-bold text-foreground leading-none">
+            <p className="text-[52px] font-mono font-semibold text-foreground leading-none tabular-nums tracking-tight">
               {stats.active_annual}
             </p>
             <p className="text-sm text-foreground/70 mt-3">
@@ -117,7 +117,7 @@ export function AffiliatePortalClient({
                   Annual recurring commission
                 </p>
               </div>
-              <p className="text-[52px] font-display font-bold text-gold leading-none">
+              <p className="text-[52px] font-mono font-semibold text-gold leading-none tabular-nums tracking-tight">
                 {fmtUSD(annualRecurringCommission)}
               </p>
               <p className="text-sm text-foreground/80 mt-3">
@@ -133,7 +133,7 @@ export function AffiliatePortalClient({
                 Your terms
               </p>
             </div>
-            <p className="text-[52px] font-display font-bold text-foreground leading-none">
+            <p className="text-[52px] font-mono font-semibold text-foreground leading-none tabular-nums tracking-tight">
               {affiliate.commission_pct}<span className="text-foreground/40">%</span>
             </p>
             <p className="text-sm text-foreground/70 mt-3">
@@ -195,10 +195,10 @@ export function AffiliatePortalClient({
               </p>
               <button
                 type="button"
-                onClick={() => copyToClipboard("https://app.retirementexpert.ai", "link")}
+                onClick={() => copyToClipboard("https://www.retirementexpert.ai", "link")}
                 className="group w-full text-left rounded-xl border border-border-default bg-bg-base hover:bg-accent/30 transition-colors px-4 py-3.5 text-sm text-foreground flex items-center justify-between gap-3"
               >
-                <span className="font-mono">app.retirementexpert.ai</span>
+                <span className="font-mono">www.retirementexpert.ai</span>
                 {copiedItem === "link" ? (
                   <Check className="size-4 text-emerald-400 shrink-0" />
                 ) : (
