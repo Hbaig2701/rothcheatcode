@@ -201,15 +201,20 @@ export function runFormulaScenario(
     let stateConversionTax = 0;
 
     // Carrier penalty-free cap during the surrender period (Allianz/American
-    // Equity-style). Applies to the IRA amount available for the year's
-    // conversion + any tax withheld from it. Once surrender ends, no cap.
+    // Equity-style). Per advisor feedback (Joshua W., ticket 2b5ff7a4) the
+    // cap restricts only the TAX dollars distributed out of the policy, not
+    // the conversion itself (which is an intra-carrier Trad→Roth transfer).
+    // The cap therefore only matters when tax is paid from the IRA. Anything
+    // above the cap is funded externally (taxesPaidExternally on YearlyResult).
+    // Mirrors the same logic in growth-formula.ts.
     const inSurrenderPeriod = yearOffset < surrenderYears;
-    const carrierCap = respectPenaltyFreeLimit && inSurrenderPeriod
+    const taxCap = (respectPenaltyFreeLimit && inSurrenderPeriod && payTaxFromIRA)
       ? Math.round(boyIRA * penaltyFreePercent / 100)
       : Number.POSITIVE_INFINITY;
     // Conversions can only use the IRA balance LEFT after the RMD comes off
-    // (the RMD goes to ordinary income, not into the Roth).
-    const effectiveIraForConversion = Math.min(iraAfterRmd, carrierCap);
+    // (the RMD goes to ordinary income, not into the Roth). No carrier cap on
+    // this — the cap restricts the tax-source split below, not the ceiling.
+    const effectiveIraForConversion = iraAfterRmd;
 
     // Check if we should convert this year
     const shouldConvert = !conversionComplete &&
@@ -232,11 +237,16 @@ export function runFormulaScenario(
       // both engines respect the same advisor controls.
       if (conversionType === 'full_conversion') {
         if (payTaxFromIRA) {
-          // Solve iteratively for: conversion + tax(conversion) = effectiveIra
-          let solved = effectiveIraForConversion * (1 - (maxTaxRate / 100 + stateTaxRateDecimal));
-          for (let i = 0; i < 5; i++) {
-            const t = calculateConversionTaxWithSS({
-              conversionAmount: solved,
+          // Two regimes (mirrors growth-formula.ts):
+          //   A — cap not binding (or ∞): conv + tax(conv) = effectiveIra.
+          //   B — cap binding: conv = effectiveIra − taxCap, tax overflow external.
+          // Detection: try Regime B; if the resulting tax indeed exceeds taxCap,
+          // Regime B is correct. Otherwise fall through to Regime A.
+          let useRegimeB = false;
+          if (taxCap !== Number.POSITIVE_INFINITY) {
+            const tryConv = Math.max(0, effectiveIraForConversion - taxCap);
+            const tryTax = calculateConversionTaxWithSS({
+              conversionAmount: tryConv,
               otherIncome,
               ssBenefits: ssIncome,
               taxExemptInterest: taxExemptNonSSI,
@@ -246,23 +256,47 @@ export function runFormulaScenario(
               state: client.state ?? 'CA',
               stateTaxRateDecimal,
             });
-            solved = effectiveIraForConversion - t.federalTax - t.stateTax;
+            if (tryTax.federalTax + tryTax.stateTax > taxCap) {
+              conversionAmount = tryConv;
+              federalConversionTax = tryTax.federalTax;
+              stateConversionTax = tryTax.stateTax;
+              totalIRAWithdrawal = conversionAmount + Math.min(taxCap, federalConversionTax + stateConversionTax);
+              useRegimeB = true;
+            }
           }
-          conversionAmount = Math.max(0, Math.round(solved));
-          const fcVerify = calculateConversionTaxWithSS({
-            conversionAmount,
-            otherIncome,
-            ssBenefits: ssIncome,
-            taxExemptInterest: taxExemptNonSSI,
-            deductions,
-            filingStatus: client.filing_status,
-            taxYear: year,
-            state: client.state ?? 'CA',
-            stateTaxRateDecimal,
-          });
-          federalConversionTax = fcVerify.federalTax;
-          stateConversionTax = fcVerify.stateTax;
-          totalIRAWithdrawal = conversionAmount + federalConversionTax + stateConversionTax;
+          if (!useRegimeB) {
+            // Regime A — today's empty-the-IRA solver.
+            let solved = effectiveIraForConversion * (1 - (maxTaxRate / 100 + stateTaxRateDecimal));
+            for (let i = 0; i < 5; i++) {
+              const t = calculateConversionTaxWithSS({
+                conversionAmount: solved,
+                otherIncome,
+                ssBenefits: ssIncome,
+                taxExemptInterest: taxExemptNonSSI,
+                deductions,
+                filingStatus: client.filing_status,
+                taxYear: year,
+                state: client.state ?? 'CA',
+                stateTaxRateDecimal,
+              });
+              solved = effectiveIraForConversion - t.federalTax - t.stateTax;
+            }
+            conversionAmount = Math.max(0, Math.round(solved));
+            const fcVerify = calculateConversionTaxWithSS({
+              conversionAmount,
+              otherIncome,
+              ssBenefits: ssIncome,
+              taxExemptInterest: taxExemptNonSSI,
+              deductions,
+              filingStatus: client.filing_status,
+              taxYear: year,
+              state: client.state ?? 'CA',
+              stateTaxRateDecimal,
+            });
+            federalConversionTax = fcVerify.federalTax;
+            stateConversionTax = fcVerify.stateTax;
+            totalIRAWithdrawal = conversionAmount + federalConversionTax + stateConversionTax;
+          }
           taxAlreadyComputed = true;
         } else {
           conversionAmount = effectiveIraForConversion;
@@ -394,12 +428,28 @@ export function runFormulaScenario(
       }
     }
 
-    // Execute conversion. When payTaxFromIRA, the IRA funds both the
-    // conversion and its marginal tax — together they equal totalIRAWithdrawal.
-    const conversionTaxFromIRA = payTaxFromIRA ? (federalConversionTax + stateConversionTax) : 0;
+    // Execute conversion. When payTaxFromIRA, the IRA funds the conversion
+    // and the conversion tax — but the conversion tax is capped by the
+    // carrier penalty-free allowance (taxCap) when active. Anything above the
+    // cap is funded externally (taxesPaidExternally on YearlyResult). Mirror
+    // of the same split in growth-formula.ts.
+    const conversionTaxBeforeSplit = payTaxFromIRA ? (federalConversionTax + stateConversionTax) : 0;
+    const conversionTaxFromIRA = payTaxFromIRA
+      ? Math.min(taxCap, conversionTaxBeforeSplit)
+      : 0;
+    const conversionTaxExternal = payTaxFromIRA
+      ? Math.max(0, conversionTaxBeforeSplit - conversionTaxFromIRA)
+      : 0;
     // RMD has already been mentally pulled off the IRA above (iraAfterRmd).
-    // Now the conversion + tax-from-IRA come off too.
+    // Now the conversion + tax-from-IRA (capped) come off too.
     const iraAfterConversion = iraAfterRmd - conversionAmount - conversionTaxFromIRA;
+    // Override the per-branch totalIRAWithdrawal so the IRS-visible 1099-R
+    // amount matches what was actually distributed (conv + capped tax). The
+    // recomputed federal/state tax below uses this value, so without this
+    // override an advisor with the cap binding would see ordinary-income tax
+    // computed against an IRA distribution larger than what physically left
+    // the policy.
+    totalIRAWithdrawal = conversionAmount + conversionTaxFromIRA;
     const rothAfterConversion = boyRoth + conversionAmount;
 
     // Interest = (B.O.Y. Balance − Distribution) × Rate
@@ -550,6 +600,7 @@ export function runFormulaScenario(
       // gross distribution number.
       totalIRAWithdrawal: rmdAmount + totalIRAWithdrawal,
       taxesPaidFromIRA: conversionTaxFromIRA,
+      taxesPaidExternally: conversionTaxExternal,
       earlyWithdrawalPenalty,
     });
   }

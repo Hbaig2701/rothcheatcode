@@ -234,6 +234,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // means the client writes the tax check from outside funds.
   const taxPaymentSource = client.tax_payment_source ?? 'from_taxable';
   const conversionTaxesFromIRA = sum(projection.blueprint_years, 'taxesPaidFromIRA');
+  // Carrier penalty-free cap overflow — the portion of conversion tax that
+  // the IRA couldn't cover (because the carrier limits internal distributions
+  // during the surrender period) and was assumed funded externally. Zero
+  // unless respect_penalty_free_limit + tax_payment_source = from_ira are
+  // both active and the cap binds in at least one year.
+  const conversionTaxesPaidExternally = sum(projection.blueprint_years, 'taxesPaidExternally');
+  const carrierCapOverflowActive = conversionTaxesPaidExternally > 0;
   // Reuses the same combined Roth+AUM penalty already computed up at the
   // strategy-metrics block; aliased here so the existing prop name stays.
   const blueEarlyWithdrawalPenalty = blueEarlyPenalty;
@@ -270,14 +277,30 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const conversionYears = projection.blueprint_years.filter(y => y.conversionAmount > 0);
   const avgTaxRate = blueConversions > 0 ? (blueConversionTax / blueConversions) * 100 : 0;
 
-  // Penalty-free withdrawal check — only if client has a surrender schedule
+  // Penalty-free withdrawal check. Per Joshua W.'s clarification (ticket
+  // 2b5ff7a4), the carrier penalty-free allowance restricts dollars actually
+  // DISTRIBUTED out of the policy — not the conversion amount itself, since
+  // a Roth conversion is an intra-carrier Trad → Roth transfer that doesn't
+  // count against the allowance. The dollars that DO count are
+  // taxesPaidFromIRA (the conversion tax pulled out of the contract). So the
+  // violation comparison is taxesPaidFromIRA vs the cap. When
+  // respect_penalty_free_limit is on, the engine routes overflow to external
+  // funds and the cap is never exceeded — no violations to surface. When
+  // it's off (and the advisor is paying tax from the IRA), we compute how
+  // much the year's tax distribution would actually exceed the cap and what
+  // surrender charge would apply.
   const penaltyFreePercent = (client.penalty_free_percent ?? 10) / 100;
   const surrenderYears = client.surrender_years ?? 0;
   const surrenderSchedule = client.surrender_schedule ?? [];
   const hasSurrenderSchedule = surrenderSchedule.length > 0 && surrenderSchedule.some(v => v > 0);
-  const penaltyFreeViolations = !hasSurrenderSchedule ? [] : projection.blueprint_years
+  const checkPenaltyFreeViolations =
+    hasSurrenderSchedule
+    && (client.tax_payment_source === 'from_ira')
+    && !(client.respect_penalty_free_limit ?? false);
+  const penaltyFreeViolations = !checkPenaltyFreeViolations ? [] : projection.blueprint_years
     .map((year, idx) => {
-      if (year.conversionAmount <= 0) return null;
+      const taxFromIra = year.taxesPaidFromIRA ?? 0;
+      if (taxFromIra <= 0) return null;
       const yearOffset = idx;
       if (yearOffset >= surrenderYears) return null; // Past surrender period
       // BOY IRA balance: previous year's end balance, or initial deposit + bonus for year 0
@@ -285,13 +308,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         ? projection.blueprint_years[idx - 1].traditionalBalance
         : Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100));
       const penaltyFreeLimit = Math.round(boyIRA * penaltyFreePercent);
-      if (year.conversionAmount > penaltyFreeLimit) {
-        const excess = year.conversionAmount - penaltyFreeLimit;
+      if (taxFromIra > penaltyFreeLimit) {
+        const excess = taxFromIra - penaltyFreeLimit;
         const chargePercent = yearOffset < surrenderSchedule.length ? surrenderSchedule[yearOffset] : 0;
         const estimatedCharge = Math.round(excess * chargePercent / 100);
         return {
           year: year.year,
           age: year.age,
+          // Surface the tax-from-IRA as the offending distribution; conversion
+          // is shown for context but isn't itself the trigger.
           conversion: year.conversionAmount,
           limit: penaltyFreeLimit,
           excess,
@@ -417,6 +442,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 blueAumScheduledWithdrawals={blueAumScheduledWithdrawals}
                 taxPaymentSource={taxPaymentSource}
                 conversionTaxesFromIRA={conversionTaxesFromIRA}
+                conversionTaxesPaidExternally={conversionTaxesPaidExternally}
+                carrierCapOverflowActive={carrierCapOverflowActive}
                 blueEarlyWithdrawalPenalty={blueEarlyWithdrawalPenalty}
                 yearsToDefer={yearsToDefer}
                 constraintType={constraintType}
@@ -482,6 +509,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 conversionType={conversionType}
                 taxPaymentSource={taxPaymentSource}
                 conversionTaxesFromIRA={conversionTaxesFromIRA}
+                conversionTaxesPaidExternally={conversionTaxesPaidExternally}
+                carrierCapOverflowActive={carrierCapOverflowActive}
                 blueEarlyWithdrawalPenalty={blueEarlyWithdrawalPenalty}
                 constraintType={constraintType}
                 widowAnalysisActive={widowAnalysisActive}
@@ -581,14 +610,18 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             <div className="px-6 pb-6 pt-0">
               <div className="mb-4 space-y-2">
                 <p className="text-xs text-text-muted">
-                  These conversions exceed the {client.penalty_free_percent ?? 10}% annual penalty-free withdrawal allowance during the surrender period.
-                  Surrender charges may apply to the excess amount.
+                  In these years the conversion tax pulled from the IRA exceeds the {client.penalty_free_percent ?? 10}% annual penalty-free
+                  withdrawal allowance during the surrender period. The conversion itself doesn&apos;t count against the
+                  allowance (intra-carrier Trad → Roth transfer), but the tax dollars that physically leave the policy
+                  to pay the IRS do — surrender charges may apply to the excess.
                 </p>
                 {!respectPenaltyFreeLimit && (
                   <p className="text-xs text-text-muted">
                     <span className="text-foreground font-medium">Why this is showing:</span>{" "}
-                    The &quot;Stay within penalty-free limit&quot; option is currently <span className="text-red font-medium">off</span>, so the model is converting whatever your strategy specifies — even when that goes over the cap.
-                    Turn it on to cap each year&apos;s conversion at {client.penalty_free_percent ?? 10}% of the IRA balance and eliminate these charges entirely (the strategy will simply convert more slowly).
+                    The &quot;Respect Contract Penalty-Free Limit&quot; toggle (under Tax Payment Source) is currently <span className="text-red font-medium">off</span>,
+                    so the engine is pulling the full conversion tax from the IRA in each conversion year — even when that exceeds the cap.
+                    Turn it on to cap the tax-from-IRA at {client.penalty_free_percent ?? 10}% of the prior anniversary value; the conversion stays
+                    at the chosen size and any tax beyond the cap is modeled as paid from external funds, eliminating the surrender-charge exposure.
                   </p>
                 )}
               </div>
@@ -598,9 +631,9 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                     <tr className="border-b border-[rgba(250,204,21,0.2)]">
                       <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Year</th>
                       <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Age</th>
-                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Conversion</th>
-                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Penalty-Free Limit</th>
-                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Excess</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Conversion (context)</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Penalty-Free Limit (on tax)</th>
+                      <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Tax-from-IRA Excess</th>
                       <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Surrender %</th>
                       <th className="text-right py-2 px-3 text-xs font-medium text-text-muted">Est. Charge</th>
                     </tr>
@@ -635,7 +668,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground">One-click fix</p>
                     <p className="text-xs text-text-muted mt-0.5">
-                      Cap conversions at the {client.penalty_free_percent ?? 10}% penalty-free limit each year and re-run the projection.
+                      Cap the per-year tax-from-IRA at the {client.penalty_free_percent ?? 10}% penalty-free allowance and route any overflow
+                      to external funds. The conversion stays at the chosen size.
                     </p>
                   </div>
                   <button
@@ -1106,6 +1140,8 @@ function LifetimeWealthInfo({
   blueAumScheduledWithdrawals,
   taxPaymentSource,
   conversionTaxesFromIRA,
+  conversionTaxesPaidExternally,
+  carrierCapOverflowActive,
   blueEarlyWithdrawalPenalty,
   yearsToDefer,
   constraintType,
@@ -1153,6 +1189,8 @@ function LifetimeWealthInfo({
   blueAumScheduledWithdrawals: number;
   taxPaymentSource: string;
   conversionTaxesFromIRA: number;
+  conversionTaxesPaidExternally: number;
+  carrierCapOverflowActive: boolean;
   blueEarlyWithdrawalPenalty: number;
   yearsToDefer: number;
   constraintType: string;
@@ -1247,9 +1285,16 @@ function LifetimeWealthInfo({
               <>
                 Each year's conversion is grossed-down — the engine pulls enough extra from the IRA to
                 cover the resulting tax. Total funded from the IRA for taxes: {toUSD(conversionTaxesFromIRA)}.
+                {carrierCapOverflowActive && (
+                  <> An additional {toUSD(conversionTaxesPaidExternally)} of conversion tax was assumed
+                  to be paid from external funds across the projection — those years the carrier&apos;s
+                  penalty-free withdrawal allowance was binding, so the IRA could only fund part of the
+                  tax bill and the rest was modeled as coming from non-IRA cash.</>
+                )}
                 {isUnder59Half && (
                   <> Because the client is under 59½, the IRA-funded tax also incurs a 10% early-withdrawal
-                  penalty ({toUSD(blueEarlyWithdrawalPenalty)} total).</>
+                  penalty ({toUSD(blueEarlyWithdrawalPenalty)} total). The externally-paid portion is not
+                  subject to the penalty — it never left the IRA.</>
                 )}
               </>
             ) : (
@@ -1407,7 +1452,14 @@ function LifetimeWealthInfo({
           <TipRow label="AUM income + cap-gains drag tax" value={toUSD(aumIncomeDragLW)} variant="negative" />
         )}
         {taxPaymentSource === 'from_ira' && conversionTaxesFromIRA > 0 && (
-          <TipNote>{toUSD(conversionTaxesFromIRA)} of conversion tax was pulled from the IRA itself.</TipNote>
+          <TipNote>
+            {toUSD(conversionTaxesFromIRA)} of conversion tax was pulled from the IRA itself.
+            {carrierCapOverflowActive && (
+              <> An additional {toUSD(conversionTaxesPaidExternally)} was funded from external (non-IRA)
+              cash because the carrier&apos;s penalty-free withdrawal allowance capped how much could
+              come out of the contract.</>
+            )}
+          </TipNote>
         )}
         {blueEarlyWithdrawalPenalty > 0 && (
           <TipRow
@@ -1623,6 +1675,8 @@ function TotalTaxesInfo({
   conversionType,
   taxPaymentSource,
   conversionTaxesFromIRA,
+  conversionTaxesPaidExternally,
+  carrierCapOverflowActive,
   blueEarlyWithdrawalPenalty,
   constraintType,
   widowAnalysisActive,
@@ -1646,6 +1700,8 @@ function TotalTaxesInfo({
   conversionType: string;
   taxPaymentSource: string;
   conversionTaxesFromIRA: number;
+  conversionTaxesPaidExternally: number;
+  carrierCapOverflowActive: boolean;
   blueEarlyWithdrawalPenalty: number;
   constraintType: string;
   widowAnalysisActive: boolean;
@@ -1701,6 +1757,11 @@ function TotalTaxesInfo({
                 {conversionType === 'optimized_amount' && <>, staying in the {client.max_tax_rate}% bracket</>}.
                 {taxPaymentSource === 'from_ira' && conversionTaxesFromIRA > 0 && (
                   <> {toUSD(conversionTaxesFromIRA)} of that tax was pulled from the IRA itself (gross-down).</>
+                )}
+                {carrierCapOverflowActive && (
+                  <> {toUSD(conversionTaxesPaidExternally)} of conversion tax was funded externally because
+                  the carrier&apos;s penalty-free withdrawal allowance capped what could be distributed out
+                  of the contract during the surrender period.</>
                 )}
               </>
             }

@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PercentInput } from "@/components/ui/percent-input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { US_STATES, getDefaultStateTaxRate } from "@/lib/data/states";
 import { Lock, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -216,6 +217,45 @@ export function TaxDataSection() {
           </Field>
         )}
       />
+
+      {/* Carrier penalty-free cap toggle. Only meaningful when tax is paid
+          from the IRA — when the client funds tax from outside cash, no
+          dollars leave the contract and the carrier's penalty-free allowance
+          is never tripped. Hidden in that case to keep the section uncluttered. */}
+      {form.watch("tax_payment_source") === "from_ira" && (
+        <Controller
+          name="respect_penalty_free_limit"
+          control={form.control}
+          render={({ field }) => (
+            <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
+              <Checkbox
+                id="respect_penalty_free_limit"
+                checked={field.value}
+                onCheckedChange={field.onChange}
+                className="mt-0.5 shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <label
+                  htmlFor="respect_penalty_free_limit"
+                  className="block text-sm font-medium cursor-pointer"
+                >
+                  Respect Contract Penalty-Free Limit
+                </label>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Caps each year&apos;s tax-from-IRA payment at the carrier&apos;s
+                  penalty-free withdrawal allowance (typically {form.watch("penalty_free_percent") ?? 10}% of
+                  the prior anniversary value). The Roth conversion itself is unaffected
+                  — it&apos;s an intra-carrier Trad → Roth transfer that doesn&apos;t count
+                  against the allowance. When the cap is binding, the conversion
+                  proceeds at the chosen size and any tax beyond the cap is assumed
+                  to come from external (non-IRA) funds. Cap releases automatically
+                  once the surrender period ends.
+                </p>
+              </div>
+            </div>
+          )}
+        />
+      )}
 
       {/* RMD Treatment (Baseline Scenario) - Only for Growth products */}
       {!isGI && (

@@ -5,6 +5,16 @@
  *
  * Each test instantiates a synthetic Client, runs the Growth FIA strategy engine,
  * and asserts properties of the year-by-year output. All values in CENTS.
+ *
+ * REVISED MODEL (Joshua W., ticket 2b5ff7a4): the carrier penalty-free cap
+ * restricts only the TAX dollars distributed out of the policy — it does NOT
+ * cap the conversion amount itself, since a Roth conversion is an
+ * intra-carrier Trad → Roth transfer that doesn't count against the
+ * carrier's withdrawal allowance. The cap therefore only matters when
+ * tax_payment_source = 'from_ira'; with 'from_taxable' the toggle is a
+ * no-op (no money leaves the contract). When the cap binds, the conversion
+ * still happens at the chosen size and the tax overflow is modeled as paid
+ * from external funds (taxesPaidExternally on YearlyResult).
  */
 
 import { runGrowthSimulation, createSimulationInput } from "../lib/calculations";
@@ -134,156 +144,16 @@ startTest("Cap OFF — optimized conversion fills bracket (no cap interference)"
 }
 
 // ============================================================================
-// TEST 2: Cap ON — annual conversion capped at 10% of beginning IRA
+// TEST 2: Cap ON + from_taxable → no effect (cap only applies to tax-from-IRA)
 // ============================================================================
-startTest("Cap ON — year 1 conversion ≤ 10% of starting IRA");
-{
-  const client = makeClient({
-    respect_penalty_free_limit: true,
-    conversion_type: "optimized_amount",
-    qualified_account_value: 1_000_000_00, // $1M IRA
-    penalty_free_percent: 10,
-    max_tax_rate: 22,
-  });
-  const input = createSimulationInput(client);
-  const result = runGrowthSimulation(input);
-  const year1 = result.formula[0];
-  const conv1 = year1.conversionAmount ?? 0;
-  const cap = 1_000_000_00 * 0.10; // 10% of $1M = $100K
-  console.log(`  Year 1 conversion: ${fmtCents(conv1)} (cap: ${fmtCents(cap)})`);
-  assert(conv1 <= cap, `Expected conv1 ≤ cap (${fmtCents(cap)}), got ${fmtCents(conv1)}`);
-  assert(conv1 > 0, `Expected non-zero conversion under cap`);
-}
-
-// ============================================================================
-// TEST 3: Cap shrinks each year as IRA depletes
-// ============================================================================
-startTest("Cap ON — year 2 cap is smaller than year 1 (IRA depleted)");
-{
-  const client = makeClient({
-    respect_penalty_free_limit: true,
-    conversion_type: "optimized_amount",
-    qualified_account_value: 1_000_000_00,
-    penalty_free_percent: 10,
-    max_tax_rate: 22,
-  });
-  const input = createSimulationInput(client);
-  const result = runGrowthSimulation(input);
-  const conv1 = result.formula[0].conversionAmount ?? 0;
-  const conv2 = result.formula[1].conversionAmount ?? 0;
-  const conv3 = result.formula[2].conversionAmount ?? 0;
-  console.log(`  Year 1: ${fmtCents(conv1)}`);
-  console.log(`  Year 2: ${fmtCents(conv2)}`);
-  console.log(`  Year 3: ${fmtCents(conv3)}`);
-  assert(conv2 < conv1, `Year 2 should be smaller than year 1 (${fmtCents(conv2)} vs ${fmtCents(conv1)})`);
-  assert(conv3 < conv2, `Year 3 should be smaller than year 2 (${fmtCents(conv3)} vs ${fmtCents(conv2)})`);
-}
-
-// ============================================================================
-// TEST 4: Cap ON + partial_amount — both caps respected (use the smaller)
-// ============================================================================
-startTest("Cap ON + partial_amount — both caps respected");
-{
-  const client = makeClient({
-    respect_penalty_free_limit: true,
-    conversion_type: "partial_amount",
-    target_partial_amount: 500_000_00, // $500K total target
-    qualified_account_value: 1_000_000_00, // $1M IRA → 10% cap = $100K/yr
-    penalty_free_percent: 10,
-    max_tax_rate: 22,
-  });
-  const input = createSimulationInput(client);
-  const result = runGrowthSimulation(input);
-  const conv1 = result.formula[0].conversionAmount ?? 0;
-  const yearlyCap = 1_000_000_00 * 0.10;
-  console.log(`  Year 1 conversion: ${fmtCents(conv1)} (yearly cap: ${fmtCents(yearlyCap)}, total target: $500K)`);
-  assert(conv1 <= yearlyCap, `Year 1 should respect annual cap`);
-
-  // Cumulative across years should not exceed $500K
-  let cumulative = 0;
-  for (const y of result.formula) cumulative += y.conversionAmount ?? 0;
-  console.log(`  Cumulative converted: ${fmtCents(cumulative)} (target: $500K)`);
-  assert(cumulative <= 500_000_00 + 100, `Cumulative should not exceed target+rounding`);
-}
-
-// ============================================================================
-// TEST 5: Cap ON + payTaxFromIRA — TOTAL withdrawal (conv + tax) ≤ cap
-// ============================================================================
-startTest("Cap ON + payTaxFromIRA — total IRA withdrawal ≤ carrier cap");
-{
-  const client = makeClient({
-    respect_penalty_free_limit: true,
-    conversion_type: "optimized_amount",
-    qualified_account_value: 1_000_000_00,
-    penalty_free_percent: 10,
-    max_tax_rate: 22,
-    tax_payment_source: "from_ira", // Tax comes from IRA — counts toward cap
-  });
-  const input = createSimulationInput(client);
-  const result = runGrowthSimulation(input);
-  const year1 = result.formula[0];
-  const conv1 = year1.conversionAmount ?? 0;
-  const fed1 = year1.federalTax ?? 0;
-  const state1 = year1.stateTax ?? 0;
-  const tax1 = fed1 + state1;
-  const totalWithdrawal = conv1 + tax1;
-  const cap = 100_000_00;
-  console.log(`  Conversion: ${fmtCents(conv1)} + tax-from-IRA: ${fmtCents(tax1)} = ${fmtCents(totalWithdrawal)}`);
-  console.log(`  Cap: ${fmtCents(cap)}`);
-  assert(totalWithdrawal <= cap + 100, `Total withdrawal must respect cap (within $1 rounding)`);
-  assert(conv1 < cap, `Conversion alone should be less than cap (tax took some)`);
-}
-
-// ============================================================================
-// TEST 6: Cap ON + full_conversion → drains at carrier rate over multiple years
-// ============================================================================
-startTest("Cap ON + full_conversion — drains across multiple years");
-{
-  const client = makeClient({
-    respect_penalty_free_limit: true,
-    conversion_type: "full_conversion",
-    qualified_account_value: 1_000_000_00,
-    penalty_free_percent: 10,
-    max_tax_rate: 32,
-    end_age: 75, // 15 years
-  });
-  const input = createSimulationInput(client);
-  const result = runGrowthSimulation(input);
-  const conv1 = result.formula[0].conversionAmount ?? 0;
-  console.log(`  Year 1 conversion: ${fmtCents(conv1)} (without cap, would be all $1M)`);
-  assert(conv1 < 200_000_00, `With cap, full conversion should NOT empty the IRA in year 1`);
-  assert(conv1 > 50_000_00, `Should still convert a meaningful amount (≥ $50K)`);
-}
-
-// ============================================================================
-// TEST 7: Cap ON + 0% penalty-free → no conversions (carrier doesn't allow)
-// ============================================================================
-startTest("Cap ON + penalty_free_percent = 0 — zero conversions");
-{
-  const client = makeClient({
-    respect_penalty_free_limit: true,
-    conversion_type: "optimized_amount",
-    qualified_account_value: 1_000_000_00,
-    penalty_free_percent: 0, // Carrier doesn't allow ANY free withdrawal
-    max_tax_rate: 22,
-  });
-  const input = createSimulationInput(client);
-  const result = runGrowthSimulation(input);
-  const conv1 = result.formula[0].conversionAmount ?? 0;
-  console.log(`  Year 1 conversion: ${fmtCents(conv1)} (cap: $0)`);
-  assert(conv1 === 0, `Expected zero conversion when cap is 0`);
-}
-
-// ============================================================================
-// TEST 8: Cap OFF + same setup as Test 2 → conversion is materially LARGER
-// ============================================================================
-startTest("Cap OFF vs Cap ON — Cap OFF year-1 conversion is larger");
+startTest("Cap ON + from_taxable — toggle is a no-op (no money leaves contract)");
 {
   const base = {
     conversion_type: "optimized_amount" as const,
     qualified_account_value: 1_000_000_00,
     penalty_free_percent: 10,
     max_tax_rate: 22,
+    tax_payment_source: "from_taxable" as const,
   };
   const offResult = runGrowthSimulation(
     createSimulationInput(makeClient({ ...base, respect_penalty_free_limit: false }))
@@ -293,50 +163,224 @@ startTest("Cap OFF vs Cap ON — Cap OFF year-1 conversion is larger");
   );
   const convOff = offResult.formula[0].conversionAmount ?? 0;
   const convOn = onResult.formula[0].conversionAmount ?? 0;
+  const externalOn = onResult.formula[0].taxesPaidExternally ?? 0;
   console.log(`  Cap OFF year 1: ${fmtCents(convOff)}`);
-  console.log(`  Cap ON  year 1: ${fmtCents(convOn)}`);
-  assert(convOff > convOn, `Cap OFF must produce a larger year-1 conversion`);
-  assert(convOn <= 100_000_00 + 100, `Cap ON must respect 10% cap on $1M`);
+  console.log(`  Cap ON  year 1: ${fmtCents(convOn)}, taxesPaidExternally: ${fmtCents(externalOn)}`);
+  assert(convOff === convOn, `from_taxable: cap toggle must NOT change conversion (got ${fmtCents(convOff)} vs ${fmtCents(convOn)})`);
+  assert(externalOn === 0, `from_taxable: taxesPaidExternally must stay 0 (carrier limit doesn't apply when tax isn't from IRA)`);
 }
 
 // ============================================================================
-// TEST 9: Cap releases after surrender period ends (year 11+ for 10-yr contract)
+// TEST 3: Cap ON + from_ira + optimized → conversion preserved, tax-from-IRA capped
 // ============================================================================
-startTest("Cap releases after surrender period — year 11+ unrestricted");
+startTest("Cap ON + from_ira + optimized — taxFromIRA ≤ cap, conv unchanged from no-cap");
+{
+  const base = {
+    conversion_type: "optimized_amount" as const,
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32, // higher bracket so tax exceeds 10% cap
+    tax_payment_source: "from_ira" as const,
+  };
+  const offResult = runGrowthSimulation(
+    createSimulationInput(makeClient({ ...base, respect_penalty_free_limit: false }))
+  );
+  const onResult = runGrowthSimulation(
+    createSimulationInput(makeClient({ ...base, respect_penalty_free_limit: true }))
+  );
+  const convOff = offResult.formula[0].conversionAmount ?? 0;
+  const convOn = onResult.formula[0].conversionAmount ?? 0;
+  const taxFromIraOn = onResult.formula[0].taxesPaidFromIRA ?? 0;
+  const externalOn = onResult.formula[0].taxesPaidExternally ?? 0;
+  const cap = 1_000_000_00 * 0.10; // $100K
+  console.log(`  Cap OFF year 1: conv ${fmtCents(convOff)}`);
+  console.log(`  Cap ON  year 1: conv ${fmtCents(convOn)}, taxFromIRA ${fmtCents(taxFromIraOn)}, external ${fmtCents(externalOn)}`);
+  assert(taxFromIraOn <= cap + 100, `taxFromIRA must respect cap (within $1 rounding); got ${fmtCents(taxFromIraOn)} vs cap ${fmtCents(cap)}`);
+  // The conversion may differ slightly between cap on/off because the IRS sees
+  // less distribution under the cap (smaller bracket fill); but it should NOT
+  // collapse to the cap value as the old behavior did.
+  assert(convOn > cap, `Conversion should EXCEED the cap — only the tax pulled from the IRA is restricted (got ${fmtCents(convOn)})`);
+}
+
+// ============================================================================
+// TEST 4: Cap ON + from_ira + partial_amount — total target still respected
+// ============================================================================
+startTest("Cap ON + from_ira + partial_amount — cumulative target respected, tax-from-IRA capped");
+{
+  const client = makeClient({
+    respect_penalty_free_limit: true,
+    conversion_type: "partial_amount",
+    target_partial_amount: 500_000_00, // $500K total target
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32,
+    tax_payment_source: "from_ira",
+  });
+  const input = createSimulationInput(client);
+  const result = runGrowthSimulation(input);
+
+  let cumulative = 0;
+  let maxTaxFromIra = 0;
+  for (let i = 0; i < result.formula.length; i++) {
+    const y = result.formula[i];
+    cumulative += y.conversionAmount ?? 0;
+    const boyIra = i === 0
+      ? 1_000_000_00
+      : (result.formula[i - 1].traditionalBalance ?? 0);
+    const taxFromIra = y.taxesPaidFromIRA ?? 0;
+    if (taxFromIra > maxTaxFromIra) maxTaxFromIra = taxFromIra;
+    if (taxFromIra > 0) {
+      const yearCap = Math.round(boyIra * 0.10);
+      assert(taxFromIra <= yearCap + 100, `Year ${i + 1}: taxFromIRA ${fmtCents(taxFromIra)} must be ≤ cap ${fmtCents(yearCap)}`);
+    }
+  }
+  console.log(`  Cumulative converted: ${fmtCents(cumulative)} (target: $500K)`);
+  console.log(`  Max tax-from-IRA in any year: ${fmtCents(maxTaxFromIra)}`);
+  assert(cumulative <= 500_000_00 + 100, `Cumulative ${fmtCents(cumulative)} should not exceed target+rounding`);
+}
+
+// ============================================================================
+// TEST 5: Cap ON + from_ira → tax-from-IRA + external = total conversion tax
+// ============================================================================
+startTest("Cap ON + from_ira — taxFromIRA + taxExternal accounts for full conversion tax");
 {
   const client = makeClient({
     respect_penalty_free_limit: true,
     conversion_type: "optimized_amount",
     qualified_account_value: 1_000_000_00,
     penalty_free_percent: 10,
-    max_tax_rate: 22,
-    surrender_years: 10,
-    end_age: 80, // 20-year projection so we see post-contract years
+    max_tax_rate: 32,
+    tax_payment_source: "from_ira",
   });
   const input = createSimulationInput(client);
   const result = runGrowthSimulation(input);
-  // Year 10 (yearOffset 9) is the LAST year of surrender — cap should still apply
-  // Year 11 (yearOffset 10) is post-contract — cap should NOT apply
-  const year10 = result.formula[9];
-  const year11 = result.formula[10];
-  const conv10 = year10?.conversionAmount ?? 0;
-  const conv11 = year11?.conversionAmount ?? 0;
-  const ira10Boy = year10?.traditionalBalance ?? 0; // BOY of year 10 ≈ EOY year 9
-  console.log(`  Year 10 (last surrender yr): conversion ${fmtCents(conv10)}`);
-  console.log(`  Year 11 (post-contract):     conversion ${fmtCents(conv11)}`);
-  // Year 11 conversion should be larger than the strict 10% cap
-  // (assuming there's still IRA balance to convert beyond 10%).
-  // Conservative check: year 11 conversion exceeds the year-10-style cap, OR
-  // the IRA has been mostly drained by year 11.
-  if (ira10Boy > 100_000_00) {
-    const wouldBeCap = ira10Boy * 0.10;
-    assert(
-      conv11 > wouldBeCap || conv11 === 0,
-      `Year 11 should ignore the 10% cap (got ${fmtCents(conv11)} vs hypothetical cap ${fmtCents(wouldBeCap)})`
-    );
-  } else {
-    console.log(`  (IRA mostly drained by year 11, can't strictly assert cap release)`);
+  const year1 = result.formula[0];
+  const taxFromIra = year1.taxesPaidFromIRA ?? 0;
+  const external = year1.taxesPaidExternally ?? 0;
+  const cap = 100_000_00;
+  console.log(`  Year 1: taxFromIRA ${fmtCents(taxFromIra)} + external ${fmtCents(external)}`);
+  assert(taxFromIra + external > 0, `Must have some conversion tax to test the split`);
+  assert(taxFromIra <= cap + 100, `taxFromIRA must be ≤ cap`);
+  // If cap binds, external > 0; if it doesn't, external = 0 — both are valid
+  // depending on whether the optimizer hit the bracket or stayed below it.
+  if (taxFromIra >= cap - 100) {
+    assert(external > 0, `When tax-from-IRA hits the cap, external should absorb the overflow`);
   }
+}
+
+// ============================================================================
+// TEST 6: Cap ON + from_ira + full_conversion → IRA emptied, external pays overflow
+// ============================================================================
+startTest("Cap ON + from_ira + full_conversion — IRA fully drained, tax overflow goes external");
+{
+  const client = makeClient({
+    respect_penalty_free_limit: true,
+    conversion_type: "full_conversion",
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32,
+    tax_payment_source: "from_ira",
+    end_age: 75,
+  });
+  const input = createSimulationInput(client);
+  const result = runGrowthSimulation(input);
+  const year1 = result.formula[0];
+  const conv1 = year1.conversionAmount ?? 0;
+  const taxFromIra = year1.taxesPaidFromIRA ?? 0;
+  const external = year1.taxesPaidExternally ?? 0;
+  const remainingIra = year1.traditionalBalance ?? 0;
+  const cap = 100_000_00;
+  console.log(`  Year 1: conv ${fmtCents(conv1)}, taxFromIRA ${fmtCents(taxFromIra)}, external ${fmtCents(external)}`);
+  console.log(`  Remaining IRA after year 1: ${fmtCents(remainingIra)}`);
+  // Per Joshua's clarification, full_conversion empties the IRA: conv + taxCap = iraAfterRmd.
+  assert(conv1 > 800_000_00, `full_conversion should still empty most of the IRA in year 1 (got ${fmtCents(conv1)})`);
+  assert(remainingIra < 10_000_00, `IRA should be (nearly) emptied (got ${fmtCents(remainingIra)})`);
+  assert(taxFromIra <= cap + 100, `taxFromIRA must respect cap`);
+  assert(external > 0, `Tax overflow should be paid externally`);
+}
+
+// ============================================================================
+// TEST 7: Cap ON + from_ira + 0% allowance → all conversion tax is external
+// ============================================================================
+startTest("Cap ON + from_ira + penalty_free_percent = 0 — all conversion tax goes external");
+{
+  const client = makeClient({
+    respect_penalty_free_limit: true,
+    conversion_type: "optimized_amount",
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 0, // Carrier doesn't allow ANY internal tax distribution
+    max_tax_rate: 32,
+    tax_payment_source: "from_ira",
+  });
+  const input = createSimulationInput(client);
+  const result = runGrowthSimulation(input);
+  const year1 = result.formula[0];
+  const conv1 = year1.conversionAmount ?? 0;
+  const taxFromIra = year1.taxesPaidFromIRA ?? 0;
+  const external = year1.taxesPaidExternally ?? 0;
+  console.log(`  Year 1: conv ${fmtCents(conv1)}, taxFromIRA ${fmtCents(taxFromIra)}, external ${fmtCents(external)}`);
+  assert(conv1 > 0, `Conversion should still happen even when no tax can come from IRA (got ${fmtCents(conv1)})`);
+  assert(taxFromIra === 0, `taxFromIRA must be 0 with cap = 0 (got ${fmtCents(taxFromIra)})`);
+  assert(external > 0, `All conversion tax must be external (got ${fmtCents(external)})`);
+}
+
+// ============================================================================
+// TEST 8: Cap ON vs Cap OFF + from_ira → same conversion, different tax payment
+// ============================================================================
+startTest("Cap ON vs Cap OFF + from_ira — conversion preserved, tax payment differs");
+{
+  const base = {
+    conversion_type: "optimized_amount" as const,
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32,
+    tax_payment_source: "from_ira" as const,
+  };
+  const offResult = runGrowthSimulation(
+    createSimulationInput(makeClient({ ...base, respect_penalty_free_limit: false }))
+  );
+  const onResult = runGrowthSimulation(
+    createSimulationInput(makeClient({ ...base, respect_penalty_free_limit: true }))
+  );
+  const off1 = offResult.formula[0];
+  const on1 = onResult.formula[0];
+  const cap = 100_000_00;
+  console.log(`  Cap OFF year 1: conv ${fmtCents(off1.conversionAmount ?? 0)}, taxFromIRA ${fmtCents(off1.taxesPaidFromIRA ?? 0)}, external ${fmtCents(off1.taxesPaidExternally ?? 0)}`);
+  console.log(`  Cap ON  year 1: conv ${fmtCents(on1.conversionAmount ?? 0)}, taxFromIRA ${fmtCents(on1.taxesPaidFromIRA ?? 0)}, external ${fmtCents(on1.taxesPaidExternally ?? 0)}`);
+  assert((off1.taxesPaidExternally ?? 0) === 0, `Cap OFF must keep taxesPaidExternally = 0`);
+  assert((on1.taxesPaidFromIRA ?? 0) <= cap + 100, `Cap ON must keep taxFromIRA ≤ cap`);
+  // Both runs are about the same scenario; conversion should be in the same ballpark
+  // (within ~20% — they may differ because the IRS-visible distribution differs).
+  const convOff = off1.conversionAmount ?? 0;
+  const convOn = on1.conversionAmount ?? 0;
+  if (convOff > 0) {
+    const ratio = convOn / convOff;
+    assert(ratio > 0.5 && ratio < 1.5, `Conversions should be in same ballpark (Cap OFF ${fmtCents(convOff)} vs Cap ON ${fmtCents(convOn)}, ratio ${ratio.toFixed(2)})`);
+  }
+}
+
+// ============================================================================
+// TEST 9: Cap releases after surrender period — post-contract no external overflow
+// ============================================================================
+startTest("Cap releases after surrender period — no external overflow once contract matures");
+{
+  const client = makeClient({
+    respect_penalty_free_limit: true,
+    conversion_type: "optimized_amount",
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32,
+    surrender_years: 10,
+    end_age: 80,
+    tax_payment_source: "from_ira",
+  });
+  const input = createSimulationInput(client);
+  const result = runGrowthSimulation(input);
+  // Year 11 (yearOffset 10) is post-contract — cap should NOT apply
+  const year11 = result.formula[10];
+  const externalY11 = year11?.taxesPaidExternally ?? 0;
+  console.log(`  Year 11 (post-contract): taxesPaidExternally ${fmtCents(externalY11)}`);
+  assert(externalY11 === 0, `Post-surrender year should have no external tax overflow (cap is inactive); got ${fmtCents(externalY11)}`);
 }
 
 console.log(`\n=== ${testNum} tests ${process.exitCode ? "FAILED" : "PASSED"} ===`);

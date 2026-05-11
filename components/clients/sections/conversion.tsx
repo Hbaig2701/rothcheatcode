@@ -102,12 +102,10 @@ export function ConversionSection() {
         />
       )}
 
-      {/* Protect Initial Premium + Respect Carrier Penalty-Free Limit. Both
-          span the full row of the section grid (sm:col-span-2 lg:col-span-3)
-          so the title and description don't get squeezed into a narrow third
-          column. We bypass the Field component here because its variants
-          force [&>*]:w-full on direct children, which fights the flex-row
-          layout we want for [checkbox] [label/description] rows. */}
+      {/* Protect Initial Premium spans the full section grid row
+          (sm:col-span-2 lg:col-span-3) so the description has room. We
+          bypass Field here because its variants force [&>*]:w-full on direct
+          children, which fights the flex-row [checkbox] [label] layout. */}
       <Controller
         name="protect_initial_premium"
         control={form.control}
@@ -134,35 +132,10 @@ export function ConversionSection() {
         )}
       />
 
-      {conversionType !== "no_conversion" && (
-        <Controller
-          name="respect_penalty_free_limit"
-          control={form.control}
-          render={({ field }) => (
-            <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
-              <Checkbox
-                id="respect_penalty_free_limit"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                className="mt-0.5 shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <label
-                  htmlFor="respect_penalty_free_limit"
-                  className="block text-sm font-medium cursor-pointer"
-                >
-                  Respect Contract Penalty-Free Limit
-                </label>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Caps each year&apos;s conversion at the penalty-free withdrawal % of the remaining IRA
-                  balance — for Allianz, American Equity, and similar carriers that don&apos;t allow
-                  conversions beyond the free-withdrawal allowance without surrender charges.
-                </p>
-              </div>
-            </div>
-          )}
-        />
-      )}
+      {/* Respect Contract Penalty-Free Limit lives under Tax Payment Source
+          in Section 4 (tax-data.tsx). It only applies when tax is paid from
+          the IRA, so it's grouped with the tax-source picker rather than
+          the conversion-sizing controls. */}
     </FormSection>
   );
 }

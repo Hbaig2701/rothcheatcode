@@ -14,6 +14,7 @@ export type StoryTrigger =
   | 'voluntary_withdrawal'  // NEW: advisor-scheduled IRA/Roth pull happens
   | 'widow_first_death'     // NEW: widow_death_age reached
   | 'early_withdrawal_penalty' // NEW: 10% penalty incurred under 59½
+  | 'carrier_cap_overflow'  // NEW: penalty-free cap binding, conversion tax overflow paid externally
   | 'social_security_start'
   | 'spouse_ss_start'
   | 'rmd_age'
@@ -147,6 +148,13 @@ export function generateStory(
   // Early-withdrawal penalty tracking — fires once the first year a penalty
   // appears in the combined data (under 59½).
   let earlyPenaltyFired = false;
+
+  // Carrier penalty-free cap overflow tracker — first year the conversion
+  // tax exceeds the carrier's free-withdrawal allowance and overflow has
+  // to be funded externally. Surfaces as a one-time card so advisors can
+  // explain the "your client writes a check for the part the carrier
+  // wouldn't let us pull from inside the contract" line.
+  let capOverflowFired = false;
 
   // Partial-cap tracking — fires when cumulative conversions reach the
   // configured target_partial_amount.
@@ -464,6 +472,35 @@ export function generateStory(
       }
     }
 
+    // CARRIER CAP OVERFLOW — first year the conversion tax can't be fully
+    // paid from inside the contract because of the penalty-free withdrawal
+    // limit. The conversion still happens at the chosen size; only the tax
+    // payment is split between IRA (up to cap) and external funds.
+    const externalTaxThisYear = year.taxesPaidExternally ?? 0;
+    if (!capOverflowFired && externalTaxThisYear > 0) {
+      capOverflowFired = true;
+      const internalTaxThisYear = year.taxesPaidFromIRA ?? 0;
+      storyEntries.push({
+        year: year.year,
+        age: year.age,
+        trigger: 'carrier_cap_overflow',
+        headline: 'Carrier Penalty-Free Limit Reached',
+        body: `The conversion tax for ${year.year} runs ${formatCurrency(internalTaxThisYear + externalTaxThisYear)}, but the carrier only allows ${formatCurrency(internalTaxThisYear)} (the penalty-free withdrawal allowance) to be pulled from inside the contract this year. The conversion proceeds at the chosen size — Roth conversions are intra-carrier transfers and don't count against the allowance — and the remaining ${formatCurrency(externalTaxThisYear)} of tax is assumed to be paid from external (non-IRA) funds. The cap releases automatically once the surrender period ends.`,
+        metrics: [
+          { label: 'Tax From IRA (Capped)', value: formatCurrency(internalTaxThisYear) },
+          { label: 'Tax Paid Externally', value: formatCurrency(externalTaxThisYear) },
+        ],
+        runningTotals: {
+          totalConverted: formatCurrency(totalConverted),
+          totalTaxPaid: formatCurrency(totalTaxPaid),
+          rothBalance: formatCurrency(year.rothBalance),
+          iraBalance: formatCurrency(year.traditionalBalance),
+        },
+        icon: 'warning',
+        sentiment: 'caution',
+      });
+    }
+
     // EARLY-WITHDRAWAL PENALTY — first year a 10% penalty is incurred.
     const penaltyThisYear = year.earlyWithdrawalPenalty ?? 0;
     if (!earlyPenaltyFired && penaltyThisYear > 0) {
@@ -769,15 +806,16 @@ function getTrigggerPriority(trigger: StoryTrigger): number {
     'partial_cap_reached': 8,
     'fully_converted': 9,
     'early_withdrawal_penalty': 10,
-    'break_even': 11,
-    'roth_exceeds_original': 12,
-    'social_security_start': 13,
-    'spouse_ss_start': 14,
-    'widow_first_death': 15,
-    'rmd_age': 16,
-    'decade_snapshot': 17,
-    'projection_end': 18,
-    'death_legacy': 19,
+    'carrier_cap_overflow': 11,     // Same-year as conversion_year typically
+    'break_even': 12,
+    'roth_exceeds_original': 13,
+    'social_security_start': 14,
+    'spouse_ss_start': 15,
+    'widow_first_death': 16,
+    'rmd_age': 17,
+    'decade_snapshot': 18,
+    'projection_end': 19,
+    'death_legacy': 20,
   };
   return priorities[trigger] ?? 99;
 }

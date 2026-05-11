@@ -211,8 +211,25 @@ export interface YearlyResult {
   // Total IRA withdrawal: conversion + taxes paid from IRA (in cents)
   totalIRAWithdrawal?: number;
 
-  // Taxes paid from IRA: portion of IRA withdrawn to cover conversion taxes (in cents)
+  // Taxes paid from IRA: portion of IRA withdrawn to cover conversion taxes (in cents).
+  // When the carrier penalty-free cap is active (respect_penalty_free_limit +
+  // tax_payment_source = 'from_ira' + still in surrender period), this is
+  // capped at penalty_free_percent × beginning-of-year IRA. Any conversion tax
+  // above the cap goes to taxesPaidExternally (below) — the conversion itself
+  // is unaffected because a Roth conversion is an intra-carrier transfer that
+  // doesn't count against the carrier's penalty-free withdrawal allowance.
   taxesPaidFromIRA?: number;
+
+  // Taxes paid from external/non-IRA funds for the conversion (in cents).
+  // Populated when the carrier penalty-free cap binds in a from_ira scenario
+  // — the IRA covers up to taxesPaidFromIRA, the rest of the conversion tax
+  // is assumed paid by the client out of non-qualified cash. Zero whenever
+  // the cap doesn't bind (toggle off, surrender period over, or
+  // tax_payment_source = 'from_outside'). Surfaced in the dashboard tooltip
+  // and story-mode card so the advisor sees exactly how much the client
+  // wrote a check for. Doesn't reduce any tracked balance — it's modeled as
+  // money the client funded externally.
+  taxesPaidExternally?: number;
 
   // 10% early withdrawal penalty on IRA distributions used to pay conversion
   // taxes when client is under 59.5 (in cents). Assessed on the taxesPaidFromIRA
