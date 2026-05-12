@@ -9,15 +9,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Sparkles, Upload, Wrench, Search, ArrowLeft, Loader2, FileText, AlertCircle } from "lucide-react";
+import { Sparkles, Upload, Wrench, ArrowLeft, Loader2, FileText, AlertCircle } from "lucide-react";
 import { useResearchProduct } from "@/lib/queries/products";
 import { ManualBuilder } from "./manual-builder";
 import { ResearchResults, type ResearchResult } from "./research-results";
 import type { CustomProductRow } from "@/lib/products/types";
 
-type Step = "entry" | "search" | "upload" | "manual" | "researching" | "results";
+// AI web-search ("search by product name") path is hidden in the UI for now —
+// only PDF upload + manual builder are exposed. The /api/products/research
+// endpoint still supports method: "search" so we can re-enable the UI once
+// the search-result quality is improved. To restore: add "search" back to
+// the Step union, re-introduce SearchStep, and wire onSearch through
+// EntryStep — see git history for the prior implementation.
+type Step = "entry" | "upload" | "manual" | "researching" | "results";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -26,7 +30,6 @@ interface AddProductDialogProps {
 
 export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) {
   const [step, setStep] = useState<Step>("entry");
-  const [searchQuery, setSearchQuery] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [researchResult, setResearchResult] = useState<ResearchResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +39,6 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
 
   const reset = () => {
     setStep("entry");
-    setSearchQuery("");
     setUploadedFile(null);
     setResearchResult(null);
     setError(null);
@@ -45,22 +47,6 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
   const handleClose = () => {
     onOpenChange(false);
     setTimeout(reset, 200);
-  };
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setStep("researching");
-    setError(null);
-    try {
-      const r = await research.mutateAsync({
-        method: "search",
-        query: searchQuery.trim(),
-      });
-      handleResearchResponse(r);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Research failed");
-      setStep("search");
-    }
   };
 
   const handleUpload = async () => {
@@ -87,8 +73,8 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
   const handleResearchResponse = (r: Awaited<ReturnType<typeof research.mutateAsync>>) => {
     try {
       if (!r.product_found || !r.archetype || !r.parameters) {
-        setError(r.error || "Could not find or extract product details. Try uploading a brochure or use the manual builder.");
-        setStep(uploadedFile ? "upload" : "search");
+        setError(r.error || "Could not extract product details from this document. Try a clearer brochure or use the manual builder.");
+        setStep("upload");
         return;
       }
       setResearchResult({
@@ -133,7 +119,7 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
     } catch (e) {
       console.error("[handleResearchResponse]", e, r);
       setError(`Failed to parse AI response: ${e instanceof Error ? e.message : "unknown error"}. Try the manual builder.`);
-      setStep(uploadedFile ? "upload" : "search");
+      setStep("upload");
     }
   };
 
@@ -152,15 +138,14 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
               </Button>
             )}
             {step === "entry" && "Add a Product"}
-            {step === "search" && "Search by Name"}
             {step === "upload" && "Upload Document"}
             {step === "manual" && "Manual Builder"}
-            {step === "researching" && "Researching..."}
+            {step === "researching" && "Analyzing..."}
             {step === "results" && "Product Found"}
           </DialogTitle>
           {step === "entry" && (
             <DialogDescription>
-              Our AI will research the product and configure it for you. Or build manually.
+              Upload a brochure and let AI extract the parameters, or build the product manually.
             </DialogDescription>
           )}
         </DialogHeader>
@@ -168,18 +153,8 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {step === "entry" && (
             <EntryStep
-              onSearch={() => setStep("search")}
               onUpload={() => setStep("upload")}
               onManual={() => setStep("manual")}
-            />
-          )}
-
-          {step === "search" && (
-            <SearchStep
-              query={searchQuery}
-              onChange={setSearchQuery}
-              onSubmit={handleSearch}
-              error={error}
             />
           )}
 
@@ -216,11 +191,9 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
 }
 
 function EntryStep({
-  onSearch,
   onUpload,
   onManual,
 }: {
-  onSearch: () => void;
   onUpload: () => void;
   onManual: () => void;
 }) {
@@ -263,74 +236,6 @@ function EntryStep({
           </p>
         </div>
       </button>
-
-      {/* TERTIARY: Web search — quick lookup, requires verification */}
-      <div className="pt-2 border-t border-border/60">
-        <p className="text-xs text-muted-foreground mb-2 px-1">
-          Don&apos;t have a brochure handy?
-        </p>
-        <button
-          onClick={onSearch}
-          className="w-full flex items-start gap-4 rounded-lg border border-border bg-card p-3.5 text-left hover:bg-accent/40 transition-all"
-        >
-          <div className="size-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-            <Search className="size-4 text-muted-foreground" />
-          </div>
-          <div className="flex-1">
-            <div className="font-medium text-sm flex items-center gap-2">
-              Search by product name
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase font-semibold">AI</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Quick lookup via web search. Results from third-party sources — always verify against the carrier illustration before using with clients.
-            </p>
-          </div>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function SearchStep({
-  query,
-  onChange,
-  onSubmit,
-  error,
-}: {
-  query: string;
-  onChange: (v: string) => void;
-  onSubmit: () => void;
-  error: string | null;
-}) {
-  return (
-    <div className="space-y-4">
-      <Field>
-        <FieldLabel>Carrier &amp; Product Name</FieldLabel>
-        <Input
-          autoFocus
-          placeholder="e.g., Athene Performance Elite Plus 15"
-          value={query}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && onSubmit()}
-        />
-        <p className="text-xs text-muted-foreground">
-          Examples: &quot;American Equity AssetShield 10&quot;, &quot;Nationwide Destination 2.0&quot;
-        </p>
-      </Field>
-
-      {error && (
-        <div className="rounded-lg border border-red-300/40 bg-red-50/30 p-3 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-400 flex items-start gap-2">
-          <AlertCircle className="size-4 shrink-0 mt-0.5" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      <div className="flex justify-end">
-        <Button onClick={onSubmit} disabled={!query.trim()}>
-          <Sparkles className="size-4" />
-          Research Product
-        </Button>
-      </div>
     </div>
   );
 }
@@ -399,8 +304,8 @@ function UploadStep({
 }
 
 const RESEARCH_STAGES = [
-  "Searching carrier websites...",
-  "Finding product specifications...",
+  "Reading the document...",
+  "Identifying the product...",
   "Extracting bonus and surrender details...",
   "Checking state variations...",
   "Mapping to calculation engine...",
