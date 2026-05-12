@@ -15,6 +15,14 @@
 import { Resend } from "resend";
 
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "Retirement Expert Support <onboarding@resend.dev>";
+// Reply-To defaults to the From address (no-op) but can be overridden in env
+// to point at a real monitored mailbox. Microsoft/Outlook penalizes
+// `noreply@`-style senders heavily, and absence of a distinct Reply-To
+// reinforces the "automated, no engagement possible" signal that pushes
+// transactional mail toward junk. Setting RESEND_REPLY_TO to e.g.
+// support@retirementexpert.ai (a real receiving inbox) is one of the
+// highest-leverage deliverability wins.
+const REPLY_TO_EMAIL = process.env.RESEND_REPLY_TO || undefined;
 const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.retirementexpert.ai";
 
 let _client: Resend | null = null;
@@ -31,9 +39,14 @@ interface SendArgs {
   subject: string;
   html: string;
   text: string;
+  /**
+   * Per-send override for Reply-To. Falls back to RESEND_REPLY_TO env, then
+   * to the From address (Resend's default behavior).
+   */
+  replyTo?: string;
 }
 
-async function sendEmail({ to, subject, html, text }: SendArgs): Promise<void> {
+async function sendEmail({ to, subject, html, text, replyTo }: SendArgs): Promise<void> {
   const client = getClient();
   if (!client) {
     console.warn("[email] RESEND_API_KEY not set — skipping send", { to, subject });
@@ -46,6 +59,23 @@ async function sendEmail({ to, subject, html, text }: SendArgs): Promise<void> {
       subject,
       html,
       text,
+      // Reply-To improves deliverability by giving recipients a real inbox
+      // to reply to (vs an unmonitored noreply@ that gets bounce-looped).
+      ...(replyTo || REPLY_TO_EMAIL ? { replyTo: replyTo ?? REPLY_TO_EMAIL! } : {}),
+      // Headers that signal this is automated transactional mail (not bulk
+      // marketing). Outlook/SmartScreen and Gmail both weight these:
+      //   Auto-Submitted: auto-generated  (RFC 3834) — tells receiving
+      //     servers this isn't a human-typed message; suppresses
+      //     out-of-office auto-responders looping back at us.
+      //   X-Auto-Response-Suppress: All  (Microsoft-specific) — same
+      //     intent for the Outlook/Exchange ecosystem.
+      //   Precedence: bulk  (legacy convention) — still respected by some
+      //     filters and mail-list software to skip auto-replies.
+      headers: {
+        "Auto-Submitted": "auto-generated",
+        "X-Auto-Response-Suppress": "All",
+        "Precedence": "bulk",
+      },
     });
     if (error) {
       console.error("[email] Resend send failed", { to, subject, error });
@@ -158,7 +188,10 @@ Replies to this email aren't monitored — please respond inside the ticket so t
 
   await sendEmail({
     to,
-    subject: `Re: ${ticketSubject}`,
+    // Drop the "Re:" prefix — Outlook/SmartScreen treats fake replies
+    // (no matching Message-ID in the recipient's history) as a spam
+    // signal. "Support replied" reads as legitimate transactional copy.
+    subject: `Support replied: ${ticketSubject}`,
     html,
     text,
   });
