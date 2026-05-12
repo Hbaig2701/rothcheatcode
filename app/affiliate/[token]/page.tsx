@@ -14,11 +14,27 @@ interface AffiliateView {
   created_at: string;
 }
 
+interface PortalCode {
+  id: string;
+  code: string;
+  discount_pct: number;
+  commission_pct: number;
+  is_active: boolean;
+  active_subscribers: number;
+}
+
 interface PortalStats {
   conversions: number;
   active_annual: number;
   abandoned_count: number;
-  recent_conversions: Array<{ created_at: string; status: string | null; cycle: string | null }>;
+  recent_conversions: Array<{
+    created_at: string;
+    status: string | null;
+    cycle: string | null;
+    code: string | null;
+    discount_pct: number | null;
+    commission_pct: number | null;
+  }>;
   recent_abandons: Array<{
     expired_at: string;
     amount_cents: number | null;
@@ -26,6 +42,7 @@ interface PortalStats {
     cycle: string | null;
     has_email: boolean;
   }>;
+  codes: PortalCode[];
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -50,44 +67,54 @@ export default async function AffiliatePortalPage({
 
   // affiliate_portal_stats always returns one row even when there are no
   // conversions (counts will be 0, recent_conversions will be []).
-  const statsRow = ((statsRows ?? []) as Array<{
-    conversions: number | string | bigint;
-    active_annual: number | string | bigint;
-    abandoned_count: number | string | bigint;
-    recent_conversions: Array<{ created_at: string; status: string | null; cycle: string | null }>;
-    recent_abandons: Array<{
-      expired_at: string;
-      amount_cents: number | null;
-      plan: string | null;
-      cycle: string | null;
-      has_email: boolean;
-    }>;
-  }>)[0];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const statsRow = ((statsRows ?? []) as any[])[0];
   const stats: PortalStats = {
     conversions: Number(statsRow?.conversions ?? 0),
     active_annual: Number(statsRow?.active_annual ?? 0),
     abandoned_count: Number(statsRow?.abandoned_count ?? 0),
     recent_conversions: statsRow?.recent_conversions ?? [],
     recent_abandons: statsRow?.recent_abandons ?? [],
+    codes: (statsRow?.codes ?? []).map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (c: any): PortalCode => ({
+        id: c.id,
+        code: c.code,
+        discount_pct: Number(c.discount_pct),
+        commission_pct: Number(c.commission_pct),
+        is_active: Boolean(c.is_active),
+        active_subscribers: Number(c.active_subscribers ?? 0),
+      })
+    ),
   };
 
-  // Revenue and commission baselines — derived from the discounted annual
-  // list price. Real payout reconciliation should pull from Stripe invoices
-  // (this dashboard is the affiliate's high-level view).
+  // Pre-compute per-customer economics for each code (the affiliate's
+  // headline math). We assume the customer pays the full discounted annual
+  // price; real payouts reconcile against Stripe invoices.
   const annualListPrice = PLAN_PRICES.standard.annual.amount;
-  const discountedAnnualPerCustomer = Math.round(annualListPrice * (1 - 20 / 100));
-  const annualCommissionPerCustomer = Math.round(
-    discountedAnnualPerCustomer * (affiliate.commission_pct / 100)
+  const codesWithEconomics = stats.codes.map((c) => {
+    const discounted = Math.round(annualListPrice * (1 - c.discount_pct / 100));
+    const perCustomer = Math.round(discounted * (c.commission_pct / 100));
+    return {
+      ...c,
+      discounted_annual: discounted,
+      annual_commission_per_customer: perCustomer,
+      annual_recurring_commission: c.active_subscribers * perCustomer,
+    };
+  });
+
+  const totalRecurringCommission = codesWithEconomics.reduce(
+    (acc, c) => acc + c.annual_recurring_commission,
+    0
   );
-  const annualRecurringCommission = stats.active_annual * annualCommissionPerCustomer;
 
   return (
     <AffiliatePortalClient
       affiliate={affiliate}
       stats={stats}
-      annualCommissionPerCustomer={annualCommissionPerCustomer}
-      annualRecurringCommission={annualRecurringCommission}
-      discountedAnnualPerCustomer={discountedAnnualPerCustomer}
+      codes={codesWithEconomics}
+      totalActiveSubscribers={stats.active_annual}
+      totalRecurringCommission={totalRecurringCommission}
     />
   );
 }

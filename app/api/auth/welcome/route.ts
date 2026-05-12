@@ -91,18 +91,22 @@ export async function POST(request: NextRequest) {
     // route handles the case where the profile is created here AFTER the
     // webhook fires (so the webhook's profile lookup misses it).
     let affiliateId: string | null = null;
+    let affiliateCodeId: string | null = null;
     const discounts = (session as { discounts?: Array<{ promotion_code?: string | { id?: string } | null }> }).discounts;
     const rawPromo = discounts?.[0]?.promotion_code;
     const promotionCodeId = typeof rawPromo === "string"
       ? rawPromo
       : (rawPromo && typeof rawPromo === "object" ? rawPromo.id ?? null : null);
     if (promotionCodeId) {
-      const { data: affiliate } = await admin
-        .from("affiliates")
-        .select("id")
+      const { data: affCode } = await admin
+        .from("affiliate_codes")
+        .select("id, affiliate_id")
         .eq("stripe_promotion_code_id", promotionCodeId)
         .maybeSingle();
-      if (affiliate) affiliateId = affiliate.id;
+      if (affCode) {
+        affiliateId = affCode.affiliate_id;
+        affiliateCodeId = affCode.id;
+      }
     }
 
     // Update their profile with Stripe info
@@ -118,6 +122,7 @@ export async function POST(request: NextRequest) {
       subscription_status: "active",
       current_period_end: periodEndIso,
       affiliate_id: affiliateId,
+      affiliate_code_id: affiliateCodeId,
     };
 
     let profileUpdated = false;

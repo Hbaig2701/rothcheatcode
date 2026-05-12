@@ -161,24 +161,26 @@ export async function POST(request: NextRequest) {
             if (cycle) updateData.billing_cycle = cycle;
             updateData.subscription_status = "active";
 
-            // Affiliate attribution — when the customer redeemed an affiliate
-            // promotion code at Checkout, the session's discounts array
-            // includes the promotion_code id. Match it against our
-            // affiliates table so we can pay out commission for as long as
-            // this customer remains subscribed.
+            // Affiliate attribution — match the redeemed promotion code
+            // against affiliate_codes (the source of truth for multi-tier
+            // discounts). Stores BOTH affiliate_id and affiliate_code_id so
+            // we know not just WHO referred them but which specific code
+            // (and therefore which commission rate) applies to this
+            // customer for the life of their subscription.
             const discounts = session.discounts as Array<{ promotion_code?: string | null }> | undefined;
             const promotionCodeId = discounts?.[0]?.promotion_code ?? null;
             if (promotionCodeId) {
-              const { data: affiliate } = await supabase
-                .from("affiliates")
-                .select("id")
+              const { data: affCode } = await supabase
+                .from("affiliate_codes")
+                .select("id, affiliate_id, code")
                 .eq("stripe_promotion_code_id", promotionCodeId)
                 .maybeSingle();
-              if (affiliate) {
-                updateData.affiliate_id = affiliate.id;
-                console.log(`[Stripe Webhook] Attributed profile ${profile.id} to affiliate ${affiliate.id} (promo ${promotionCodeId})`);
+              if (affCode) {
+                updateData.affiliate_id = affCode.affiliate_id;
+                updateData.affiliate_code_id = affCode.id;
+                console.log(`[Stripe Webhook] Attributed profile ${profile.id} to affiliate ${affCode.affiliate_id} via code ${affCode.code} (${promotionCodeId})`);
               } else {
-                console.warn(`[Stripe Webhook] Promotion code ${promotionCodeId} used but no matching affiliate row`);
+                console.warn(`[Stripe Webhook] Promotion code ${promotionCodeId} used but no matching affiliate_codes row`);
               }
             }
 

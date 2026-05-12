@@ -3,7 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Copy, Check, ExternalLink, ShoppingCart } from "lucide-react";
+import { Loader2, Plus, Copy, Check, ExternalLink, ShoppingCart, Sparkles } from "lucide-react";
+
+interface CodeRow {
+  id: string;
+  code: string;
+  discount_pct: number;
+  commission_pct: number;
+  is_active: boolean;
+  stats: { active_subscribers: number; annual_revenue: number; annual_commission: number };
+}
 
 interface AffiliateWithStats {
   id: string;
@@ -16,6 +25,7 @@ interface AffiliateWithStats {
   is_active: boolean;
   notes: string | null;
   created_at: string;
+  codes: CodeRow[];
   stats: {
     conversions: number;
     activeAnnual: number;
@@ -28,27 +38,51 @@ interface AffiliateWithStats {
 const fmtUSD = (dollars: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(dollars);
 
+// Default commission rate for each discount tier — lower discount, higher
+// commission. Admin can override per code via the form.
+const DEFAULT_COMMISSION: Record<number, number> = {
+  20: 25,
+  10: 30,
+  5: 35,
+};
+
+const TIERS = [20, 10, 5] as const;
+type Tier = (typeof TIERS)[number];
+
 export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats[] }) {
   const router = useRouter();
   const [showForm, setShowForm] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [copiedItem, setCopiedItem] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  // Form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [paypal, setPaypal] = useState("");
-  const [code, setCode] = useState("");
-  const [commission, setCommission] = useState(25);
+  const [baseCode, setBaseCode] = useState("");
+  // Per-tier opt-in + commission %
+  const [tierEnabled, setTierEnabled] = useState<Record<Tier, boolean>>({ 20: true, 10: true, 5: true });
+  const [tierCommission, setTierCommission] = useState<Record<Tier, number>>({ ...DEFAULT_COMMISSION } as Record<Tier, number>);
 
-  // Suggest a code based on the name (first name + 20)
-  function suggestCode(n: string) {
-    const first = n.trim().split(/\s+/)[0]?.toUpperCase().replace(/[^A-Z0-9]/g, "") ?? "";
-    return first ? `${first}20` : "";
+  function suggestBase(n: string) {
+    return n.trim().split(/\s+/)[0]?.toUpperCase().replace(/[^A-Z0-9]/g, "") ?? "";
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const tiers = TIERS.filter((t) => tierEnabled[t]).map((t) => ({
+      discount_pct: t,
+      commission_pct: tierCommission[t],
+    }));
+    if (tiers.length === 0) {
+      setError("Pick at least one discount tier.");
+      return;
+    }
+
     setCreating(true);
     const res = await fetch("/api/admin/affiliates", {
       method: "POST",
@@ -57,8 +91,8 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
         name: name.trim(),
         email: email.trim(),
         paypal_email: paypal.trim() || null,
-        code: code.trim() || suggestCode(name),
-        commission_pct: commission,
+        base_code: baseCode.trim() || suggestBase(name),
+        tiers,
       }),
     });
     setCreating(false);
@@ -70,13 +104,14 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
     setName("");
     setEmail("");
     setPaypal("");
-    setCode("");
-    setCommission(25);
+    setBaseCode("");
+    setTierEnabled({ 20: true, 10: true, 5: true });
+    setTierCommission({ ...DEFAULT_COMMISSION } as Record<Tier, number>);
     setShowForm(false);
     router.refresh();
   }
 
-  async function toggleActive(id: string, current: boolean) {
+  async function toggleAffiliateActive(id: string, current: boolean) {
     await fetch(`/api/admin/affiliates/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -85,13 +120,13 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
     router.refresh();
   }
 
-  function copyCode(c: string) {
-    void navigator.clipboard.writeText(c);
-    setCopiedCode(c);
-    setTimeout(() => setCopiedCode(null), 1500);
+  function copy(text: string, label: string) {
+    void navigator.clipboard.writeText(text);
+    setCopiedItem(label);
+    setTimeout(() => setCopiedItem(null), 1500);
   }
 
-  // Roll-ups
+  // Roll-ups across all affiliates
   const totals = affiliates.reduce(
     (acc, a) => {
       acc.conversions += a.stats.conversions;
@@ -104,14 +139,17 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
     { conversions: 0, activeAnnual: 0, annualRevenue: 0, annualCommission: 0, abandoned: 0 }
   );
 
+  // Live preview of customer-facing codes from the base
+  const previewBase = baseCode.trim() || suggestBase(name);
+
   return (
     <div>
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-[28px] font-display font-bold text-foreground leading-tight">Affiliates</h1>
-          <p className="text-sm text-text-dim mt-1">
-            Each affiliate gets a unique Stripe promo code. Customers who redeem it at checkout
-            get <strong className="text-foreground">20% off the annual plan, forever</strong>. Commissions accrue on every renewal.
+          <p className="text-sm text-text-dim mt-1 max-w-2xl">
+            Each affiliate gets up to three Stripe codes — 20%, 10%, and 5% off the annual plan.
+            The smaller the discount they share, the higher their commission cut.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -161,7 +199,7 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
       {showForm && (
         <form
           onSubmit={handleCreate}
-          className="rounded-[14px] border border-border-default bg-bg-card p-6 mb-8 space-y-4"
+          className="rounded-[14px] border border-border-default bg-bg-card p-6 mb-8 space-y-5"
         >
           <div className="grid grid-cols-2 gap-4">
             <label className="block text-sm">
@@ -170,7 +208,7 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                onBlur={() => { if (!code) setCode(suggestCode(name)); }}
+                onBlur={() => { if (!baseCode) setBaseCode(suggestBase(name)); }}
                 className="w-full rounded-md border border-border bg-input/30 px-3 py-2 text-sm"
                 placeholder="Jane Smith"
               />
@@ -198,34 +236,63 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
             </label>
             <label className="block text-sm">
               <span className="text-text-dim mb-1 block">
-                Coupon code <span className="text-text-dimmer">(uppercase, 3–30 chars)</span>
+                Code base <span className="text-text-dimmer">(uppercased automatically)</span>
               </span>
               <input
                 required
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                value={baseCode}
+                onChange={(e) => setBaseCode(e.target.value.toUpperCase())}
                 className="w-full rounded-md border border-border bg-input/30 px-3 py-2 text-sm font-mono"
-                placeholder="JANE20"
+                placeholder="JANE"
               />
+              {previewBase && (
+                <p className="text-xs text-text-dimmer mt-1.5">
+                  Codes will be:{" "}
+                  {TIERS.filter((t) => tierEnabled[t]).map((t) => `${previewBase}${t}`).join(", ") || "(pick a tier)"}
+                </p>
+              )}
             </label>
-            <label className="block text-sm">
-              <span className="text-text-dim mb-1 block">Commission % of net annual price</span>
-              <input
-                required
-                type="number"
-                min={0}
-                max={100}
-                step={1}
-                value={commission}
-                onChange={(e) => setCommission(Number(e.target.value))}
-                className="w-full rounded-md border border-border bg-input/30 px-3 py-2 text-sm"
-              />
-            </label>
-            <div className="text-xs text-text-dimmer self-end pb-2">
-              On a $2,376 net annual sub at {commission}%, the affiliate earns{" "}
-              <strong className="text-foreground">{fmtUSD((2376 * commission) / 100)}/year</strong> for as long as the customer stays.
+          </div>
+
+          <div>
+            <p className="text-sm text-text-dim mb-3">Discount tiers</p>
+            <div className="space-y-2">
+              {TIERS.map((t) => (
+                <label
+                  key={t}
+                  className={`flex items-center gap-4 rounded-md border px-4 py-3 text-sm cursor-pointer transition-colors ${
+                    tierEnabled[t] ? "border-gold/40 bg-gold/5" : "border-border-default bg-bg-base hover:bg-accent/20"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={tierEnabled[t]}
+                    onChange={(e) => setTierEnabled({ ...tierEnabled, [t]: e.target.checked })}
+                    className="size-4 rounded border-border shrink-0"
+                  />
+                  <span className="text-foreground font-mono w-12">{t}%</span>
+                  <span className="text-text-dim flex-1">
+                    Customer saves {t}% on the annual plan
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-text-dim">Commission</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={tierCommission[t]}
+                      onChange={(e) => setTierCommission({ ...tierCommission, [t]: Number(e.target.value) })}
+                      disabled={!tierEnabled[t]}
+                      className="w-20 rounded-md border border-border bg-input/30 px-2 py-1 text-sm font-mono text-right disabled:opacity-50"
+                    />
+                    <span className="text-text-dim text-xs">%</span>
+                  </div>
+                </label>
+              ))}
             </div>
           </div>
+
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex items-center justify-end gap-2">
             <button
@@ -241,107 +308,151 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
               className="inline-flex items-center gap-2 rounded-md bg-gold px-4 py-2 text-sm font-medium text-bg-base hover:bg-gold/90 disabled:opacity-60 transition-colors"
             >
               {creating ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-              Create affiliate + Stripe code
+              Create affiliate + Stripe codes
             </button>
           </div>
         </form>
       )}
 
-      {/* Table */}
-      <div className="rounded-[14px] border border-border-default bg-bg-card overflow-hidden">
-        {affiliates.length === 0 ? (
-          <p className="px-6 py-12 text-center text-sm text-text-dim">No affiliates yet. Add one to get started.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-[rgba(255,255,255,0.02)] border-b border-border-default">
-              <tr className="text-left text-xs uppercase tracking-wider text-text-dimmer">
-                <th className="px-4 py-2.5 font-semibold">Name</th>
-                <th className="px-4 py-2.5 font-semibold">Code</th>
-                <th className="px-4 py-2.5 font-semibold">Portal</th>
-                <th className="px-4 py-2.5 font-semibold">Commission</th>
-                <th className="px-4 py-2.5 font-semibold text-right">Conversions</th>
-                <th className="px-4 py-2.5 font-semibold text-right">Active annual</th>
-                <th className="px-4 py-2.5 font-semibold text-right">Abandoned</th>
-                <th className="px-4 py-2.5 font-semibold text-right">Annual revenue</th>
-                <th className="px-4 py-2.5 font-semibold text-right">Commission/yr</th>
-                <th className="px-4 py-2.5 font-semibold text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {affiliates.map((a) => (
-                <tr key={a.id} className="border-b border-border-default last:border-b-0 hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-                  <td className="px-4 py-3">
+      {/* Affiliate cards */}
+      {affiliates.length === 0 ? (
+        <div className="rounded-[14px] border border-border-default bg-bg-card px-6 py-12 text-center text-sm text-text-dim">
+          No affiliates yet. Add one to get started.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {affiliates.map((a) => {
+            const isOpen = expandedId === a.id;
+            return (
+              <div
+                key={a.id}
+                className="rounded-[14px] border border-border-default bg-bg-card overflow-hidden"
+              >
+                {/* Header row */}
+                <div className="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 items-center px-5 py-4">
+                  <div>
                     <p className="text-foreground font-medium">{a.name}</p>
                     <p className="text-xs text-text-dim">{a.email}</p>
-                    {a.paypal_email && <p className="text-xs text-text-dimmer">PayPal: {a.paypal_email}</p>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => copyCode(a.code)}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-bg-base hover:bg-accent/40 transition-colors px-2 py-1 font-mono text-xs"
-                    >
-                      {a.code}
-                      {copiedCode === a.code ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3 text-text-dim" />}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1">
+                  </div>
+                  <div className="text-right text-xs">
+                    <p className="text-text-dim">{a.stats.activeAnnual} active</p>
+                    <p className="text-text-dimmer">{a.stats.conversions} total</p>
+                  </div>
+                  <div className="text-right text-xs">
+                    <p className="text-foreground font-mono font-medium">{fmtUSD(a.stats.annualCommission)}/yr</p>
+                    <p className="text-text-dimmer">commission</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const url = `${typeof window !== "undefined" ? window.location.origin : ""}/affiliate/${a.portal_token}`;
+                      copy(url, `portal-${a.id}`);
+                    }}
+                    className="inline-flex items-center gap-1 text-xs text-text-dim hover:text-foreground transition-colors px-2 py-1"
+                    title="Copy portal URL"
+                  >
+                    {copiedItem === `portal-${a.id}` ? (
+                      <Check className="size-3 text-emerald-400" />
+                    ) : (
+                      <Copy className="size-3" />
+                    )}
+                    Portal
+                  </button>
+                  <a
+                    href={`/affiliate/${a.portal_token}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-text-dim hover:text-foreground transition-colors p-1"
+                    title="Preview portal"
+                  >
+                    <ExternalLink className="size-3" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(isOpen ? null : a.id)}
+                    className="text-xs text-text-dim hover:text-foreground transition-colors px-3 py-1"
+                  >
+                    {isOpen ? "Hide codes" : `${a.codes.length} code${a.codes.length === 1 ? "" : "s"}`}
+                  </button>
+                </div>
+
+                {/* Expanded code rows */}
+                {isOpen && (
+                  <div className="border-t border-border-default px-5 py-4 bg-[rgba(255,255,255,0.015)]">
+                    {a.codes.length === 0 ? (
+                      <p className="text-xs text-text-dim italic">No codes configured yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {[...a.codes]
+                          .sort((x, y) => x.discount_pct - y.discount_pct)
+                          .map((c) => (
+                            <div
+                              key={c.id}
+                              className="grid grid-cols-[auto_auto_1fr_auto_auto_auto] gap-3 items-center text-sm py-1.5"
+                            >
+                              <button
+                                type="button"
+                                onClick={() => copy(c.code, `code-${c.id}`)}
+                                className="inline-flex items-center gap-1.5 rounded-md border border-border-default bg-bg-base hover:bg-accent/40 transition-colors px-2.5 py-1 font-mono text-xs"
+                              >
+                                {c.code}
+                                {copiedItem === `code-${c.id}` ? (
+                                  <Check className="size-3 text-emerald-400" />
+                                ) : (
+                                  <Copy className="size-3 text-text-dim" />
+                                )}
+                              </button>
+                              <span className="text-xs text-foreground font-mono w-12">{c.discount_pct}% off</span>
+                              <span className="text-xs text-text-dim">
+                                Commission <span className="text-foreground font-mono">{c.commission_pct}%</span>
+                              </span>
+                              <span className="text-xs text-text-dim text-right w-20">
+                                {c.stats.active_subscribers} active
+                              </span>
+                              <span className="text-xs text-foreground font-mono text-right w-24">
+                                {fmtUSD(c.stats.annual_commission)}/yr
+                              </span>
+                              <span
+                                className={`text-[10px] rounded-full px-2 py-0.5 font-semibold ${
+                                  c.is_active
+                                    ? "bg-emerald-500/15 text-emerald-400"
+                                    : "bg-muted text-text-dim"
+                                }`}
+                              >
+                                {c.is_active ? "Active" : "Paused"}
+                              </span>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                    <div className="mt-3 pt-3 border-t border-border-default flex items-center justify-between">
+                      <p className="text-xs text-text-dimmer">
+                        {a.paypal_email
+                          ? `PayPal: ${a.paypal_email}`
+                          : "No PayPal set"}
+                      </p>
                       <button
                         type="button"
-                        onClick={() => copyCode(`${typeof window !== 'undefined' ? window.location.origin : ''}/affiliate/${a.portal_token}`)}
-                        className="inline-flex items-center gap-1 text-xs text-text-dim hover:text-foreground transition-colors px-2 py-1"
-                        title="Copy portal URL — email this to the affiliate"
+                        onClick={() => toggleAffiliateActive(a.id, a.is_active)}
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors ${
+                          a.is_active
+                            ? "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                            : "bg-muted text-text-dim hover:bg-muted/70"
+                        }`}
                       >
-                        {copiedCode === `${typeof window !== 'undefined' ? window.location.origin : ''}/affiliate/${a.portal_token}` ? (
-                          <Check className="size-3 text-emerald-400" />
-                        ) : (
-                          <Copy className="size-3" />
-                        )}
-                        Copy URL
+                        {a.is_active ? "Affiliate active" : "Affiliate disabled"}
                       </button>
-                      <a
-                        href={`/affiliate/${a.portal_token}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-text-dim hover:text-foreground transition-colors px-1 py-1"
-                        title="Preview portal as the affiliate sees it"
-                      >
-                        <ExternalLink className="size-3" />
-                      </a>
                     </div>
-                  </td>
-                  <td className="px-4 py-3 text-text-dim">{a.commission_pct}%</td>
-                  <td className="px-4 py-3 text-right text-text-dim font-mono">{a.stats.conversions}</td>
-                  <td className="px-4 py-3 text-right text-text-dim font-mono">{a.stats.activeAnnual}</td>
-                  <td className="px-4 py-3 text-right font-mono">
-                    {a.stats.abandoned > 0 ? (
-                      <span className="text-amber-400">{a.stats.abandoned}</span>
-                    ) : (
-                      <span className="text-text-dimmer">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-right text-foreground font-mono">{fmtUSD(a.stats.annualRevenue)}</td>
-                  <td className="px-4 py-3 text-right text-foreground font-mono font-medium">{fmtUSD(a.stats.annualCommission)}</td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      onClick={() => toggleActive(a.id, a.is_active)}
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                        a.is_active
-                          ? "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
-                          : "bg-muted text-text-dim hover:bg-muted/70"
-                      }`}
-                    >
-                      {a.is_active ? "Active" : "Disabled"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Hidden — referenced to avoid TS unused-import warnings on Sparkles. */}
+      <Sparkles className="hidden" />
     </div>
   );
 }

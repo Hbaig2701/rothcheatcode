@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, AlertCircle, ShoppingCart, TrendingUp, Users, Sparkles } from "lucide-react";
+import { Copy, Check, AlertCircle, ShoppingCart, TrendingUp, Users, Sparkles, Info } from "lucide-react";
 
 interface AffiliateView {
   id: string;
@@ -14,11 +14,30 @@ interface AffiliateView {
   created_at: string;
 }
 
+interface CodeWithEconomics {
+  id: string;
+  code: string;
+  discount_pct: number;
+  commission_pct: number;
+  is_active: boolean;
+  active_subscribers: number;
+  discounted_annual: number;
+  annual_commission_per_customer: number;
+  annual_recurring_commission: number;
+}
+
 interface PortalStats {
   conversions: number;
   active_annual: number;
   abandoned_count: number;
-  recent_conversions: Array<{ created_at: string; status: string | null; cycle: string | null }>;
+  recent_conversions: Array<{
+    created_at: string;
+    status: string | null;
+    cycle: string | null;
+    code: string | null;
+    discount_pct: number | null;
+    commission_pct: number | null;
+  }>;
   recent_abandons: Array<{
     expired_at: string;
     amount_cents: number | null;
@@ -26,6 +45,7 @@ interface PortalStats {
     cycle: string | null;
     has_email: boolean;
   }>;
+  codes: Array<{ id: string; code: string; discount_pct: number; commission_pct: number; is_active: boolean; active_subscribers: number }>;
 }
 
 const fmtUSD = (dollars: number) =>
@@ -37,15 +57,15 @@ const fmtDate = (iso: string) =>
 export function AffiliatePortalClient({
   affiliate,
   stats,
-  annualCommissionPerCustomer,
-  annualRecurringCommission,
-  discountedAnnualPerCustomer,
+  codes,
+  totalActiveSubscribers,
+  totalRecurringCommission,
 }: {
   affiliate: AffiliateView;
   stats: PortalStats;
-  annualCommissionPerCustomer: number;
-  annualRecurringCommission: number;
-  discountedAnnualPerCustomer: number;
+  codes: CodeWithEconomics[];
+  totalActiveSubscribers: number;
+  totalRecurringCommission: number;
 }) {
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
 
@@ -55,7 +75,11 @@ export function AffiliatePortalClient({
     setTimeout(() => setCopiedItem(null), 1500);
   }
 
-  const sharePitch = `Use code ${affiliate.code} at checkout to save 20% on the annual plan at www.retirementexpert.ai.`;
+  // Sort codes so the highest-commission tier (lowest discount) appears
+  // first. That's the one we want to subtly promote in the layout — it
+  // pays the affiliate more and protects the customer's margin.
+  const sortedCodes = [...codes].sort((a, b) => b.commission_pct - a.commission_pct);
+  const bestCommission = sortedCodes[0];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -78,9 +102,9 @@ export function AffiliatePortalClient({
           <div className="mb-8 flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-5">
             <AlertCircle className="size-5 text-amber-400 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-foreground">Your code is currently paused</p>
+              <p className="text-sm font-semibold text-foreground">Your account is currently paused</p>
               <p className="text-sm text-foreground/75 mt-1">
-                New customers can&apos;t redeem <span className="font-mono font-semibold">{affiliate.code}</span> right now.
+                New customers can&apos;t redeem your codes right now.
                 Existing subscribers keep their discount and you&apos;ll continue earning on their renewals.
                 Reach out if this is unexpected.
               </p>
@@ -88,8 +112,8 @@ export function AffiliatePortalClient({
           </div>
         )}
 
-        {/* Headline stats — three tiles, the commission one is the hero */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+        {/* Headline stats — two big tiles, totals across all codes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
           <div className="rounded-2xl border border-border-default bg-bg-card p-6">
             <div className="flex items-center gap-2 mb-4">
               <Users className="size-4 text-foreground/60" />
@@ -98,16 +122,15 @@ export function AffiliatePortalClient({
               </p>
             </div>
             <p className="text-[52px] font-mono font-semibold text-foreground leading-none tabular-nums tracking-tight">
-              {stats.active_annual}
+              {totalActiveSubscribers}
             </p>
             <p className="text-sm text-foreground/70 mt-3">
               {stats.conversions === 0
                 ? "Waiting on your first conversion."
-                : `${stats.conversions} total conversion${stats.conversions === 1 ? "" : "s"} ever.`}
+                : `${stats.conversions} total conversion${stats.conversions === 1 ? "" : "s"} ever, across all your codes.`}
             </p>
           </div>
 
-          {/* Commission tile — gold accent, the headline number */}
           <div className="rounded-2xl border border-gold/40 bg-gradient-to-br from-gold/10 to-gold/5 p-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 size-24 bg-gold/10 rounded-full blur-2xl -mr-12 -mt-12" />
             <div className="relative">
@@ -118,97 +141,130 @@ export function AffiliatePortalClient({
                 </p>
               </div>
               <p className="text-[52px] font-mono font-semibold text-gold leading-none tabular-nums tracking-tight">
-                {fmtUSD(annualRecurringCommission)}
+                {fmtUSD(totalRecurringCommission)}
               </p>
               <p className="text-sm text-foreground/80 mt-3">
-                {fmtUSD(annualCommissionPerCustomer)} per active subscriber, every year they stay.
+                Across all active subscribers, every year they stay.
               </p>
             </div>
-          </div>
-
-          <div className="rounded-2xl border border-border-default bg-bg-card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="size-4 text-foreground/60" />
-              <p className="text-xs uppercase tracking-wider text-foreground/60 font-semibold">
-                Your terms
-              </p>
-            </div>
-            <p className="text-[52px] font-mono font-semibold text-foreground leading-none tabular-nums tracking-tight">
-              {affiliate.commission_pct}<span className="text-foreground/40">%</span>
-            </p>
-            <p className="text-sm text-foreground/70 mt-3">
-              On {fmtUSD(discountedAnnualPerCustomer)}/yr per customer. Recurring on every renewal.
-            </p>
           </div>
         </div>
 
-        {/* Code section */}
+        {/* Your codes section */}
         <section className="rounded-2xl border border-border-default bg-bg-card p-8 mb-8">
-          <div className="flex items-baseline justify-between mb-6">
-            <h2 className="text-lg font-display font-semibold text-foreground">Your code</h2>
-            <span className="text-xs text-foreground/60">Click anything to copy</span>
+          <div className="flex items-baseline justify-between mb-2">
+            <h2 className="text-lg font-display font-semibold text-foreground">Your codes</h2>
+            <span className="text-xs text-foreground/60">Click any code to copy</span>
           </div>
 
-          {/* Big code button + explanation */}
-          <div className="grid grid-cols-1 md:grid-cols-[auto_1fr] gap-6 items-center mb-8">
-            <button
-              type="button"
-              onClick={() => copyToClipboard(affiliate.code, "code")}
-              className="group flex items-center gap-4 rounded-xl border-2 border-gold-border bg-gradient-to-br from-gold/15 to-accent/40 hover:from-gold/25 hover:to-accent/60 transition-all px-7 py-5 font-mono text-[32px] font-bold text-foreground tracking-wide"
-            >
-              {affiliate.code}
-              {copiedItem === "code" ? (
-                <Check className="size-6 text-emerald-400" />
-              ) : (
-                <Copy className="size-6 text-foreground/50 group-hover:text-foreground/80 transition-colors" />
-              )}
-            </button>
-            <p className="text-base text-foreground/85 leading-relaxed">
-              Share this code anywhere your audience trusts you. Customers enter it at checkout for{" "}
-              <strong className="text-foreground font-semibold">20% off the annual plan</strong>, forever.
-              You earn commission as long as they stay subscribed.
+          {/* Tradeoff explainer */}
+          <div className="flex items-start gap-2.5 rounded-lg border border-foreground/10 bg-foreground/[0.03] p-4 mb-6">
+            <Info className="size-4 text-foreground/70 mt-0.5 shrink-0" />
+            <p className="text-sm text-foreground/85 leading-relaxed">
+              You have <strong className="text-foreground">{sortedCodes.length} code{sortedCodes.length === 1 ? "" : "s"}</strong>{" "}
+              you can share. <strong className="text-foreground">The smaller the discount you give, the bigger your commission.</strong>{" "}
+              Pick the code that fits your audience — they all give the customer 20%, 10%, or 5% off the annual plan, forever,
+              and you earn your share for as long as they stay subscribed.
             </p>
           </div>
 
-          {/* Share assets */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-wider text-foreground/60 font-semibold mb-2">
-                Suggested message
-              </p>
-              <button
-                type="button"
-                onClick={() => copyToClipboard(sharePitch, "pitch")}
-                className="group w-full text-left rounded-xl border border-border-default bg-bg-base hover:bg-accent/30 transition-colors px-4 py-3.5 text-sm text-foreground flex items-start justify-between gap-3"
-              >
-                <span className="leading-relaxed">&ldquo;{sharePitch}&rdquo;</span>
-                {copiedItem === "pitch" ? (
-                  <Check className="size-4 text-emerald-400 shrink-0 mt-0.5" />
-                ) : (
-                  <Copy className="size-4 text-foreground/40 group-hover:text-foreground/70 shrink-0 mt-0.5 transition-colors" />
-                )}
-              </button>
-            </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-foreground/60 font-semibold mb-2">
-                Direct link
-              </p>
-              <button
-                type="button"
-                onClick={() => copyToClipboard("https://www.retirementexpert.ai", "link")}
-                className="group w-full text-left rounded-xl border border-border-default bg-bg-base hover:bg-accent/30 transition-colors px-4 py-3.5 text-sm text-foreground flex items-center justify-between gap-3"
-              >
-                <span className="font-mono">www.retirementexpert.ai</span>
-                {copiedItem === "link" ? (
-                  <Check className="size-4 text-emerald-400 shrink-0" />
-                ) : (
-                  <Copy className="size-4 text-foreground/40 group-hover:text-foreground/70 shrink-0 transition-colors" />
-                )}
-              </button>
-              <p className="text-xs text-foreground/60 mt-2 leading-relaxed">
-                Customers click → choose Annual → enter <span className="font-mono text-foreground font-semibold">{affiliate.code}</span> at Stripe checkout.
-              </p>
-            </div>
+          <div className="space-y-3">
+            {sortedCodes.map((c) => {
+              const isBest = c.id === bestCommission?.id;
+              return (
+                <div
+                  key={c.id}
+                  className={`relative rounded-xl border p-5 transition-colors ${
+                    isBest
+                      ? "border-gold/50 bg-gradient-to-br from-gold/10 to-transparent"
+                      : "border-border-default bg-bg-base"
+                  } ${!c.is_active ? "opacity-50" : ""}`}
+                >
+                  {isBest && c.is_active && (
+                    <span className="absolute -top-2.5 left-5 inline-flex items-center gap-1 rounded-full bg-gold px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-bg-base">
+                      <Sparkles className="size-3" />
+                      Highest commission
+                    </span>
+                  )}
+                  <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] gap-5 items-center">
+                    {/* The code itself */}
+                    <button
+                      type="button"
+                      onClick={() => c.is_active && copyToClipboard(c.code, `code-${c.id}`)}
+                      disabled={!c.is_active}
+                      className={`group flex items-center gap-3 rounded-lg border-2 px-5 py-3.5 font-mono text-2xl font-bold tracking-wide transition-all ${
+                        isBest
+                          ? "border-gold/60 bg-gold/15 hover:bg-gold/25 text-foreground"
+                          : "border-border-default bg-bg-card hover:bg-accent/30 text-foreground"
+                      } ${!c.is_active ? "cursor-not-allowed" : ""}`}
+                    >
+                      {c.code}
+                      {copiedItem === `code-${c.id}` ? (
+                        <Check className="size-5 text-emerald-400" />
+                      ) : c.is_active ? (
+                        <Copy className="size-5 text-foreground/50 group-hover:text-foreground/80 transition-colors" />
+                      ) : null}
+                    </button>
+
+                    {/* Tier description */}
+                    <div>
+                      <p className="text-sm text-foreground/85 leading-relaxed">
+                        Customer saves <strong className="text-foreground">{c.discount_pct}%</strong>
+                        {" "}({fmtUSD(c.discounted_annual)}/year).
+                        You earn{" "}
+                        <strong className={isBest ? "text-gold" : "text-foreground"}>
+                          {c.commission_pct}%
+                        </strong>{" "}
+                        = <strong className={isBest ? "text-gold" : "text-foreground"}>
+                          {fmtUSD(c.annual_commission_per_customer)}/customer/year
+                        </strong>.
+                      </p>
+                      {!c.is_active && (
+                        <p className="text-xs text-amber-400 mt-1.5">Code paused — not redeemable by new customers</p>
+                      )}
+                    </div>
+
+                    {/* Per-code subscriber stat */}
+                    <div className="text-right md:min-w-[120px]">
+                      <p className="text-2xl font-mono font-semibold text-foreground tabular-nums leading-none">
+                        {c.active_subscribers}
+                      </p>
+                      <p className="text-xs text-foreground/60 mt-1">
+                        active sub{c.active_subscribers === 1 ? "" : "s"}
+                      </p>
+                      {c.active_subscribers > 0 && (
+                        <p className={`text-xs font-mono mt-0.5 ${isBest ? "text-gold" : "text-foreground/70"}`}>
+                          {fmtUSD(c.annual_recurring_commission)}/yr
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Direct link */}
+          <div className="mt-6 pt-6 border-t border-border-default">
+            <p className="text-xs uppercase tracking-wider text-foreground/60 font-semibold mb-2">
+              Where to send your audience
+            </p>
+            <button
+              type="button"
+              onClick={() => copyToClipboard("https://www.retirementexpert.ai", "link")}
+              className="group w-full text-left rounded-xl border border-border-default bg-bg-base hover:bg-accent/30 transition-colors px-4 py-3.5 text-sm text-foreground flex items-center justify-between gap-3"
+            >
+              <span className="font-mono">www.retirementexpert.ai</span>
+              {copiedItem === "link" ? (
+                <Check className="size-4 text-emerald-400 shrink-0" />
+              ) : (
+                <Copy className="size-4 text-foreground/40 group-hover:text-foreground/70 shrink-0 transition-colors" />
+              )}
+            </button>
+            <p className="text-xs text-foreground/60 mt-2 leading-relaxed">
+              Customers visit the site → choose the annual plan → enter your code at Stripe checkout.
+              Any of your active codes work.
+            </p>
           </div>
         </section>
 
@@ -224,7 +280,7 @@ export function AffiliatePortalClient({
                   Almost-buyers
                 </h2>
                 <p className="text-sm text-foreground/70">
-                  {stats.abandoned_count} {stats.abandoned_count === 1 ? "person" : "people"} entered your code but didn&apos;t finish.
+                  {stats.abandoned_count} {stats.abandoned_count === 1 ? "person" : "people"} entered one of your codes but didn&apos;t finish.
                 </p>
               </div>
             </div>
@@ -273,7 +329,7 @@ export function AffiliatePortalClient({
               </div>
               <p className="text-base text-foreground/85 font-medium mb-1">No conversions yet</p>
               <p className="text-sm text-foreground/60">
-                Once someone redeems your code at checkout, they&apos;ll show up here.
+                Once someone redeems one of your codes at checkout, they&apos;ll show up here.
               </p>
             </div>
           ) : (
@@ -291,6 +347,11 @@ export function AffiliatePortalClient({
                       </span>
                       <span className="text-foreground/30">·</span>
                       <span className="text-foreground font-medium">{fmtDate(c.created_at)}</span>
+                      {c.code && (
+                        <span className="text-xs rounded-full bg-foreground/10 px-2.5 py-0.5 text-foreground/80 font-mono font-medium">
+                          {c.code}
+                        </span>
+                      )}
                       {c.cycle && (
                         <span className="text-xs rounded-full bg-foreground/10 px-2.5 py-0.5 text-foreground/70 capitalize font-medium">
                           {c.cycle}
@@ -358,9 +419,8 @@ export function AffiliatePortalClient({
         </div>
 
         <p className="text-xs text-foreground/55 text-center leading-relaxed">
-          Numbers reflect attributed customers from your code. Active subscribers and recurring
-          commission assume customers stay subscribed at the discounted annual rate.
-          Actual payouts reconcile against Stripe invoices.
+          Numbers reflect attributed customers from your codes. Each code&apos;s commission is calculated
+          against the discounted annual price. Actual payouts reconcile against Stripe invoices.
         </p>
       </div>
     </div>

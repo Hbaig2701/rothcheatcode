@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { deactivateAffiliatePromotionCode } from "@/lib/affiliates/stripe-coupon";
-import { getStripe } from "@/lib/stripe";
+import { deactivateAffiliatePromotionCode, activateAffiliatePromotionCode } from "@/lib/affiliates/stripe-coupon";
 
 const patchSchema = z.object({
   commission_pct: z.number().min(0).max(100).optional(),
@@ -54,25 +53,41 @@ export async function PATCH(request: NextRequest, ctx: { params: Promise<{ id: s
   const admin = createAdminClient();
   const { data: existing } = await admin
     .from("affiliates")
-    .select("id, stripe_promotion_code_id, is_active")
+    .select("id, is_active")
     .eq("id", id)
     .single();
   if (!existing) {
     return NextResponse.json({ error: "Affiliate not found" }, { status: 404 });
   }
 
-  // Sync Stripe state if active flag is being changed.
+  // Sync Stripe state across ALL of this affiliate's codes when active is
+  // flipped. Single legacy stripe_promotion_code_id is no longer the
+  // source of truth — affiliates can have up to 3 codes (20/10/5).
   if (parsed.data.is_active !== undefined && parsed.data.is_active !== existing.is_active) {
+    const { data: codes } = await admin
+      .from("affiliate_codes")
+      .select("stripe_promotion_code_id")
+      .eq("affiliate_id", id);
+    const codeIds = ((codes ?? []) as Array<{ stripe_promotion_code_id: string }>)
+      .map((c) => c.stripe_promotion_code_id);
     try {
-      if (parsed.data.is_active) {
-        await getStripe().promotionCodes.update(existing.stripe_promotion_code_id, { active: true });
-      } else {
-        await deactivateAffiliatePromotionCode(existing.stripe_promotion_code_id);
-      }
+      await Promise.all(
+        codeIds.map((promoId) =>
+          parsed.data.is_active
+            ? activateAffiliatePromotionCode(promoId)
+            : deactivateAffiliatePromotionCode(promoId)
+        )
+      );
+      // Mirror the affiliate-level toggle onto each affiliate_codes row so
+      // the portal + admin UI reflect the same state.
+      await admin
+        .from("affiliate_codes")
+        .update({ is_active: parsed.data.is_active })
+        .eq("affiliate_id", id);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Stripe error";
       return NextResponse.json(
-        { error: `Failed to sync Stripe promotion code: ${message}` },
+        { error: `Failed to sync Stripe promotion codes: ${message}` },
         { status: 500 }
       );
     }

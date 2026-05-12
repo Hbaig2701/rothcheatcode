@@ -2,22 +2,36 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createAffiliatePromotionCode } from "@/lib/affiliates/stripe-coupon";
-import { getStripe } from "@/lib/stripe";
+import {
+  createAffiliatePromotionCode,
+  deactivateAffiliatePromotionCode,
+  DISCOUNT_TIERS,
+  getTierConfig,
+  type DiscountTier,
+} from "@/lib/affiliates/stripe-coupon";
 import { PLAN_PRICES } from "@/lib/config/plans";
+
+const tierSchema = z.object({
+  discount_pct: z.union([z.literal(20), z.literal(10), z.literal(5)]),
+  commission_pct: z.number().min(0).max(100),
+  // Optional — if blank we'll derive from the base code + tier suffix
+  // (e.g. base "JANE" + tier 10 → "JANE10").
+  code: z.string().trim().toUpperCase().regex(/^[A-Z0-9_-]{3,30}$/).optional(),
+});
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
   email: z.string().trim().email(),
   paypal_email: z.string().trim().email().optional().nullable(),
-  // Customer-facing code. Stripe allows letters, digits, hyphen, underscore.
-  // We uppercase server-side; codes are unique across all affiliates.
-  code: z
+  // Base — used to derive code names if individual codes don't specify
+  // their own. e.g. "JANE" → JANE20, JANE10, JANE5.
+  base_code: z
     .string()
     .trim()
     .toUpperCase()
-    .regex(/^[A-Z0-9_-]{3,30}$/, "3–30 chars, letters/digits/hyphen/underscore only"),
-  commission_pct: z.number().min(0).max(100).default(25),
+    .regex(/^[A-Z0-9_-]{2,20}$/, "Letters/digits/hyphen/underscore, 2–20 chars")
+    .optional(),
+  tiers: z.array(tierSchema).min(1, "At least one discount tier required"),
   notes: z.string().trim().max(1000).optional().nullable(),
 });
 
@@ -34,8 +48,13 @@ async function requireAdmin() {
   return { user };
 }
 
-// GET /api/admin/affiliates — list all affiliates with conversion stats
-// (count of profiles attributed + estimated MRR from those profiles).
+function suggestBaseFromName(name: string): string {
+  return name.trim().split(/\s+/)[0]?.toUpperCase().replace(/[^A-Z0-9]/g, "") ?? "PARTNER";
+}
+
+// GET /api/admin/affiliates — list all affiliates with their codes and
+// conversion stats. Each affiliate can now have multiple codes; the
+// response includes a `codes` array per affiliate plus rolled-up totals.
 export async function GET() {
   const auth = await requireAdmin();
   if ("error" in auth) {
@@ -43,61 +62,73 @@ export async function GET() {
   }
 
   const admin = createAdminClient();
-  const { data: affiliates, error } = await admin
-    .from("affiliates")
-    .select("*")
-    .order("created_at", { ascending: false });
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  const [{ data: affiliatesRaw }, { data: codesRaw }, { data: attributedProfiles }] = await Promise.all([
+    admin.from("affiliates").select("*").order("created_at", { ascending: false }),
+    admin.from("affiliate_codes").select("*").order("discount_pct", { ascending: true }),
+    admin
+      .from("profiles")
+      .select("affiliate_id, affiliate_code_id, subscription_status, billing_cycle")
+      .not("affiliate_id", "is", null),
+  ]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const codes = (codesRaw ?? []) as any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const profilesArr = (attributedProfiles ?? []) as any[];
+
+  const annualListPrice = PLAN_PRICES.standard.annual.amount;
+
+  type CodeStats = { active_subscribers: number; annual_revenue: number; annual_commission: number };
+  const codeStats = new Map<string, CodeStats>();
+  for (const c of codes) {
+    codeStats.set(c.id, { active_subscribers: 0, annual_revenue: 0, annual_commission: 0 });
   }
 
-  // Conversion stats — group profiles by affiliate_id, count active subs,
-  // estimate annual revenue per affiliate using the configured discount.
-  // We use the LIST PRICE (not actual paid amount) for this dashboard
-  // estimate; exact paid amounts can be reconciled from Stripe invoices
-  // when computing actual payouts.
-  const annualListPrice = PLAN_PRICES.standard.annual.amount; // dollars
-  const discountedAnnual = annualListPrice * (1 - 20 / 100); // 20% off
-
-  const { data: attributedProfiles } = await admin
-    .from("profiles")
-    .select("affiliate_id, subscription_status, billing_cycle")
-    .not("affiliate_id", "is", null);
-
-  type Stats = { conversions: number; active: number; annualRevenue: number; annualCommission: number };
-  const statsByAffiliate = new Map<string, Stats>();
-  for (const a of (affiliates ?? []) as Array<{ id: string; commission_pct: number }>) {
-    statsByAffiliate.set(a.id, { conversions: 0, active: 0, annualRevenue: 0, annualCommission: 0 });
-  }
-  for (const p of (attributedProfiles ?? []) as Array<{
-    affiliate_id: string;
-    subscription_status: string | null;
-    billing_cycle: string | null;
-  }>) {
-    const s = statsByAffiliate.get(p.affiliate_id);
-    if (!s) continue;
-    s.conversions += 1;
+  for (const p of profilesArr) {
+    if (!p.affiliate_code_id) continue;
+    const code = codes.find((c) => c.id === p.affiliate_code_id);
+    if (!code) continue;
     if (
       (p.subscription_status === "active" || p.subscription_status === "trialing") &&
       p.billing_cycle === "annual"
     ) {
-      s.active += 1;
-      s.annualRevenue += discountedAnnual;
-      const aff = (affiliates ?? []).find((x) => (x as { id: string }).id === p.affiliate_id) as { commission_pct: number } | undefined;
-      const rate = aff?.commission_pct ?? 25;
-      s.annualCommission += discountedAnnual * (rate / 100);
+      const s = codeStats.get(code.id);
+      if (s) {
+        const discounted = annualListPrice * (1 - Number(code.discount_pct) / 100);
+        s.active_subscribers += 1;
+        s.annual_revenue += discounted;
+        s.annual_commission += discounted * (Number(code.commission_pct) / 100);
+      }
     }
   }
 
-  const enriched = (affiliates ?? []).map((a) => {
-    const s = statsByAffiliate.get((a as { id: string }).id) ?? { conversions: 0, active: 0, annualRevenue: 0, annualCommission: 0 };
-    return { ...a, stats: s };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const enriched = (affiliatesRaw ?? []).map((a: any) => {
+    const affCodes = codes
+      .filter((c) => c.affiliate_id === a.id)
+      .map((c) => ({
+        ...c,
+        stats: codeStats.get(c.id) ?? { active_subscribers: 0, annual_revenue: 0, annual_commission: 0 },
+      }));
+    const rollup = affCodes.reduce(
+      (acc, c) => ({
+        active_subscribers: acc.active_subscribers + c.stats.active_subscribers,
+        annual_revenue: acc.annual_revenue + c.stats.annual_revenue,
+        annual_commission: acc.annual_commission + c.stats.annual_commission,
+      }),
+      { active_subscribers: 0, annual_revenue: 0, annual_commission: 0 }
+    );
+    const conversions = profilesArr.filter((p) => p.affiliate_id === a.id).length;
+    return { ...a, codes: affCodes, conversions, ...rollup };
   });
 
   return NextResponse.json({ affiliates: enriched });
 }
 
-// POST /api/admin/affiliates — create an affiliate + Stripe promotion code.
+// POST /api/admin/affiliates — create an affiliate and one-or-more codes
+// in a single shot. Stripe promotion codes are created up-front for each
+// requested tier; if any Stripe call fails we roll back all the codes
+// we created in this request so we never leave orphans.
 export async function POST(request: NextRequest) {
   const auth = await requireAdmin();
   if ("error" in auth) {
@@ -120,60 +151,122 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = createAdminClient();
+  const baseCode = parsed.data.base_code ?? suggestBaseFromName(parsed.data.name);
 
-  // Stripe promotion codes are globally unique per Stripe account, so we
-  // surface a friendly error if the requested code is taken.
-  const { data: existing } = await admin
-    .from("affiliates")
-    .select("id")
-    .eq("code", parsed.data.code)
-    .maybeSingle();
-  if (existing) {
-    return NextResponse.json(
-      { error: `Code "${parsed.data.code}" is already in use` },
-      { status: 409 }
-    );
-  }
-
-  // Create the Stripe promotion code first — if this fails we don't want
-  // an orphan row in our DB.
-  let promotion_code_id: string;
-  try {
-    const result = await createAffiliatePromotionCode(parsed.data.code);
-    promotion_code_id = result.promotion_code_id;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Stripe error";
-    return NextResponse.json(
-      { error: `Failed to create Stripe promotion code: ${message}` },
-      { status: 500 }
-    );
-  }
-
-  const { data, error } = await admin
-    .from("affiliates")
-    .insert({
-      name: parsed.data.name,
-      email: parsed.data.email,
-      paypal_email: parsed.data.paypal_email ?? null,
-      code: parsed.data.code,
-      commission_pct: parsed.data.commission_pct,
-      stripe_promotion_code_id: promotion_code_id,
-      notes: parsed.data.notes ?? null,
-      created_by: auth.user.id,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    // Roll back the Stripe promotion code if the DB insert failed so we
-    // don't leak orphan codes that point at no affiliate.
-    try {
-      await getStripe().promotionCodes.update(promotion_code_id, { active: false });
-    } catch {
-      // best-effort
+  // Compute each requested code's string + check uniqueness against the DB
+  // before burning Stripe API calls on a collision.
+  const planned: Array<{ tier: DiscountTier; code: string; commission_pct: number }> = [];
+  for (const t of parsed.data.tiers) {
+    const tier = t.discount_pct as DiscountTier;
+    const codeStr = t.code ?? `${baseCode}${tier}`;
+    if (planned.some((p) => p.code === codeStr)) {
+      return NextResponse.json(
+        { error: `Duplicate code "${codeStr}" in request` },
+        { status: 400 }
+      );
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    planned.push({ tier, code: codeStr, commission_pct: t.commission_pct });
   }
 
-  return NextResponse.json({ affiliate: data }, { status: 201 });
+  const { data: existingCodes } = await admin
+    .from("affiliate_codes")
+    .select("code")
+    .in("code", planned.map((p) => p.code));
+  if ((existingCodes ?? []).length > 0) {
+    const taken = (existingCodes ?? []).map((c) => (c as { code: string }).code).join(", ");
+    return NextResponse.json({ error: `Codes already in use: ${taken}` }, { status: 409 });
+  }
+
+  // Create the affiliate row. Use the highest-discount tier's code as
+  // the legacy `affiliates.code` so the existing admin display has
+  // something to show. The "primary" commission_pct is the highest-
+  // discount tier's commission (the most generous one to the customer).
+  const primaryTier = planned.reduce((a, b) => (a.tier > b.tier ? a : b));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let affiliate: any;
+  {
+    const { data, error } = await admin
+      .from("affiliates")
+      .insert({
+        name: parsed.data.name,
+        email: parsed.data.email,
+        paypal_email: parsed.data.paypal_email ?? null,
+        code: primaryTier.code,
+        commission_pct: primaryTier.commission_pct,
+        stripe_promotion_code_id: "pending", // overwritten below
+        notes: parsed.data.notes ?? null,
+        created_by: auth.user.id,
+      })
+      .select()
+      .single();
+    if (error || !data) {
+      return NextResponse.json({ error: error?.message ?? "DB error" }, { status: 500 });
+    }
+    affiliate = data;
+  }
+
+  // Create Stripe promotion codes for each tier, rolling back on failure.
+  const createdStripeIds: string[] = [];
+  const codeInserts: Array<Record<string, unknown>> = [];
+  for (const p of planned) {
+    try {
+      const result = await createAffiliatePromotionCode(p.code, p.tier);
+      createdStripeIds.push(result.promotion_code_id);
+      codeInserts.push({
+        affiliate_id: affiliate.id,
+        code: p.code,
+        discount_pct: p.tier,
+        commission_pct: p.commission_pct,
+        stripe_coupon_id: result.coupon_id,
+        stripe_promotion_code_id: result.promotion_code_id,
+        is_active: true,
+      });
+    } catch (err) {
+      // Roll back any Stripe codes we already created this request, then
+      // delete the affiliate row we inserted at the top.
+      for (const id of createdStripeIds) {
+        try { await deactivateAffiliatePromotionCode(id); } catch { /* best-effort */ }
+      }
+      await admin.from("affiliates").delete().eq("id", affiliate.id);
+      const message = err instanceof Error ? err.message : "Stripe error";
+      return NextResponse.json(
+        { error: `Failed to create Stripe promotion code "${p.code}": ${message}` },
+        { status: 500 }
+      );
+    }
+  }
+
+  // Insert all codes.
+  const { data: insertedCodes, error: codesErr } = await admin
+    .from("affiliate_codes")
+    .insert(codeInserts)
+    .select();
+  if (codesErr) {
+    for (const id of createdStripeIds) {
+      try { await deactivateAffiliatePromotionCode(id); } catch { /* best-effort */ }
+    }
+    await admin.from("affiliates").delete().eq("id", affiliate.id);
+    return NextResponse.json({ error: codesErr.message }, { status: 500 });
+  }
+
+  // Update the affiliate's legacy stripe_promotion_code_id to point at the
+  // primary tier's promotion code so old-path lookups still work.
+  const primaryInserted = (insertedCodes ?? []).find(
+    (c) => (c as { code: string }).code === primaryTier.code
+  ) as { stripe_promotion_code_id: string } | undefined;
+  if (primaryInserted) {
+    await admin
+      .from("affiliates")
+      .update({ stripe_promotion_code_id: primaryInserted.stripe_promotion_code_id })
+      .eq("id", affiliate.id);
+  }
+
+  // Suppress unused-var lint — exported for forward compat.
+  void DISCOUNT_TIERS;
+  void getTierConfig;
+
+  return NextResponse.json(
+    { affiliate: { ...affiliate, codes: insertedCodes } },
+    { status: 201 }
+  );
 }
