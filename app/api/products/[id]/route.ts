@@ -54,8 +54,17 @@ export async function PUT(request: NextRequest, ctx: Ctx) {
 
   const parsed = updateCustomProductSchema.safeParse(body);
   if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => ({
+      path: i.path.join("."),
+      message: i.message,
+    }));
+    console.warn(`[PUT /api/products/${id}] validation failed`, {
+      user_id: user.id,
+      product_id: id,
+      issues,
+    });
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.flatten() },
+      { error: "Validation failed", details: parsed.error.flatten(), issues },
       { status: 400 }
     );
   }

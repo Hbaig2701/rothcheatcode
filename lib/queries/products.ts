@@ -54,6 +54,29 @@ export function useCustomProduct(id: string | null) {
   });
 }
 
+/**
+ * Format a 400 Validation-failed response from /api/products into a
+ * human-readable multi-line error message. The API now returns
+ * `issues: [{path, message}]` for every Zod validation failure (see
+ * app/api/products/route.ts and app/api/products/[id]/route.ts). Without
+ * this surfacing, advisors only saw the generic "Validation failed" toast
+ * with no clue which field was wrong (Daniel F., ticket 07d8602d).
+ */
+function formatValidationError(
+  err: { error?: string; issues?: Array<{ path: string; message: string }> },
+  fallback: string
+): string {
+  if (Array.isArray(err.issues) && err.issues.length > 0) {
+    const lines = err.issues.map((i) => {
+      // Strip "config." prefix — it's noise. Show the leaf path.
+      const path = i.path.replace(/^config\./, "");
+      return path ? `• ${path}: ${i.message}` : `• ${i.message}`;
+    });
+    return `${err.error ?? fallback}\n${lines.join("\n")}`;
+  }
+  return err.error || fallback;
+}
+
 export function useCreateProduct() {
   const qc = useQueryClient();
   return useMutation({
@@ -65,7 +88,7 @@ export function useCreateProduct() {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Failed to create product" }));
-        throw new Error(err.error || "Failed to create product");
+        throw new Error(formatValidationError(err, "Failed to create product"));
       }
       return res.json();
     },
@@ -86,7 +109,7 @@ export function useUpdateProduct(id: string) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Failed to update product" }));
-        throw new Error(err.error || "Failed to update product");
+        throw new Error(formatValidationError(err, "Failed to update product"));
       }
       return res.json();
     },

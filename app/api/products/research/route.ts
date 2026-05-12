@@ -561,9 +561,18 @@ Use web search to find official carrier information, spec sheets, and agent guid
           params.bonus.percentage = defaultGroup.bonus_percentage;
         }
 
-        // Reconstruct overrides from the other charts
+        // Reconstruct overrides from the other charts. Fallback object MUST
+        // include every field the createCustomProductSchema marks as required
+        // on stateAvailabilitySchema (not_available, bonus_overrides,
+        // age_overrides). Previously the fallback only had not_available +
+        // confidence, so when chart_state_groups fired AND the AI hadn't
+        // returned its own state_availability, the resulting object was
+        // missing age_overrides → save POST returned 400 "Validation Failed"
+        // (Daniel F., ticket 07d8602d).
         const sa = (params.state_availability as Record<string, unknown> | null) ?? {
           not_available: [],
+          bonus_overrides: {},
+          age_overrides: {},
           confidence: "verified" as const,
         };
         params.state_availability = sa;

@@ -72,8 +72,20 @@ export async function POST(request: NextRequest) {
 
   const parsed = createCustomProductSchema.safeParse(body);
   if (!parsed.success) {
+    // Surface a path-aware list of issues. flatten() collapses nested
+    // errors under their top-level key (e.g. all config.* errors land in
+    // fieldErrors.config), which is useless for advisor-facing UI. issues[]
+    // preserves the full path so the form can show "config.state_availability.age_overrides — Required".
+    const issues = parsed.error.issues.map((i) => ({
+      path: i.path.join("."),
+      message: i.message,
+    }));
+    console.warn("[POST /api/products] validation failed", {
+      user_id: user.id,
+      issues,
+    });
     return NextResponse.json(
-      { error: "Validation failed", details: parsed.error.flatten() },
+      { error: "Validation failed", details: parsed.error.flatten(), issues },
       { status: 400 }
     );
   }

@@ -820,7 +820,7 @@ export function ManualBuilder({
       />
 
       {error && (
-        <div className="rounded-lg border border-red-300/40 bg-red-50/30 p-3 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-400">
+        <div className="rounded-lg border border-red-300/40 bg-red-50/30 p-3 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-400 whitespace-pre-line">
           {error}
         </div>
       )}
