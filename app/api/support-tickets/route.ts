@@ -6,6 +6,7 @@ import {
   SUPPORT_CATEGORIES,
 } from '@/lib/types/support'
 import { notifySlackNewTicket } from '@/lib/notifications/slack'
+import { sendTicketSubmittedEmail } from '@/lib/notifications/email'
 
 const createTicketSchema = z.object({
   subject: z.string().trim().min(3, 'Subject too short').max(200),
@@ -78,6 +79,23 @@ export async function POST(request: NextRequest) {
     advisorEmail: user.email ?? null,
     clientName: (clientRes.data?.name as string | undefined) ?? null,
   })
+
+  // Confirmation email back to the advisor — closes the loop so they
+  // know their ticket actually went through and have a permanent link to
+  // come back to. Best-effort; never block the response on email failure.
+  if (user.email) {
+    try {
+      await sendTicketSubmittedEmail({
+        to: user.email,
+        firstName: (advisorSettingsRes.data?.first_name as string | undefined) ?? null,
+        ticketId: data.id,
+        ticketSubject: data.subject,
+        severity: data.severity,
+      })
+    } catch (err) {
+      console.error('[support-tickets] Submission email error (non-fatal)', err)
+    }
+  }
 
   return NextResponse.json(data, { status: 201 })
 }

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { intakeFormSchema, intakeToClientData } from "@/lib/validations/intake";
 import { checkClientLimit } from "@/lib/usage";
 import { createNotification } from "@/lib/notifications/create";
+import { sendIntakeCompletedEmail } from "@/lib/notifications/email";
 
 // GET /api/intake/[token] - Validate an intake link
 export async function GET(
@@ -153,6 +154,30 @@ export async function POST(
     link_url: `/clients/${client.id}`,
     related_id: client.id,
   });
+
+  // Email the advisor too — they don't always have the app open, and
+  // intake completion is the high-signal moment they care about most
+  // (the client they were waiting on just delivered the data).
+  // Best-effort — never block the submission response on email failure.
+  try {
+    const [profileRes, settingsRes] = await Promise.all([
+      admin.from("profiles").select("email").eq("id", link.user_id).maybeSingle(),
+      admin.from("user_settings").select("first_name").eq("user_id", link.user_id).maybeSingle(),
+    ]);
+    const advisorEmail = profileRes.data?.email as string | undefined;
+    if (advisorEmail) {
+      await sendIntakeCompletedEmail({
+        to: advisorEmail,
+        firstName: (settingsRes.data?.first_name as string | undefined) ?? null,
+        clientId: client.id,
+        clientName: clientData.name ?? null,
+      });
+    } else {
+      console.warn("[intake] No email on file for advisor — skipped intake email", { advisor_id: link.user_id });
+    }
+  } catch (err) {
+    console.error("[intake] Email send error (non-fatal)", err);
+  }
 
   return NextResponse.json(
     { message: "Your information has been submitted successfully." },

@@ -164,6 +164,238 @@ Replies to this email aren't monitored — please respond inside the ticket so t
   });
 }
 
+// ----------------------------------------------------------------------
+// Welcome (account creation)
+// ----------------------------------------------------------------------
+
+interface WelcomeEmailInput {
+  to: string;
+  firstName?: string | null;
+}
+
+export async function sendWelcomeEmail(input: WelcomeEmailInput): Promise<void> {
+  const { to, firstName } = input;
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const loginLink = `${APP_BASE_URL}/login`;
+  const dashboardLink = `${APP_BASE_URL}/dashboard`;
+
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7f9;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 28px 8px 28px;">
+                <p style="margin:0 0 12px 0;font-size:14px;color:#6b7280;">Retirement Expert</p>
+                <h1 style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:#111827;line-height:1.4;">Welcome aboard 👋</h1>
+                <p style="margin:0 0 20px 0;font-size:14px;color:#374151;">Your account is ready.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px;">
+                <p style="margin:0 0 16px 0;font-size:14px;color:#374151;">${escapeHtml(greeting)}</p>
+                <p style="margin:0 0 18px 0;font-size:14px;color:#374151;line-height:1.6;">Thanks for signing up. You can log in any time at the link below — bookmark it so you can find your way back.</p>
+                <p style="margin:0 0 6px 0;font-size:13px;color:#6b7280;">Quick start, in order:</p>
+                <ol style="margin:0 0 22px 18px;padding:0;font-size:14px;color:#374151;line-height:1.7;">
+                  <li>Add a client (or send them an intake link)</li>
+                  <li>Run a Roth conversion scenario</li>
+                  <li>Export the PDF and walk them through it</li>
+                </ol>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 28px 28px 28px;" align="left">
+                <a href="${loginLink}" style="display:inline-block;padding:11px 22px;background:#d4af37;color:#1a1a1a;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">Log in</a>
+                <p style="margin:18px 0 0 0;font-size:12px;color:#9ca3af;line-height:1.55;">Need a hand? Hit the Support button inside the app — we usually reply within a few hours. Or just reply to <em>that</em> ticket inside the app once it's open (replies to this email aren't monitored).</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const text = `${greeting}
+
+Thanks for signing up — your account is ready.
+
+Log in: ${loginLink}
+Dashboard: ${dashboardLink}
+
+Quick start:
+  1. Add a client (or send them an intake link)
+  2. Run a Roth conversion scenario
+  3. Export the PDF and walk them through it
+
+Need a hand? Use the Support button inside the app — we usually reply within a few hours.
+
+— Retirement Expert`;
+
+  await sendEmail({
+    to,
+    subject: "Welcome to Retirement Expert",
+    html,
+    text,
+  });
+}
+
+// ----------------------------------------------------------------------
+// Ticket-submitted confirmation (advisor's receipt)
+// ----------------------------------------------------------------------
+
+interface TicketSubmittedEmailInput {
+  to: string;
+  firstName?: string | null;
+  ticketId: string;
+  ticketSubject: string;
+  severity: string;
+}
+
+export async function sendTicketSubmittedEmail(input: TicketSubmittedEmailInput): Promise<void> {
+  const { to, firstName, ticketId, ticketSubject, severity } = input;
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const link = `${APP_BASE_URL}/support/${ticketId}`;
+  const subjectSafe = escapeHtml(ticketSubject);
+  const severitySafe = escapeHtml(severity);
+
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7f9;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 28px 8px 28px;">
+                <p style="margin:0 0 12px 0;font-size:14px;color:#6b7280;">Retirement Expert · Support</p>
+                <h1 style="margin:0 0 8px 0;font-size:18px;font-weight:600;color:#111827;line-height:1.4;">We got your ticket ✓</h1>
+                <p style="margin:0 0 18px 0;font-size:14px;color:#374151;">Re: ${subjectSafe}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px;">
+                <p style="margin:0 0 16px 0;font-size:14px;color:#374151;">${escapeHtml(greeting)}</p>
+                <p style="margin:0 0 16px 0;font-size:14px;color:#374151;line-height:1.6;">Your ticket is logged and the support team will get back to you shortly. We aim to respond to most tickets within a few business hours; high-severity reports are prioritized.</p>
+                <div style="margin:0 0 20px 0;padding:12px 16px;background:#f9fafb;border-radius:6px;font-size:13px;color:#6b7280;">
+                  Severity: <strong style="color:#111827;text-transform:capitalize;">${severitySafe}</strong>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 28px 28px 28px;" align="left">
+                <a href="${link}" style="display:inline-block;padding:11px 22px;background:#d4af37;color:#1a1a1a;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">View ticket</a>
+                <p style="margin:18px 0 0 0;font-size:12px;color:#9ca3af;line-height:1.55;">You'll get an email when we reply. Replies to this email aren't monitored — please respond inside the ticket so the conversation stays threaded.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const text = `${greeting}
+
+We got your ticket — the support team will get back to you shortly.
+
+Re: ${ticketSubject}
+Severity: ${severity}
+
+View the ticket: ${link}
+
+You'll get an email when we reply. Please respond inside the ticket so the conversation stays threaded — replies to this email aren't monitored.
+
+— Retirement Expert Support`;
+
+  await sendEmail({
+    to,
+    subject: `We got your ticket — ${ticketSubject}`,
+    html,
+    text,
+  });
+}
+
+// ----------------------------------------------------------------------
+// Intake completed (client finished questionnaire)
+// ----------------------------------------------------------------------
+
+interface IntakeCompletedEmailInput {
+  to: string;
+  firstName?: string | null;
+  clientId: string;
+  clientName?: string | null;
+}
+
+export async function sendIntakeCompletedEmail(input: IntakeCompletedEmailInput): Promise<void> {
+  const { to, firstName, clientId, clientName } = input;
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const link = `${APP_BASE_URL}/clients/${clientId}/results`;
+  const clientLabel = clientName ? escapeHtml(clientName) : "Your client";
+  const headline = clientName
+    ? `${escapeHtml(clientName)} just finished their intake`
+    : "A new client just finished their intake";
+
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7f9;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 28px 8px 28px;">
+                <p style="margin:0 0 12px 0;font-size:14px;color:#6b7280;">Retirement Expert</p>
+                <h1 style="margin:0 0 8px 0;font-size:18px;font-weight:600;color:#111827;line-height:1.4;">${headline}</h1>
+                <p style="margin:0 0 18px 0;font-size:14px;color:#374151;">Their information is in your account, ready for analysis.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px;">
+                <p style="margin:0 0 16px 0;font-size:14px;color:#374151;">${escapeHtml(greeting)}</p>
+                <p style="margin:0 0 18px 0;font-size:14px;color:#374151;line-height:1.6;">${clientLabel} submitted the questionnaire — open their record to review the details and run the first scenario.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 28px 28px 28px;" align="left">
+                <a href="${link}" style="display:inline-block;padding:11px 22px;background:#d4af37;color:#1a1a1a;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">Open client</a>
+                <p style="margin:18px 0 0 0;font-size:12px;color:#9ca3af;line-height:1.55;">Tip: run a baseline scenario first to anchor the comparison, then layer the Roth conversion strategy on top.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const text = `${greeting}
+
+${clientName ? `${clientName} just finished their intake` : "A new client just finished their intake"}.
+Their information is in your account, ready for analysis.
+
+Open client: ${link}
+
+Tip: run a baseline scenario first, then layer the Roth conversion strategy on top.
+
+— Retirement Expert`;
+
+  await sendEmail({
+    to,
+    subject: clientName
+      ? `New intake submission: ${clientName}`
+      : "New client questionnaire submitted",
+    html,
+    text,
+  });
+}
+
+// ----------------------------------------------------------------------
+// Status-change template (existing — kept below for grouping)
+// ----------------------------------------------------------------------
+
 interface TicketStatusEmailInput {
   to: string;
   firstName?: string | null;

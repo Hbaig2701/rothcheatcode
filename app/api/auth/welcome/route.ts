@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe, getSubscriptionPeriodEnd } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendWelcomeEmail } from "@/lib/notifications/email";
 
 export async function POST(request: NextRequest) {
   const { email, password, sessionId, firstName, lastName } = await request.json();
@@ -169,6 +170,18 @@ export async function POST(request: NextRequest) {
         first_name: firstName || null,
         last_name: lastName || null,
       }, { onConflict: "user_id" });
+    }
+
+    // Welcome email — best-effort, never block account creation. The send
+    // helper itself wraps errors, but we add an outer try just in case the
+    // import / lookup throws (e.g. RESEND_API_KEY unset in this environment).
+    try {
+      await sendWelcomeEmail({
+        to: authData.user.email!,
+        firstName: firstName ?? null,
+      });
+    } catch (err) {
+      console.error("[welcome] Email send error (non-fatal)", err);
     }
 
     return NextResponse.json({
