@@ -227,21 +227,33 @@ export function runBaselineScenario(
     // (matches the "wages cover their own withholding" intuition).
     const nonRmdTax = totalTax - rmdAttributableTax;
 
+    // CLAMP AT $0 (Jorge V., ticket 809a5774): once the IRA depletes (e.g.,
+    // the client's RMDs + voluntary withdrawals have drained it) the
+    // tax-on-SS / tax-on-non_ssi_income that this engine deducts from
+    // taxableBalance has nothing to come from — pre-fix it was driving
+    // taxableBalance into the negatives every year (driving the chart's
+    // baseline line deep into negative legacy territory). Clamping at 0
+    // says "the client paid that residual tax from external income, the
+    // portfolio just stays at zero." TODO: replace with proper external-
+    // income credit (option B) when the simpler clamp produces a confusing
+    // edge case.
+    let desiredTaxableBalance: number;
     if (rmdTreatment === 'spent') {
       // RMDs are spent on living expenses - don't accumulate in taxable.
       // Track as distributions received (for Lifetime Wealth calculation).
       cumulativeAfterTaxDistributions += Math.max(0, afterTaxRmd);
       // Taxable balance stays flat — same as before this fix.
-      taxableBalance = boyTaxable;
+      desiredTaxableBalance = boyTaxable;
     } else if (rmdTreatment === 'cash') {
       // RMDs accumulate in cash but don't earn interest. Non-RMD tax still
       // comes out of the account.
-      taxableBalance = boyTaxable + rmdAmount - rmdAttributableTax - nonRmdTax;
+      desiredTaxableBalance = boyTaxable + rmdAmount - rmdAttributableTax - nonRmdTax;
     } else {
       // 'reinvested' (default): RMDs go to taxable account and earn interest.
       // Non-RMD tax (wage tax, etc.) deducts from the taxable account.
-      taxableBalance = boyTaxable + rmdAmount + taxableInterest - rmdAttributableTax - nonRmdTax;
+      desiredTaxableBalance = boyTaxable + rmdAmount + taxableInterest - rmdAttributableTax - nonRmdTax;
     }
+    taxableBalance = Math.max(0, desiredTaxableBalance);
 
     // Determine tax bracket
     const bracket = determineTaxBracket(taxableIncome, client.filing_status, year);

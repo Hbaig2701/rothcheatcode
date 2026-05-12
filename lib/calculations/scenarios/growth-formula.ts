@@ -675,14 +675,25 @@ export function runGrowthFormulaScenario(
       : (payTaxFromIRA ? Math.max(0, totalTax - conversionTaxFromIRA) : totalTax);
 
     // Cash flow: RMD proceeds flow INTO taxable account (per rmd_treatment)
-    // Conversion taxes flow OUT (paid from external funds, reducing taxable balance)
-    if (rmdTreatment === 'spent') {
-      // RMDs spent on living expenses — don't accumulate
-      taxableBalance = boyTaxable - taxFromTaxableAccount;
-    } else {
-      // 'reinvested' or 'cash': RMD proceeds (minus tax attributable to them) go to taxable
-      taxableBalance = boyTaxable + rmdAmount - taxFromTaxableAccount;
-    }
+    // Conversion taxes flow OUT (paid from external funds, reducing taxable balance).
+    //
+    // CLAMP AT $0 (Jorge V., ticket 809a5774): once both qualified buckets
+    // and the taxable account are drained, the engine was previously letting
+    // taxableBalance drift negative each year by the year's tax bill — which
+    // misrepresents the report (chart goes deep into negative territory,
+    // "$0 to heirs" headlines, etc.) for clients with real external income
+    // (SS, non_ssi_income) that would actually fund the tax. We clamp at 0
+    // here as the simplest honest representation: "the portfolio has nothing
+    // left to fund this tax — the client paid it from their living-expense
+    // income, the portfolio just stays at 0." TODO: a proper fix (option B,
+    // tracked in audit notes) would credit external income against tax
+    // bills BEFORE deducting from taxable, which is more accurate but a
+    // bigger rewrite. Revisit if the simpler clamp ever produces a misleading
+    // case.
+    const desiredTaxableBalance = rmdTreatment === 'spent'
+      ? boyTaxable - taxFromTaxableAccount
+      : boyTaxable + rmdAmount - taxFromTaxableAccount;
+    taxableBalance = Math.max(0, desiredTaxableBalance);
 
     // Product bonus applied this year. Two sources:
     //  1. Upfront premium bonus (year 0 only) — bonus_percent × initial deposit.

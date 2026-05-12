@@ -526,12 +526,15 @@ export function runFormulaScenario(
       ? (payTaxFromIRA ? 0 : conversionFedStateTax)
       : (payTaxFromIRA ? Math.max(0, totalTax - conversionTaxFromIRA) : totalTax);
     // RMD proceeds either get spent (don't accumulate) or go to taxable
-    // account ('reinvested'/'cash'). Mirrors growth-formula.ts:638.
-    if (rmdTreatment === 'spent') {
-      taxableBalance = boyTaxable - taxFromTaxableAccount;
-    } else {
-      taxableBalance = boyTaxable + rmdAmount - taxFromTaxableAccount;
-    }
+    // account ('reinvested'/'cash'). Mirrors growth-formula.ts. Clamp at $0
+    // (Jorge V., ticket 809a5774) so that residual tax bills, once the
+    // qualified buckets are drained, are assumed paid from external income
+    // (SS / non_ssi_income) rather than driving taxableBalance into the
+    // negatives. TODO: replace with proper external-income credit (option B).
+    const desiredTaxableBalance = rmdTreatment === 'spent'
+      ? boyTaxable - taxFromTaxableAccount
+      : boyTaxable + rmdAmount - taxFromTaxableAccount;
+    taxableBalance = Math.max(0, desiredTaxableBalance);
 
     // Split federal/state tax between "on conversion" and "on ordinary/SS income"
     // for display breakdowns. Ordinary portion is what remains after subtracting

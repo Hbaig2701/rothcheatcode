@@ -460,11 +460,15 @@ function runGIStrategyScenario(
       // Handle tax payment on taxable account.
       // When payTaxFromIRA, conversion tax came from the IRA, but IRMAA and
       // early withdrawal penalty are still paid externally.
-      if (payTaxFromIRA) {
-        taxableBalance = boyTaxable + taxableInterest - Math.max(0, totalTax - conversionTaxFromIRA);
-      } else {
-        taxableBalance = boyTaxable + taxableInterest - conversionTax - irmaaSurcharge - earlyWithdrawalPenalty;
-      }
+      // Clamp at $0 (Jorge V., ticket 809a5774) — once the qualified buckets
+      // and the taxable account drain, residual non-conversion tax (on SS,
+      // non_ssi_income, etc.) is assumed paid from external income rather
+      // than driving taxableBalance into the negatives. TODO: replace with
+      // proper external-income credit (option B) for full accuracy.
+      const desiredTaxable = payTaxFromIRA
+        ? boyTaxable + taxableInterest - Math.max(0, totalTax - conversionTaxFromIRA)
+        : boyTaxable + taxableInterest - conversionTax - irmaaSurcharge - earlyWithdrawalPenalty;
+      taxableBalance = Math.max(0, desiredTaxable);
 
       // Calculate tax details with SS taxation awareness.
       const convPhaseTaxInfo = computeTaxableIncomeWithSS({
