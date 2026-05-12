@@ -1,0 +1,258 @@
+/**
+ * Transactional email via Resend.
+ *
+ * Best-effort: if RESEND_API_KEY isn't set in the environment, every send
+ * call no-ops with a console.warn (does NOT throw). That way the deploy can
+ * land before the API key is provisioned, and once the key is added in
+ * Vercel env, emails start flowing on the next request.
+ *
+ * FROM address defaults to Resend's sandbox sender (onboarding@resend.dev)
+ * so the integration works the moment an API key lands. To send from
+ * support@retirementexpert.ai (and avoid spam filters / look professional)
+ * verify the domain in Resend dashboard and set RESEND_FROM_EMAIL in env.
+ */
+
+import { Resend } from "resend";
+
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "Retirement Expert Support <onboarding@resend.dev>";
+const APP_BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.retirementexpert.ai";
+
+let _client: Resend | null = null;
+function getClient(): Resend | null {
+  if (_client) return _client;
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  _client = new Resend(key);
+  return _client;
+}
+
+interface SendArgs {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+}
+
+async function sendEmail({ to, subject, html, text }: SendArgs): Promise<void> {
+  const client = getClient();
+  if (!client) {
+    console.warn("[email] RESEND_API_KEY not set — skipping send", { to, subject });
+    return;
+  }
+  try {
+    const { error } = await client.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject,
+      html,
+      text,
+    });
+    if (error) {
+      console.error("[email] Resend send failed", { to, subject, error });
+    }
+  } catch (err) {
+    console.error("[email] Resend send threw", { to, subject, err });
+  }
+}
+
+// ----------------------------------------------------------------------
+// Support-ticket email templates
+// ----------------------------------------------------------------------
+
+/**
+ * Escape user-supplied text so it's safe to embed inside an HTML email body.
+ * Resend renders HTML directly — without this, a ticket subject containing
+ * "<" or "&" would either get eaten by the parser or render malformed.
+ */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/**
+ * Render the body of a comment for inclusion in the email. Truncates long
+ * replies (anything past ~1200 chars gets a "…" suffix and a "click to read
+ * the rest" cue) so the email stays scannable without forcing the recipient
+ * to scroll. The full comment is always available in-app via the link.
+ */
+function formatCommentForEmail(body: string): { html: string; text: string; wasTruncated: boolean } {
+  const MAX_CHARS = 1200;
+  const trimmed = body.trim();
+  const wasTruncated = trimmed.length > MAX_CHARS;
+  const displayText = wasTruncated ? `${trimmed.slice(0, MAX_CHARS)}…` : trimmed;
+  const html = escapeHtml(displayText).replace(/\n/g, "<br>");
+  return { html, text: displayText, wasTruncated };
+}
+
+interface TicketReplyEmailInput {
+  to: string;
+  firstName?: string | null;
+  ticketId: string;
+  ticketSubject: string;
+  replyBody: string;
+}
+
+export async function sendTicketReplyEmail(input: TicketReplyEmailInput): Promise<void> {
+  const { to, firstName, ticketId, ticketSubject, replyBody } = input;
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const link = `${APP_BASE_URL}/support/${ticketId}`;
+  const subjectSafe = escapeHtml(ticketSubject);
+  const comment = formatCommentForEmail(replyBody);
+
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7f9;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 28px 8px 28px;">
+                <p style="margin:0 0 12px 0;font-size:14px;color:#6b7280;">Retirement Expert · Support</p>
+                <h1 style="margin:0 0 8px 0;font-size:18px;font-weight:600;color:#111827;line-height:1.4;">Support replied to your ticket</h1>
+                <p style="margin:0 0 18px 0;font-size:14px;color:#374151;">Re: ${subjectSafe}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px;">
+                <p style="margin:0 0 16px 0;font-size:14px;color:#374151;">${escapeHtml(greeting)}</p>
+                <div style="margin:0 0 20px 0;padding:14px 16px;background:#f9fafb;border-left:3px solid #d4af37;border-radius:6px;font-size:14px;color:#111827;line-height:1.55;">${comment.html}${
+    comment.wasTruncated
+      ? `<p style="margin:12px 0 0 0;font-size:13px;color:#6b7280;">(reply continues — click below to view the full message)</p>`
+      : ""
+  }</div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 28px 28px 28px;" align="left">
+                <a href="${link}" style="display:inline-block;padding:11px 22px;background:#d4af37;color:#1a1a1a;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">View ticket</a>
+                <p style="margin:18px 0 0 0;font-size:12px;color:#9ca3af;line-height:1.55;">You're receiving this because you filed a support ticket. Replies to this email aren't monitored — please respond inside the ticket so it stays threaded.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const text = `${greeting}
+
+The Retirement Expert support team replied to your ticket.
+
+Re: ${ticketSubject}
+
+---
+${comment.text}
+---
+
+View the full ticket: ${link}
+
+Replies to this email aren't monitored — please respond inside the ticket so the conversation stays threaded.
+
+— Retirement Expert Support`;
+
+  await sendEmail({
+    to,
+    subject: `Re: ${ticketSubject}`,
+    html,
+    text,
+  });
+}
+
+interface TicketStatusEmailInput {
+  to: string;
+  firstName?: string | null;
+  ticketId: string;
+  ticketSubject: string;
+  newStatus: string;       // raw enum (open|in_progress|waiting_on_user|resolved|closed)
+  newStatusLabel: string;  // pre-formatted human label
+}
+
+export async function sendTicketStatusChangeEmail(input: TicketStatusEmailInput): Promise<void> {
+  const { to, firstName, ticketId, ticketSubject, newStatus, newStatusLabel } = input;
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const link = `${APP_BASE_URL}/support/${ticketId}`;
+  const subjectSafe = escapeHtml(ticketSubject);
+  const statusSafe = escapeHtml(newStatusLabel);
+
+  // Status-specific framing — "waiting_on_user" needs a stronger call to
+  // action (the advisor must do something) than "resolved" (which is a
+  // confirmation).
+  const isWaiting = newStatus === "waiting_on_user";
+  const isResolved = newStatus === "resolved" || newStatus === "closed";
+  const headline = isWaiting
+    ? "We need a quick response from you"
+    : isResolved
+    ? `Your ticket is ${statusSafe.toLowerCase()}`
+    : `Your ticket status was updated to ${statusSafe}`;
+  const bodyCopy = isWaiting
+    ? "We've replied with a question or asked for more info — please pop back into the ticket and respond so we can keep moving."
+    : isResolved
+    ? "If you're still seeing the issue or have a follow-up question, open the ticket and reply — it'll re-open automatically."
+    : "Hop into the ticket to see the latest update from the support team.";
+
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7f9;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 28px 8px 28px;">
+                <p style="margin:0 0 12px 0;font-size:14px;color:#6b7280;">Retirement Expert · Support</p>
+                <h1 style="margin:0 0 8px 0;font-size:18px;font-weight:600;color:#111827;line-height:1.4;">${escapeHtml(headline)}</h1>
+                <p style="margin:0 0 18px 0;font-size:14px;color:#374151;">Re: ${subjectSafe}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px;">
+                <p style="margin:0 0 16px 0;font-size:14px;color:#374151;">${escapeHtml(greeting)}</p>
+                <p style="margin:0 0 20px 0;font-size:14px;color:#374151;line-height:1.55;">${escapeHtml(bodyCopy)}</p>
+                <div style="margin:0 0 20px 0;padding:12px 16px;background:#f9fafb;border-radius:6px;font-size:13px;color:#6b7280;">
+                  New status: <strong style="color:#111827;">${statusSafe}</strong>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 28px 28px 28px;" align="left">
+                <a href="${link}" style="display:inline-block;padding:11px 22px;background:#d4af37;color:#1a1a1a;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">View ticket</a>
+                <p style="margin:18px 0 0 0;font-size:12px;color:#9ca3af;line-height:1.55;">You're receiving this because you filed a support ticket. Replies to this email aren't monitored — please respond inside the ticket so it stays threaded.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const text = `${greeting}
+
+${headline}
+
+Re: ${ticketSubject}
+New status: ${newStatusLabel}
+
+${bodyCopy}
+
+View the ticket: ${link}
+
+— Retirement Expert Support`;
+
+  await sendEmail({
+    to,
+    subject: isWaiting
+      ? `Action needed — ${ticketSubject}`
+      : isResolved
+      ? `Resolved — ${ticketSubject}`
+      : `Update — ${ticketSubject}`,
+    html,
+    text,
+  });
+}

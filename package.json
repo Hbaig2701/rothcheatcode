@@ -35,6 +35,7 @@
     "react-hook-form": "^7.71.1",
     "react-is": "^19.2.3",
     "recharts": "^3.6.0",
+    "resend": "^6.12.3",
     "shadcn": "^3.7.0",
     "stripe": "^20.4.0",
     "tailwind-merge": "^3.4.0",

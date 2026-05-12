@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { isAdmin } from '@/lib/auth/requireAdmin'
@@ -10,6 +11,7 @@ import {
   type SupportPriority,
 } from '@/lib/types/support'
 import { createNotification } from '@/lib/notifications/create'
+import { sendTicketStatusChangeEmail } from '@/lib/notifications/email'
 
 const adminUpdateSchema = z.object({
   status: z.enum(SUPPORT_STATUSES).optional(),
@@ -95,9 +97,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     await supabase.from('support_ticket_events').insert(events)
   }
 
-  // In-app notification when an admin changes the status of an advisor's ticket.
-  // Skip when the advisor is re-opening their own ticket — they triggered the
-  // change themselves, no need to notify them about it.
+  // In-app notification + email when an admin changes the status of an
+  // advisor's ticket. Skip when the advisor is re-opening their own ticket
+  // — they triggered the change themselves, no need to notify them.
+  // The email is critical for waiting_on_user (advisor must respond) and
+  // resolved/closed (so they know the ticket is done); the in-app bell
+  // alone has a ~55% unread rate because advisors don't keep the app open.
   if (userIsAdmin && updates.status && updates.status !== existing.status && existing.user_id !== user.id) {
     const { data: ticketRow } = await supabase
       .from('support_tickets')
@@ -112,6 +117,30 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       link_url: `/support/${id}`,
       related_id: id,
     })
+
+    // Email — best-effort, never block the PATCH on email-send failures.
+    try {
+      const admin = createAdminClient()
+      const [profileRes, settingsRes] = await Promise.all([
+        admin.from('profiles').select('email').eq('id', existing.user_id as string).maybeSingle(),
+        admin.from('user_settings').select('first_name').eq('user_id', existing.user_id as string).maybeSingle(),
+      ])
+      const recipientEmail = profileRes.data?.email as string | undefined
+      if (recipientEmail && ticketRow?.subject) {
+        await sendTicketStatusChangeEmail({
+          to: recipientEmail,
+          firstName: (settingsRes.data?.first_name as string | undefined) ?? null,
+          ticketId: id,
+          ticketSubject: ticketRow.subject as string,
+          newStatus: updates.status,
+          newStatusLabel: STATUS_LABELS[updates.status],
+        })
+      } else if (!recipientEmail) {
+        console.warn('[support-tickets] No email on file for advisor — skipped status email', { advisor_id: existing.user_id, ticketId: id })
+      }
+    } catch (err) {
+      console.error('[support-tickets] Status-change email error (non-fatal)', err)
+    }
   }
 
   return NextResponse.json(updated)

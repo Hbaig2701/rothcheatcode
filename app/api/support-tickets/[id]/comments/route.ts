@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { isAdmin } from '@/lib/auth/requireAdmin'
 import { notifySlackNewComment } from '@/lib/notifications/slack'
 import { createNotification } from '@/lib/notifications/create'
+import { sendTicketReplyEmail } from '@/lib/notifications/email'
 
 const createCommentSchema = z.object({
   body: z.string().trim().min(1, 'Comment cannot be empty').max(5000),
@@ -68,10 +70,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     new_value: null,
   })
 
-  // In-app notification: when an admin posts a public reply, the advisor
-  // who owns the ticket gets a bell notification linking to their ticket.
-  // Skip internal notes (advisor can't see them) and advisor-authored
-  // comments (they wrote it themselves).
+  // In-app notification + email: when an admin posts a public reply, the
+  // advisor who owns the ticket gets both a bell notification AND a
+  // transactional email. Pre-email-integration, advisors only got the
+  // bell — half of those went unread because advisors don't keep the app
+  // open between sessions. Skip internal notes (advisor can't see them)
+  // and admin-self-replies (they wrote it themselves, no need to ping).
   if (userIsAdmin && !isInternal) {
     const { data: ticketRow } = await supabase
       .from('support_tickets')
@@ -79,14 +83,41 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .eq('id', id)
       .maybeSingle()
     if (ticketRow && ticketRow.user_id !== user.id) {
+      const ownerId = ticketRow.user_id as string
       await createNotification({
-        user_id: ticketRow.user_id as string,
+        user_id: ownerId,
         type: 'support_ticket_reply',
         title: 'Support Team replied',
         body: `Re: ${ticketRow.subject}`,
         link_url: `/support/${id}`,
         related_id: id,
       })
+
+      // Fetch the advisor's email + name for the transactional email. Use
+      // the admin client so RLS doesn't block reading another user's
+      // profile row. Best-effort — failures must never block the
+      // underlying ticket reply from succeeding.
+      try {
+        const admin = createAdminClient()
+        const [profileRes, settingsRes] = await Promise.all([
+          admin.from('profiles').select('email').eq('id', ownerId).maybeSingle(),
+          admin.from('user_settings').select('first_name').eq('user_id', ownerId).maybeSingle(),
+        ])
+        const recipientEmail = profileRes.data?.email as string | undefined
+        if (recipientEmail) {
+          await sendTicketReplyEmail({
+            to: recipientEmail,
+            firstName: (settingsRes.data?.first_name as string | undefined) ?? null,
+            ticketId: id,
+            ticketSubject: ticketRow.subject as string,
+            replyBody: parsed.data.body,
+          })
+        } else {
+          console.warn('[support-comments] No email on file for advisor — skipped reply email', { ownerId, ticketId: id })
+        }
+      } catch (err) {
+        console.error('[support-comments] Email send error (non-fatal)', err)
+      }
     }
   }
 
