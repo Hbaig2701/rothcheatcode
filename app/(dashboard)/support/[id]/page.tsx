@@ -41,6 +41,34 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
     .eq('is_read', false)
     .in('type', ['support_ticket_reply', 'support_ticket_status_change'])
 
+  // Log a ticket_viewed event for the admin "Today" timeline so support can
+  // see when an advisor has actually read their own ticket (not just filed
+  // it). Only fires when the ticket owner is the viewer — admins peeking at
+  // this route shouldn't generate phantom views in the advisor's activity
+  // feed. Throttled to once every 5 minutes per (user, ticket) so a page
+  // refresh doesn't spam the events table.
+  if (ticket.user_id === user.id) {
+    const fiveMinAgoIso = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    const { data: recentView } = await supabase
+      .from('support_ticket_events')
+      .select('id')
+      .eq('ticket_id', id)
+      .eq('user_id', user.id)
+      .eq('event_type', 'ticket_viewed')
+      .gte('created_at', fiveMinAgoIso)
+      .limit(1)
+      .maybeSingle()
+    if (!recentView) {
+      void supabase.from('support_ticket_events').insert({
+        ticket_id: id,
+        user_id: user.id,
+        event_type: 'ticket_viewed',
+        old_value: null,
+        new_value: null,
+      })
+    }
+  }
+
   // Look up authors for comments + status events
   const userIds = new Set<string>([ticket.user_id])
   for (const c of comments) userIds.add(c.user_id)

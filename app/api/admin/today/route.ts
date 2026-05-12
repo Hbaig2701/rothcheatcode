@@ -53,7 +53,9 @@ export type ActivityKind =
   | 'pdf_export'
   | 'sales_call'
   | 'product_created'
-  | 'support_ticket';
+  | 'support_ticket'
+  | 'ticket_viewed'
+  | 'ticket_commented';
 
 export interface ActivityEvent {
   ts: string;          // ISO UTC
@@ -124,6 +126,7 @@ export async function GET(request: NextRequest) {
       salesCallsRes,
       productsRes,
       ticketsRes,
+      ticketEventsRes,
     ] = await Promise.all([
       admin.from('login_log')
         .select('user_id, created_at')
@@ -147,6 +150,19 @@ export async function GET(request: NextRequest) {
       admin.from('support_tickets')
         .select('id, user_id, subject, severity, created_at')
         .gte('created_at', startISO).lt('created_at', endISO),
+      // Ticket viewed / commented events on tickets owned by the same user.
+      // We surface only the user's activity on their OWN tickets — admin
+      // replies on a ticket belong to the admin's row, not the advisor's.
+      // 'comment_added' is the public-comment event_type written by
+      // /api/support-tickets/[id]/comments; 'ticket_viewed' is written by
+      // the advisor-facing detail page when the owner opens it (throttled
+      // to one event per 5 min per user+ticket so refreshes don't spam).
+      // 'internal_comment_added' is intentionally excluded — that's the
+      // admin's internal note and not user-visible activity.
+      admin.from('support_ticket_events')
+        .select('user_id, ticket_id, event_type, created_at')
+        .in('event_type', ['ticket_viewed', 'comment_added'])
+        .gte('created_at', startISO).lt('created_at', endISO),
     ]);
 
     // Collect all referenced client_ids so we can resolve names in one round trip.
@@ -165,6 +181,33 @@ export async function GET(request: NextRequest) {
     // Clients created today: name comes from the row itself (no extra join).
     for (const c of clientsCreatedRes.data ?? []) {
       if (c.id && c.name) clientNameById.set(c.id, c.name);
+    }
+
+    // Look up ticket subjects for ticket events so each timeline row can
+    // say "Viewed ticket: <subject>" rather than just "Viewed ticket".
+    // Tickets filed today are already in ticketsRes; older tickets are
+    // fetched in a second batched lookup.
+    const ticketIdsToFetch = new Set<string>();
+    for (const r of ticketEventsRes.data ?? []) if (r.ticket_id) ticketIdsToFetch.add(r.ticket_id);
+    // Drop ids we already have from ticketsRes
+    for (const t of ticketsRes.data ?? []) ticketIdsToFetch.delete(t.id);
+    const ticketSubjectById = new Map<string, string>();
+    const ticketOwnerById = new Map<string, string>();
+    for (const t of ticketsRes.data ?? []) {
+      if (t.id) {
+        if (t.subject) ticketSubjectById.set(t.id, t.subject);
+        if (t.user_id) ticketOwnerById.set(t.id, t.user_id);
+      }
+    }
+    if (ticketIdsToFetch.size > 0) {
+      const { data: ticketRows } = await admin
+        .from('support_tickets')
+        .select('id, subject, user_id')
+        .in('id', Array.from(ticketIdsToFetch));
+      for (const t of ticketRows ?? []) {
+        if (t.subject) ticketSubjectById.set(t.id, t.subject);
+        if (t.user_id) ticketOwnerById.set(t.id, t.user_id);
+      }
     }
 
     // Build the per-user event stream. We exclude test accounts here rather
@@ -231,6 +274,16 @@ export async function GET(request: NextRequest) {
         meta: r.severity ? { severity: r.severity } : undefined,
       });
     }
+    for (const r of ticketEventsRes.data ?? []) {
+      const subject = r.ticket_id ? ticketSubjectById.get(r.ticket_id) : undefined;
+      const kind: ActivityKind = r.event_type === 'ticket_viewed' ? 'ticket_viewed' : 'ticket_commented';
+      push(r.user_id, {
+        ts: r.created_at,
+        kind,
+        detail: subject,
+        href: r.ticket_id ? `/support-centre?ticket=${r.ticket_id}` : undefined,
+      });
+    }
 
     const activeUserIds = Array.from(userEvents.keys());
 
@@ -248,7 +301,7 @@ export async function GET(request: NextRequest) {
     }
 
     const emptyCounts = (): Record<ActivityKind, number> => ({
-      login: 0, scenario_run: 0, client_created: 0, pdf_export: 0,
+      login: 0, scenario_run: 0, client_created: 0, pdf_export: 0, ticket_viewed: 0, ticket_commented: 0,
       sales_call: 0, product_created: 0, support_ticket: 0,
     });
 

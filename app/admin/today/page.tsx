@@ -4,12 +4,14 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   LogIn, BarChart3, UserPlus, FileDown, Phone, Package, LifeBuoy,
+  Eye, MessageSquare,
   ChevronDown, ChevronRight, Loader2,
 } from 'lucide-react';
 
 type ActivityKind =
   | 'login' | 'scenario_run' | 'client_created' | 'pdf_export'
-  | 'sales_call' | 'product_created' | 'support_ticket';
+  | 'sales_call' | 'product_created' | 'support_ticket'
+  | 'ticket_viewed' | 'ticket_commented';
 
 interface ActivityEvent {
   ts: string;
@@ -37,18 +39,21 @@ interface TodayResponse {
 }
 
 const KIND_META: Record<ActivityKind, { label: string; icon: typeof LogIn; color: string }> = {
-  login:           { label: 'Login',          icon: LogIn,    color: 'text-sky-400' },
-  scenario_run:    { label: 'Scenario Run',   icon: BarChart3, color: 'text-emerald-400' },
-  client_created:  { label: 'Client Created', icon: UserPlus, color: 'text-amber-400' },
-  pdf_export:      { label: 'PDF Export',     icon: FileDown, color: 'text-violet-400' },
-  sales_call:      { label: 'Sales Call',     icon: Phone,    color: 'text-pink-400' },
-  product_created: { label: 'Product Created',icon: Package,  color: 'text-orange-400' },
-  support_ticket:  { label: 'Support Ticket', icon: LifeBuoy, color: 'text-red-400' },
+  login:            { label: 'Login',           icon: LogIn,         color: 'text-sky-400' },
+  scenario_run:     { label: 'Scenario Run',    icon: BarChart3,     color: 'text-emerald-400' },
+  client_created:   { label: 'Client Created',  icon: UserPlus,      color: 'text-amber-400' },
+  pdf_export:       { label: 'PDF Export',      icon: FileDown,      color: 'text-violet-400' },
+  sales_call:       { label: 'Sales Call',      icon: Phone,         color: 'text-pink-400' },
+  product_created:  { label: 'Product Created', icon: Package,       color: 'text-orange-400' },
+  support_ticket:   { label: 'Support Ticket',  icon: LifeBuoy,      color: 'text-red-400' },
+  ticket_viewed:    { label: 'Ticket Viewed',   icon: Eye,           color: 'text-rose-300' },
+  ticket_commented: { label: 'Ticket Reply',    icon: MessageSquare, color: 'text-rose-400' },
 };
 
 const KIND_ORDER: ActivityKind[] = [
   'login', 'scenario_run', 'client_created', 'pdf_export',
   'sales_call', 'product_created', 'support_ticket',
+  'ticket_viewed', 'ticket_commented',
 ];
 
 function todayInNY(): string {
@@ -170,7 +175,7 @@ export default function AdminTodayPage() {
       {data && !loading && (
         <>
           {/* Totals row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
             {KIND_ORDER.map(kind => {
               const meta = KIND_META[kind];
               const Icon = meta.icon;
