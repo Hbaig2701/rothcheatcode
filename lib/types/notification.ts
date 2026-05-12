@@ -1,6 +1,7 @@
 export const NOTIFICATION_TYPES = [
   'support_ticket_reply',
   'support_ticket_status_change',
+  'support_ticket_viewed',
   'intake_completed',
 ] as const
 

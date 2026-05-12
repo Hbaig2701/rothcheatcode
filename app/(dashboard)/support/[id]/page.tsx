@@ -20,6 +20,7 @@ import {
   type SupportCategory,
   type SupportStatus,
 } from '@/lib/types/support'
+import { createNotification } from '@/lib/notifications/create'
 
 export default async function SupportTicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -43,10 +44,13 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
 
   // Log a ticket_viewed event for the admin "Today" timeline so support can
   // see when an advisor has actually read their own ticket (not just filed
-  // it). Only fires when the ticket owner is the viewer — admins peeking at
-  // this route shouldn't generate phantom views in the advisor's activity
-  // feed. Throttled to once every 5 minutes per (user, ticket) so a page
-  // refresh doesn't spam the events table.
+  // it), AND fan out a notification to every admin so the support-centre
+  // bell pings when an advisor opens their ticket — useful for confirming
+  // "did the advisor see my reply yet?" without having to check the
+  // timeline. Only fires when the ticket owner is the viewer — admins
+  // peeking at this route shouldn't generate phantom events or notifications.
+  // Throttled to once every 5 minutes per (user, ticket) so a page refresh
+  // doesn't spam the events table OR the admin bell.
   if (ticket.user_id === user.id) {
     const fiveMinAgoIso = new Date(Date.now() - 5 * 60 * 1000).toISOString()
     const { data: recentView } = await supabase
@@ -66,6 +70,39 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
         old_value: null,
         new_value: null,
       })
+
+      // Notify every admin. Pull the advisor's display name from
+      // user_settings (falls back to email) for a useful title. Best-effort
+      // — every step is wrapped so a notification failure can never block
+      // the ticket page from rendering.
+      void (async () => {
+        try {
+          const [settingsRes, adminsRes] = await Promise.all([
+            supabase.from('user_settings').select('first_name, last_name').eq('user_id', user.id).maybeSingle(),
+            supabase.from('profiles').select('id').eq('role', 'admin'),
+          ])
+          const namePart = [settingsRes.data?.first_name, settingsRes.data?.last_name]
+            .filter(Boolean)
+            .join(' ')
+            .trim()
+          const advisorName = namePart || user.email || 'An advisor'
+          const admins = (adminsRes.data ?? []) as Array<{ id: string }>
+          await Promise.all(
+            admins.map((a) =>
+              createNotification({
+                user_id: a.id,
+                type: 'support_ticket_viewed',
+                title: `${advisorName} opened their ticket`,
+                body: `Re: ${ticket.subject}`,
+                link_url: `/support-centre/${id}`,
+                related_id: id,
+              })
+            )
+          )
+        } catch (err) {
+          console.error('[support-ticket-view] admin notification fan-out failed', err)
+        }
+      })()
     }
   }
 
