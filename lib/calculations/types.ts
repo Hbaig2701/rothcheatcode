@@ -211,6 +211,17 @@ export interface YearlyResult {
   // Total IRA withdrawal: conversion + taxes paid from IRA (in cents)
   totalIRAWithdrawal?: number;
 
+  // Marginal federal tax on the FULL IRA withdrawal for the year — computed
+  // as tax(income_with_full_IRA_distribution) − tax(income_without_any_IRA
+  // _distribution). Combines the conversion-attributable tax AND the tax
+  // owed on the gross-up dollars (which the engine otherwise displays in
+  // the "ordinary income" tax bucket because they're an additional taxable
+  // distribution). Surfaced as the "Total Fed Tax on IRA Withdrawal"
+  // column so advisors don't have to add two rows together to see the
+  // real tax cost of pulling money out of the IRA. (Robert R., ticket
+  // a1639792.)
+  federalTaxOnIRAWithdrawal?: number;
+
   // Taxes paid from IRA: portion of IRA withdrawn to cover conversion taxes (in cents).
   // When the carrier penalty-free cap is active (respect_penalty_free_limit +
   // tax_payment_source = 'from_ira' + still in surrender period), this is

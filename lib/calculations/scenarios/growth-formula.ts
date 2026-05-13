@@ -625,6 +625,32 @@ export function runGrowthFormulaScenario(
     federalTax = totalFederalTax;
     stateTax = totalStateTax;
 
+    // Marginal federal tax on the FULL year's IRA distribution.
+    // = Tax(year with IRA distribution) − Tax(year without IRA distribution).
+    // Captures the conversion-marginal tax PLUS the tax owed on the gross-up
+    // dollars (which the existing federalTaxOnConversions excludes — it
+    // only attributes the conversion-amount slice). Surfaced as a single
+    // "Total Fed Tax on IRA Withdrawal" column so an advisor can show a
+    // client the real tax-cost number for pulling X dollars out of the
+    // IRA, without summing two display columns. (Robert R. ticket a1639792.)
+    let federalTaxOnIRAWithdrawal = 0;
+    const hasIraDistribution = conversionAmount + conversionTaxFromIRA + rmdAmount + iraWithdrawal > 0;
+    if (hasIraDistribution) {
+      const noIraTaxInfo = computeTaxableIncomeWithSS({
+        otherIncome, // wages / non-SSI ordinary income only — no IRA $
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+      });
+      const noIraFederalTax = calculateFederalTax({
+        taxableIncome: noIraTaxInfo.taxableIncome,
+        filingStatus: client.filing_status,
+        taxYear: year,
+      }).totalTax;
+      federalTaxOnIRAWithdrawal = Math.max(0, totalFederalTax - noIraFederalTax);
+    }
+
     // Store MAGI for IRMAA 2-year lookback
     incomeHistory.set(year, magi);
 
@@ -786,6 +812,7 @@ export function runGrowthFormulaScenario(
       stateTaxOnConversions,
       stateTaxOnOrdinaryIncome,
       totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + rmdAmount + iraWithdrawal,
+      federalTaxOnIRAWithdrawal,
       taxesPaidFromIRA: conversionTaxFromIRA,
       taxesPaidExternally: conversionTaxExternal,
       earlyWithdrawalPenalty,
