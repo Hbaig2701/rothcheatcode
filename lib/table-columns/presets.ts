@@ -24,6 +24,7 @@ export const DEFAULT_PRESETS: Record<string, ColumnPreset> = {
       'rothBalance',
       'conversionAmount',
       'totalIRAWithdrawal',
+      'federalTaxOnIRAWithdrawal',
       'totalIncome',
       'totalTax',
       'netWorth',

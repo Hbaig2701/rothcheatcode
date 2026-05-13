@@ -35,7 +35,27 @@ export function saveColumnPreferences(
 }
 
 /**
- * Load column preferences from localStorage
+ * Newly-shipped columns that should be auto-injected into existing saved
+ * preferences so users who customized their column list before the column
+ * existed still see it. Each entry says "if `id` isn't already in the
+ * user's saved selectedColumns, splice it in immediately after `afterId`
+ * (or append at end if afterId isn't present)." Append new entries here
+ * when shipping a column that's important enough to bypass the user's
+ * prior column choice once. Keep the list short — every entry adds a
+ * column to every user's table without consent, which is intrusive.
+ */
+const COLUMN_MIGRATIONS: Array<{ id: string; afterId?: string; addedAt: string }> = [
+  // Robert R. ticket a1639792 — combined "Total Fed Tax on IRA W/D" column
+  // is the answer to "what does this conversion cost in federal tax?"
+  // which the existing two-column split obscured.
+  { id: 'federalTaxOnIRAWithdrawal', afterId: 'totalIRAWithdrawal', addedAt: '2026-05-12' },
+];
+
+/**
+ * Load column preferences from localStorage. Applies pending column
+ * migrations (see COLUMN_MIGRATIONS) so newly-default columns appear
+ * for users who already had saved preferences. The migrated result is
+ * persisted back so the migration runs at most once per user per column.
  *
  * @param tableId Unique identifier for this table
  * @returns Saved preferences or null if not found/error
@@ -59,6 +79,28 @@ export function loadColumnPreferences(
     ) {
       console.warn(`[Column Storage] Invalid preferences structure for ${tableId}, ignoring`);
       return null;
+    }
+
+    // Apply column migrations — inject any pending columns the user hasn't
+    // seen yet. Persists back to localStorage so migrations don't re-run.
+    let mutated = false;
+    for (const m of COLUMN_MIGRATIONS) {
+      if (parsed.selectedColumns.includes(m.id)) continue;
+      const insertAt = m.afterId ? parsed.selectedColumns.indexOf(m.afterId) : -1;
+      if (insertAt >= 0) {
+        parsed.selectedColumns.splice(insertAt + 1, 0, m.id);
+      } else {
+        parsed.selectedColumns.push(m.id);
+      }
+      mutated = true;
+    }
+    if (mutated) {
+      try {
+        localStorage.setItem(key, JSON.stringify(parsed));
+      } catch {
+        // Non-fatal — the in-memory result still includes the new column,
+        // it just won't persist if storage is full / blocked.
+      }
     }
 
     return parsed;
