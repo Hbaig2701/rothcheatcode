@@ -8,6 +8,7 @@ import { WhatIsARothConversionBody } from '@/components/training/modules/what-is
 import { MarginalVsEffectiveTaxBody } from '@/components/training/modules/marginal-vs-effective-tax'
 import { GrossUpBody } from '@/components/training/modules/gross-up'
 import { RmdsBody } from '@/components/training/modules/rmds'
+import { IrmaaBody } from '@/components/training/modules/irmaa'
 
 // Map of module slug → body component. Add an entry here as each module's
 // content lands; the registry's `status: 'ready'` flag controls whether
@@ -17,6 +18,7 @@ const MODULE_BODIES: Record<string, React.ComponentType> = {
   'marginal-vs-effective-tax': MarginalVsEffectiveTaxBody,
   'gross-up': GrossUpBody,
   'rmds': RmdsBody,
+  'irmaa': IrmaaBody,
 }
 
 export default async function TheoryModulePage({

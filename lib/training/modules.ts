@@ -83,7 +83,7 @@ export const THEORY_MODULES: TheoryModule[] = [
     learningGoal:
       'IRMAA surcharges are tier-based on MAGI from two years prior — crossing a tier by a single dollar triggers the full surcharge, so big conversions need to land cleanly inside a tier or fully past it.',
     estimatedMinutes: 7,
-    status: 'stub',
+    status: 'ready',
   },
   {
     slug: 'widow-penalty',
