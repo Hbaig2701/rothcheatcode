@@ -27,10 +27,18 @@ import { AdvancedDataSection } from "./sections/advanced-data";
 
 interface ClientFormProps {
   client?: Client;
+  /**
+   * Pre-fill values for new-client mode. Used by the training centre to
+   * drop a cast member's profile into the form so an advisor can see the
+   * concept they just learned applied to a real client they'd save.
+   * Defaults flow into the form's defaultValues but do NOT trigger
+   * `isEditing`, so submit still creates a fresh client row.
+   */
+  defaults?: Partial<Client>;
   onCancel?: () => void;
 }
 
-export function ClientForm({ client, onCancel }: ClientFormProps) {
+export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
   const router = useRouter();
   const isEditing = !!client;
 
@@ -40,92 +48,93 @@ export function ClientForm({ client, onCancel }: ClientFormProps) {
   // Fetch user defaults from settings (only used for new formulas)
   const { data: userSettings } = useUserSettings();
   const ud = (userSettings?.default_values ?? {}) as Record<string, unknown>;
+  const d = defaults;
 
   const form = useForm<ClientFormData>({
     resolver: zodResolver(clientFormulaSchema) as Resolver<ClientFormData>,
     defaultValues: {
       // Product Preset
-      // Priority: client value > user default > system default
-      blueprint_type: client?.blueprint_type ?? (ud.blueprint_type as ClientFormData["blueprint_type"]) ?? "fia",
-      custom_product_id: client?.custom_product_id ?? null,
+      // Priority: client value (edit mode) > prefill defaults > user default > system default
+      blueprint_type: client?.blueprint_type ?? d?.blueprint_type ?? (ud.blueprint_type as ClientFormData["blueprint_type"]) ?? "fia",
+      custom_product_id: client?.custom_product_id ?? d?.custom_product_id ?? null,
 
       // Section 1: Client Data
-      scenario_name: client?.scenario_name ?? null,
-      filing_status: client?.filing_status ?? "single",
-      name: client?.name ?? "",
-      age: client?.age ?? 62,
-      spouse_name: client?.spouse_name ?? "",
-      spouse_age: client?.spouse_age ?? 60,
+      scenario_name: client?.scenario_name ?? d?.scenario_name ?? null,
+      filing_status: client?.filing_status ?? d?.filing_status ?? "single",
+      name: client?.name ?? d?.name ?? "",
+      age: client?.age ?? d?.age ?? 62,
+      spouse_name: client?.spouse_name ?? d?.spouse_name ?? "",
+      spouse_age: client?.spouse_age ?? d?.spouse_age ?? 60,
 
       // Section 2: Current Account
-      qualified_account_value: client?.qualified_account_value ?? 25000000, // $250,000 in cents
+      qualified_account_value: client?.qualified_account_value ?? d?.qualified_account_value ?? 25000000, // $250,000 in cents
 
       // Section 3: New Account (Insurance Product)
-      carrier_name: client?.carrier_name ?? (ud.carrier_name as string) ?? "Generic Carrier",
-      product_name: client?.product_name ?? (ud.product_name as string) ?? "Generic Product",
-      bonus_percent: client?.bonus_percent ?? (ud.bonus_percent as number) ?? 10,
-      rate_of_return: client?.rate_of_return ?? (ud.rate_of_return as number) ?? 7,
-      anniversary_bonus_percent: client?.anniversary_bonus_percent ?? null,
-      anniversary_bonus_years: client?.anniversary_bonus_years ?? null,
+      carrier_name: client?.carrier_name ?? d?.carrier_name ?? (ud.carrier_name as string) ?? "Generic Carrier",
+      product_name: client?.product_name ?? d?.product_name ?? (ud.product_name as string) ?? "Generic Product",
+      bonus_percent: client?.bonus_percent ?? d?.bonus_percent ?? (ud.bonus_percent as number) ?? 10,
+      rate_of_return: client?.rate_of_return ?? d?.rate_of_return ?? (ud.rate_of_return as number) ?? 7,
+      anniversary_bonus_percent: client?.anniversary_bonus_percent ?? d?.anniversary_bonus_percent ?? null,
+      anniversary_bonus_years: client?.anniversary_bonus_years ?? d?.anniversary_bonus_years ?? null,
 
       // Section 4: Tax Data
-      state: client?.state ?? (ud.state as string) ?? "CA",
-      constraint_type: client?.constraint_type ?? (ud.constraint_type as ClientFormData["constraint_type"]) ?? "none",
-      tax_rate: client?.tax_rate ?? (ud.tax_rate as number) ?? 24,
-      max_tax_rate: client?.max_tax_rate ?? (ud.max_tax_rate as number) ?? 24,
-      tax_payment_source: client?.tax_payment_source ?? (ud.tax_payment_source as ClientFormData["tax_payment_source"]) ?? "from_taxable",
-      state_tax_rate: client?.state_tax_rate ?? null,
+      state: client?.state ?? d?.state ?? (ud.state as string) ?? "CA",
+      constraint_type: client?.constraint_type ?? d?.constraint_type ?? (ud.constraint_type as ClientFormData["constraint_type"]) ?? "none",
+      tax_rate: client?.tax_rate ?? d?.tax_rate ?? (ud.tax_rate as number) ?? 24,
+      max_tax_rate: client?.max_tax_rate ?? d?.max_tax_rate ?? (ud.max_tax_rate as number) ?? 24,
+      tax_payment_source: client?.tax_payment_source ?? d?.tax_payment_source ?? (ud.tax_payment_source as ClientFormData["tax_payment_source"]) ?? "from_taxable",
+      state_tax_rate: client?.state_tax_rate ?? d?.state_tax_rate ?? null,
 
       // Section 5: Taxable Income
-      ssi_payout_age: client?.ssi_payout_age ?? 67,
-      ssi_annual_amount: client?.ssi_annual_amount ?? 2400000, // $24,000 in cents
-      spouse_ssi_payout_age: client?.spouse_ssi_payout_age ?? 67,
-      spouse_ssi_annual_amount: client?.spouse_ssi_annual_amount ?? 0,
-      non_ssi_income: client?.non_ssi_income ?? [],
-      withdrawals: client?.withdrawals ?? [],
+      ssi_payout_age: client?.ssi_payout_age ?? d?.ssi_payout_age ?? 67,
+      ssi_annual_amount: client?.ssi_annual_amount ?? d?.ssi_annual_amount ?? 2400000, // $24,000 in cents
+      spouse_ssi_payout_age: client?.spouse_ssi_payout_age ?? d?.spouse_ssi_payout_age ?? 67,
+      spouse_ssi_annual_amount: client?.spouse_ssi_annual_amount ?? d?.spouse_ssi_annual_amount ?? 0,
+      non_ssi_income: client?.non_ssi_income ?? d?.non_ssi_income ?? [],
+      withdrawals: client?.withdrawals ?? d?.withdrawals ?? [],
 
       // Section 6: Conversion
-      conversion_type: client?.conversion_type ?? (ud.conversion_type as ClientFormData["conversion_type"]) ?? "optimized_amount",
-      fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
-      target_partial_amount: client?.target_partial_amount ?? null,
-      respect_penalty_free_limit: client?.respect_penalty_free_limit ?? false,
-      protect_initial_premium: client?.protect_initial_premium ?? (ud.protect_initial_premium as boolean) ?? true,
+      conversion_type: client?.conversion_type ?? d?.conversion_type ?? (ud.conversion_type as ClientFormData["conversion_type"]) ?? "optimized_amount",
+      fixed_conversion_amount: client?.fixed_conversion_amount ?? d?.fixed_conversion_amount ?? null,
+      target_partial_amount: client?.target_partial_amount ?? d?.target_partial_amount ?? null,
+      respect_penalty_free_limit: client?.respect_penalty_free_limit ?? d?.respect_penalty_free_limit ?? false,
+      protect_initial_premium: client?.protect_initial_premium ?? d?.protect_initial_premium ?? (ud.protect_initial_premium as boolean) ?? true,
 
       // Section 7: Withdrawals
-      withdrawal_type: client?.withdrawal_type ?? (ud.withdrawal_type as ClientFormData["withdrawal_type"]) ?? "no_withdrawals",
+      withdrawal_type: client?.withdrawal_type ?? d?.withdrawal_type ?? (ud.withdrawal_type as ClientFormData["withdrawal_type"]) ?? "no_withdrawals",
 
       // GI-specific fields
-      payout_type: client?.payout_type ?? "individual",
-      income_start_age: client?.income_start_age ?? 65,
-      guaranteed_rate_of_return: client?.guaranteed_rate_of_return ?? 0,
-      roll_up_option: client?.roll_up_option ?? null,
-      payout_option: client?.payout_option ?? null,
-      gi_conversion_years: client?.gi_conversion_years ?? 5,
-      gi_conversion_bracket: client?.gi_conversion_bracket ?? 24,
+      payout_type: client?.payout_type ?? d?.payout_type ?? "individual",
+      income_start_age: client?.income_start_age ?? d?.income_start_age ?? 65,
+      guaranteed_rate_of_return: client?.guaranteed_rate_of_return ?? d?.guaranteed_rate_of_return ?? 0,
+      roll_up_option: client?.roll_up_option ?? d?.roll_up_option ?? null,
+      payout_option: client?.payout_option ?? d?.payout_option ?? null,
+      gi_conversion_years: client?.gi_conversion_years ?? d?.gi_conversion_years ?? 5,
+      gi_conversion_bracket: client?.gi_conversion_bracket ?? d?.gi_conversion_bracket ?? 24,
 
       // Section 8: Advanced
-      surrender_years: client?.surrender_years ?? (ud.surrender_years as number) ?? 7,
-      surrender_schedule: client?.surrender_schedule ?? null,
-      penalty_free_percent: client?.penalty_free_percent ?? (ud.penalty_free_percent as number) ?? 10,
-      baseline_comparison_rate: client?.baseline_comparison_rate ?? (ud.baseline_comparison_rate as number) ?? 7,
-      post_contract_rate: client?.post_contract_rate ?? (ud.post_contract_rate as number) ?? 7,
-      years_to_defer_conversion: client?.years_to_defer_conversion ?? (ud.years_to_defer_conversion as number) ?? 0,
-      end_age: client?.end_age ?? (ud.end_age as number) ?? 100,
-      heir_tax_rate: client?.heir_tax_rate ?? (ud.heir_tax_rate as number) ?? 40,
-      widow_analysis: client?.widow_analysis ?? false,
-      widow_death_age: client?.widow_death_age ?? null,
-      rmd_treatment: client?.rmd_treatment ?? (ud.rmd_treatment as ClientFormData["rmd_treatment"]) ?? "reinvested",
+      surrender_years: client?.surrender_years ?? d?.surrender_years ?? (ud.surrender_years as number) ?? 7,
+      surrender_schedule: client?.surrender_schedule ?? d?.surrender_schedule ?? null,
+      penalty_free_percent: client?.penalty_free_percent ?? d?.penalty_free_percent ?? (ud.penalty_free_percent as number) ?? 10,
+      baseline_comparison_rate: client?.baseline_comparison_rate ?? d?.baseline_comparison_rate ?? (ud.baseline_comparison_rate as number) ?? 7,
+      post_contract_rate: client?.post_contract_rate ?? d?.post_contract_rate ?? (ud.post_contract_rate as number) ?? 7,
+      years_to_defer_conversion: client?.years_to_defer_conversion ?? d?.years_to_defer_conversion ?? (ud.years_to_defer_conversion as number) ?? 0,
+      end_age: client?.end_age ?? d?.end_age ?? (ud.end_age as number) ?? 100,
+      heir_tax_rate: client?.heir_tax_rate ?? d?.heir_tax_rate ?? (ud.heir_tax_rate as number) ?? 40,
+      widow_analysis: client?.widow_analysis ?? d?.widow_analysis ?? false,
+      widow_death_age: client?.widow_death_age ?? d?.widow_death_age ?? null,
+      rmd_treatment: client?.rmd_treatment ?? d?.rmd_treatment ?? (ud.rmd_treatment as ClientFormData["rmd_treatment"]) ?? "reinvested",
       // AUM split-allocation defaults — 0% means feature off (current behavior).
-      aum_allocation_percent: client?.aum_allocation_percent ?? 0,
-      aum_fee_percent: client?.aum_fee_percent ?? 1,
-      aum_dividend_yield: client?.aum_dividend_yield ?? 2,
-      aum_turnover_percent: client?.aum_turnover_percent ?? 10,
-      aum_withdrawal_years: client?.aum_withdrawal_years ?? 5,
-      ltcg_rate: client?.ltcg_rate ?? 15,
+      aum_allocation_percent: client?.aum_allocation_percent ?? d?.aum_allocation_percent ?? 0,
+      aum_fee_percent: client?.aum_fee_percent ?? d?.aum_fee_percent ?? 1,
+      aum_dividend_yield: client?.aum_dividend_yield ?? d?.aum_dividend_yield ?? 2,
+      aum_turnover_percent: client?.aum_turnover_percent ?? d?.aum_turnover_percent ?? 10,
+      aum_withdrawal_years: client?.aum_withdrawal_years ?? d?.aum_withdrawal_years ?? 5,
+      ltcg_rate: client?.ltcg_rate ?? d?.ltcg_rate ?? 15,
 
       // Additional fields needed
-      taxable_accounts: client?.taxable_accounts ?? 0,
-      roth_ira: client?.roth_ira ?? 0,
+      taxable_accounts: client?.taxable_accounts ?? d?.taxable_accounts ?? 0,
+      roth_ira: client?.roth_ira ?? d?.roth_ira ?? 0,
     },
   });
 

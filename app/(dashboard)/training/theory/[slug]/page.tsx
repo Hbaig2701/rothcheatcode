@@ -4,6 +4,14 @@ import { createClient } from '@/lib/supabase/server'
 import { ArrowLeft, ArrowRight, Clock, BookOpen } from 'lucide-react'
 import { getModule, getNextModule, getPrevModule } from '@/lib/training/modules'
 import { CAST_BLURB } from '@/lib/training/cast'
+import { WhatIsARothConversionBody } from '@/components/training/modules/what-is-a-roth-conversion'
+
+// Map of module slug → body component. Add an entry here as each module's
+// content lands; the registry's `status: 'ready'` flag controls whether
+// the curriculum index shows the module as unlockable.
+const MODULE_BODIES: Record<string, React.ComponentType> = {
+  'what-is-a-roth-conversion': WhatIsARothConversionBody,
+}
 
 export default async function TheoryModulePage({
   params,
@@ -60,6 +68,13 @@ export default async function TheoryModulePage({
           </p>
         </div>
       )}
+
+      {mod.status === 'ready' && MODULE_BODIES[slug]
+        ? (() => {
+            const Body = MODULE_BODIES[slug]
+            return <Body />
+          })()
+        : null}
 
       <div className="flex items-center justify-between mt-12 pt-6 border-t border-border-default">
         {prev ? (

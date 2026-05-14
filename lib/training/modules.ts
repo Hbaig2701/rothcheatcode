@@ -39,7 +39,7 @@ export const THEORY_MODULES: TheoryModule[] = [
     learningGoal:
       'A Roth conversion moves dollars from a Traditional IRA to a Roth IRA, you pay ordinary income tax on the converted amount this year, and from then on those dollars (and their growth) are tax-free.',
     estimatedMinutes: 5,
-    status: 'stub',
+    status: 'ready',
   },
   {
     slug: 'marginal-vs-effective-tax',
