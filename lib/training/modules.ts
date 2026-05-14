@@ -94,7 +94,7 @@ export const THEORY_MODULES: TheoryModule[] = [
     learningGoal:
       'When one spouse dies, the survivor moves from MFJ to single brackets (which are roughly half the width) but the RMDs and Social Security stay the same — so the same income suddenly hits much higher brackets, often costing tens of thousands per year.',
     estimatedMinutes: 7,
-    status: 'stub',
+    status: 'ready',
   },
   {
     slug: 'annuities-and-conversions',
