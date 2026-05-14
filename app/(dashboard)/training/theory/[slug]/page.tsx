@@ -10,6 +10,7 @@ import { GrossUpBody } from '@/components/training/modules/gross-up'
 import { RmdsBody } from '@/components/training/modules/rmds'
 import { IrmaaBody } from '@/components/training/modules/irmaa'
 import { WidowPenaltyBody } from '@/components/training/modules/widow-penalty'
+import { AnnuitiesAndConversionsBody } from '@/components/training/modules/annuities-and-conversions'
 
 // Map of module slug → body component. Add an entry here as each module's
 // content lands; the registry's `status: 'ready'` flag controls whether
@@ -21,6 +22,7 @@ const MODULE_BODIES: Record<string, React.ComponentType> = {
   'rmds': RmdsBody,
   'irmaa': IrmaaBody,
   'widow-penalty': WidowPenaltyBody,
+  'annuities-and-conversions': AnnuitiesAndConversionsBody,
 }
 
 export default async function TheoryModulePage({

@@ -105,7 +105,7 @@ export const THEORY_MODULES: TheoryModule[] = [
     learningGoal:
       'Annuity bonuses boost the IRA balance you\'re converting from, surrender schedules cap how much you can pull penalty-free in early years, and GI roll-ups grow the income base — all of which interact with conversion timing.',
     estimatedMinutes: 8,
-    status: 'stub',
+    status: 'ready',
   },
   {
     slug: 'reading-a-report',
