@@ -320,6 +320,43 @@
       margin-bottom: 15px;
     }
 
+    /* Glossary */
+    .glossary-intro {
+      font-size: 9.5pt;
+      color: #555;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+    .glossary-section-title {
+      font-size: 11pt;
+      font-weight: bold;
+      color: {{branding.primaryColor}};
+      margin: 18px 0 10px 0;
+      padding-bottom: 4px;
+      border-bottom: 1px solid {{branding.secondaryColor}};
+    }
+    .glossary-entry {
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .glossary-term {
+      font-size: 10pt;
+      font-weight: bold;
+      color: #222;
+      margin-bottom: 3px;
+    }
+    .glossary-def {
+      font-size: 9pt;
+      color: #555;
+      line-height: 1.5;
+    }
+    .glossary-def em {
+      color: #333;
+      font-style: normal;
+      font-weight: 600;
+    }
+
     /* Comparison highlight row */
     .highlight-row {
       background: #e6fffa !important;
@@ -962,6 +999,215 @@
         <td style="text-align: right; color: #16a34a;">{{rmdAvoidanceTotals.taxSaved}}</td>
       </tr>
     </table>
+    {{{brandingFooter}}}
+  </div>
+  {{/if}}
+
+  <!-- Glossary & Assumptions (optional — controlled by export-pdf-dialog toggle) -->
+  {{#if sections.glossary}}
+  <div class="page">
+    {{{pageHeader "Glossary & Assumptions"}}}
+    <h1 class="section-title">Glossary &amp; Assumptions</h1>
+    <p class="glossary-intro">
+      Plain-English definitions of every headline number on this report, and the
+      assumptions used to calculate them. Numbers here are calculated using the
+      same engine that produced the rest of the report.
+    </p>
+
+    <div class="glossary-section-title">Headline Numbers</div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Lifetime Wealth</div>
+      <div class="glossary-def">
+        The total dollars your family ends up with at the end of the projection,
+        after all taxes have been paid (including the tax your heirs would owe on
+        any remaining traditional IRA balance). Used as the apples-to-apples
+        wealth-created number when comparing baseline to strategy.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Net Improvement (Additional Lifetime Wealth)</div>
+      <div class="glossary-def">
+        How much more wealth the strategy produces vs. doing nothing. Calculated
+        as <em>Strategy Lifetime Wealth − Baseline Lifetime Wealth</em>.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Legacy to Heirs</div>
+      <div class="glossary-def">
+        After-tax dollar amount that passes to heirs at the end of the projection.
+        Roth IRA balances pass tax-free; the remaining traditional IRA is taxed
+        at the assumed heir tax rate ({{heirTaxRatePercent}}%).
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Required RMDs (Forced Distributions)</div>
+      <div class="glossary-def">
+        Total dollars the IRS forces out of the traditional IRA across the
+        projection (sum of all yearly Required Minimum Distributions). Pre-tax
+        amount. Strategy is typically zero because Roth conversions empty the
+        IRA before RMDs begin.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Tax on RMDs</div>
+      <div class="glossary-def">
+        The <em>marginal</em> federal + state tax actually caused by the RMDs —
+        the difference between the tax owed with RMDs and the tax that would
+        have been owed without them. Excludes background tax on Social Security,
+        pension, and other income. This is the apples-to-apples comparator to
+        Tax on Conversions.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Tax on Conversions</div>
+      <div class="glossary-def">
+        Total federal + state tax owed on the Roth conversions themselves.
+        Excludes background tax on Social Security, pension, and other income.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Total Tax (year-by-year column)</div>
+      <div class="glossary-def">
+        The full federal + state + IRMAA tax bill in each year, from every
+        income source. Will typically be larger than the &ldquo;Tax on
+        RMDs&rdquo; row on the summary page, because Total Tax includes tax on
+        Social Security, state tax on all income, and IRMAA surcharges, while
+        Tax on RMDs is only the portion caused by the RMDs themselves.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Tax from IRA (strategy year-by-year column)</div>
+      <div class="glossary-def">
+        The dollars actually pulled out of the traditional IRA each year to
+        cover conversion taxes (the gross-up amount). Only non-zero when the
+        client elects to pay conversion taxes from inside the IRA.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Premium Bonus Received</div>
+      <div class="glossary-def">
+        The carrier bonus credited to the IRA when the funds are transferred
+        into the FIA contract. This bonus is added to the IRA principal and
+        grows alongside it.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Net Out-of-Pocket Tax (after bonus)</div>
+      <div class="glossary-def">
+        The actual tax cost to the client after subtracting the premium bonus.
+        For the strategy: Tax on Conversions − Premium Bonus. For the baseline:
+        equals Tax on RMDs (no bonus to credit).
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">After-Tax Distributions Spent</div>
+      <div class="glossary-def">
+        Dollars the client actually receives in their bank account during life
+        from forced distributions, after income tax. Baseline only — the
+        strategy column shows $0 because Roth conversions stay inside the
+        Roth bucket and aren&apos;t spent.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">IRMAA Surcharge</div>
+      <div class="glossary-def">
+        The additional Medicare Part B and Part D premiums charged to higher-
+        income retirees. IRMAA is tier-based and looks at MAGI from two years
+        prior. Crossing a tier threshold by even $1 triggers the full surcharge
+        for that tier.
+      </div>
+    </div>
+
+    <div class="glossary-section-title">Key Assumptions</div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">RMD Start Age</div>
+      <div class="glossary-def">
+        Required Minimum Distributions begin at age 73 for clients born before
+        1960, and age 75 for clients born in 1960 or later (per the SECURE Act
+        2.0). The engine applies the correct start age based on the client&apos;s
+        birth year.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Heir Tax Rate ({{heirTaxRatePercent}}%)</div>
+      <div class="glossary-def">
+        The assumed combined federal + state tax rate heirs pay on inherited
+        traditional IRA balances. Roth balances pass tax-free. This rate is
+        configurable on the client&apos;s profile; the default is 40%.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Growth Rate ({{rateOfReturnPercent}}%)</div>
+      <div class="glossary-def">
+        The flat annual return assumed for both the strategy and baseline. This
+        is a deterministic projection — actual returns will vary with market
+        conditions. Both scenarios use the same rate so the comparison is fair.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">State Tax ({{state}} — {{stateTaxRatePercent}}%)</div>
+      <div class="glossary-def">
+        Applied as a single flat rate against taxable income. State-specific
+        rules (retirement income exemptions, brackets, local taxes) are
+        simplified to this single rate.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">IRMAA Lookback</div>
+      <div class="glossary-def">
+        Medicare uses MAGI from the tax return filed two years prior. So a
+        large Roth conversion in 2026 affects 2028 Medicare premiums. The
+        engine models this lag correctly.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Standard Deduction</div>
+      <div class="glossary-def">
+        The IRS standard deduction for the client&apos;s filing status, including
+        the additional amount for filers age 65 and older, is applied each year
+        before the tax brackets calculate federal tax owed.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Roth 5-Year Rule</div>
+      <div class="glossary-def">
+        The projection assumes any Roth withdrawals shown are qualified — i.e.,
+        the 5-year rule is satisfied and the account holder is over 59½. If the
+        client is younger or the conversion is recent, qualification rules may
+        apply to specific withdrawals.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Why baseline shows tax growing</div>
+      <div class="glossary-def">
+        The baseline trajectory accumulates tax cost every year — RMD-driven
+        federal and state tax from age 73/75 onward, plus IRMAA surcharges
+        once Medicare-eligible. The strategy front-loads tax during the
+        conversion years and then runs nearly tax-free on the Roth side, which
+        is why the lines diverge over time.
+      </div>
+    </div>
+
     {{{brandingFooter}}}
   </div>
   {{/if}}

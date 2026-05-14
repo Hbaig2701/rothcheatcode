@@ -258,9 +258,12 @@ interface TemplateData {
   bonusRate: number;
   riderFee: number;
   rateOfReturn: number;
+  rateOfReturnPercent: string;
   maxTaxRate: number;
   state: string;
   stateTaxRate: number;
+  stateTaxRatePercent: string;
+  heirTaxRatePercent: string;
   lifetimeWealthBefore: string;
   lifetimeWealthAfter: string;
   wealthIncreasePercent: string;
@@ -1003,9 +1006,15 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     bonusRate: client.bonus_percent ?? 10,
     riderFee: productRiderFee,
     rateOfReturn: client.rate_of_return ?? 7,
+    rateOfReturnPercent: String(client.rate_of_return ?? 7),
     maxTaxRate: client.max_tax_rate ?? 24,
     state: client.state ?? 'CA',
     stateTaxRate: client.state_tax_rate ?? 0,
+    stateTaxRatePercent: String(client.state_tax_rate ?? 0),
+    // Glossary surfaces these as plain percent strings so the template
+    // can interpolate them into the Key Assumptions block without doing
+    // its own numeric formatting.
+    heirTaxRatePercent: String(client.heir_tax_rate ?? 40),
     lifetimeWealthBefore: formatCurrency(baseLifetimeWealth),
     lifetimeWealthAfter: formatCurrency(blueLifetimeWealth),
     wealthIncreasePercent: wealthIncrease.toFixed(2),
@@ -1642,6 +1651,10 @@ export async function POST(request: NextRequest) {
       conversionPayback: false,
       legacyComparison: false,
       rmdAvoidance: false,
+      // Default ON for glossary so the explanation page is included unless
+      // an advisor explicitly turns it off. Most useful the first few times
+      // a client sees the report.
+      glossary: true,
     };
     (templateData as unknown as Record<string, unknown>).sections = !isGI
       ? { ...defaultSections, ...(sections || {}) }

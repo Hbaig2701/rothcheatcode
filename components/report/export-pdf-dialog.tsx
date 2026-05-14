@@ -69,6 +69,7 @@ export function ExportPdfDialog({
     conversionPayback: true,
     legacyComparison: true,
     rmdAvoidance: true,
+    glossary: true,
   });
 
   const isPro = plan ? hasFullAccess(plan as PlanId) : false;
@@ -280,6 +281,7 @@ export function ExportPdfDialog({
                     { key: "conversionPayback" as const, label: "Conversion Cost & Payback", desc: "Tax cost vs. Roth value gained" },
                     { key: "legacyComparison" as const, label: "Legacy to Heirs Comparison", desc: "After-tax inheritance comparison" },
                     { key: "rmdAvoidance" as const, label: "RMD Avoidance Analysis", desc: "Forced distributions avoided & tax saved" },
+                    { key: "glossary" as const, label: "Glossary & Assumptions", desc: "Plain-English definitions of every number on the report and the assumptions used" },
                   ].map((item) => (
                     <label
                       key={item.key}
