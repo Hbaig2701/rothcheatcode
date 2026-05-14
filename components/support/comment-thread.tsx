@@ -7,7 +7,7 @@ import { createBrowserClient } from '@supabase/ssr'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { LinkifiedText } from '@/components/support/linkified-text'
+import { MarkdownBody } from '@/components/support/markdown-body'
 import { LocalTime } from '@/components/support/local-time'
 import {
   ALLOWED_ATTACHMENT_MIME_TYPES,
@@ -324,11 +324,7 @@ export function CommentThread({
                   </div>
                 ) : (
                   <>
-                    {c.body && (
-                      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                        <LinkifiedText>{c.body}</LinkifiedText>
-                      </p>
-                    )}
+                    {c.body && <MarkdownBody>{c.body}</MarkdownBody>}
                     {inlineAttachments.length > 0 && (
                       <ul className={cn(
                         'flex flex-wrap gap-2',
