@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:report": "npx tsx lib/calculations/__tests__/report-fixtures.test.ts"
   },
   "dependencies": {
     "@ag-media/react-pdf-table": "^2.0.3",

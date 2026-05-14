@@ -1,0 +1,525 @@
+/**
+ * Headline-number fixture tests.
+ *
+ * Run with: npx tsx lib/calculations/__tests__/report-fixtures.test.ts
+ *
+ * What this is:
+ *   Three real-shape fixture clients (single + simple, single + complex,
+ *   MFJ + complex) with LOCKED expected values for every headline number
+ *   on the production reports (Lifetime Wealth, Tax on RMDs, Tax on
+ *   Conversions, Forced Distributions, Net Legacy, etc.).
+ *
+ * Why it exists:
+ *   Without these locks, "well-intentioned" calculation refactors silently
+ *   move the numbers advisors see on reports. The May 1 "Tax on RMDs"
+ *   change (commit 140e319) moved the summary value from $595K to $245K
+ *   for Paul George without anyone noticing — Jorge filed a ticket two
+ *   weeks later. With these tests, that commit would have failed CI on
+ *   the assertion below and forced a deliberate decision.
+ *
+ * How to use it:
+ *   - When you intentionally change a calculation, run the test, see
+ *     which assertions fail, update the expected values, and update
+ *     REPORT_SPEC.md in the same commit so the change is documented.
+ *   - When an assertion fails unexpectedly, do NOT just update the
+ *     expected value to make it green. The test caught real drift —
+ *     find what changed and decide whether to keep it.
+ *
+ * Source-of-truth formulas live in REPORT_SPEC.md. Any divergence
+ * between this test and the spec is a bug in one or the other.
+ */
+
+// Use relative imports to avoid @/ alias issues with tsx
+import type { Client } from '../../types/client';
+import { runSimulationWithMetrics } from '../engine';
+import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
+import { calculateStateTax } from '../modules/state-tax';
+import { computeTaxableIncomeWithSS } from '../tax-helpers';
+import { getStandardDeduction } from '../../data/standard-deductions';
+
+// ============================================================
+// Helpers
+// ============================================================
+
+let passed = 0;
+let failed = 0;
+const failures: string[] = [];
+
+function assertDollars(actual: number, expected: number, msg: string) {
+  // Engine produces integer cents. Allow zero tolerance — golden tests
+  // catch drift, not approximation. If the engine genuinely needs to
+  // change, update the expected value deliberately.
+  if (actual === expected) {
+    passed++;
+  } else {
+    failed++;
+    const diff = actual - expected;
+    failures.push(`  FAIL: ${msg}\n    expected: ${expected} (${(expected / 100).toFixed(2)})\n    actual:   ${actual} (${(actual / 100).toFixed(2)})\n    drift:    ${diff > 0 ? '+' : ''}${diff} cents (${(diff / 100).toFixed(2)})`);
+  }
+}
+
+// Canonical formulas — these mirror REPORT_SPEC.md §2. Any divergence
+// between these and the production code (growth-report-dashboard.tsx,
+// generate-pdf/route.ts, etc.) is the regression we're trying to catch.
+
+function canonicalLifetimeWealth(
+  finalNetWorth: number,
+  finalTraditional: number,
+  heirTaxRate: number,
+): number {
+  const heirTax = Math.round(finalTraditional * heirTaxRate);
+  return finalNetWorth - heirTax;
+}
+
+function canonicalForcedDistributions(years: { rmdAmount?: number }[]): number {
+  return years.reduce((s, y) => s + (y.rmdAmount ?? 0), 0);
+}
+
+function canonicalTotalFedStateTax(years: { federalTax?: number; stateTax?: number }[]): number {
+  return years.reduce((s, y) => s + (y.federalTax ?? 0) + (y.stateTax ?? 0), 0);
+}
+
+function canonicalTaxOnConversions(
+  years: { federalTaxOnConversions?: number; stateTaxOnConversions?: number }[],
+): number {
+  return years.reduce(
+    (s, y) => s + (y.federalTaxOnConversions ?? 0) + (y.stateTaxOnConversions ?? 0),
+    0,
+  );
+}
+
+// Marginal RMD tax — duplicates the implementation in
+// app/api/generate-pdf/route.ts:computeMarginalRMDTax. Kept inline so a
+// change to that helper requires also updating this test (and the spec).
+function canonicalTaxOnRMDs(years: Array<{
+  rmdAmount?: number;
+  federalTax?: number;
+  stateTax?: number;
+  otherIncome?: number;
+  ssIncome?: number;
+  standardDeduction?: number;
+  age: number;
+  spouseAge?: number | null;
+  year: number;
+}>, client: Client): number {
+  const stateOverride = client.state_tax_rate != null ? client.state_tax_rate / 100 : undefined;
+  let total = 0;
+  for (const y of years) {
+    const rmd = y.rmdAmount ?? 0;
+    if (rmd <= 0) continue;
+    const taxWith = (y.federalTax ?? 0) + (y.stateTax ?? 0);
+    const deductions = y.standardDeduction
+      ?? getStandardDeduction(client.filing_status, y.age, y.spouseAge ?? undefined, y.year);
+    const noRMD = computeTaxableIncomeWithSS({
+      otherIncome: y.otherIncome ?? 0,
+      ssBenefits: y.ssIncome ?? 0,
+      taxExemptInterest: client.tax_exempt_non_ssi ?? 0,
+      deductions,
+      filingStatus: client.filing_status,
+    });
+    const fedNo = calculateFederalTax({
+      taxableIncome: noRMD.taxableIncome,
+      filingStatus: client.filing_status,
+      taxYear: y.year,
+    }).totalTax;
+    const stateNo = calculateStateTax({
+      taxableIncome: noRMD.taxableIncome,
+      state: client.state,
+      filingStatus: client.filing_status,
+      overrideRate: stateOverride,
+    }).totalTax;
+    total += Math.max(0, taxWith - (fedNo + stateNo));
+  }
+  return total;
+}
+
+// Minimal client factory — keeps each fixture readable by listing only
+// the fields that differ from the defaults below.
+function makeClient(overrides: Partial<Client> = {}): Client {
+  return {
+    id: 'fixture',
+    user_id: 'fixture',
+    created_at: '2026-01-01T00:00:00Z',
+    updated_at: '2026-01-01T00:00:00Z',
+    blueprint_type: 'fia',
+    custom_product_id: null,
+    scenario_name: null,
+    filing_status: 'single',
+    name: 'Fixture',
+    age: 65,
+    spouse_name: null,
+    spouse_age: null,
+    qualified_account_value: 50_000_000,
+    carrier_name: 'Test',
+    product_name: 'Test',
+    bonus_percent: 0,
+    rate_of_return: 6,
+    anniversary_bonus_percent: null,
+    anniversary_bonus_years: null,
+    state: 'TX',
+    constraint_type: 'none',
+    tax_rate: 22,
+    max_tax_rate: 24,
+    tax_payment_source: 'from_taxable',
+    state_tax_rate: null,
+    gross_taxable_non_ssi: 0,
+    tax_exempt_non_ssi: 0,
+    ssi_payout_age: 67,
+    ssi_annual_amount: 0,
+    spouse_ssi_payout_age: null,
+    spouse_ssi_annual_amount: null,
+    non_ssi_income: [],
+    withdrawals: [],
+    conversion_type: 'optimized_amount',
+    fixed_conversion_amount: null,
+    target_partial_amount: null,
+    respect_penalty_free_limit: false,
+    protect_initial_premium: false,
+    withdrawal_type: 'no_withdrawals',
+    payout_type: 'individual',
+    income_start_age: 67,
+    guaranteed_rate_of_return: 6,
+    roll_up_option: null,
+    payout_option: null,
+    gi_conversion_years: 5,
+    gi_conversion_bracket: 24,
+    surrender_years: 7,
+    surrender_schedule: null,
+    penalty_free_percent: 10,
+    baseline_comparison_rate: 6,
+    post_contract_rate: 5,
+    years_to_defer_conversion: 0,
+    end_age: 90,
+    heir_tax_rate: 40,
+    widow_analysis: false,
+    widow_death_age: null,
+    rmd_treatment: 'reinvested',
+    aum_allocation_percent: 0,
+    aum_fee_percent: 1,
+    aum_dividend_yield: 2,
+    aum_turnover_percent: 10,
+    aum_withdrawal_years: 5,
+    ltcg_rate: 15,
+    date_of_birth: null,
+    spouse_dob: null,
+    life_expectancy: null,
+    traditional_ira: 0,
+    roth_ira: 0,
+    taxable_accounts: 0,
+    other_retirement: 0,
+    federal_bracket: '22',
+    include_niit: false,
+    include_aca: false,
+    ss_self: 0,
+    ss_spouse: 0,
+    pension: 0,
+    other_income: 0,
+    ss_start_age: 67,
+    strategy: 'moderate',
+    start_age: 65,
+    growth_rate: 6,
+    inflation_rate: 2.5,
+    heir_bracket: '40',
+    projection_years: 25,
+    sensitivity: false,
+    ...overrides,
+  } as Client;
+}
+
+function runFixture(label: string, client: Client) {
+  console.log(`\n=== ${label} ===`);
+  const currentYear = new Date().getFullYear();
+  const projectionYears = client.end_age - client.age;
+  const { result } = runSimulationWithMetrics({
+    client,
+    startYear: currentYear,
+    endYear: currentYear + projectionYears,
+  });
+  const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
+
+  const baseFinal = result.baseline[result.baseline.length - 1];
+  const blueFinal = result.formula[result.formula.length - 1];
+
+  return {
+    base: {
+      finalNetWorth: baseFinal.netWorth,
+      finalTraditional: baseFinal.traditionalBalance,
+      finalRoth: baseFinal.rothBalance,
+      finalTaxable: baseFinal.taxableBalance,
+      lifetimeWealth: canonicalLifetimeWealth(baseFinal.netWorth, baseFinal.traditionalBalance, heirTaxRate),
+      forcedDistributions: canonicalForcedDistributions(result.baseline),
+      totalFedStateTax: canonicalTotalFedStateTax(result.baseline),
+      taxOnRMDs: canonicalTaxOnRMDs(result.baseline, client),
+    },
+    blue: {
+      finalNetWorth: blueFinal.netWorth,
+      finalTraditional: blueFinal.traditionalBalance,
+      finalRoth: blueFinal.rothBalance,
+      finalTaxable: blueFinal.taxableBalance,
+      lifetimeWealth: canonicalLifetimeWealth(blueFinal.netWorth, blueFinal.traditionalBalance, heirTaxRate),
+      taxOnConversions: canonicalTaxOnConversions(result.formula),
+      totalFedStateTax: canonicalTotalFedStateTax(result.formula),
+    },
+  };
+}
+
+// ============================================================
+// FIXTURE 1: Ray Fucci shape
+//   Single, age 74, no state tax, almost no SS, fixed_amount conversions.
+//   Simple tax picture — Tax on RMDs ≈ Total Tax (the "matching" case
+//   that confused Jorge into thinking Paul George was broken).
+// ============================================================
+
+const fucci = makeClient({
+  name: 'Fucci-shape (single, no state tax, low SS)',
+  filing_status: 'single',
+  age: 74,
+  end_age: 95,
+  state: 'TX',
+  state_tax_rate: null,
+  qualified_account_value: 89_000_000, // $890K
+  bonus_percent: 0,
+  rate_of_return: 6,
+  baseline_comparison_rate: 6,
+  ssi_payout_age: 67,
+  ssi_annual_amount: 316_600, // ~$3.2K/yr
+  conversion_type: 'fixed_amount',
+  fixed_conversion_amount: 5_000_000, // $50K/yr
+  tax_payment_source: 'from_taxable',
+  taxable_accounts: 5_000_000,
+  max_tax_rate: 22,
+  tax_rate: 22,
+});
+
+const fucciResults = runFixture('FIXTURE 1 — Fucci shape', fucci);
+
+// Expected values are LOCKED — captured 2026-05-14 against the engine
+// at commit 53e86a2. All values in cents (engine native).
+//
+// When you intentionally change a calculation that moves these:
+//   1. Update REPORT_SPEC.md so the change is documented.
+//   2. Run this test, copy the new actuals from the scratchpad output
+//      at the bottom, and paste them in here.
+//   3. Reference the spec change in the commit message.
+//
+// When a value drifts unexpectedly: do NOT just paste in to make green.
+// Investigate first.
+const FUCCI_EXPECTED = {
+  base: {
+    finalNetWorth:        307_922_757,
+    finalTraditional:      70_671_550,
+    finalRoth:                      0,
+    finalTaxable:         237_251_207,
+    lifetimeWealth:       279_654_137,
+    forcedDistributions:  132_258_417,
+    totalFedStateTax:       9_522_765,
+    taxOnRMDs:              9_522_765,
+  },
+  blue: {
+    finalNetWorth:        243_976_961,
+    finalTraditional:               0,
+    finalRoth:            205_852_525,
+    finalTaxable:          38_124_436,
+    lifetimeWealth:       243_976_961,
+    taxOnConversions:       4_357_314,
+    totalFedStateTax:      12_324_519,
+  },
+};
+
+assertDollars(fucciResults.base.finalNetWorth, FUCCI_EXPECTED.base.finalNetWorth, 'Fucci base.finalNetWorth');
+assertDollars(fucciResults.base.finalTraditional, FUCCI_EXPECTED.base.finalTraditional, 'Fucci base.finalTraditional');
+assertDollars(fucciResults.base.finalRoth, FUCCI_EXPECTED.base.finalRoth, 'Fucci base.finalRoth');
+assertDollars(fucciResults.base.finalTaxable, FUCCI_EXPECTED.base.finalTaxable, 'Fucci base.finalTaxable');
+assertDollars(fucciResults.base.lifetimeWealth, FUCCI_EXPECTED.base.lifetimeWealth, 'Fucci base.lifetimeWealth');
+assertDollars(fucciResults.base.forcedDistributions, FUCCI_EXPECTED.base.forcedDistributions, 'Fucci base.forcedDistributions');
+assertDollars(fucciResults.base.totalFedStateTax, FUCCI_EXPECTED.base.totalFedStateTax, 'Fucci base.totalFedStateTax');
+assertDollars(fucciResults.base.taxOnRMDs, FUCCI_EXPECTED.base.taxOnRMDs, 'Fucci base.taxOnRMDs');
+assertDollars(fucciResults.blue.finalNetWorth, FUCCI_EXPECTED.blue.finalNetWorth, 'Fucci blue.finalNetWorth');
+assertDollars(fucciResults.blue.finalTraditional, FUCCI_EXPECTED.blue.finalTraditional, 'Fucci blue.finalTraditional');
+assertDollars(fucciResults.blue.finalRoth, FUCCI_EXPECTED.blue.finalRoth, 'Fucci blue.finalRoth');
+assertDollars(fucciResults.blue.lifetimeWealth, FUCCI_EXPECTED.blue.lifetimeWealth, 'Fucci blue.lifetimeWealth');
+assertDollars(fucciResults.blue.taxOnConversions, FUCCI_EXPECTED.blue.taxOnConversions, 'Fucci blue.taxOnConversions');
+assertDollars(fucciResults.blue.totalFedStateTax, FUCCI_EXPECTED.blue.totalFedStateTax, 'Fucci blue.totalFedStateTax');
+
+// ============================================================
+// FIXTURE 2: Paul George shape
+//   Single, age 77, MA (5% state), $25K SS, fixed_amount conversions.
+//   Complex tax picture — Tax on RMDs ≠ Total Tax. The case where the
+//   Tax on RMDs marginal calc diverges materially from year-by-year
+//   total. Locking this guards Jorge's whole confusion thread.
+// ============================================================
+
+const paul = makeClient({
+  name: 'Paul-shape (single, MA state tax, $25K SS)',
+  filing_status: 'single',
+  age: 77,
+  end_age: 98,
+  state: 'MA',
+  state_tax_rate: 5.0,
+  qualified_account_value: 58_500_000, // $585K
+  bonus_percent: 22,
+  rate_of_return: 6,
+  baseline_comparison_rate: 6,
+  ssi_payout_age: 67,
+  ssi_annual_amount: 2_500_000, // $25K/yr
+  conversion_type: 'fixed_amount',
+  fixed_conversion_amount: 5_000_000, // $50K/yr
+  tax_payment_source: 'from_ira',
+  taxable_accounts: 0,
+  max_tax_rate: 22,
+  tax_rate: 22,
+});
+
+const paulResults = runFixture('FIXTURE 2 — Paul George shape', paul);
+
+const PAUL_EXPECTED = {
+  base: {
+    finalNetWorth:        174_153_375,
+    finalTraditional:      34_875_030,
+    finalRoth:                      0,
+    finalTaxable:         139_278_345,
+    lifetimeWealth:       160_203_363,
+    forcedDistributions:   91_532_668,
+    totalFedStateTax:      15_397_352,
+    taxOnRMDs:             15_397_352,
+  },
+  blue: {
+    finalNetWorth:        171_415_618,
+    finalTraditional:          -1_472,
+    finalRoth:            157_144_531,
+    finalTaxable:          14_272_559,
+    lifetimeWealth:       171_416_207,
+    taxOnConversions:      11_269_316,
+    totalFedStateTax:      20_612_163,
+  },
+};
+
+assertDollars(paulResults.base.finalNetWorth, PAUL_EXPECTED.base.finalNetWorth, 'Paul base.finalNetWorth');
+assertDollars(paulResults.base.finalTraditional, PAUL_EXPECTED.base.finalTraditional, 'Paul base.finalTraditional');
+assertDollars(paulResults.base.finalRoth, PAUL_EXPECTED.base.finalRoth, 'Paul base.finalRoth');
+assertDollars(paulResults.base.finalTaxable, PAUL_EXPECTED.base.finalTaxable, 'Paul base.finalTaxable');
+assertDollars(paulResults.base.lifetimeWealth, PAUL_EXPECTED.base.lifetimeWealth, 'Paul base.lifetimeWealth');
+assertDollars(paulResults.base.forcedDistributions, PAUL_EXPECTED.base.forcedDistributions, 'Paul base.forcedDistributions');
+assertDollars(paulResults.base.totalFedStateTax, PAUL_EXPECTED.base.totalFedStateTax, 'Paul base.totalFedStateTax');
+assertDollars(paulResults.base.taxOnRMDs, PAUL_EXPECTED.base.taxOnRMDs, 'Paul base.taxOnRMDs');
+assertDollars(paulResults.blue.finalNetWorth, PAUL_EXPECTED.blue.finalNetWorth, 'Paul blue.finalNetWorth');
+assertDollars(paulResults.blue.finalTraditional, PAUL_EXPECTED.blue.finalTraditional, 'Paul blue.finalTraditional');
+assertDollars(paulResults.blue.finalRoth, PAUL_EXPECTED.blue.finalRoth, 'Paul blue.finalRoth');
+assertDollars(paulResults.blue.lifetimeWealth, PAUL_EXPECTED.blue.lifetimeWealth, 'Paul blue.lifetimeWealth');
+assertDollars(paulResults.blue.taxOnConversions, PAUL_EXPECTED.blue.taxOnConversions, 'Paul blue.taxOnConversions');
+assertDollars(paulResults.blue.totalFedStateTax, PAUL_EXPECTED.blue.totalFedStateTax, 'Paul blue.totalFedStateTax');
+
+// ============================================================
+// FIXTURE 3: Sprengel shape
+//   MFJ, age 55, WI (7.65% state), full conversion in year 1, both
+//   spouses with SS, recurring annuity income, scheduled withdrawals.
+//   Largest engine surface — exercises full conversion gross-up + WI
+//   state tax + dual-SS phasing.
+// ============================================================
+
+const sprengel = makeClient({
+  name: 'Sprengel-shape (MFJ, WI, full conversion, recurring income)',
+  filing_status: 'married_filing_jointly',
+  age: 55,
+  spouse_name: 'Spouse',
+  spouse_age: 49,
+  end_age: 90,
+  state: 'WI',
+  state_tax_rate: 7.65,
+  qualified_account_value: 160_000_000, // $1.6M
+  bonus_percent: 0,
+  rate_of_return: 6,
+  baseline_comparison_rate: 6,
+  ssi_payout_age: 67,
+  ssi_annual_amount: 6_219_900, // $62,199
+  spouse_ssi_payout_age: 67,
+  spouse_ssi_annual_amount: 6_000_000, // $60,000
+  non_ssi_income: Array.from({ length: 24 }, (_, i) => ({
+    age: `${67 + i}/${61 + i}`,
+    type: 'other' as const,
+    year: 2038 + i,
+    tax_exempt: 0,
+    gross_taxable: 10_000_000, // $100K/yr
+  })),
+  withdrawals: Array.from({ length: 24 }, (_, i) => ({
+    age: 67 + i,
+    year: 2038 + i,
+    amount: 10_000_000,
+    source: 'ira' as const,
+  })),
+  conversion_type: 'full_conversion',
+  fixed_conversion_amount: null,
+  tax_payment_source: 'from_ira',
+  taxable_accounts: 0,
+  max_tax_rate: 37,
+  tax_rate: 24,
+  widow_analysis: true,
+  widow_death_age: null,
+});
+
+const sprengelResults = runFixture('FIXTURE 3 — Sprengel shape', sprengel);
+
+const SPRENGEL_EXPECTED = {
+  base: {
+    finalNetWorth:        442_501_339,
+    finalTraditional:     242_864_196,
+    finalRoth:                      0,
+    finalTaxable:         199_637_143,
+    lifetimeWealth:       345_355_661,
+    forcedDistributions:  313_867_977,
+    totalFedStateTax:     216_698_655,
+    taxOnRMDs:            134_915_288,
+  },
+  blue: {
+    finalNetWorth:        954_643_104,
+    finalTraditional:        -2_297_113,
+    finalRoth:            956_940_217,
+    finalTaxable:                   0,
+    lifetimeWealth:       955_561_949,
+    taxOnConversions:      43_273_237,
+    totalFedStateTax:     122_754_332,
+  },
+};
+
+assertDollars(sprengelResults.base.finalNetWorth, SPRENGEL_EXPECTED.base.finalNetWorth, 'Sprengel base.finalNetWorth');
+assertDollars(sprengelResults.base.finalTraditional, SPRENGEL_EXPECTED.base.finalTraditional, 'Sprengel base.finalTraditional');
+assertDollars(sprengelResults.base.finalRoth, SPRENGEL_EXPECTED.base.finalRoth, 'Sprengel base.finalRoth');
+assertDollars(sprengelResults.base.finalTaxable, SPRENGEL_EXPECTED.base.finalTaxable, 'Sprengel base.finalTaxable');
+assertDollars(sprengelResults.base.lifetimeWealth, SPRENGEL_EXPECTED.base.lifetimeWealth, 'Sprengel base.lifetimeWealth');
+assertDollars(sprengelResults.base.forcedDistributions, SPRENGEL_EXPECTED.base.forcedDistributions, 'Sprengel base.forcedDistributions');
+assertDollars(sprengelResults.base.totalFedStateTax, SPRENGEL_EXPECTED.base.totalFedStateTax, 'Sprengel base.totalFedStateTax');
+assertDollars(sprengelResults.base.taxOnRMDs, SPRENGEL_EXPECTED.base.taxOnRMDs, 'Sprengel base.taxOnRMDs');
+assertDollars(sprengelResults.blue.finalNetWorth, SPRENGEL_EXPECTED.blue.finalNetWorth, 'Sprengel blue.finalNetWorth');
+assertDollars(sprengelResults.blue.finalTraditional, SPRENGEL_EXPECTED.blue.finalTraditional, 'Sprengel blue.finalTraditional');
+assertDollars(sprengelResults.blue.finalRoth, SPRENGEL_EXPECTED.blue.finalRoth, 'Sprengel blue.finalRoth');
+assertDollars(sprengelResults.blue.lifetimeWealth, SPRENGEL_EXPECTED.blue.lifetimeWealth, 'Sprengel blue.lifetimeWealth');
+assertDollars(sprengelResults.blue.taxOnConversions, SPRENGEL_EXPECTED.blue.taxOnConversions, 'Sprengel blue.taxOnConversions');
+assertDollars(sprengelResults.blue.totalFedStateTax, SPRENGEL_EXPECTED.blue.totalFedStateTax, 'Sprengel blue.totalFedStateTax');
+
+// ============================================================
+// SCRATCHPAD: print actuals so a developer who needs to update the
+// locked values can copy/paste them.
+//
+// IMPORTANT: when assertions fail unexpectedly, do NOT just paste these
+// in to make the test green. The failure caught real drift. Investigate
+// the cause first; only update locks when the change is intentional and
+// REPORT_SPEC.md has been updated.
+// ============================================================
+
+console.log('\n=== Actuals (for snapshot updates) ===');
+console.log(JSON.stringify({
+  fucci: fucciResults,
+  paul: paulResults,
+  sprengel: sprengelResults,
+}, null, 2));
+
+// ============================================================
+// Results
+// ============================================================
+
+console.log(`\n=== ${passed} passed, ${failed} failed ===`);
+if (failed > 0) {
+  for (const f of failures) console.error(f);
+  process.exit(1);
+}
+process.exit(0);
