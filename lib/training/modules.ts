@@ -50,7 +50,7 @@ export const THEORY_MODULES: TheoryModule[] = [
     learningGoal:
       'Conversions stack on top of existing income and fill brackets one at a time — the marginal rate is what each additional dollar costs, the effective rate is what the whole stack averages out to.',
     estimatedMinutes: 6,
-    status: 'stub',
+    status: 'ready',
   },
   {
     slug: 'gross-up',

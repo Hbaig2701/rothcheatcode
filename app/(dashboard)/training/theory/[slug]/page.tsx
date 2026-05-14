@@ -5,12 +5,14 @@ import { ArrowLeft, ArrowRight, Clock, BookOpen } from 'lucide-react'
 import { getModule, getNextModule, getPrevModule } from '@/lib/training/modules'
 import { CAST_BLURB } from '@/lib/training/cast'
 import { WhatIsARothConversionBody } from '@/components/training/modules/what-is-a-roth-conversion'
+import { MarginalVsEffectiveTaxBody } from '@/components/training/modules/marginal-vs-effective-tax'
 
 // Map of module slug → body component. Add an entry here as each module's
 // content lands; the registry's `status: 'ready'` flag controls whether
 // the curriculum index shows the module as unlockable.
 const MODULE_BODIES: Record<string, React.ComponentType> = {
   'what-is-a-roth-conversion': WhatIsARothConversionBody,
+  'marginal-vs-effective-tax': MarginalVsEffectiveTaxBody,
 }
 
 export default async function TheoryModulePage({
