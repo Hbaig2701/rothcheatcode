@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { MarkdownBody } from '@/components/support/markdown-body'
+import { usePasteAsMarkdown } from '@/components/support/use-paste-as-markdown'
 import { LocalTime } from '@/components/support/local-time'
 import {
   ALLOWED_ATTACHMENT_MIME_TYPES,
@@ -51,12 +52,14 @@ export function CommentThread({
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [body, setBody] = useState('')
+  const onComposePaste = usePasteAsMarkdown(setBody)
   const [isInternal, setIsInternal] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editBody, setEditBody] = useState('')
+  const onEditPaste = usePasteAsMarkdown(setEditBody)
   const [editSaving, setEditSaving] = useState(false)
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(null)
@@ -275,6 +278,7 @@ export function CommentThread({
                     <Textarea
                       value={editBody}
                       onChange={(e) => setEditBody(e.target.value)}
+                      onPaste={onEditPaste}
                       rows={3}
                       maxLength={5000}
                     />
@@ -371,6 +375,7 @@ export function CommentThread({
         <Textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
+          onPaste={onComposePaste}
           placeholder={canPostInternal ? 'Write a reply…' : 'Add a follow-up or extra info…'}
           rows={3}
           maxLength={5000}
