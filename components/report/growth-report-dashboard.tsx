@@ -331,13 +331,33 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
       limit: number; excess: number; chargePercent: number; estimatedCharge: number;
     }>;
 
-  // Determine target tax bracket from conversions
+  // Display the actual top marginal bracket the conversion years reached.
+  // Previously this returned client.tax_rate, which is the CURRENT (pre-
+  // conversion) bracket and bears no relation to where the conversion
+  // actually lands the client. For a full_conversion the engine fills
+  // brackets all the way up to whatever the gross-up requires — saying
+  // "Stay in the 24% bracket" when the client is actually hitting 37% is
+  // misleading. (Scott Kenik ticket 5adba41e.)
   const getTargetBracket = () => {
     if (conversionYears.length === 0) return "N/A";
-    // Use the constraint type to determine bracket
+    const maxReached = conversionYears.reduce(
+      (acc, y) => Math.max(acc, y.federalTaxBracket ?? 0),
+      0
+    );
+    if (maxReached > 0) return `${maxReached}%`;
+    // Fall back to the configured ceiling if the engine didn't surface a
+    // marginal bracket on any conversion year (older projections).
     const rate = client.tax_rate || client.max_tax_rate || 24;
     return `${rate}%`;
   };
+
+  // Word the surrounding sentence to match the actual strategy. A "Stay in
+  // X%" framing fits a bracket-ceiling / optimized strategy where the
+  // engine deliberately caps fill; for a full_conversion, the rate is the
+  // top bracket that got hit, not a ceiling the strategy stayed under.
+  const targetBracketPrefix = client.conversion_type === 'full_conversion'
+    ? 'Reaches the'
+    : 'Stay in the';
 
   return (
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
@@ -373,7 +393,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             {blueConversions > 0 ? (
               <>
                 <p className="text-base text-text-muted">
-                  Convert {toUSD(blueConversions)} over {conversionYears.length} years · Stay in the {getTargetBracket()} bracket
+                  Convert {toUSD(blueConversions)} over {conversionYears.length} years · {targetBracketPrefix} {getTargetBracket()} bracket
                 </p>
                 <p className="text-sm text-text-dim mt-1">
                   Projected final Roth balance: {toUSD(blueFinalRoth)} (tax-free)

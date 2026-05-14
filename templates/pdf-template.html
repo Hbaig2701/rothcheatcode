@@ -381,6 +381,12 @@
           <span class="metric-label">Age</span>
           <span class="metric-value">{{clientAge}}</span>
         </div>
+        {{#if showSpouse}}
+        <div class="metric-row">
+          <span class="metric-label">Spouse Age</span>
+          <span class="metric-value">{{spouseAge}}</span>
+        </div>
+        {{/if}}
         <div class="metric-row">
           <span class="metric-label">Filing Status</span>
           <span class="metric-value">{{filingStatus}}</span>

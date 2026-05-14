@@ -250,6 +250,9 @@ interface RMDAvoidanceRow {
 interface TemplateData {
   clientName: string;
   clientAge: number;
+  spouseName: string | null;
+  spouseAge: number | null;
+  showSpouse: boolean;
   filingStatus: string;
   initialDeposit: string;
   bonusRate: number;
@@ -977,9 +980,21 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const baselineNetOutOfPocketTax = baseRMDTaxOnly;
   const strategyNetOutOfPocketTax = blueConversionTaxOnly - premiumBonusDollars;
 
+  // Spouse info for the Client Data block. The PDF previously showed only
+  // the primary client's age, which omitted the spouse's age entirely on
+  // MFJ reports - flagged by Scott Kenik (ticket 5adba41e). When the
+  // filing status is married (MFJ or MFS) and a spouse is on file, the
+  // template renders an additional Spouse Age row.
+  const isMarried = client.filing_status === 'married_filing_jointly'
+    || client.filing_status === 'married_filing_separately';
+  const showSpouse = isMarried && (client.spouse_age != null || (client.spouse_name ?? '').trim() !== '');
+
   return {
     clientName: buildDisplayName(client),
     clientAge: client.age,
+    spouseName: client.spouse_name ?? null,
+    spouseAge: client.spouse_age ?? null,
+    showSpouse,
     filingStatus: filingStatusMap[client.filing_status] || client.filing_status,
     initialDeposit: formatCurrency(client.qualified_account_value),
     bonusRate: client.bonus_percent ?? 10,

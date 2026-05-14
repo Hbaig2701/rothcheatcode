@@ -6,7 +6,6 @@ import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData, transformToGIChartData } from "@/lib/calculations/transforms";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import type { Client } from "@/lib/types/client";
-import type { YearlyResult } from "@/lib/calculations";
 import { ArrowLeft, Pencil, X } from "lucide-react";
 import { useAnnotation } from "@/hooks/use-annotation";
 import { AnnotationCanvas } from "@/components/report/annotation-canvas";
@@ -43,9 +42,6 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
   const chartBreakEvenAge = chartData.find(d => d.formula > d.baseline)?.age ?? null;
 
   // Helper methods
-  const sum = (years: YearlyResult[], key: keyof YearlyResult) =>
-    years.reduce((acc, curr) => acc + (Number(curr[key]) || 0), 0);
-
   const toUSD = (amount: number) =>
     new Intl.NumberFormat("en-US", {
       style: "currency",
@@ -53,46 +49,40 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
       maximumFractionDigits: 0,
     }).format(amount / 100);
 
-  // Calculate Lifetime Wealth for Growth strategy
-  // Net legacy (after heir taxes) minus conversion taxes minus IRMAA
+  // Lifetime Wealth = final net worth − heir tax on remaining traditional.
+  // MUST mirror the main report dashboard formula (growth-report-dashboard.tsx
+  // computes blueLifetimeWealth = blueprint_final_net_worth − blueHeirTax).
+  // The previous version of this file subtracted lifetime federal/state tax
+  // and IRMAA on top of the net legacy — but the engine ALREADY reduces
+  // account balances by those costs as they're paid each year. Subtracting
+  // them again double-counted, producing a smaller "Net Improvement" on the
+  // Present view than the main dashboard. (Scott Kenik ticket 5adba41e —
+  // Sprengel showed +$5,273,388 on main vs +$4,627,552 on present.)
+  // For Growth: net legacy is the answer. For GI: the same legacy + the
+  // total net guaranteed income paid out across the projection.
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
-  const calculateFormulaLifetimeWealth = (years: YearlyResult[]) => {
-    const totalTaxes = sum(years, "federalTax") + sum(years, "stateTax");
-    const totalIRMAA = sum(years, "irmaaSurcharge");
-    const netLegacy = Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) + projection.blueprint_final_roth;
-    return netLegacy - totalTaxes - totalIRMAA;
-  };
 
-  const calculateGIFormulaLifetimeWealthTotal = () => {
-    const giYearlyData = projection.gi_yearly_data || [];
-    let conversionTaxes = 0;
-    projection.blueprint_years.forEach((year, i) => {
-      const giYear = giYearlyData[i];
-      if (giYear && giYear.phase === "deferral") {
-        conversionTaxes += (year.federalTax + year.stateTax) || 0;
-      }
-    });
-    const totalIRMAA = sum(projection.blueprint_years, "irmaaSurcharge");
-    const netLegacy =
-      Math.round(projection.blueprint_final_traditional * (1 - heirTaxRate)) +
-      projection.blueprint_final_roth;
-    const giTotalNet = projection.gi_total_net_paid ?? 0;
-    return giTotalNet + netLegacy - conversionTaxes - totalIRMAA;
-  };
-
-  // Lifetime Wealth = net legacy on both sides (apples-to-apples).
-  const calculateBaselineLifetimeWealth = (_years: YearlyResult[], finalNetWorth: number) => {
+  const calculateBaselineLifetimeWealth = (finalNetWorth: number) => {
     const baseHeirTax = Math.round(projection.baseline_final_traditional * heirTaxRate);
     return finalNetWorth - baseHeirTax;
   };
 
-  const baseLifetime = calculateBaselineLifetimeWealth(
-    projection.baseline_years,
-    projection.baseline_final_net_worth
-  );
+  const calculateFormulaLifetimeWealth = () => {
+    const blueHeirTax = Math.round(projection.blueprint_final_traditional * heirTaxRate);
+    return projection.blueprint_final_net_worth - blueHeirTax;
+  };
+
+  const calculateGIFormulaLifetimeWealthTotal = () => {
+    const blueHeirTax = Math.round(projection.blueprint_final_traditional * heirTaxRate);
+    const netLegacy = projection.blueprint_final_net_worth - blueHeirTax;
+    const giTotalNet = projection.gi_total_net_paid ?? 0;
+    return giTotalNet + netLegacy;
+  };
+
+  const baseLifetime = calculateBaselineLifetimeWealth(projection.baseline_final_net_worth);
   const blueLifetime = isGI
     ? calculateGIFormulaLifetimeWealthTotal()
-    : calculateFormulaLifetimeWealth(projection.blueprint_years);
+    : calculateFormulaLifetimeWealth();
 
   const diff = blueLifetime - baseLifetime;
   const percentChange = baseLifetime !== 0 ? diff / Math.abs(baseLifetime) : 0;
