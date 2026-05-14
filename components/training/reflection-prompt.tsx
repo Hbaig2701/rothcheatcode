@@ -5,10 +5,17 @@
  * is to give the advisor a moment to articulate the concept in their own
  * words (or a script they could use with a client). The textarea is
  * client-only so they can think out loud without it being persisted.
+ *
+ * As soon as the user types something, the parent module is marked
+ * complete in localStorage (used to surface "Complete" badges on the
+ * curriculum index). The marker fires once per session and is debounced
+ * so a few keystrokes don't churn writes.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Lightbulb } from 'lucide-react';
+import { markComplete } from '@/lib/training/progress';
+import { useModuleSlug } from './module-slug-context';
 
 interface ReflectionPromptProps {
   question: string;
@@ -16,6 +23,15 @@ interface ReflectionPromptProps {
 
 export function ReflectionPrompt({ question }: ReflectionPromptProps) {
   const [value, setValue] = useState('');
+  const slug = useModuleSlug();
+
+  useEffect(() => {
+    if (!slug) return;
+    if (value.trim().length === 0) return;
+    // First substantive keystroke marks the module complete.
+    const t = setTimeout(() => markComplete(slug), 400);
+    return () => clearTimeout(t);
+  }, [value, slug]);
 
   return (
     <div className="rounded-[14px] bg-bg-card border border-border-default p-6">

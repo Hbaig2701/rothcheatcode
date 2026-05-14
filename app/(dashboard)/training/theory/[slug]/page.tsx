@@ -12,6 +12,8 @@ import { IrmaaBody } from '@/components/training/modules/irmaa'
 import { WidowPenaltyBody } from '@/components/training/modules/widow-penalty'
 import { AnnuitiesAndConversionsBody } from '@/components/training/modules/annuities-and-conversions'
 import { ReadingAReportBody } from '@/components/training/modules/reading-a-report'
+import { ModuleSlugProvider } from '@/components/training/module-slug-context'
+import { MarkViewed } from '@/components/training/mark-viewed'
 
 // Map of module slug → body component. Add an entry here as each module's
 // content lands; the registry's `status: 'ready'` flag controls whether
@@ -86,7 +88,12 @@ export default async function TheoryModulePage({
       {mod.status === 'ready' && MODULE_BODIES[slug]
         ? (() => {
             const Body = MODULE_BODIES[slug]
-            return <Body />
+            return (
+              <ModuleSlugProvider slug={slug}>
+                <MarkViewed slug={slug} />
+                <Body />
+              </ModuleSlugProvider>
+            )
           })()
         : null}
 

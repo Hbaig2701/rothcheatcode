@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { BookOpen, ArrowLeft, ArrowRight, Clock, Lock } from 'lucide-react'
 import { THEORY_MODULES } from '@/lib/training/modules'
 import { CAST_BLURB } from '@/lib/training/cast'
+import { ProgressSummary } from '@/components/training/progress-summary'
+import { ModuleStatusBadge } from '@/components/training/module-status-badge'
 
 export default async function TheoryIndexPage() {
   const supabase = await createClient()
@@ -46,6 +48,10 @@ export default async function TheoryIndexPage() {
             from the same calculation engine that runs your real client projections.
           </p>
         </div>
+
+        <div className="mt-4">
+          <ProgressSummary allSlugs={THEORY_MODULES.map((m) => m.slug)} />
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -68,7 +74,7 @@ export default async function TheoryIndexPage() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="text-base font-semibold text-foreground">{m.title}</h3>
                     {!isReady && (
                       <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider font-semibold text-text-dimmer">
@@ -76,6 +82,7 @@ export default async function TheoryIndexPage() {
                         Coming soon
                       </span>
                     )}
+                    {isReady && <ModuleStatusBadge slug={m.slug} />}
                   </div>
                   <p className="text-sm text-text-dim leading-relaxed mb-3">{m.tagline}</p>
                   <div className="flex items-center gap-4 text-xs text-text-dimmer">
