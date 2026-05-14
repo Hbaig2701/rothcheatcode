@@ -14,7 +14,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { simulate, type TrainingSimResult } from '@/lib/training/simulate';
+import { simulate } from '@/lib/training/simulate-action';
+import type { TrainingSimResult } from '@/lib/training/simulate';
 
 interface GrossUpPlaygroundProps {
   initialOutside: TrainingSimResult;

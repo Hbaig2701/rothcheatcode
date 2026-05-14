@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { simulate, type TrainingSimResult } from '@/lib/training/simulate';
+import type { TrainingSimResult } from '@/lib/training/simulate';
 
 interface WidowPenaltyPlaygroundProps {
   initialMfj: TrainingSimResult;

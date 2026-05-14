@@ -29,7 +29,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { simulate, type TrainingSimResult } from '@/lib/training/simulate';
+import { simulate } from '@/lib/training/simulate-action';
+import type { TrainingSimResult } from '@/lib/training/simulate';
 
 interface RmdPlaygroundProps {
   initial: TrainingSimResult;
