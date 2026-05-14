@@ -11,6 +11,7 @@ import { RmdsBody } from '@/components/training/modules/rmds'
 import { IrmaaBody } from '@/components/training/modules/irmaa'
 import { WidowPenaltyBody } from '@/components/training/modules/widow-penalty'
 import { AnnuitiesAndConversionsBody } from '@/components/training/modules/annuities-and-conversions'
+import { ReadingAReportBody } from '@/components/training/modules/reading-a-report'
 
 // Map of module slug → body component. Add an entry here as each module's
 // content lands; the registry's `status: 'ready'` flag controls whether
@@ -23,6 +24,7 @@ const MODULE_BODIES: Record<string, React.ComponentType> = {
   'irmaa': IrmaaBody,
   'widow-penalty': WidowPenaltyBody,
   'annuities-and-conversions': AnnuitiesAndConversionsBody,
+  'reading-a-report': ReadingAReportBody,
 }
 
 export default async function TheoryModulePage({

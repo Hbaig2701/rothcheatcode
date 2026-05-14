@@ -116,7 +116,7 @@ export const THEORY_MODULES: TheoryModule[] = [
     learningGoal:
       'I can take a finished Retirement Expert report and explain every chart, every summary number, and every key column to a client without hesitation.',
     estimatedMinutes: 10,
-    status: 'stub',
+    status: 'ready',
   },
 ];
 
