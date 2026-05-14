@@ -144,12 +144,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       })
 
       // In-app bell for every admin so the support centre surfaces new replies
-      // without requiring a Slack check. Uses the admin client (same pattern as
-      // the advisor-side notification above) so RLS doesn't block writes to
-      // other users' notification rows.
-      // Run in parallel — sequential awaits added ~80ms × adminCount to the
-      // advisor's POST latency, which gets noticeable above 5–6 admins.
-      const { data: adminProfiles } = await supabase
+      // without requiring a Slack check. MUST use the admin client for the
+      // profile lookup — the previous version used the request's RLS-scoped
+      // client, which (when the request comes from an advisor) returns no
+      // other-user profiles, so the admin list came back empty and zero
+      // notifications were created. createNotification itself already uses
+      // the admin client to insert; the lookup is what was broken.
+      // Link URL points at the admin-side route (/support/${id}), not the
+      // advisor-facing /support-centre route.
+      const adminClient = createAdminClient()
+      const { data: adminProfiles } = await adminClient
         .from('profiles')
         .select('id')
         .eq('role', 'admin')
@@ -160,7 +164,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             type: 'support_ticket_reply',
             title: `${authorName} replied`,
             body: `Re: ${ticketRes.data!.subject}`,
-            link_url: `/support-centre/${id}`,
+            link_url: `/support/${id}`,
             related_id: id,
           })
         )

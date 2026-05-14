@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { ChevronLeft, LifeBuoy, Calendar, User as UserIcon, Folder } from 'lucide-react'
 import { StatusBadge, SeverityBadge } from '@/components/support/status-badge'
 import { CommentThread } from '@/components/support/comment-thread'
@@ -77,9 +78,15 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
       // the ticket page from rendering.
       void (async () => {
         try {
+          // The admins lookup MUST go through the admin client. This code
+          // path runs from the advisor's session (ticket owner viewing own
+          // ticket), so RLS would block the regular client from seeing
+          // other users' profiles - returning an empty admin list and
+          // silently dropping every fan-out notification.
+          const adminClient = createAdminClient()
           const [settingsRes, adminsRes] = await Promise.all([
             supabase.from('user_settings').select('first_name, last_name').eq('user_id', user.id).maybeSingle(),
-            supabase.from('profiles').select('id').eq('role', 'admin'),
+            adminClient.from('profiles').select('id').eq('role', 'admin'),
           ])
           const namePart = [settingsRes.data?.first_name, settingsRes.data?.last_name]
             .filter(Boolean)
@@ -94,7 +101,9 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
                 type: 'support_ticket_viewed',
                 title: `${advisorName} opened their ticket`,
                 body: `Re: ${ticket.subject}`,
-                link_url: `/support-centre/${id}`,
+                // Admin clicks the bell -> lands on the admin-side route,
+                // not the advisor-facing /support-centre/${id}.
+                link_url: `/support/${id}`,
                 related_id: id,
               })
             )
