@@ -987,7 +987,10 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   // template renders an additional Spouse Age row.
   const isMarried = client.filing_status === 'married_filing_jointly'
     || client.filing_status === 'married_filing_separately';
-  const showSpouse = isMarried && (client.spouse_age != null || (client.spouse_name ?? '').trim() !== '');
+  // Only render the Spouse Age row when we actually have an age. If only a
+  // spouse name is on file the row would render with an empty value, which
+  // looks like a broken field.
+  const showSpouse = isMarried && client.spouse_age != null;
 
   return {
     clientName: buildDisplayName(client),

@@ -73,10 +73,15 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
   };
 
   const calculateGIFormulaLifetimeWealthTotal = () => {
+    // Mirror gi-report-dashboard.tsx exactly: net legacy is the answer,
+    // and final_net_worth already includes the taxable bucket where any
+    // accumulated GI income lives. Adding gi_total_net_paid on top would
+    // double-count those dollars. (The pre-fix formula here added them
+    // separately, but it ALSO used a netLegacy that excluded taxable —
+    // so the add was canceling the omission. Now that we use the proper
+    // final_net_worth, the add is no longer needed.)
     const blueHeirTax = Math.round(projection.blueprint_final_traditional * heirTaxRate);
-    const netLegacy = projection.blueprint_final_net_worth - blueHeirTax;
-    const giTotalNet = projection.gi_total_net_paid ?? 0;
-    return giTotalNet + netLegacy;
+    return projection.blueprint_final_net_worth - blueHeirTax;
   };
 
   const baseLifetime = calculateBaselineLifetimeWealth(projection.baseline_final_net_worth);
