@@ -101,9 +101,11 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
                 type: 'support_ticket_viewed',
                 title: `${advisorName} opened their ticket`,
                 body: `Re: ${ticket.subject}`,
-                // Admin clicks the bell -> lands on the admin-side route,
-                // not the advisor-facing /support-centre/${id}.
-                link_url: `/support/${id}`,
+                // Admin clicks the bell → lands on the admin-facing
+                // /support-centre/[id] route (confusing name, but that's
+                // the admin view with status controls). /support/[id] is
+                // the advisor view.
+                link_url: `/support-centre/${id}`,
                 related_id: id,
               })
             )

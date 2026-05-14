@@ -150,8 +150,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       // other-user profiles, so the admin list came back empty and zero
       // notifications were created. createNotification itself already uses
       // the admin client to insert; the lookup is what was broken.
-      // Link URL points at the admin-side route (/support/${id}), not the
-      // advisor-facing /support-centre route.
+      // Link URL points at the admin-facing /support-centre/[id] route -
+      // confusingly named, but that's the admin view (with status controls
+      // and assignee dropdown). /support/[id] is the advisor view.
       const adminClient = createAdminClient()
       const { data: adminProfiles } = await adminClient
         .from('profiles')
@@ -164,7 +165,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
             type: 'support_ticket_reply',
             title: `${authorName} replied`,
             body: `Re: ${ticketRes.data!.subject}`,
-            link_url: `/support/${id}`,
+            link_url: `/support-centre/${id}`,
             related_id: id,
           })
         )
