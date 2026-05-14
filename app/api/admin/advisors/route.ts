@@ -7,6 +7,15 @@ import { PLAN_PRICES } from '@/lib/config/plans';
 // Test accounts to exclude from all metrics
 const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
 
+// Same-day refunds — accounts that signed up and were refunded the same
+// day. Their subscription_status in the DB is 'canceled' (Stripe canceled
+// the sub after the refund), but treating them as "churned" distorts the
+// churn metric and the admin's mental model of who actually left. We
+// override their reported subscriptionStatus to 'inactive' so they drop
+// out of the 'churned' advisor view, while staying visible in the 'all'
+// view. Revenue route excludes them from the churn-rate calculation too.
+const REFUNDED_SAME_DAY_EMAILS = ['derrick@derrickphelps.com'];
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient();
@@ -231,6 +240,7 @@ export async function GET(request: NextRequest) {
       const lastActivity = lastLogin ? new Date(lastLogin) : new Date(p.created_at);
       const isRecentlyActive = lastActivity > fourteenDaysAgo;
       const isDeactivated = p.is_active === false;
+      const isRefundedSameDay = REFUNDED_SAME_DAY_EMAILS.includes(p.email ?? '');
       const pricing = pricingMap.get(p.id) ?? null;
 
       return {
@@ -244,7 +254,9 @@ export async function GET(request: NextRequest) {
         sessionCount: sessionCounts.get(p.id) ?? 0,
         lastLogin,
         status: isDeactivated ? 'deactivated' as const : (isRecentlyActive ? 'active' as const : 'inactive' as const),
-        subscriptionStatus: p.subscription_status ?? 'active',
+        // Same-day refunds get their canceled status remapped to 'inactive'
+        // so they don't pollute the churn view.
+        subscriptionStatus: isRefundedSameDay ? 'inactive' : (p.subscription_status ?? 'active'),
         billingCycle: p.billing_cycle ?? null,
         currentPeriodEnd: pricing?.currentPeriodEnd
           ? new Date(pricing.currentPeriodEnd * 1000).toISOString()

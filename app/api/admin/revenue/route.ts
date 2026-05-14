@@ -7,6 +7,13 @@ import { PLAN_PRICES } from "@/lib/config/plans";
 // Test accounts to exclude from all metrics
 const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
 
+// Same-day refunds — these accounts signed up and were refunded on the
+// same day, so they never generated revenue and shouldn't drag down the
+// churn metric. They're still kept in the profile list (so the admin can
+// see they exist), but excluded from the canceled / churn-rate
+// calculations below. Add to this list when a similar case comes up.
+const REFUNDED_SAME_DAY_EMAILS = ['derrick@derrickphelps.com'];
+
 // In-memory cache so the admin dashboard doesn't trigger 30+ parallel Stripe
 // reads on every refresh. Stripe rate limits + transient network blips were
 // silently dropping subscribers from the MRR total, making the displayed
@@ -230,8 +237,15 @@ export async function GET(request: Request) {
     }
 
     const pastDue = profiles.filter(p => p.subscription_status === 'past_due').length;
-    const canceled = profiles.filter(p => p.subscription_status === 'canceled').length;
-    const churnRate = profiles.length > 0 ? (canceled / profiles.length) * 100 : 0;
+    // Exclude same-day refunds — they were never real customers, so counting
+    // them as churn would distort the metric.
+    const canceled = profiles.filter(p =>
+      p.subscription_status === 'canceled' && !REFUNDED_SAME_DAY_EMAILS.includes(p.email ?? '')
+    ).length;
+    const churnEligibleProfiles = profiles.filter(p =>
+      !REFUNDED_SAME_DAY_EMAILS.includes(p.email ?? '')
+    ).length;
+    const churnRate = churnEligibleProfiles > 0 ? (canceled / churnEligibleProfiles) * 100 : 0;
 
     const payload = {
       current: {
