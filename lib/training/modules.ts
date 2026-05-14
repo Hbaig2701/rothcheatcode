@@ -72,7 +72,7 @@ export const THEORY_MODULES: TheoryModule[] = [
     learningGoal:
       'Required Minimum Distributions force Traditional IRA money out at age 73+, and once they start, they stack on top of Social Security and pensions, which can push retirees into much higher brackets than they expected.',
     estimatedMinutes: 6,
-    status: 'stub',
+    status: 'ready',
   },
   {
     slug: 'irmaa',
