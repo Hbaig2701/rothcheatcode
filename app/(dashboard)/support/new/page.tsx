@@ -17,7 +17,7 @@ export default async function NewSupportTicketPage({ searchParams }: PageProps) 
   const clientId = params.client
 
   return (
-    <div className="p-10 max-w-3xl">
+    <div className="p-4 sm:p-6 md:p-10 max-w-3xl">
       <Link
         href="/support"
         className="inline-flex items-center gap-1 text-sm text-text-dim hover:text-foreground mb-6 transition-colors"

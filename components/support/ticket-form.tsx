@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Paperclip, X, AlertCircle, FileText } from 'lucide-react'
+import { Loader2, Paperclip, X, AlertCircle, FileText, Camera } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -246,6 +246,23 @@ export function TicketForm({ initialClientId, onSuccess, onCancel, compact = fal
               type="file"
               multiple
               accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+          </label>
+          {/* Mobile: capture="environment" tells the browser to open the
+              rear camera directly when the user taps the button, instead
+              of the usual file picker. Desktop browsers ignore the
+              attribute and fall through to the normal picker. Letting
+              advisors snap a screenshot of the report on their phone
+              and attach it without leaving the form. */}
+          <label className="inline-flex items-center gap-2 cursor-pointer rounded-md border border-border bg-white dark:bg-input/30 px-3 py-1.5 text-sm hover:bg-accent transition-colors">
+            <Camera className="size-4" />
+            <span>Take photo</span>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
               onChange={handleFileSelect}
               className="hidden"
             />

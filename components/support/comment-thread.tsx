@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, Lock, Send, Pencil, Trash2, X, Check, Paperclip, FileText, Image as ImageIcon, ExternalLink } from 'lucide-react'
+import { Loader2, Lock, Send, Pencil, Trash2, X, Check, Paperclip, FileText, Image as ImageIcon, ExternalLink, Camera } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
@@ -51,6 +51,7 @@ export function CommentThread({
 }: CommentThreadProps) {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement | null>(null)
   const [body, setBody] = useState('')
   const onComposePaste = usePasteAsMarkdown(setBody)
   const [isInternal, setIsInternal] = useState(false)
@@ -418,6 +419,18 @@ export function CommentThread({
               onChange={handlePickFiles}
               className="hidden"
             />
+            {/* capture="environment" hint opens the rear camera directly
+                on mobile browsers, so an advisor can snap a screenshot of
+                the report and attach it without leaving the thread.
+                Desktop browsers ignore the attribute. */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePickFiles}
+              className="hidden"
+            />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -426,6 +439,15 @@ export function CommentThread({
             >
               <Paperclip className="size-3.5" />
               Attach files
+            </button>
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              disabled={submitting || files.length >= MAX_ATTACHMENTS_PER_COMMENT}
+              className="inline-flex items-center gap-1.5 text-xs text-text-dim hover:text-foreground disabled:opacity-50 transition-colors"
+            >
+              <Camera className="size-3.5" />
+              Take photo
             </button>
             {canPostInternal && (
               <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
