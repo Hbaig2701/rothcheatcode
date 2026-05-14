@@ -1,5 +1,5 @@
 /**
- * Training simulator — wraps the production calculation engine so theory
+ * Training simulator - wraps the production calculation engine so theory
  * playgrounds can call it from client components via server actions.
  *
  * The same engine that runs real client projections runs the cast members
@@ -13,7 +13,7 @@
  * The async server action lives in `simulate-action.ts` (file-level
  * 'use server'). Client components import that one. Splitting them is
  * required because Next.js disallows inline 'use server' in any module
- * a Client Component imports from — and module body components import
+ * a Client Component imports from - and module body components import
  * the sync variant from this file.
  */
 
@@ -30,7 +30,7 @@ export type TrainingSimResult = {
 };
 
 /**
- * Internal helper — shared between the sync and async paths so both
+ * Internal helper - shared between the sync and async paths so both
  * surfaces produce identical results.
  */
 export function runOnce(castId: CastId, overrides: Partial<Client>): TrainingSimResult {

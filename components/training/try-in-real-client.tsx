@@ -8,7 +8,7 @@ interface TryInRealClientProps {
 }
 
 /**
- * "Try this in a real client" CTA — opens the new-client form pre-filled
+ * "Try this in a real client" CTA - opens the new-client form pre-filled
  * with the featured cast member's profile. The advisor reviews, tweaks,
  * and saves as a real client they own. This turns each theory module
  * into immediate practice in their actual workflow.
@@ -31,8 +31,8 @@ export function TryInRealClient({ cast }: TryInRealClientProps) {
             Open {c.name} in the new-client form
           </h3>
           <p className="text-sm text-text-dim leading-relaxed">
-            We&apos;ll pre-fill every field with {c.name}&apos;s profile. Adjust whatever you want —
-            spouse, balances, state — and save as a fresh client in your account. The same
+            We&apos;ll pre-fill every field with {c.name}&apos;s profile. Adjust whatever you want -
+            spouse, balances, state - and save as a fresh client in your account. The same
             calculations you just played with will run on your saved version.
           </p>
         </div>

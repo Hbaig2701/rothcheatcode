@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Soft reflection prompt at the end of each module. No scoring — the goal
+ * Soft reflection prompt at the end of each module. No scoring - the goal
  * is to give the advisor a moment to articulate the concept in their own
  * words (or a script they could use with a client). The textarea is
  * client-only so they can think out loud without it being persisted.
@@ -48,7 +48,7 @@ export function ReflectionPrompt({ question }: ReflectionPromptProps) {
         value={value}
         onChange={(e) => setValue(e.target.value)}
         rows={3}
-        placeholder="Type your one-sentence answer (just for you — nothing is saved or sent)…"
+        placeholder="Type your one-sentence answer (just for you - nothing is saved or sent)…"
         className="w-full rounded-[10px] border border-border-default bg-bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-text-dimmer focus:outline-none focus:border-gold-border transition-colors resize-none"
       />
     </div>

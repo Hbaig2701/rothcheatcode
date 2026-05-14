@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Module 3 playground — gross-up.
+ * Module 3 playground - gross-up.
  *
  * Two simulations side by side: pay conversion tax from outside the IRA
  * vs. pay it from inside the IRA. An age slider lets the advisor watch
@@ -73,7 +73,7 @@ export function GrossUpPlayground({ initialOutside, initialInside }: GrossUpPlay
   const oY = outside.strategy[0];
   const iY = inside.strategy[0];
 
-  const isUnder595 = age < 60; // engine treats integer ages — sub-60 = under 59½
+  const isUnder595 = age < 60; // engine treats integer ages - sub-60 = under 59½
   const penaltyActive = (iY.earlyWithdrawalPenalty ?? 0) > 0;
 
   return (
@@ -84,7 +84,7 @@ export function GrossUpPlayground({ initialOutside, initialInside }: GrossUpPlay
       </h3>
       <p className="text-sm text-text-dim mb-6">
         Bob converts a flat $50K. The only thing that changes is whether he pays the tax from cash
-        outside the IRA or pulls extra from the IRA itself — and how old he is when he does it.
+        outside the IRA or pulls extra from the IRA itself - and how old he is when he does it.
       </p>
 
       <div className="mb-6">
@@ -92,7 +92,7 @@ export function GrossUpPlayground({ initialOutside, initialInside }: GrossUpPlay
           <label htmlFor="age-slider-3" className="text-sm font-medium text-foreground">
             Bob&apos;s age this year
           </label>
-          <span className="text-lg font-display font-semibold text-gold tabular-nums">
+          <span className="text-lg font-semibold text-gold tabular-nums">
             {age} {isUnder595 && <span className="text-xs uppercase tracking-wider text-foreground/60 ml-1">under 59½</span>}
           </span>
         </div>
@@ -151,12 +151,12 @@ export function GrossUpPlayground({ initialOutside, initialInside }: GrossUpPlay
       <div className="mt-5 text-xs text-text-dimmer leading-relaxed space-y-2">
         <p>
           <strong className="text-foreground">Notice:</strong> when Bob pays from inside, the Roth
-          ends up with <em>less than the full $50K</em>. That&apos;s the gross-up — extra IRA
+          ends up with <em>less than the full $50K</em>. That&apos;s the gross-up - extra IRA
           dollars had to leave to cover the tax bill, and those extra dollars themselves got taxed.
         </p>
         {isUnder595 && (
           <p className="text-foreground">
-            At {age}, Bob is under 59½ — every IRA dollar pulled out to pay tax is hit with the 10%
+            At {age}, Bob is under 59½ - every IRA dollar pulled out to pay tax is hit with the 10%
             early-withdrawal penalty on top of the income tax. The conversion itself isn&apos;t
             penalized, but the withdrawal-to-pay-tax is.
           </p>
@@ -181,7 +181,7 @@ function Row({
     <div className="flex items-baseline justify-between gap-3">
       <span className={`text-sm ${muted ? 'text-text-dimmer' : 'text-text-dim'}`}>{label}</span>
       <span
-        className={`text-base font-display font-semibold tabular-nums ${
+        className={`text-base font-semibold tabular-nums ${
           muted ? 'text-text-dimmer' : highlight ? 'text-gold' : 'text-foreground'
         }`}
       >

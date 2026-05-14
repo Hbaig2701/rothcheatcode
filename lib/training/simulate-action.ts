@@ -3,7 +3,7 @@
 /**
  * Server Action wrapper for the training simulator. File-level 'use server'
  * (rather than inline) is required because client components import this
- * module — Next.js disallows inline 'use server' in any module a Client
+ * module - Next.js disallows inline 'use server' in any module a Client
  * Component depends on.
  *
  * The actual math lives in `simulate.ts` so server components can keep

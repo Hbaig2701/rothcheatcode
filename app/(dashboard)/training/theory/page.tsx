@@ -41,9 +41,9 @@ export default async function TheoryIndexPage() {
         <div className="rounded-[14px] bg-bg-card border border-border-default p-6 mt-6">
           <h2 className="text-sm font-semibold text-foreground mb-2">How this works</h2>
           <p className="text-sm text-text-dim leading-relaxed">
-            Each module follows one of three example clients — <strong className="text-foreground">Bob</strong>,{' '}
+            Each module follows one of three example clients - <strong className="text-foreground">Bob</strong>,{' '}
             <strong className="text-foreground">Mary &amp; George</strong>, or{' '}
-            <strong className="text-foreground">the Joneses</strong> — and ends with an interactive
+            <strong className="text-foreground">the Joneses</strong> - and ends with an interactive
             playground where you can change the inputs and watch the math respond. The numbers come
             from the same calculation engine that runs your real client projections.
           </p>
@@ -90,7 +90,7 @@ export default async function TheoryIndexPage() {
                       <Clock className="h-3 w-3" />
                       {m.estimatedMinutes} min
                     </span>
-                    <span>Featuring: {CAST_BLURB[m.cast].split(',')[0]}</span>
+                    <span>Featuring: {CAST_BLURB[m.cast].intro}</span>
                   </div>
                 </div>
 

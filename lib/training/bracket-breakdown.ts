@@ -15,8 +15,8 @@ import type { FilingStatus } from '@/lib/calculations/types';
 export interface BracketFill {
   rate: number; // 10, 12, 22, 24, 32, 35, 37
   lower: number; // cents
-  upper: number; // cents — Infinity for the top bracket
-  bracketWidth: number; // cents — upper - lower (or income amount for top bracket)
+  upper: number; // cents - Infinity for the top bracket
+  bracketWidth: number; // cents - upper - lower (or income amount for top bracket)
   incomeInBracket: number; // cents
   taxInBracket: number; // cents
 }
@@ -33,7 +33,7 @@ export function buildBracketFill(
   for (const b of brackets) {
     const isTop = b.upper === Infinity;
     // For the top bracket, give it a synthetic "width" equal to whatever's
-    // left so the bar can render — but only if anything reaches it. If
+    // left so the bar can render - but only if anything reaches it. If
     // nothing reaches the top bracket, give it a small representative
     // width so the empty outline is still visible to the eye.
     const baseWidth = isTop ? Math.max(remaining, 50_000_00) : b.upper - b.lower;

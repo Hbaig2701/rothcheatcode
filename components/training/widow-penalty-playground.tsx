@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * Module 6 playground — widow penalty.
+ * Module 6 playground - widow penalty.
  *
  * Two parallel simulations of Mary:
- *   - MFJ throughout (George never dies) — the counterfactual.
- *   - Single filer from year 1 (widow) — survivor SS only, single brackets.
+ *   - MFJ throughout (George never dies) - the counterfactual.
+ *   - Single filer from year 1 (widow) - survivor SS only, single brackets.
  *
  * Slider on Mary's age picks a year. Side-by-side comparison shows that
  * even though the widow has LESS total income (lost spouse SS), the tax
@@ -37,7 +37,7 @@ export function WidowPenaltyPlayground({ initialMfj, initialWidow }: WidowPenalt
   const [mfj] = useState(initialMfj);
   const [widow] = useState(initialWidow);
 
-  // The simulations themselves don't depend on the slider — only the year
+  // The simulations themselves don't depend on the slider - only the year
   // the advisor inspects does. That keeps interaction instant (no engine
   // call per slide) while still demonstrating the concept perfectly.
   const mfjYear = useMemo(() => mfj.baseline.find((y) => y.age === age), [mfj, age]);
@@ -63,9 +63,9 @@ export function WidowPenaltyPlayground({ initialMfj, initialWidow }: WidowPenalt
       <div className="mb-6">
         <div className="flex items-baseline justify-between mb-2">
           <label htmlFor="age-slider-6" className="text-sm font-medium text-foreground">
-            Inspect year — Mary&apos;s age
+            Inspect year - Mary&apos;s age
           </label>
-          <span className="text-lg font-display font-semibold text-gold tabular-nums">{age}</span>
+          <span className="text-lg font-semibold text-gold tabular-nums">{age}</span>
         </div>
         <input
           id="age-slider-6"
@@ -110,7 +110,7 @@ export function WidowPenaltyPlayground({ initialMfj, initialWidow }: WidowPenalt
 
       <div className="rounded-[10px] border border-gold-border bg-accent/40 p-5 text-center">
         <div className="text-xs uppercase tracking-wider text-gold mb-1">Widow penalty</div>
-        <div className="text-3xl font-display font-bold text-gold tabular-nums mb-1">
+        <div className="text-3xl font-bold text-gold tabular-nums mb-1">
           {widowPenalty >= 0 ? '+' : ''}{fmt(widowPenalty)}
         </div>
         <div className="text-xs text-text-dim">
@@ -144,7 +144,7 @@ function Row({
     <div className="flex items-baseline justify-between gap-3">
       <span className={`text-sm ${muted ? 'text-text-dimmer' : 'text-text-dim'}`}>{label}</span>
       <span
-        className={`text-base font-display font-semibold tabular-nums ${
+        className={`text-base font-semibold tabular-nums ${
           muted ? 'text-text-dimmer' : highlight ? 'text-gold' : 'text-foreground'
         }`}
       >

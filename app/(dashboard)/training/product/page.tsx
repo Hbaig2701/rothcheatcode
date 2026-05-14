@@ -8,7 +8,7 @@ const LOOM_PARAMS = 'hide_owner=true&hide_share=true&hide_title=true&hideEmbedTo
 const videos = [
   {
     title: 'Introduction to Retirement Expert',
-    description: 'Get a complete overview of the platform — what it does, how it works, and how it helps you close more business.',
+    description: 'Get a complete overview of the platform - what it does, how it works, and how it helps you close more business.',
     loomId: 'f589bde093934180bb95bd26fe1457b7',
   },
   {

@@ -1,5 +1,5 @@
 /**
- * Roth Conversion Theory — module registry.
+ * Roth Conversion Theory - module registry.
  *
  * Each module has:
  *   - slug:          URL segment under /training/theory/[slug]
@@ -7,7 +7,7 @@
  *   - tagline:       one-line "what you'll learn"
  *   - cast:          which fixture client(s) the module narrates around
  *   - learningGoal:  the single sentence the advisor should be able to say
- *                    out loud after finishing — drives the soft reflection
+ *                    out loud after finishing - drives the soft reflection
  *                    prompt at module end
  *   - estimatedMinutes: rough read+play time, surfaced on the index card
  *   - status:        'ready' once content is authored; 'stub' otherwise
@@ -34,7 +34,7 @@ export const THEORY_MODULES: TheoryModule[] = [
     slug: 'what-is-a-roth-conversion',
     order: 1,
     title: 'What a Roth Conversion Actually Is',
-    tagline: 'The mechanics, not the marketing — what moves, what gets taxed, and why.',
+    tagline: 'The mechanics, not the marketing - what moves, what gets taxed, and why.',
     cast: 'bob',
     learningGoal:
       'A Roth conversion moves dollars from a Traditional IRA to a Roth IRA, you pay ordinary income tax on the converted amount this year, and from then on those dollars (and their growth) are tax-free.',
@@ -44,18 +44,18 @@ export const THEORY_MODULES: TheoryModule[] = [
   {
     slug: 'marginal-vs-effective-tax',
     order: 2,
-    title: 'Marginal vs. Effective Tax — The Bracket-Fill Mental Model',
+    title: 'Marginal vs. Effective Tax - The Bracket-Fill Mental Model',
     tagline: 'Why "what bracket am I in?" is the wrong question, and what to ask instead.',
     cast: 'bob',
     learningGoal:
-      'Conversions stack on top of existing income and fill brackets one at a time — the marginal rate is what each additional dollar costs, the effective rate is what the whole stack averages out to.',
+      'Conversions stack on top of existing income and fill brackets one at a time - the marginal rate is what each additional dollar costs, the effective rate is what the whole stack averages out to.',
     estimatedMinutes: 6,
     status: 'ready',
   },
   {
     slug: 'gross-up',
     order: 3,
-    title: 'Gross-Up — Paying the Tax From Inside vs. Outside the IRA',
+    title: 'Gross-Up - Paying the Tax From Inside vs. Outside the IRA',
     tagline: 'When the conversion has to fund its own tax bill, every dollar counts twice.',
     cast: 'bob',
     learningGoal:
@@ -66,7 +66,7 @@ export const THEORY_MODULES: TheoryModule[] = [
   {
     slug: 'rmds',
     order: 4,
-    title: 'RMDs — Why the Government Eventually Forces Distributions',
+    title: 'RMDs - Why the Government Eventually Forces Distributions',
     tagline: 'The 73-year-old cliff that drives most conversion strategies.',
     cast: 'mary',
     learningGoal:
@@ -77,33 +77,33 @@ export const THEORY_MODULES: TheoryModule[] = [
   {
     slug: 'irmaa',
     order: 5,
-    title: 'IRMAA — The Medicare Cliff Most Advisors Miss',
+    title: 'IRMAA - The Medicare Cliff Most Advisors Miss',
     tagline: 'A $1 income increase can cost $5K in Medicare premiums. Literally.',
     cast: 'joneses',
     learningGoal:
-      'IRMAA surcharges are tier-based on MAGI from two years prior — crossing a tier by a single dollar triggers the full surcharge, so big conversions need to land cleanly inside a tier or fully past it.',
+      'IRMAA surcharges are tier-based on MAGI from two years prior - crossing a tier by a single dollar triggers the full surcharge, so big conversions need to land cleanly inside a tier or fully past it.',
     estimatedMinutes: 7,
     status: 'ready',
   },
   {
     slug: 'widow-penalty',
     order: 6,
-    title: 'The Widow Penalty — Filing Status Compression',
+    title: 'The Widow Penalty - Filing Status Compression',
     tagline: 'Why a couple\'s tax plan needs to anticipate becoming a single filer.',
     cast: 'mary',
     learningGoal:
-      'When one spouse dies, the survivor moves from MFJ to single brackets (which are roughly half the width) but the RMDs and Social Security stay the same — so the same income suddenly hits much higher brackets, often costing tens of thousands per year.',
+      'When one spouse dies, the survivor moves from MFJ to single brackets (which are roughly half the width) but the RMDs and Social Security stay the same - so the same income suddenly hits much higher brackets, often costing tens of thousands per year.',
     estimatedMinutes: 7,
     status: 'ready',
   },
   {
     slug: 'annuities-and-conversions',
     order: 7,
-    title: 'How Annuities Factor In — FIAs and Guaranteed Income',
+    title: 'How Annuities Factor In - FIAs and Guaranteed Income',
     tagline: 'Where the annuity bonus, surrender schedule, and roll-up actually live in the math.',
     cast: 'joneses',
     learningGoal:
-      'Annuity bonuses boost the IRA balance you\'re converting from, surrender schedules cap how much you can pull penalty-free in early years, and GI roll-ups grow the income base — all of which interact with conversion timing.',
+      'Annuity bonuses boost the IRA balance you\'re converting from, surrender schedules cap how much you can pull penalty-free in early years, and GI roll-ups grow the income base - all of which interact with conversion timing.',
     estimatedMinutes: 8,
     status: 'ready',
   },

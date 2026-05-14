@@ -1,20 +1,21 @@
 /**
- * Module 6 body — "The Widow Penalty: Filing Status Compression".
+ * Module 6 body - "The Widow Penalty: Filing Status Compression".
  */
 
 import { simulateSync } from '@/lib/training/simulate';
 import { WidowPenaltyPlayground } from '../widow-penalty-playground';
 import { ReflectionPrompt } from '../reflection-prompt';
 import { TryInRealClient } from '../try-in-real-client';
+import { Term } from '../term';
 
 export function WidowPenaltyBody() {
-  // MFJ counterfactual — Mary stays married throughout the projection.
+  // MFJ counterfactual - Mary stays married throughout the projection.
   const mfj = simulateSync('mary', {
     widow_analysis: false,
     widow_death_age: null,
     conversion_type: 'no_conversion',
   });
-  // Widow scenario — Mary as a single filer from year 1, survivor SS only.
+  // Widow scenario - Mary as a single filer from year 1, survivor SS only.
   const widow = simulateSync('mary', {
     filing_status: 'single',
     spouse_name: null,
@@ -41,24 +42,25 @@ export function WidowPenaltyBody() {
             <span className="text-gold shrink-0">·</span>
             <span>
               <strong className="text-foreground">Tax brackets compress.</strong> Single brackets
-              are roughly half as wide as MFJ brackets. The same dollar of income now sits in a
-              much higher bracket.
+              are roughly half as wide as <Term name="mfj">MFJ</Term> brackets. The same dollar of
+              income now sits in a much higher bracket.
             </span>
           </li>
           <li className="flex gap-3">
             <span className="text-gold shrink-0">·</span>
             <span>
-              <strong className="text-foreground">Standard deduction halves.</strong> MFJ ~$30K +
-              age bonus; single ~$15K + age bonus. Less shielded from tax before the brackets even
-              start.
+              <strong className="text-foreground"><Term name="standard-deduction">Standard deduction</Term> halves.</strong>{' '}
+              MFJ ~$30K + age bonus; single ~$15K + age bonus. Less shielded from tax before the
+              brackets even start.
             </span>
           </li>
           <li className="flex gap-3">
             <span className="text-gold shrink-0">·</span>
             <span>
-              <strong className="text-foreground">Social Security drops.</strong> The survivor
-              takes the higher of the two benefits, not the sum. So household SS often falls by
-              30–50% — but the IRA balance, RMDs, and pension stay exactly where they were.
+              <strong className="text-foreground"><Term name="social-security">Social Security</Term> drops.</strong>{' '}
+              The survivor takes the higher of the two benefits, not the sum. So household SS
+              often falls by 30-50% - but the IRA balance, <Term name="rmd">RMDs</Term>, and
+              pension stay exactly where they were.
             </span>
           </li>
         </ul>

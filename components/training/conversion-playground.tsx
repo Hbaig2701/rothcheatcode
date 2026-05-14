@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Module 1 playground — "What a Roth Conversion Actually Is".
+ * Module 1 playground - "What a Roth Conversion Actually Is".
  *
  * One slider (conversion amount), three live numbers (federal tax this
  * year, Roth balance end of year 1, Traditional balance end of year 1)
@@ -32,7 +32,7 @@ interface ConversionPlaygroundProps {
   initial: TrainingSimResult;
   /**
    * Server-rendered "do nothing" baseline (year 1) for the comparison
-   * column. Stays static — only the converting side moves with the slider.
+   * column. Stays static - only the converting side moves with the slider.
    */
   baseline: TrainingSimResult;
 }
@@ -68,7 +68,7 @@ export function ConversionPlayground({ initial, baseline }: ConversionPlayground
 
   useEffect(() => {
     if (conversion === DEFAULT_DOLLARS) {
-      // Initial result already covers the default — skip the round trip.
+      // Initial result already covers the default - skip the round trip.
       return;
     }
 
@@ -98,7 +98,7 @@ export function ConversionPlayground({ initial, baseline }: ConversionPlayground
     <div className="rounded-[14px] bg-bg-card border border-border-default p-6">
       <div className="text-xs uppercase tracking-[1.5px] text-text-dimmer mb-1">Playground</div>
       <h3 className="text-base font-semibold text-foreground mb-1">
-        Move the slider — watch Bob&apos;s accounts shift
+        Move the slider - watch Bob&apos;s accounts shift
       </h3>
       <p className="text-sm text-text-dim mb-6">
         These numbers come from the real Retirement Expert engine, not a hard-coded animation.
@@ -110,7 +110,7 @@ export function ConversionPlayground({ initial, baseline }: ConversionPlayground
           <label htmlFor="conversion-slider" className="text-sm font-medium text-foreground">
             Convert this much from Bob&apos;s Traditional IRA this year
           </label>
-          <span className="text-lg font-display font-semibold text-gold tabular-nums">
+          <span className="text-lg font-semibold text-gold tabular-nums">
             {fmt(conversion * 100)}
           </span>
         </div>
@@ -161,7 +161,7 @@ export function ConversionPlayground({ initial, baseline }: ConversionPlayground
       <p className="text-xs text-text-dimmer mt-5 leading-relaxed">
         Notice: the conversion amount you slide leaves the Traditional IRA and shows up in the Roth.
         That&apos;s the whole mechanic. The federal tax above is the cost of doing it. (Tax payment
-        is assumed from outside funds — see Module 3 for what changes if Bob pays from inside the IRA.)
+        is assumed from outside funds - see Module 3 for what changes if Bob pays from inside the IRA.)
       </p>
     </div>
   );
@@ -182,7 +182,7 @@ function Row({
     <div className="flex items-baseline justify-between gap-3">
       <span className={`text-sm ${muted ? 'text-text-dimmer' : 'text-text-dim'}`}>{label}</span>
       <span
-        className={`text-lg font-display font-semibold tabular-nums ${
+        className={`text-lg font-semibold tabular-nums ${
           muted ? 'text-text-dim' : highlight ? 'text-gold' : 'text-foreground'
         }`}
       >

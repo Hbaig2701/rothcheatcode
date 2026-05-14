@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Module 2 playground — bracket-fill visualization.
+ * Module 2 playground - bracket-fill visualization.
  *
  * Slider on Bob's conversion amount. Below it, a stack of horizontal
  * bracket bars: each shows how much of his taxable income landed in
@@ -87,7 +87,7 @@ export function BracketFillPlayground({ initial }: BracketFillPlaygroundProps) {
         Watch the buckets fill
       </h3>
       <p className="text-sm text-text-dim mb-6">
-        Bob has no other income at age 62 — every dollar you convert stacks from the bottom up.
+        Bob has no other income at age 62 - every dollar you convert stacks from the bottom up.
       </p>
 
       <div className="mb-6">
@@ -95,7 +95,7 @@ export function BracketFillPlayground({ initial }: BracketFillPlaygroundProps) {
           <label htmlFor="conv-slider-2" className="text-sm font-medium text-foreground">
             Bob converts this much this year
           </label>
-          <span className="text-lg font-display font-semibold text-gold tabular-nums">
+          <span className="text-lg font-semibold text-gold tabular-nums">
             {fmt(conversion * 100)}
           </span>
         </div>
@@ -145,7 +145,7 @@ export function BracketFillPlayground({ initial }: BracketFillPlaygroundProps) {
             rangeLabel={
               b.upper === Infinity
                 ? `${fmtCompact(b.lower)}+`
-                : `${fmtCompact(b.lower)} – ${fmtCompact(b.upper)}`
+                : `${fmtCompact(b.lower)} - ${fmtCompact(b.upper)}`
             }
             fillPercent={(b.incomeInBracket / b.bracketWidth) * 100}
             fillAmount={b.incomeInBracket}
@@ -176,7 +176,7 @@ function Stat({
     <div className="rounded-[10px] border border-border-default p-4">
       <div className="text-[10px] uppercase tracking-wider text-text-dimmer mb-1">{label}</div>
       <div
-        className={`text-xl font-display font-semibold tabular-nums ${highlight ? 'text-gold' : 'text-foreground'}`}
+        className={`text-xl font-semibold tabular-nums ${highlight ? 'text-gold' : 'text-foreground'}`}
       >
         {value}
       </div>
@@ -213,7 +213,7 @@ function BracketRow({
         </div>
         {!isDeduction && (
           <span className={`tabular-nums ${isEmpty ? 'text-text-dimmer' : 'text-text-dim'}`}>
-            {fillAmount > 0 ? `${fmt(fillAmount)} → ${fmt(taxAmount)} tax` : '—'}
+            {fillAmount > 0 ? `${fmt(fillAmount)} → ${fmt(taxAmount)} tax` : '-'}
           </span>
         )}
         {isDeduction && (

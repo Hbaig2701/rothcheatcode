@@ -49,7 +49,7 @@ export default async function TheoryModulePage({
   const prev = getPrevModule(slug)
 
   return (
-    <div className="p-10 max-w-4xl">
+    <div className="p-10 max-w-7xl">
       <Link
         href="/training/theory"
         className="inline-flex items-center gap-1.5 text-sm text-text-dim hover:text-foreground mb-6 transition-colors"
@@ -74,7 +74,16 @@ export default async function TheoryModulePage({
 
       <div className="rounded-[14px] bg-bg-card border border-border-default p-6 mb-8">
         <div className="text-xs uppercase tracking-[1.5px] text-text-dimmer mb-2">Featuring</div>
-        <p className="text-sm text-foreground leading-relaxed">{CAST_BLURB[mod.cast]}</p>
+        <p className="text-sm font-semibold text-foreground mb-3">{CAST_BLURB[mod.cast].intro}</p>
+        <ul className="space-y-1.5 mb-3">
+          {CAST_BLURB[mod.cast].facts.map((fact) => (
+            <li key={fact} className="flex gap-2.5 text-sm text-text-dim leading-relaxed">
+              <span className="text-gold shrink-0 mt-1">·</span>
+              <span>{fact}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="text-xs italic text-text-dimmer leading-relaxed">{CAST_BLURB[mod.cast].context}</p>
       </div>
 
       {mod.status === 'stub' && (

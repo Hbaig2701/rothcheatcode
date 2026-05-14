@@ -2,7 +2,7 @@
 
 /**
  * Small client-side badge shown next to each module on the curriculum
- * index — empty when nothing's happened yet, "Viewed" once the advisor
+ * index - empty when nothing's happened yet, "Viewed" once the advisor
  * has opened the module, "Complete" once they've engaged with the
  * reflection prompt.
  */

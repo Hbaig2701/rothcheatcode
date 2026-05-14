@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Module 8 (capstone) playground — annotated report walkthrough.
+ * Module 8 (capstone) playground - annotated report walkthrough.
  *
  * Slider scrubs through years of the Joneses' actual projection. The
  * displayed row breaks each meaningful column into a labeled card with
@@ -66,7 +66,7 @@ function buildFieldCards(year: YearlyResult): FieldCard[] {
       value: fmt(year.rmdAmount),
       note: year.rmdAmount > 0
         ? 'IRS-required pull from the Traditional IRA. Starts at age 73 and grows as the distribution period shrinks.'
-        : 'Not yet — RMDs start at age 73.',
+        : 'Not yet - RMDs start at age 73.',
       moduleLink: { slug: 'rmds', title: 'Module 4' },
     },
     {
@@ -91,7 +91,7 @@ function buildFieldCards(year: YearlyResult): FieldCard[] {
       value: fmt(year.irmaaSurcharge),
       note: year.irmaaSurcharge > 0
         ? 'Medicare premium surcharge tier triggered by MAGI from 2 years prior.'
-        : 'No IRMAA tier crossed this year — MAGI stayed below the threshold.',
+        : 'No IRMAA tier crossed this year - MAGI stayed below the threshold.',
       moduleLink: { slug: 'irmaa', title: 'Module 5' },
     },
     {
@@ -125,16 +125,16 @@ export function ReportWalkthroughPlayground({ sim }: ReportWalkthroughPlayground
       </h3>
       <p className="text-sm text-text-dim mb-6">
         Each card below is one column from the year-by-year table. Move the slider to inspect
-        different years — pre-RMD, post-RMD, late retirement — and re-read the columns until you
+        different years - pre-RMD, post-RMD, late retirement - and re-read the columns until you
         could explain every one to a client cold.
       </p>
 
       <div className="mb-6">
         <div className="flex items-baseline justify-between mb-2">
           <label htmlFor="age-slider-8" className="text-sm font-medium text-foreground">
-            Inspect year — couple&apos;s age
+            Inspect year - couple&apos;s age
           </label>
-          <span className="text-lg font-display font-semibold text-gold tabular-nums">{safeAge}</span>
+          <span className="text-lg font-semibold text-gold tabular-nums">{safeAge}</span>
         </div>
         <input
           id="age-slider-8"
@@ -158,7 +158,7 @@ export function ReportWalkthroughPlayground({ sim }: ReportWalkthroughPlayground
           <div key={c.label} className="rounded-[10px] border border-border-default p-4">
             <div className="flex items-baseline justify-between gap-3 mb-1.5">
               <div className="text-xs uppercase tracking-wider text-text-dimmer">{c.label}</div>
-              <div className="text-base font-display font-semibold tabular-nums text-foreground">
+              <div className="text-base font-semibold tabular-nums text-foreground">
                 {c.value}
               </div>
             </div>

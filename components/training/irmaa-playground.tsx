@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Module 5 playground — IRMAA cliff.
+ * Module 5 playground - IRMAA cliff.
  *
  * Slider on the Joneses' conversion amount drives their year-1 MAGI.
  * Below it, a horizontal IRMAA-tier bar visualizes the cliffs: a single
@@ -9,7 +9,7 @@
  * surcharge kicks in immediately.
  *
  * The advisor sees the surcharge JUMP each time the slider crosses a
- * tier boundary — that discontinuity is the whole point. IRMAA is not
+ * tier boundary - that discontinuity is the whole point. IRMAA is not
  * graduated like income tax; it's a step function, and crossing a tier
  * by $1 costs the same as crossing it by $40K.
  */
@@ -26,7 +26,19 @@ interface IrmaaPlaygroundProps {
 const MIN = 0;
 const MAX = 300_000;
 const STEP = 5_000;
-const DEFAULT = 50_000;
+// Default lands the Joneses just past the Tier 1 threshold so the
+// IRMAA cliff is visible on first paint - sliding down to ~$50K drops
+// them back to Standard, sliding up walks them through Tiers 2-4.
+const DEFAULT = 80_000;
+
+// The cast has SS starting at age 67, but the Joneses are 65 in year 1
+// so a year-1 simulation has no SS in MAGI - which makes the cliff
+// demonstration land flat. Override SS to start at 65 so MAGI reflects
+// their full retirement income and the slider actually crosses tiers.
+const SS_OVERRIDE = {
+  ssi_payout_age: 65,
+  spouse_ssi_payout_age: 65,
+};
 
 const fmt = (cents: number) =>
   new Intl.NumberFormat('en-US', {
@@ -61,6 +73,7 @@ export function IrmaaPlayground({ initial }: IrmaaPlaygroundProps) {
       simulate('joneses', {
         conversion_type: 'fixed_amount',
         fixed_conversion_amount: conversion * 100,
+        ...SS_OVERRIDE,
       })
         .then((r) => {
           if (!cancelled) setSim(r);
@@ -99,7 +112,7 @@ export function IrmaaPlayground({ initial }: IrmaaPlaygroundProps) {
       </h3>
       <p className="text-sm text-text-dim mb-6">
         Move the slider through the IRMAA tiers and watch the surcharge step up. The Joneses are
-        MFJ, both 65, so both spouses are on Medicare — the surcharge below is the combined
+        MFJ, both 65, so both spouses are on Medicare - the surcharge below is the combined
         annual cost.
       </p>
 
@@ -108,7 +121,7 @@ export function IrmaaPlayground({ initial }: IrmaaPlaygroundProps) {
           <label htmlFor="conv-slider-5" className="text-sm font-medium text-foreground">
             Conversion this year
           </label>
-          <span className="text-lg font-display font-semibold text-gold tabular-nums">
+          <span className="text-lg font-semibold text-gold tabular-nums">
             {fmt(conversion * 100)}
           </span>
         </div>
@@ -156,7 +169,7 @@ export function IrmaaPlayground({ initial }: IrmaaPlaygroundProps) {
       {tierData.idx === 5 && (
         <p className="text-xs text-text-dim mt-4 leading-relaxed">
           <strong className="text-foreground">Top tier reached.</strong> The Joneses are paying
-          the maximum IRMAA surcharge — additional MAGI doesn&apos;t change the IRMAA cost from
+          the maximum IRMAA surcharge - additional MAGI doesn&apos;t change the IRMAA cost from
           here.
         </p>
       )}
@@ -177,7 +190,7 @@ function Stat({
     <div className={`rounded-[10px] border p-4 ${highlight ? 'border-gold-border bg-accent/40' : 'border-border-default'}`}>
       <div className="text-[10px] uppercase tracking-wider text-text-dimmer mb-1">{label}</div>
       <div
-        className={`text-xl font-display font-semibold tabular-nums ${highlight ? 'text-gold' : 'text-foreground'}`}
+        className={`text-xl font-semibold tabular-nums ${highlight ? 'text-gold' : 'text-foreground'}`}
       >
         {value}
       </div>

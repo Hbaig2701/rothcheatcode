@@ -34,7 +34,7 @@ export function ProgressSummary({ allSlugs }: ProgressSummaryProps) {
         <div className="text-sm tabular-nums text-text-dim">
           {hydrated ? (
             <>
-              <span className="font-display font-semibold text-foreground">{stats.completeCount}</span>{' '}
+              <span className="font-semibold text-foreground">{stats.completeCount}</span>{' '}
               of {stats.total} complete
               <span className="text-text-dimmer ml-2">
                 ({stats.viewedCount} viewed)

@@ -1,13 +1,13 @@
 /**
  * Per-user progress tracking for the Roth Theory curriculum.
  *
- * localStorage-only — these are advisor-facing learning signals, not
+ * localStorage-only - these are advisor-facing learning signals, not
  * something we need server-side persistence for. Reset is one cleared
  * cache away, which is fine: the modules are short and re-doable.
  *
  * Two states per module:
- *   - viewed   — the advisor opened the module page
- *   - complete — the advisor typed something into the reflection prompt
+ *   - viewed   - the advisor opened the module page
+ *   - complete - the advisor typed something into the reflection prompt
  *                (the soft signal that they engaged with the material,
  *                not just scrolled past it)
  */
@@ -41,7 +41,7 @@ function safeWrite(p: AllProgress): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
   } catch {
-    // Quota exhausted or storage disabled — non-fatal, progress just
+    // Quota exhausted or storage disabled - non-fatal, progress just
     // won't persist across reloads. Acceptable for learning state.
   }
 }
@@ -58,7 +58,7 @@ export function getModuleProgress(slug: string): ModuleProgress {
 export function markViewed(slug: string): void {
   const all = safeRead();
   const existing = all[slug];
-  if (existing?.viewed) return; // already recorded — don't overwrite the timestamp
+  if (existing?.viewed) return; // already recorded - don't overwrite the timestamp
   all[slug] = {
     ...existing,
     viewed: true,

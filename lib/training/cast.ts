@@ -1,5 +1,5 @@
 /**
- * Training Cast — fixture clients for the Roth Theory curriculum.
+ * Training Cast - fixture clients for the Roth Theory curriculum.
  *
  * Each cast member is a fully-populated Client (matching the real DB shape)
  * so the same engine that runs production projections can run them. The
@@ -8,10 +8,10 @@
  * the engine to show live results.
  *
  * Three archetypes were chosen to cover ~80% of what advisors see:
- *   - bob     — single, pre-RMD, classic "should I convert?" case
- *   - mary    — MFJ couple, widow_analysis enabled, illustrates the widow
+ *   - bob     - single, pre-RMD, classic "should I convert?" case
+ *   - mary    - MFJ couple, widow_analysis enabled, illustrates the widow
  *               penalty (filing-status compression after first death)
- *   - joneses — MFJ, high-balance, IRMAA-cliff territory, gross-up matters
+ *   - joneses - MFJ, high-balance, IRMAA-cliff territory, gross-up matters
  */
 
 import type { Client } from '@/lib/types/client';
@@ -19,7 +19,7 @@ import type { Client } from '@/lib/types/client';
 export type CastId = 'bob' | 'mary' | 'joneses';
 
 /**
- * Defaults shared by every cast member — fields that don't vary across the
+ * Defaults shared by every cast member - fields that don't vary across the
  * archetypes. Keeping them here lets each cast member focus on the handful
  * of fields that actually define its scenario.
  */
@@ -53,7 +53,7 @@ const DEFAULTS = {
 
   withdrawal_type: 'no_withdrawals' as const,
 
-  // GI defaults (not used for the Growth FIA cast members — present so the
+  // GI defaults (not used for the Growth FIA cast members - present so the
   // Client type is satisfied; modules that need GI will override these.)
   payout_type: 'individual' as const,
   income_start_age: 67,
@@ -81,7 +81,7 @@ const DEFAULTS = {
   aum_withdrawal_years: 5,
   ltcg_rate: 15,
 
-  // Legacy fields kept for type-completeness — engine reads the modern ones.
+  // Legacy fields kept for type-completeness - engine reads the modern ones.
   date_of_birth: null,
   spouse_dob: null,
   life_expectancy: null,
@@ -108,14 +108,14 @@ const DEFAULTS = {
 const BOB: Client = {
   ...DEFAULTS,
   id: 'training-cast-bob',
-  scenario_name: 'Bob — single, age 62',
+  scenario_name: 'Bob - single, age 62',
   filing_status: 'single',
   name: 'Bob',
   age: 62,
   spouse_name: null,
   spouse_age: null,
   qualified_account_value: 50_000_000, // $500,000
-  state: 'TX', // no state tax — keeps the math clean for first-time learners
+  state: 'TX', // no state tax - keeps the math clean for first-time learners
   gross_taxable_non_ssi: 0,
   tax_exempt_non_ssi: 0,
   ssi_payout_age: 67,
@@ -131,7 +131,7 @@ const BOB: Client = {
 const MARY: Client = {
   ...DEFAULTS,
   id: 'training-cast-mary',
-  scenario_name: 'Mary & George — MFJ, age 70 (widow analysis on)',
+  scenario_name: 'Mary & George - MFJ, age 70 (widow analysis on)',
   filing_status: 'married_filing_jointly',
   name: 'Mary',
   age: 70,
@@ -144,7 +144,7 @@ const MARY: Client = {
   ssi_payout_age: 67,
   ssi_annual_amount: 4_500_000, // $45K (Mary)
   spouse_ssi_payout_age: 67,
-  spouse_ssi_annual_amount: 3_000_000, // $30K (George — typical asymmetry)
+  spouse_ssi_annual_amount: 3_000_000, // $30K (George - typical asymmetry)
   non_ssi_income: [],
   withdrawals: [],
   end_age: 92,
@@ -158,7 +158,7 @@ const MARY: Client = {
 const JONESES: Client = {
   ...DEFAULTS,
   id: 'training-cast-joneses',
-  scenario_name: 'The Joneses — MFJ, age 65, IRMAA territory',
+  scenario_name: 'The Joneses - MFJ, age 65, IRMAA territory',
   filing_status: 'married_filing_jointly',
   name: 'Bill & Linda Jones',
   age: 65,
@@ -176,8 +176,8 @@ const JONESES: Client = {
   non_ssi_income: [],
   withdrawals: [],
   end_age: 90,
-  taxable_accounts: 80_000_000, // $800K outside — they have liquidity
-  max_tax_rate: 32, // higher ceiling — IRMAA module needs room to push them up
+  taxable_accounts: 80_000_000, // $800K outside - they have liquidity
+  max_tax_rate: 32, // higher ceiling - IRMAA module needs room to push them up
 };
 
 export const CAST: Record<CastId, Client> = {
@@ -187,13 +187,59 @@ export const CAST: Record<CastId, Client> = {
 };
 
 /**
- * Short, advisor-facing one-liner for each cast member, used in module
- * intros ("This module follows Bob…").
+ * Structured profile for each cast member.
+ *   - intro:   one-line summary used on the curriculum index card
+ *   - facts:   bullet points shown on the module page Featuring panel.
+ *              Acronyms are expanded on first use ("married filing
+ *              jointly (MFJ)") so an advisor unfamiliar with the
+ *              shorthand isn't lost.
+ *   - context: closing tagline that explains why this client is
+ *              the right archetype to teach the concept.
  */
-export const CAST_BLURB: Record<CastId, string> = {
-  bob: 'Single, age 62, $500K traditional IRA, $40K Social Security at 67. No spouse. The classic "should I convert before RMDs?" case.',
-  mary:
-    'Mary & George, both 70, MFJ, $750K traditional IRA, $75K combined Social Security. George passes at 78; Mary lives another 14 years as a single filer.',
-  joneses:
-    'Bill & Linda Jones, both 65, MFJ, $1.2M combined IRA, $120K combined Social Security, $40K pension. NY residents. Big enough to bump into IRMAA tiers.',
+export interface CastBlurb {
+  intro: string;
+  facts: string[];
+  context: string;
+}
+
+export const CAST_BLURB: Record<CastId, CastBlurb> = {
+  bob: {
+    intro: 'Bob - single filer, age 62',
+    facts: [
+      'Filing status: single (no spouse, no dependents)',
+      'Age 62 - pre-retirement, pre-Required Minimum Distributions (RMDs)',
+      '$500,000 in a Traditional IRA',
+      'Social Security starts at age 67: $40,000/year',
+      '$500,000 in a taxable brokerage account (available to pay conversion tax)',
+      'Texas resident - no state income tax',
+    ],
+    context: 'The classic "should I convert before RMDs hit?" case.',
+  },
+  mary: {
+    intro: 'Mary & George - both age 70, married filing jointly (MFJ)',
+    facts: [
+      'Mary and George - both age 70',
+      'Filing status: married filing jointly (MFJ)',
+      '$750,000 in a Traditional IRA',
+      "Mary's Social Security: $45,000/year",
+      "George's Social Security: $30,000/year",
+      'Florida residents - no state income tax',
+      'Widow analysis enabled: George passes at age 78; Mary lives another 14 years as a single filer',
+    ],
+    context: 'Used to demonstrate Required Minimum Distributions (RMDs) and the widow penalty.',
+  },
+  joneses: {
+    intro: 'Bill & Linda Jones - both age 65, married filing jointly (MFJ)',
+    facts: [
+      'Bill and Linda Jones - both age 65',
+      'Filing status: married filing jointly (MFJ)',
+      '$1.2 million in a Traditional IRA (combined)',
+      "Bill's Social Security at 67: $65,000/year",
+      "Linda's Social Security at 67: $55,000/year",
+      'Pension income: $40,000/year',
+      'New York residents - 6.85% state income tax',
+      '$800,000 in a taxable brokerage account',
+    ],
+    context: 'Big enough to bump into Income-Related Monthly Adjustment Amount (IRMAA) tiers and to need careful conversion sizing.',
+  },
 };

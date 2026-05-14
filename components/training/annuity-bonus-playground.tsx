@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Module 7 playground — annuity bonus as multiplier.
+ * Module 7 playground - annuity bonus as multiplier.
  *
  * Slider on the carrier bonus % drives the Joneses' starting IRA
  * balance. Below it, four numbers show how that one knob ripples
@@ -9,7 +9,7 @@
  * age 73, first-year RMD, and the lifetime tax savings vs. no
  * conversion.
  *
- * The lesson is that annuity bonuses aren't a gimmick — they
+ * The lesson is that annuity bonuses aren't a gimmick - they
  * multiply every downstream number, including (importantly) the RMDs
  * the client will eventually be forced to take. Bigger pre-bonus
  * balance + bigger bonus = bigger Roth strategy *and* bigger
@@ -101,7 +101,7 @@ export function AnnuityBonusPlayground({ initial }: AnnuityBonusPlaygroundProps)
           <label htmlFor="bonus-slider-7" className="text-sm font-medium text-foreground">
             Carrier bonus on the IRA premium
           </label>
-          <span className="text-lg font-display font-semibold text-gold tabular-nums">{bonus}%</span>
+          <span className="text-lg font-semibold text-gold tabular-nums">{bonus}%</span>
         </div>
         <input
           id="bonus-slider-7"
@@ -137,7 +137,7 @@ export function AnnuityBonusPlayground({ initial }: AnnuityBonusPlaygroundProps)
       </div>
 
       <p className="text-xs text-text-dimmer mt-5 leading-relaxed">
-        Notice how the first-year RMD scales with the bonus too. The bonus isn&apos;t free — it
+        Notice how the first-year RMD scales with the bonus too. The bonus isn&apos;t free - it
         grows the future tax liability alongside the future balance. That&apos;s exactly why
         carrier-bonus FIAs are usually paired with an aggressive conversion plan: convert at
         chosen brackets now, before the IRS forces distributions on the inflated balance.
@@ -150,15 +150,15 @@ export function AnnuityBonusPlayground({ initial }: AnnuityBonusPlaygroundProps)
         <ul className="space-y-2 text-sm text-text-dim leading-relaxed">
           <li>
             <strong className="text-foreground">Surrender schedule.</strong> In early years
-            (typically 7–10), pulling more than the penalty-free percentage (usually 10%/yr) costs
+            (typically 7-10), pulling more than the penalty-free percentage (usually 10%/yr) costs
             a surrender charge. Conversions inside the carrier don&apos;t typically trigger this,
             but if the client pays the conversion tax from the IRA itself, that withdrawal does
             count against the cap.
           </li>
           <li>
             <strong className="text-foreground">GI roll-up rate.</strong> On Guaranteed Income
-            products, the income base grows at a fixed rate (often 7–8%) until the client elects
-            income. The roll-up balance is separate from the cash value — it&apos;s the basis the
+            products, the income base grows at a fixed rate (often 7-8%) until the client elects
+            income. The roll-up balance is separate from the cash value - it&apos;s the basis the
             guaranteed payout is calculated from.
           </li>
         </ul>
@@ -182,7 +182,7 @@ function Stat({
     >
       <div className="text-[10px] uppercase tracking-wider text-text-dimmer mb-1">{label}</div>
       <div
-        className={`text-lg font-display font-semibold tabular-nums ${highlight ? 'text-gold' : 'text-foreground'}`}
+        className={`text-lg font-semibold tabular-nums ${highlight ? 'text-gold' : 'text-foreground'}`}
       >
         {value}
       </div>

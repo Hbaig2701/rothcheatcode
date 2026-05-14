@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * Module 4 playground — RMDs.
+ * Module 4 playground - RMDs.
  *
  * Stacked bar chart showing Mary's annual income trajectory from age 70
  * to her end-age. Each bar splits Social Security + other ordinary
  * income (gray) from the Required Minimum Distribution (gold). RMDs
  * start at 73 and grow as the IRS distribution period shrinks each year.
  *
- * Slider: Mary's starting IRA balance ($500K–$1.5M). Bigger IRAs mean
- * bigger RMD bars, which is the whole lesson — RMD pressure scales with
+ * Slider: Mary's starting IRA balance ($500K-$1.5M). Bigger IRAs mean
+ * bigger RMD bars, which is the whole lesson - RMD pressure scales with
  * portfolio size, and at the larger end pushes Mary into brackets she'd
  * never otherwise see.
  *
@@ -120,7 +120,7 @@ export function RmdPlayground({ initial }: RmdPlaygroundProps) {
       </h3>
       <p className="text-sm text-text-dim mb-6">
         Gold = the IRS-required distribution. Gray = Mary&apos;s Social Security and other
-        ordinary income. The gold stack grows even though her balance is being depleted — that&apos;s
+        ordinary income. The gold stack grows even though her balance is being depleted - that&apos;s
         the IRS&apos;s shrinking distribution period at work.
       </p>
 
@@ -129,7 +129,7 @@ export function RmdPlayground({ initial }: RmdPlaygroundProps) {
           <label htmlFor="bal-slider-4" className="text-sm font-medium text-foreground">
             Mary&apos;s IRA balance at age 70
           </label>
-          <span className="text-lg font-display font-semibold text-gold tabular-nums">
+          <span className="text-lg font-semibold text-gold tabular-nums">
             {fmtCompact(balance * 100)}
           </span>
         </div>
@@ -200,8 +200,8 @@ export function RmdPlayground({ initial }: RmdPlaygroundProps) {
               At age {ageMilestone.age}
             </div>
             <div className="text-foreground">
-              <span className="font-display font-semibold tabular-nums">{fmt(ageMilestone.rmd * 100)}</span>{' '}
-              required from the IRA — marginal bracket{' '}
+              <span className="font-semibold tabular-nums">{fmt(ageMilestone.rmd * 100)}</span>{' '}
+              required from the IRA - marginal bracket{' '}
               <span className="font-semibold tabular-nums">{ageMilestone.marginalBracket}%</span>
             </div>
           </div>
@@ -210,8 +210,8 @@ export function RmdPlayground({ initial }: RmdPlaygroundProps) {
               At age {ageEnd.age}
             </div>
             <div className="text-foreground">
-              <span className="font-display font-semibold tabular-nums">{fmt(ageEnd.rmd * 100)}</span>{' '}
-              required — total tax{' '}
+              <span className="font-semibold tabular-nums">{fmt(ageEnd.rmd * 100)}</span>{' '}
+              required - total tax{' '}
               <span className="font-semibold tabular-nums">{fmt(ageEnd.totalTax)}</span>
             </div>
           </div>

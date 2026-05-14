@@ -37,7 +37,7 @@ export default async function TrainingPage() {
             Roth Conversion Theory
           </h2>
           <p className="text-sm text-text-dim leading-relaxed mb-6 flex-1">
-            Build a deep understanding of the concepts behind Roth conversions — bracket-fill,
+            Build a deep understanding of the concepts behind Roth conversions - bracket-fill,
             gross-up, RMDs, IRMAA, the widow penalty, and how annuities factor in. Each module
             includes an interactive playground tied to a real example client so you can see the
             math respond as you change the inputs.
@@ -59,7 +59,7 @@ export default async function TrainingPage() {
             Using Retirement Expert
           </h2>
           <p className="text-sm text-text-dim leading-relaxed mb-6 flex-1">
-            Step-by-step video walkthroughs covering the platform itself — adding clients,
+            Step-by-step video walkthroughs covering the platform itself - adding clients,
             generating projections, customizing PDF reports, inviting team members. Get
             productive in the tool quickly.
           </p>
