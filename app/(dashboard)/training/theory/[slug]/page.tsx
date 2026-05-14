@@ -6,6 +6,7 @@ import { getModule, getNextModule, getPrevModule } from '@/lib/training/modules'
 import { CAST_BLURB } from '@/lib/training/cast'
 import { WhatIsARothConversionBody } from '@/components/training/modules/what-is-a-roth-conversion'
 import { MarginalVsEffectiveTaxBody } from '@/components/training/modules/marginal-vs-effective-tax'
+import { GrossUpBody } from '@/components/training/modules/gross-up'
 
 // Map of module slug → body component. Add an entry here as each module's
 // content lands; the registry's `status: 'ready'` flag controls whether
@@ -13,6 +14,7 @@ import { MarginalVsEffectiveTaxBody } from '@/components/training/modules/margin
 const MODULE_BODIES: Record<string, React.ComponentType> = {
   'what-is-a-roth-conversion': WhatIsARothConversionBody,
   'marginal-vs-effective-tax': MarginalVsEffectiveTaxBody,
+  'gross-up': GrossUpBody,
 }
 
 export default async function TheoryModulePage({

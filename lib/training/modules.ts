@@ -61,7 +61,7 @@ export const THEORY_MODULES: TheoryModule[] = [
     learningGoal:
       'Paying conversion tax from outside the IRA preserves the full converted amount in the Roth; paying from inside means part of the conversion goes to taxes (plus a 10% penalty if under 59½), shrinking the Roth balance.',
     estimatedMinutes: 6,
-    status: 'stub',
+    status: 'ready',
   },
   {
     slug: 'rmds',
