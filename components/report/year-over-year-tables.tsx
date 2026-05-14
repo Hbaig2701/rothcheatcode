@@ -268,7 +268,7 @@ export function YearOverYearTables({
           {renderHeaderCell("Age", "left")}
           {renderHeaderCell("B.O.Y.")}
           {renderHeaderCell("Dist.(IRA)")}
-          {renderHeaderCell("Taxes")}
+          {renderHeaderCell(scenario === "baseline" ? "Total Tax" : "Tax from IRA")}
           {renderHeaderCell("Bracket")}
           {renderHeaderCell("Converted")}
           {renderHeaderCell("Dist.(Roth)")}
@@ -420,7 +420,7 @@ export function YearOverYearTables({
           {renderHeaderCell("Tax Exempt")}
           {renderHeaderCell("Dist.(IRA)")}
           {renderHeaderCell("Dist.(Roth)")}
-          {renderHeaderCell("Taxes")}
+          {renderHeaderCell(scenario === "baseline" ? "Total Tax" : "Tax from IRA")}
           {renderHeaderCell("IRMAA")}
           {renderHeaderCell("Converted")}
           {renderHeaderCell("Net Income")}
@@ -460,7 +460,7 @@ export function YearOverYearTables({
           {renderHeaderCell("Income(Taxable)")}
           {renderHeaderCell("Dist.(IRA)")}
           {renderHeaderCell(`Max Bracket(${client.max_tax_rate ?? 24}%)`)}
-          {renderHeaderCell("Taxes")}
+          {renderHeaderCell(scenario === "baseline" ? "Total Tax" : "Tax from IRA")}
           {renderHeaderCell("Conversion Amt")}
           {renderHeaderCell("Interest")}
           {renderHeaderCell("E.O.Y.(IRA)")}

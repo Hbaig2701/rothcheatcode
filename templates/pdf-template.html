@@ -632,7 +632,13 @@
         <th>Age</th>
         <th>B.O.Y. (Combined)</th>
         <th>Dist. (IRA)</th>
-        <th>Taxes (IRA)</th>
+        <!-- "Total Tax" not "Taxes (IRA)": the underlying value is
+             year.totalTax, which includes federal + state + IRMAA on
+             every income source (RMDs, Social Security, pension, etc.).
+             The old label implied this was tax-from-IRA only and made the
+             column total disagree with the summary's "Tax on RMDs" row,
+             which is a marginal-only number. (Jorge ticket f9c6333f.) -->
+        <th>Total Tax</th>
         <th>Bracket</th>
         <th>Converted</th>
         <th>Dist. (Roth)</th>
@@ -729,7 +735,11 @@
         <th>Age</th>
         <th>B.O.Y. (Combined)</th>
         <th>Dist. (IRA)</th>
-        <th>Taxes (IRA)</th>
+        <!-- For strategy, the underlying value IS just the IRA-sourced tax
+             (taxesPaidFromIRA) — the gross-up dollars pulled from the IRA
+             to fund conversion taxes. Rename to "Tax from IRA" to make
+             this explicit and to match the renamed baseline column. -->
+        <th>Tax from IRA</th>
         {{#if riderFee}}<th>Rider Fee</th>{{/if}}
         <th>Bracket</th>
         <th>Converted</th>
