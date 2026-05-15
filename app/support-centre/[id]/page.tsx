@@ -43,15 +43,24 @@ export default async function AdminTicketDetailPage({ params }: { params: Promis
 
   // Clear any unread "advisor replied" bell notifications for this admin on
   // this ticket — opening the page is the equivalent of acknowledging them.
-  // Best-effort: a failed update must never block rendering.
+  // Must `await`: the Supabase query builder is lazy, and a `void` on the
+  // chain never triggers .then(), so the UPDATE never fires. We learned that
+  // the hard way — the unread badge stayed on tickets after they were viewed
+  // (Jorge's "Don't see RMD Taxes being paid?" ticket showed unread even
+  // after Hamza had read the latest reply). Wrapped in try/catch to preserve
+  // the best-effort intent — a DB hiccup must never block rendering.
   if (viewer) {
-    void supabase
-      .from('notifications')
-      .update({ is_read: true, read_at: new Date().toISOString() })
-      .eq('user_id', viewer.id)
-      .eq('type', 'support_ticket_reply')
-      .eq('related_id', id)
-      .eq('is_read', false)
+    try {
+      await supabase
+        .from('notifications')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('user_id', viewer.id)
+        .eq('type', 'support_ticket_reply')
+        .eq('related_id', id)
+        .eq('is_read', false)
+    } catch {
+      // best-effort
+    }
   }
 
   // Resolve all involved user_ids

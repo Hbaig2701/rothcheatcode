@@ -35,13 +35,19 @@ export default async function SupportPage() {
   // Clear the sidebar "Support" badge — the advisor is on the list page,
   // they've seen there's activity. Per-ticket detail clearing still happens
   // on the ticket detail page for the bell dropdown's row-level state.
-  // Best-effort: a failed update must never block rendering.
-  void supabase
-    .from('notifications')
-    .update({ is_read: true, read_at: new Date().toISOString() })
-    .eq('user_id', user.id)
-    .eq('is_read', false)
-    .in('type', ['support_ticket_reply', 'support_ticket_status_change'])
+  // Must `await`: the Supabase query builder is lazy and `void` on the chain
+  // never triggers .then(). Wrapped in try/catch so a DB hiccup never
+  // blocks rendering.
+  try {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('is_read', false)
+      .in('type', ['support_ticket_reply', 'support_ticket_status_change'])
+  } catch {
+    // best-effort
+  }
 
   return (
     <div className="p-10 max-w-6xl">

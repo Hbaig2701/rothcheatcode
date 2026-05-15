@@ -34,14 +34,20 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
 
   // Clear unread support notifications for this ticket — opening the page
   // means the advisor has seen the activity. Mirrors the admin-side detail
-  // page behavior. Best-effort: a failed update must never block rendering.
-  void supabase
-    .from('notifications')
-    .update({ is_read: true, read_at: new Date().toISOString() })
-    .eq('user_id', user.id)
-    .eq('related_id', id)
-    .eq('is_read', false)
-    .in('type', ['support_ticket_reply', 'support_ticket_status_change'])
+  // page behavior. Must `await`: the Supabase query builder is lazy and
+  // `void` on the chain never triggers .then(). Wrapped in try/catch so a
+  // DB hiccup never blocks rendering.
+  try {
+    await supabase
+      .from('notifications')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('related_id', id)
+      .eq('is_read', false)
+      .in('type', ['support_ticket_reply', 'support_ticket_status_change'])
+  } catch {
+    // best-effort
+  }
 
   // Log a ticket_viewed event for the admin "Today" timeline so support can
   // see when an advisor has actually read their own ticket (not just filed
@@ -64,13 +70,17 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
       .limit(1)
       .maybeSingle()
     if (!recentView) {
-      void supabase.from('support_ticket_events').insert({
-        ticket_id: id,
-        user_id: user.id,
-        event_type: 'ticket_viewed',
-        old_value: null,
-        new_value: null,
-      })
+      try {
+        await supabase.from('support_ticket_events').insert({
+          ticket_id: id,
+          user_id: user.id,
+          event_type: 'ticket_viewed',
+          old_value: null,
+          new_value: null,
+        })
+      } catch {
+        // best-effort — failure must not block the page
+      }
 
       // Notify every admin. Pull the advisor's display name from
       // user_settings (falls back to email) for a useful title. Best-effort
