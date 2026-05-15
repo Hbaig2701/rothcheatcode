@@ -236,11 +236,19 @@ export function isGrowthProduct(formulaType: FormulaType): boolean {
   return formulaType in GROWTH_PRODUCTS;
 }
 
-// Utility function to check if a field should be locked
+// Utility function to check if a field should be locked.
+//
+// Locked fields exist so a system preset's label (e.g., "Vesting Bonus Growth, 14%
+// upfront") stays in sync with its hardcoded values — users can't desync the name
+// from the math. That contract has no meaning for custom products, where the user
+// IS the source of truth: a custom product's bonus/carrier/etc. is whatever the
+// user defined. So when a custom_product_id is attached, no fields are locked.
 export function isFieldLocked(
   fieldName: typeof LOCKABLE_FIELDS[number],
-  formulaType: FormulaType
+  formulaType: FormulaType,
+  customProductId?: string | null
 ): boolean {
+  if (customProductId) return false;
   const product = ALL_PRODUCTS[formulaType];
   if (!product) return false;
   return product.lockedFields.includes(fieldName);

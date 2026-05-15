@@ -101,8 +101,15 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
   const isPending = updateClient.isPending || recalculateProjection.isPending;
   const [submitErrors, setSubmitErrors] = useState<string[]>([]);
 
-  // Sync form fields with formula type defaults on load
+  // Sync form fields with formula type defaults on load.
+  //
+  // Only runs for system presets. Custom products own their bonus/carrier/product
+  // values — clobbering them here is what caused the "bonus keeps reverting to
+  // 14%" bug (custom Allianz product on the growth-vesting engine getting its
+  // 15% override snapped back to the system preset's 14% default).
   useEffect(() => {
+    if (form.getValues("custom_product_id")) return;
+
     const formulaType = form.getValues("blueprint_type") as FormulaType;
     const product = ALL_PRODUCTS[formulaType];
     if (!product) return;

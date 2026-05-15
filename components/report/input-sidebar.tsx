@@ -101,9 +101,14 @@ export function InputSidebar({ client }: InputSidebarProps) {
     const isPending = updateClient.isPending || recalculateProjection.isPending;
     const [submitErrors, setSubmitErrors] = useState<string[]>([]);
 
-    // Sync form fields with formula type defaults on load
-    // This ensures consistency when loading data that may have mismatched values
+    // Sync form fields with formula type defaults on load.
+    //
+    // Only runs for system presets. Custom products own their bonus/carrier/product
+    // values — clobbering them here is what caused the "bonus keeps reverting to
+    // the engine preset's default" bug.
     useEffect(() => {
+        if (form.getValues("custom_product_id")) return;
+
         const formulaType = form.getValues("blueprint_type") as FormulaType;
         const product = ALL_PRODUCTS[formulaType];
         if (!product) return;
@@ -111,8 +116,6 @@ export function InputSidebar({ client }: InputSidebarProps) {
         const currentCarrier = form.getValues("carrier_name");
         const currentProduct = form.getValues("product_name");
 
-        // Check if current values match a DIFFERENT locked product
-        // If so, reset to the selected formula type's defaults
         const otherProducts = Object.values(ALL_PRODUCTS).filter(p => p.id !== formulaType);
         const matchesOtherLockedProduct = otherProducts.some(p =>
             p.lockedFields.includes("carrierName") &&
@@ -120,7 +123,6 @@ export function InputSidebar({ client }: InputSidebarProps) {
         );
 
         if (matchesOtherLockedProduct) {
-            // Current carrier matches a different locked product - reset to correct defaults
             form.setValue("carrier_name", product.defaults.carrierName);
             form.setValue("product_name", product.defaults.productName);
             form.setValue("bonus_percent", product.defaults.bonus);
@@ -128,14 +130,13 @@ export function InputSidebar({ client }: InputSidebarProps) {
             form.setValue("penalty_free_percent", product.defaults.penaltyFreePercent);
         }
 
-        // For locked products, always ensure values match the preset
         if (product.lockedFields.includes("carrierName") && currentCarrier !== product.defaults.carrierName) {
             form.setValue("carrier_name", product.defaults.carrierName);
         }
         if (product.lockedFields.includes("productName") && currentProduct !== product.defaults.productName) {
             form.setValue("product_name", product.defaults.productName);
         }
-    }, [form, client?.id]); // Re-run when client changes
+    }, [form, client?.id]);
 
     const onSubmit = async (data: ClientFormData) => {
         setSubmitErrors([]);

@@ -21,6 +21,7 @@ export function AdvancedDataSection() {
   const [overridePenaltyFree, setOverridePenaltyFree] = useState(false);
   const form = useFormContext<ClientFormData>();
   const formulaType = form.watch("blueprint_type") as FormulaType;
+  const customProductId = form.watch("custom_product_id");
   const rateOfReturn = form.watch("rate_of_return");
   const isGI = isGuaranteedIncomeProduct(formulaType);
 
@@ -37,10 +38,10 @@ export function AdvancedDataSection() {
     setOverridePenaltyFree(false);
   }, [formulaType]);
 
-  const isSurrenderLocked = isFieldLocked("surrenderYears", formulaType) && !overrideSurrender;
-  const isPenaltyFreeLocked = isFieldLocked("penaltyFreePercent", formulaType) && !overridePenaltyFree;
-  const surrenderCanOverride = isFieldLocked("surrenderYears", formulaType);
-  const penaltyFreeCanOverride = isFieldLocked("penaltyFreePercent", formulaType);
+  const isSurrenderLocked = isFieldLocked("surrenderYears", formulaType, customProductId) && !overrideSurrender;
+  const isPenaltyFreeLocked = isFieldLocked("penaltyFreePercent", formulaType, customProductId) && !overridePenaltyFree;
+  const surrenderCanOverride = isFieldLocked("surrenderYears", formulaType, customProductId);
+  const penaltyFreeCanOverride = isFieldLocked("penaltyFreePercent", formulaType, customProductId);
 
   return (
     <div className="space-y-4">

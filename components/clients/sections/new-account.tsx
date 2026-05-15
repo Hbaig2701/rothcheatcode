@@ -205,9 +205,9 @@ export function NewAccountSection() {
     // (null for products without anniversary bonus, populated for Phased Bonus Growth)
   };
 
-  const isCarrierLocked = isFieldLocked("carrierName", formulaType);
-  const isProductLocked = isFieldLocked("productName", formulaType);
-  const isBonusLocked = isFieldLocked("bonus", formulaType);
+  const isCarrierLocked = isFieldLocked("carrierName", formulaType, customProductId);
+  const isProductLocked = isFieldLocked("productName", formulaType, customProductId);
+  const isBonusLocked = isFieldLocked("bonus", formulaType, customProductId);
   const isGI = isGuaranteedIncomeProduct(formulaType);
 
   // Get product-specific GI data for conditional fields
