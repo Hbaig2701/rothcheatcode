@@ -10,6 +10,7 @@ import { ChevronDown, ChevronUp, Info, X, Settings2, Loader2 } from "lucide-reac
 import { useUpdateClient } from "@/lib/queries/clients";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
+import { computeMarginalRMDTax } from "@/lib/calculations/marginal-rmd-tax";
 import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
 import { ResizableComparisonTable } from "@/components/results/deep-dive/resizable-comparison-table";
 import { ColumnSelectorModal } from "@/components/results/deep-dive/column-selector-modal";
@@ -123,6 +124,18 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // Note: Taxes and IRMAA are already deducted from taxableBalance in the engine
   const baseRMDs = sum(projection.baseline_years, "rmdAmount");
   const baseTax = sum(projection.baseline_years, "federalTax") + sum(projection.baseline_years, "stateTax");
+  // Marginal RMD-attributable portion of baseline tax — the tax dollars caused
+  // BY the RMDs themselves, isolated from background tax on SS/non-SSI income
+  // the client owes regardless. Without this isolation, a label like
+  // "Income tax on RMDs" silently lumps in tax on all other income — the
+  // asymmetry advisors keep catching on the dashboard tooltips. Same helper
+  // backs the PDF "Tax on RMDs" row, so all surfaces stay in sync.
+  const baseRMDTaxOnly = computeMarginalRMDTax(projection.baseline_years, client);
+  // Same idea for strategy: when a strategy doesn't fully convert (partial /
+  // optimized / fixed), there are still RMDs in the post-conversion phase,
+  // and the tax on those is its own line — separate from conversion tax and
+  // separate from background income tax.
+  const blueRMDTaxOnly = computeMarginalRMDTax(projection.blueprint_years, client);
   const baseIrmaa = sum(projection.baseline_years, "irmaaSurcharge");
   const baseFinalTraditional = projection.baseline_final_traditional;
   const baseFinalRoth = projection.baseline_final_roth;
@@ -437,6 +450,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 baseCumulativeDistributions={baseCumulativeDistributions}
                 baseLifetimeWealth={baseLifetimeWealth}
                 baseTax={baseTax}
+                baseRMDTaxOnly={baseRMDTaxOnly}
                 baseRMDs={baseRMDs}
                 blueFinalTraditional={blueFinalTraditional}
                 blueFinalRoth={blueFinalRoth}
@@ -513,11 +527,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               <TotalTaxesInfo
                 client={client}
                 baseTax={baseTax}
+                baseRMDTaxOnly={baseRMDTaxOnly}
                 baseIrmaa={baseIrmaa}
                 baseHeirTax={baseHeirTax}
                 baseTotalTaxes={baseTotalTaxes}
                 blueTax={blueTax}
                 blueConversionTax={blueConversionTax}
+                blueRMDTaxOnly={blueRMDTaxOnly}
                 blueIrmaa={blueIrmaa}
                 blueHeirTax={blueHeirTax}
                 blueTotalTaxes={blueTotalTaxes}
@@ -1136,6 +1152,7 @@ function LifetimeWealthInfo({
   baseNetLegacy,
   baseLifetimeWealth,
   baseTax,
+  baseRMDTaxOnly,
   baseRMDs,
   blueFinalTraditional,
   blueFinalRoth,
@@ -1184,6 +1201,7 @@ function LifetimeWealthInfo({
   baseCumulativeDistributions: number;
   baseLifetimeWealth: number;
   baseTax: number;
+  baseRMDTaxOnly: number;
   baseRMDs: number;
   blueFinalTraditional: number;
   blueFinalRoth: number;
@@ -1443,7 +1461,7 @@ function LifetimeWealthInfo({
         <TipDivider />
         <TipRow label="Baseline lifetime wealth" value={toUSD(baseLifetimeWealth)} variant="subtotal" />
         <TipNote>
-          Over {projectionYears} years, you'd take {toUSD(baseRMDs)} in RMDs and pay {toUSD(baseTax)} in income taxes on them.
+          Over {projectionYears} years, you'd take {toUSD(baseRMDs)} in RMDs and pay {toUSD(baseRMDTaxOnly)} in marginal income tax attributable to them. Total lifetime fed+state across the baseline ({toUSD(baseTax)}) also includes background tax on Social Security and other income.
         </TipNote>
       </TipSection>
 
@@ -1679,11 +1697,13 @@ function LegacyToHeirsInfo({
 function TotalTaxesInfo({
   client,
   baseTax,
+  baseRMDTaxOnly,
   baseIrmaa,
   baseHeirTax,
   baseTotalTaxes,
   blueTax,
   blueConversionTax,
+  blueRMDTaxOnly,
   blueIrmaa,
   blueHeirTax,
   blueTotalTaxes,
@@ -1704,11 +1724,13 @@ function TotalTaxesInfo({
 }: {
   client: Client;
   baseTax: number;
+  baseRMDTaxOnly: number;
   baseIrmaa: number;
   baseHeirTax: number;
   baseTotalTaxes: number;
   blueTax: number;
   blueConversionTax: number;
+  blueRMDTaxOnly: number;
   blueIrmaa: number;
   blueHeirTax: number;
   blueTotalTaxes: number;
@@ -1728,17 +1750,27 @@ function TotalTaxesInfo({
   widowDeathAge: number | null;
 }) {
   const heirTaxPct = Math.round(heirTaxRate * 100);
-  // Split blueTax (= total federal+state across the strategy) into three
-  // labeled buckets so the row labels match the values:
-  //   1. Conversion tax — the tax actually owed on the Roth conversions
-  //      themselves (federalTaxOnConversions + stateTaxOnConversions).
-  //   2. AUM income + cap-gains drag — only relevant when AUM is active;
-  //      excludes the 10% penalty (that's its own row).
-  //   3. Other strategy income tax — everything else fed+state taxed during
-  //      the strategy: tax on Social Security, non-SSI ordinary income, any
-  //      post-conversion RMDs, and state tax on those.
+  // Split each side's total fed+state into honest, labeled buckets so the row
+  // labels match the values. Both sides use the SAME bucket structure so the
+  // tooltip reads as a true apples-to-apples comparison.
+  //
+  // Baseline:
+  //   1. Income tax on RMDs (marginal) — tax dollars caused by the RMDs,
+  //      isolated via computeMarginalRMDTax.
+  //   2. Other baseline income tax — everything else fed+state in the
+  //      baseline (tax on Social Security, non-SSI income, etc.).
+  //
+  // Strategy:
+  //   1. Income tax on conversions — federalTaxOnConversions + stateTaxOnConversions.
+  //   2. Income tax on remaining RMDs (when partial/optimized leaves some) —
+  //      via computeMarginalRMDTax on the strategy years.
+  //   3. AUM withdrawal + tax drag — only when AUM is active; excludes the
+  //      10% penalty (its own row).
+  //   4. Other strategy income tax — everything else fed+state taxed in the
+  //      strategy (Social Security tax, non-SSI ordinary income, etc.).
+  const otherBaselineTax = Math.max(0, baseTax - baseRMDTaxOnly);
   const aumIncomeAndDragTax = aumActive ? Math.max(0, aumTotalTaxPaid - aumEarlyWithdrawalPenalty) : 0;
-  const otherStrategyTax = Math.max(0, blueTax - blueConversionTax - aumIncomeAndDragTax);
+  const otherStrategyTax = Math.max(0, blueTax - blueConversionTax - blueRMDTaxOnly - aumIncomeAndDragTax);
   const taxSavings = baseTotalTaxes - blueTotalTaxes;
 
   return (
@@ -1753,7 +1785,20 @@ function TotalTaxesInfo({
       </p>
 
       <TipSection label="Baseline Taxes">
-        <TipRow label="Income tax on RMDs (lifetime)" value={toUSD(baseTax)} variant="negative" />
+        <TipRow
+          label="Income tax on RMDs (marginal)"
+          value={toUSD(baseRMDTaxOnly)}
+          note="Tax dollars caused by the RMDs themselves, isolated from background income tax. Same number the PDF shows on the Distributions summary."
+          variant="negative"
+        />
+        {otherBaselineTax > 0 && (
+          <TipRow
+            label="Other baseline income tax"
+            value={toUSD(otherBaselineTax)}
+            note="Federal + state tax on Social Security, non-SSI ordinary income, and any other taxable income the client owes regardless of the strategy."
+            variant="negative"
+          />
+        )}
         <TipRow label="Medicare IRMAA surcharges" value={toUSD(baseIrmaa)} variant="negative" />
         <TipRow label={`Heir's tax on inheritance (${heirTaxPct}%)`} value={toUSD(baseHeirTax)} variant="negative" />
         <TipDivider />
@@ -1788,11 +1833,19 @@ function TotalTaxesInfo({
             variant="negative"
           />
         )}
+        {blueRMDTaxOnly > 0 && (
+          <TipRow
+            label="Income tax on remaining RMDs"
+            value={toUSD(blueRMDTaxOnly)}
+            note="Marginal tax on RMDs that still occur in the strategy when the conversion plan doesn't fully drain the Traditional IRA before age 73 (partial / optimized / fixed conversion types). Zero when the strategy fully converts before RMDs begin."
+            variant="negative"
+          />
+        )}
         {otherStrategyTax > 0 && (
           <TipRow
             label="Other strategy income tax"
             value={toUSD(otherStrategyTax)}
-            note="Federal + state tax on Social Security, non-SSI ordinary income, post-conversion RMDs, and state tax on the conversions themselves. Always present even when conversions are optimal."
+            note="Federal + state tax on Social Security, non-SSI ordinary income, and any other taxable income the client owes regardless of the strategy. Background tax that's the same on both sides."
             variant="negative"
           />
         )}

@@ -36,6 +36,11 @@ import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-
 import { calculateStateTax } from '../modules/state-tax';
 import { computeTaxableIncomeWithSS } from '../tax-helpers';
 import { getStandardDeduction } from '../../data/standard-deductions';
+// Production helper that the dashboard + PDF route now both call. The test's
+// inline canonicalTaxOnRMDs is an independent re-derivation; a separate
+// assertion below checks the helper's output matches that independent value.
+// If those two ever disagree, somebody refactored the helper and broke it.
+import { computeMarginalRMDTax } from '../marginal-rmd-tax';
 
 // ============================================================
 // Helpers
@@ -259,7 +264,12 @@ function runFixture(label: string, client: Client) {
       lifetimeWealth: canonicalLifetimeWealth(blueFinal.netWorth, blueFinal.traditionalBalance, heirTaxRate),
       taxOnConversions: canonicalTaxOnConversions(result.formula),
       totalFedStateTax: canonicalTotalFedStateTax(result.formula),
+      taxOnRMDs: canonicalTaxOnRMDs(result.formula, client),
     },
+    // Production helper output, used to assert the helper agrees with the
+    // independent canonical re-derivation above. See block at the bottom.
+    helperBaseTaxOnRMDs: computeMarginalRMDTax(result.baseline, client),
+    helperBlueTaxOnRMDs: computeMarginalRMDTax(result.formula, client),
   };
 }
 
@@ -323,6 +333,12 @@ const FUCCI_EXPECTED = {
     lifetimeWealth:       243_976_961,
     taxOnConversions:       4_357_314,
     totalFedStateTax:      12_324_519,
+    // Fucci is a fixed-amount conversion that doesn't fully drain the IRA
+    // before age 73, so RMDs persist through the strategy phase. Tax on those
+    // remaining RMDs ≈ totalFedStateTax for the strategy because there's
+    // almost no other income (low SS, no state tax) — same "matching" pattern
+    // as the baseline side that confused Jorge.
+    taxOnRMDs:             12_324_519,
   },
 };
 
@@ -340,6 +356,10 @@ assertDollars(fucciResults.blue.finalRoth, FUCCI_EXPECTED.blue.finalRoth, 'Fucci
 assertDollars(fucciResults.blue.lifetimeWealth, FUCCI_EXPECTED.blue.lifetimeWealth, 'Fucci blue.lifetimeWealth');
 assertDollars(fucciResults.blue.taxOnConversions, FUCCI_EXPECTED.blue.taxOnConversions, 'Fucci blue.taxOnConversions');
 assertDollars(fucciResults.blue.totalFedStateTax, FUCCI_EXPECTED.blue.totalFedStateTax, 'Fucci blue.totalFedStateTax');
+assertDollars(fucciResults.blue.taxOnRMDs, FUCCI_EXPECTED.blue.taxOnRMDs, 'Fucci blue.taxOnRMDs');
+// Production helper must match the test's independent canonical re-derivation.
+assertDollars(fucciResults.helperBaseTaxOnRMDs, FUCCI_EXPECTED.base.taxOnRMDs, 'Fucci helperBaseTaxOnRMDs (helper vs canonical)');
+assertDollars(fucciResults.helperBlueTaxOnRMDs, FUCCI_EXPECTED.blue.taxOnRMDs, 'Fucci helperBlueTaxOnRMDs (helper vs canonical)');
 
 // ============================================================
 // FIXTURE 2: Paul George shape
@@ -391,6 +411,10 @@ const PAUL_EXPECTED = {
     lifetimeWealth:       171_416_207,
     taxOnConversions:      11_269_316,
     totalFedStateTax:      20_612_163,
+    // Same "matching" pattern as base — fixed-amount conversion leaves RMDs
+    // through the strategy phase, and Paul's $25K SS isn't enough to shift
+    // the marginal RMD-attributable tax meaningfully below total.
+    taxOnRMDs:             20_612_163,
   },
 };
 
@@ -408,6 +432,9 @@ assertDollars(paulResults.blue.finalRoth, PAUL_EXPECTED.blue.finalRoth, 'Paul bl
 assertDollars(paulResults.blue.lifetimeWealth, PAUL_EXPECTED.blue.lifetimeWealth, 'Paul blue.lifetimeWealth');
 assertDollars(paulResults.blue.taxOnConversions, PAUL_EXPECTED.blue.taxOnConversions, 'Paul blue.taxOnConversions');
 assertDollars(paulResults.blue.totalFedStateTax, PAUL_EXPECTED.blue.totalFedStateTax, 'Paul blue.totalFedStateTax');
+assertDollars(paulResults.blue.taxOnRMDs, PAUL_EXPECTED.blue.taxOnRMDs, 'Paul blue.taxOnRMDs');
+assertDollars(paulResults.helperBaseTaxOnRMDs, PAUL_EXPECTED.base.taxOnRMDs, 'Paul helperBaseTaxOnRMDs (helper vs canonical)');
+assertDollars(paulResults.helperBlueTaxOnRMDs, PAUL_EXPECTED.blue.taxOnRMDs, 'Paul helperBlueTaxOnRMDs (helper vs canonical)');
 
 // ============================================================
 // FIXTURE 3: Sprengel shape
@@ -478,6 +505,10 @@ const SPRENGEL_EXPECTED = {
     lifetimeWealth:       955_561_949,
     taxOnConversions:      43_273_237,
     totalFedStateTax:     122_754_332,
+    // Full conversion drains the Traditional IRA before age 73, so there are
+    // no RMDs in the strategy phase — marginal RMD tax must be exactly $0.
+    // If this ever shows non-zero, full-conversion semantics broke.
+    taxOnRMDs:                      0,
   },
 };
 
@@ -495,6 +526,9 @@ assertDollars(sprengelResults.blue.finalRoth, SPRENGEL_EXPECTED.blue.finalRoth, 
 assertDollars(sprengelResults.blue.lifetimeWealth, SPRENGEL_EXPECTED.blue.lifetimeWealth, 'Sprengel blue.lifetimeWealth');
 assertDollars(sprengelResults.blue.taxOnConversions, SPRENGEL_EXPECTED.blue.taxOnConversions, 'Sprengel blue.taxOnConversions');
 assertDollars(sprengelResults.blue.totalFedStateTax, SPRENGEL_EXPECTED.blue.totalFedStateTax, 'Sprengel blue.totalFedStateTax');
+assertDollars(sprengelResults.blue.taxOnRMDs, SPRENGEL_EXPECTED.blue.taxOnRMDs, 'Sprengel blue.taxOnRMDs');
+assertDollars(sprengelResults.helperBaseTaxOnRMDs, SPRENGEL_EXPECTED.base.taxOnRMDs, 'Sprengel helperBaseTaxOnRMDs (helper vs canonical)');
+assertDollars(sprengelResults.helperBlueTaxOnRMDs, SPRENGEL_EXPECTED.blue.taxOnRMDs, 'Sprengel helperBlueTaxOnRMDs (helper vs canonical)');
 
 // ============================================================
 // SCRATCHPAD: print actuals so a developer who needs to update the

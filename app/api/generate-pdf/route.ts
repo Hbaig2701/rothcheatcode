@@ -11,6 +11,7 @@ import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/produc
 import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
 import { hasFeature, hasFullAccess } from '@/lib/config/plans';
 import { determineTaxBracket, calculateFederalTax } from '@/lib/calculations/modules/federal-tax';
+import { computeMarginalRMDTax } from '@/lib/calculations/marginal-rmd-tax';
 import { calculateStateTax } from '@/lib/calculations/modules/state-tax';
 import { computeTaxableIncomeWithSS } from '@/lib/calculations/tax-helpers';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
@@ -734,65 +735,10 @@ function generateLegacyChartSVG(projection: any, heirTaxRate: number): string {
   </svg>`;
 }
 
-/**
- * Compute the marginal tax attributable to RMDs across all years.
- *
- * For each year with an RMD, we re-run the tax calculation as if the RMD
- * weren't taken (just SS + other income + tax-exempt) and take the difference
- * vs the year's actual federal+state tax. The sum across years isolates the
- * tax cost of the forced distribution from background tax on wages, pension,
- * SS, etc. that the client would owe regardless.
- *
- * Used for the "Tax on RMDs" row in the Distributions summary so it compares
- * apples-to-apples with the strategy column's "Tax on Conversions".
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function computeMarginalRMDTax(years: any[], client: any): number {
-  const stateTaxRateOverride = client.state_tax_rate !== undefined && client.state_tax_rate !== null
-    ? client.state_tax_rate / 100
-    : undefined;
-
-  let total = 0;
-  for (const year of years) {
-    const rmd = year.rmdAmount ?? 0;
-    if (rmd <= 0) continue;
-
-    const taxWithRMD = (year.federalTax ?? 0) + (year.stateTax ?? 0);
-
-    // Recompute tax assuming no RMD this year. otherIncome on the engine row
-    // already EXCLUDES the RMD (RMD is summed in separately as grossTaxableIncome
-    // inside the engine). So passing `otherIncome` alone here gives the
-    // "without RMD" picture, including any change in SS taxability.
-    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year.year, client.tax_exempt_non_ssi ?? 0);
-    const deductions = year.standardDeduction
-      ?? getStandardDeduction(client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
-
-    const taxInfoNoRMD = computeTaxableIncomeWithSS({
-      otherIncome: year.otherIncome ?? 0,
-      ssBenefits: year.ssIncome ?? 0,
-      taxExemptInterest: taxExemptNonSSI,
-      deductions,
-      filingStatus: client.filing_status,
-    });
-
-    const fedNoRMD = calculateFederalTax({
-      taxableIncome: taxInfoNoRMD.taxableIncome,
-      filingStatus: client.filing_status,
-      taxYear: year.year,
-    }).totalTax;
-
-    const stateNoRMD = calculateStateTax({
-      taxableIncome: taxInfoNoRMD.taxableIncome,
-      state: client.state,
-      filingStatus: client.filing_status,
-      overrideRate: stateTaxRateOverride,
-    }).totalTax;
-
-    const taxWithoutRMD = fedNoRMD + stateNoRMD;
-    total += Math.max(0, taxWithRMD - taxWithoutRMD);
-  }
-  return total;
-}
+// Marginal RMD tax computation lives in lib/calculations/marginal-rmd-tax.ts so
+// the PDF route, the in-app dashboards, and any future surface use the SAME
+// computation. Surface drift on "Tax on RMDs" is the structural problem we keep
+// getting bitten by.
 
 // Build the display name shown on the cover and Client Data row. When the
 // filing status is MFJ and we have a spouse name on file, both names are
