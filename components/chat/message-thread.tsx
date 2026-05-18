@@ -7,6 +7,7 @@ import { MessageBubble } from "./message-bubble";
 import { ChatInput } from "./chat-input";
 import { useConversation, chatKeys } from "@/lib/queries/chat";
 import { streamChat } from "@/lib/chat/stream-client";
+import { useTypewriter } from "@/lib/chat/typewriter";
 
 interface MessageThreadProps {
   conversationId: string | null;
@@ -33,9 +34,12 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
   const { data, isLoading } = useConversation(conversationId);
 
   const [input, setInput] = useState("");
-  // Currently-streaming assistant text. Cleared once we re-fetch the
-  // conversation (which then includes the persisted assistant message).
-  const [streamingText, setStreamingText] = useState("");
+  // Smoothed reveal of the streaming assistant text. SSE chunks land in
+  // the typewriter buffer; useTypewriter exposes a steady-rate revealed
+  // string we render in the bubble. Without this, raw chunks render in
+  // jerky bursts that re-parse markdown on every keystroke.
+  const typewriter = useTypewriter({ charsPerSecond: 90 });
+  const streamingText = typewriter.text;
   // Optimistic user message we just sent — displayed while the conversation
   // refetch is in flight so the UI doesn't appear to "lose" the message.
   const [optimisticUser, setOptimisticUser] = useState<string | null>(null);
@@ -77,7 +81,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
     setBusy(true);
     setError(null);
     setOptimisticUser(message);
-    setStreamingText("");
+    typewriter.reset();
     setToolStatus(null);
     setInput("");
 
@@ -104,7 +108,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
           },
           onText: ({ text }) => {
             setToolStatus(null);
-            setStreamingText((prev) => prev + text);
+            typewriter.append(text);
           },
           onTool: ({ tool_name, status, label }) => {
             setToolStatus({
@@ -121,10 +125,12 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
       const m = err instanceof Error ? err.message : "Chat failed";
       if (m !== "AbortError" && !controller.signal.aborted) setError(m);
     } finally {
-      // Refetch the persisted messages FIRST so the cache has the saved
-      // user + assistant rows, THEN clear the local streaming state. If we
-      // cleared first the UI would briefly show neither — that was the
-      // "flash" advisors saw between stream completion and refetch landing.
+      // Drain any buffered typewriter text so the bubble shows the
+      // complete reply before we hand off to the persisted version.
+      typewriter.finish();
+      // Refetch persisted messages FIRST so the cache has the saved user +
+      // assistant rows; THEN clear streaming state. Avoids the flash where
+      // neither version is visible between stream-end and refetch-land.
       if (createdConversationId) {
         await Promise.all([
           qc.invalidateQueries({ queryKey: chatKeys.conversation(createdConversationId) }),
@@ -133,7 +139,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
       }
       setBusy(false);
       setOptimisticUser(null);
-      setStreamingText("");
+      typewriter.reset();
       setToolStatus(null);
       streamingConvoRef.current = null;
     }

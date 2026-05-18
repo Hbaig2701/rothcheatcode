@@ -210,29 +210,47 @@ async function runGetMyClients(
 ): Promise<string> {
   const search = typeof input.search === "string" ? input.search.trim() : "";
 
-  let query = ctx.supabase
-    .from("clients")
-    .select(
-      "id, name, age, filing_status, qualified_account_value, blueprint_type, conversion_type, updated_at"
-    )
-    .order("updated_at", { ascending: false })
-    .limit(50);
+  // Try a strict ilike substring match first. If that returns zero hits AND
+  // a search was provided, fall back to returning the full client list so
+  // the model can suggest the closest near-match by name similarity — e.g.,
+  // "Travis Johns" → "did you mean Travis John?". Without this fallback,
+  // a single-character typo dead-ends with "no client matches".
+  const baseSelect =
+    "id, name, age, filing_status, qualified_account_value, blueprint_type, conversion_type, updated_at";
 
-  if (search) query = query.ilike("name", `%${search}%`);
+  const buildQuery = (filter: string | null) => {
+    let q = ctx.supabase
+      .from("clients")
+      .select(baseSelect)
+      .order("updated_at", { ascending: false })
+      .limit(50);
+    if (filter) q = q.ilike("name", `%${filter}%`);
+    return q;
+  };
 
-  const { data, error } = await query;
+  // Pass 1: filtered.
+  let { data, error } = search
+    ? await buildQuery(search)
+    : await buildQuery(null);
   if (error) throw new Error(error.message);
 
+  let fallbackNote: string | null = null;
+  if (search && (!data || data.length === 0)) {
+    const all = await buildQuery(null);
+    if (all.error) throw new Error(all.error.message);
+    data = all.data;
+    fallbackNote =
+      `No client name exactly matches "${search}". Returning the full client list — pick the closest match by name and confirm with the advisor before continuing ("Looks like you meant <NAME> — should I look them up?").`;
+  }
+
   if (!data || data.length === 0) {
-    return search
-      ? `No clients match "${search}".`
-      : "No clients on this account yet.";
+    return "No clients on this account yet.";
   }
 
   // Compact, model-friendly JSON. Dollar fields are returned in dollars
   // (not cents) so the model doesn't have to remember the cents convention.
-  return JSON.stringify(
-    data.map((c) => ({
+  const result = {
+    clients: data.map((c) => ({
       id: c.id,
       name: c.name,
       age: c.age,
@@ -242,9 +260,9 @@ async function runGetMyClients(
       conversion_type: c.conversion_type,
       updated_at: c.updated_at,
     })),
-    null,
-    0
-  );
+    note: fallbackNote,
+  };
+  return JSON.stringify(result, null, 0);
 }
 
 async function runGetClientDetails(

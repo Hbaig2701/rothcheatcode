@@ -51,12 +51,19 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
         )}
       >
         {isUser ? (
-          // User messages render as plain text (preserves line breaks).
           <p className="whitespace-pre-wrap">{message.content}</p>
+        ) : streaming ? (
+          // While streaming, render plain text only. Re-parsing markdown on
+          // every typewriter tick is what made the reveal feel "bulky" —
+          // each chunk reflowed the entire parsed tree. Plain text reflows
+          // are much cheaper and look smooth.
+          <p className="whitespace-pre-wrap leading-relaxed">
+            {message.content}
+            <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-foreground/60 animate-pulse rounded-sm align-middle" />
+          </p>
         ) : (
-          // Assistant messages render markdown so the model can use inline
-          // emphasis / code spans / occasional links — but the tone prompt
-          // discourages heavy formatting so most messages will be plain prose.
+          // Once the full reply is persisted, we render it as markdown so
+          // any inline emphasis / code spans look right.
           <div
             className={cn(
               "prose prose-sm max-w-none",
@@ -67,9 +74,6 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
             )}
           >
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-            {streaming && (
-              <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-foreground/60 animate-pulse rounded-sm align-middle" />
-            )}
           </div>
         )}
       </div>
