@@ -1,10 +1,16 @@
 /**
  * System prompt for the advisor-facing chat assistant.
  *
- * Placeholder content for Phase 2. The comprehensive methodology /
- * knowledge-base content lands in Phase 4 and replaces SYSTEM_PROMPT_BODY.
- * Tone instructions and identity stay here as the stable shell.
+ * Three blocks: identity (who you are) → tone (how to respond) → knowledge
+ * base (everything about the platform, theory, math, IRS data, common
+ * confusions). The knowledge base lives in lib/chat/knowledge-base.ts and
+ * is updated alongside engine changes; this file owns the stable shell.
+ *
+ * The full prompt is marked cache_control on the last block so Anthropic's
+ * prompt cache hits on the entire system prompt for ~5 minutes after each
+ * use — cuts the per-message input cost ~10x for a chatty advisor.
  */
+import { KNOWLEDGE_BASE } from "./knowledge-base";
 
 export const SYSTEM_PROMPT_IDENTITY = `You are the in-app assistant for Retirement Expert, a Roth-conversion planning platform used by financial advisors. Advisors ask you to explain numbers from their reports, walk through theory and math, and confirm what assumptions the engine is making.
 
@@ -20,12 +26,10 @@ export const SYSTEM_PROMPT_TONE = `## How to respond
 - Match the advisor's expertise level. Many advisors here are not technical — they need to walk away with a clear mental model they can repeat to a client, not a textbook explanation.
 - If the advisor seems to be hitting a real bug (the math doesn't match, the UI is doing something unexpected, a feature isn't working), say so plainly and offer to file a support ticket on their behalf. Don't fabricate fixes.`;
 
-// Placeholder body for Phase 2. Phase 4 will fill this with the full
-// methodology knowledge base (theory, math, IRS data, assumptions, product
-// behaviors, common confusion patterns).
-export const SYSTEM_PROMPT_BODY = `## What you know about the platform
-
-(Knowledge base will be expanded in Phase 4 — for now, answer general theory questions about Roth conversions and direct specific software questions to the support team.)`;
+// Knowledge base — the full methodology + IRS data + common confusion
+// patterns. Lives in its own file so engine/data changes can update it
+// without touching the prompt scaffolding here.
+export const SYSTEM_PROMPT_BODY = KNOWLEDGE_BASE;
 
 /**
  * Assemble the full system prompt. Each segment is returned as a separate
