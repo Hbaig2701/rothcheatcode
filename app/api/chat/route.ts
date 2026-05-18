@@ -139,17 +139,36 @@ export async function POST(req: NextRequest) {
     content: string | ChatContentBlock[];
   };
   const messages: AnthMessage[] = [];
+  // Tracks tool_use_ids the most recent assistant turn announced, so we
+  // can drop orphan tool_result blocks left over from the pre-fix bug
+  // where intermediate assistant turns weren't persisted.
+  let availableToolUseIds = new Set<string>();
   for (const row of priorRows ?? []) {
-    // 'tool' rows belong on the user side as tool_result blocks. The blocks
-    // are already shaped that way in content_blocks.
     if (row.role === "tool") {
       const blocks = (row.content_blocks ?? []) as ChatContentBlock[];
-      if (blocks.length > 0) {
-        messages.push({ role: "user", content: blocks });
+      const valid = blocks.filter(
+        (b) => b.type === "tool_result" && availableToolUseIds.has(b.tool_use_id)
+      );
+      if (valid.length > 0) {
+        messages.push({ role: "user", content: valid });
+        for (const b of valid) {
+          if (b.type === "tool_result") availableToolUseIds.delete(b.tool_use_id);
+        }
       }
+      // If no valid blocks (orphaned from old conversation), silently skip
+      // the row — better than 400ing the whole request.
       continue;
     }
     const blocks = (row.content_blocks ?? null) as ChatContentBlock[] | null;
+    if (row.role === "assistant" && blocks) {
+      availableToolUseIds = new Set(
+        blocks.filter((b) => b.type === "tool_use").map((b) => (b as { id: string }).id)
+      );
+    } else if (row.role === "user") {
+      // User turns reset the "available" set — a user message means the
+      // model's prior turn is closed.
+      availableToolUseIds = new Set();
+    }
     if (blocks && blocks.length > 0) {
       messages.push({ role: row.role as "user" | "assistant", content: blocks });
     } else {
@@ -174,11 +193,12 @@ export async function POST(req: NextRequest) {
         cache_read_tokens: 0,
         cache_creation_tokens: 0,
       };
-      let finalAssistantText = "";
-      let finalAssistantBlocks: ChatContentBlock[] = [];
+      // Last persisted assistant message id — used to stamp created_ticket_id
+      // on the final turn if the model called create_support_ticket. We
+      // update this after each iteration's insert.
+      let lastAssistantMessageId: string | null = null;
       // Filled by the create_support_ticket tool when the model decides to
-      // escalate. Persisted to chat_messages.created_ticket_id at end-of-loop
-      // so the admin panel + UI bubble can surface "filed ticket X" links.
+      // escalate. Stamped on the final assistant row after the loop ends.
       const sideEffects: { ticketId?: string } = {};
 
       try {
@@ -197,6 +217,12 @@ export async function POST(req: NextRequest) {
           });
 
           let iterText = "";
+          const iterUsage: CumulativeUsage = {
+            input_tokens: 0,
+            output_tokens: 0,
+            cache_read_tokens: 0,
+            cache_creation_tokens: 0,
+          };
           // Track which block index is a tool_use so we can emit the tool
           // status event as soon as Anthropic announces a tool block start.
           const announcedTools = new Set<number>();
@@ -218,7 +244,7 @@ export async function POST(req: NextRequest) {
               iterText += event.delta.text;
               sseEvent(controller, "text", { text: event.delta.text });
             } else if (event.type === "message_start" && event.message.usage) {
-              addUsage(cumulativeUsage, {
+              addUsage(iterUsage, {
                 input_tokens: event.message.usage.input_tokens ?? 0,
                 output_tokens: event.message.usage.output_tokens ?? 0,
                 cache_read_tokens: event.message.usage.cache_read_input_tokens ?? 0,
@@ -226,31 +252,48 @@ export async function POST(req: NextRequest) {
                   event.message.usage.cache_creation_input_tokens ?? 0,
               });
             } else if (event.type === "message_delta" && event.usage) {
-              addUsage(cumulativeUsage, {
-                output_tokens:
-                  (event.usage.output_tokens ?? 0) -
-                  // message_delta usage is cumulative for the turn, but
-                  // message_start already counted the initial output_tokens
-                  // (usually 0). Net add is the delta only.
-                  0,
-              });
+              // message_delta carries the final output_tokens count for the
+              // turn — overwrite (not add) since message_start was 0.
+              iterUsage.output_tokens = event.usage.output_tokens ?? iterUsage.output_tokens;
             }
           }
 
           const finalMessage = await anthStream.finalMessage();
           const blocks = finalMessage.content as unknown as ChatContentBlock[];
-          // Track the latest assistant text + blocks for persistence at the
-          // end. If this turn ends with end_turn, these are what gets saved.
-          finalAssistantText = iterText;
-          finalAssistantBlocks = blocks;
+          const iterCost = computeMessageCost(model, iterUsage);
+          addUsage(cumulativeUsage, iterUsage);
+
+          // PERSIST this iteration's assistant turn. Critical for multi-turn
+          // (tool-using) conversations: when history reloads, the
+          // tool_use ↔ tool_result pair must still be intact. Saving only
+          // the final turn loses the tool_use blocks and produces a 400
+          // from Anthropic on the next message.
+          const { data: insertedAssistant } = await supabase
+            .from("chat_messages")
+            .insert({
+              conversation_id: conversationId,
+              user_id: user.id,
+              role: "assistant",
+              content: iterText,
+              content_blocks: blocks,
+              input_tokens: iterUsage.input_tokens,
+              output_tokens: iterUsage.output_tokens,
+              cache_read_tokens: iterUsage.cache_read_tokens,
+              cache_creation_tokens: iterUsage.cache_creation_tokens,
+              cost_usd: iterCost,
+              model,
+            })
+            .select("id")
+            .single();
+          lastAssistantMessageId = insertedAssistant?.id ?? lastAssistantMessageId;
 
           if (finalMessage.stop_reason !== "tool_use") {
             // end_turn (or max_tokens) — done.
             break;
           }
 
-          // Tool-use path: append assistant turn to history, run tools, append
-          // tool_result blocks as a user turn, loop.
+          // Tool-use path: append assistant turn to in-memory history, run
+          // tools, append tool_result blocks as a user turn, loop.
           messages.push({ role: "assistant", content: blocks });
 
           const toolResultBlocks: ChatContentBlock[] = [];
@@ -286,48 +329,37 @@ export async function POST(req: NextRequest) {
           messages.push({ role: "user", content: toolResultBlocks });
         }
 
-        const cost = computeMessageCost(model, cumulativeUsage);
-
-        const { data: persisted } = await supabase
-          .from("chat_messages")
-          .insert({
-            conversation_id: conversationId,
-            user_id: user.id,
-            role: "assistant",
-            content: finalAssistantText,
-            content_blocks: finalAssistantBlocks,
-            input_tokens: cumulativeUsage.input_tokens,
-            output_tokens: cumulativeUsage.output_tokens,
-            cache_read_tokens: cumulativeUsage.cache_read_tokens,
-            cache_creation_tokens: cumulativeUsage.cache_creation_tokens,
-            cost_usd: cost,
-            model,
-            // If create_support_ticket was called during this turn, stamp
-            // the assistant message with the ticket id. UI shows a small
-            // "Filed support ticket" note under the bubble; admin panel
-            // can filter for AI-escalated tickets.
-            created_ticket_id: sideEffects.ticketId ?? null,
-          })
-          .select("id")
-          .single();
+        // If the model escalated to a ticket during this turn, stamp the
+        // last assistant row with the ticket id so the UI bubble can render
+        // "Filed support ticket — view it →".
+        if (sideEffects.ticketId && lastAssistantMessageId) {
+          await supabase
+            .from("chat_messages")
+            .update({ created_ticket_id: sideEffects.ticketId })
+            .eq("id", lastAssistantMessageId);
+        }
 
         await supabase
           .from("chat_conversations")
           .update({ last_message_at: new Date().toISOString() })
           .eq("id", conversationId);
 
+        const cost = computeMessageCost(model, cumulativeUsage);
         sseEvent(controller, "done", {
-          message_id: persisted?.id,
+          message_id: lastAssistantMessageId,
           usage: cumulativeUsage,
           cost_usd: cost,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Chat request failed";
+        // Surface a placeholder error message in the transcript so the
+        // advisor sees something went wrong. Iteration-level assistant
+        // rows are already persisted; this is just the trailing error note.
         await supabase.from("chat_messages").insert({
           conversation_id: conversationId,
           user_id: user.id,
           role: "assistant",
-          content: finalAssistantText || `[error] ${message}`,
+          content: `[error] ${message}`,
           model,
         });
         sseEvent(controller, "error", { message });
