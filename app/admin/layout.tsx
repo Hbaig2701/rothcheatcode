@@ -37,6 +37,9 @@ export default async function AdminLayout({
               <Link href="/admin/affiliates" className="text-text-dim hover:text-foreground transition-colors">
                 Affiliates
               </Link>
+              <Link href="/admin/ai-chat" className="text-text-dim hover:text-foreground transition-colors">
+                AI Chat
+              </Link>
               <Link href="/support-centre" className="text-text-dim hover:text-foreground transition-colors">
                 Support
               </Link>
