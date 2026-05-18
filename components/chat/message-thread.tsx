@@ -36,9 +36,11 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
   const [input, setInput] = useState("");
   // Smoothed reveal of the streaming assistant text. SSE chunks land in
   // the typewriter buffer; useTypewriter exposes a steady-rate revealed
-  // string we render in the bubble. Without this, raw chunks render in
-  // jerky bursts that re-parse markdown on every keystroke.
-  const typewriter = useTypewriter({ charsPerSecond: 90 });
+  // string we render in the bubble. Calibrated at ~35 cps so a typical
+  // 200-char reply takes ~6 seconds to fully type out — feels considered
+  // and gives the advisor time to read along instead of dumping the
+  // answer the moment the model finishes generating.
+  const typewriter = useTypewriter();
   const streamingText = typewriter.text;
   // Optimistic user message we just sent — displayed while the conversation
   // refetch is in flight so the UI doesn't appear to "lose" the message.
@@ -125,9 +127,13 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
       const m = err instanceof Error ? err.message : "Chat failed";
       if (m !== "AbortError" && !controller.signal.aborted) setError(m);
     } finally {
-      // Drain any buffered typewriter text so the bubble shows the
-      // complete reply before we hand off to the persisted version.
-      typewriter.finish();
+      // Wait for the typewriter to naturally finish revealing whatever
+      // text is still buffered before we hand off to the persisted
+      // version. Without the await, the bubble jumps from mid-reveal to
+      // fully typed the moment the stream ends — abrupt and unsatisfying.
+      // With it, the reveal completes calmly and the cache hand-off is
+      // invisible.
+      await typewriter.finish();
       // Refetch persisted messages FIRST so the cache has the saved user +
       // assistant rows; THEN clear streaming state. Avoids the flash where
       // neither version is visible between stream-end and refetch-land.

@@ -29,16 +29,18 @@ export interface TypewriterApi {
   text: string;
   // Append a chunk that just arrived from the stream.
   append: (chunk: string) => void;
-  // Flush any remaining buffered text and stop the timer. Call this when
-  // the stream's `done` event arrives.
-  finish: () => void;
+  // Mark the stream as ended (no more chunks coming). Returns a Promise
+  // that resolves once the typewriter has naturally revealed everything
+  // in the buffer. The caller can `await` it to defer handoff to the
+  // persisted message until the reveal looks complete.
+  finish: () => Promise<void>;
   // Reset to empty state (use when starting a new message).
   reset: () => void;
 }
 
 export function useTypewriter({
-  charsPerSecond = 80,
-  maxBufferChars = 600,
+  charsPerSecond = 35,
+  maxBufferChars = 4000,
 }: TypewriterOptions = {}): TypewriterApi {
   const [text, setText] = useState("");
   // Queue of un-revealed characters. A ref instead of state because the
@@ -49,26 +51,26 @@ export function useTypewriter({
 
   function ensureTimer() {
     if (timerRef.current) return;
-    // Reveal roughly charsPerSecond / 50fps = 1-2 chars per tick. We
-    // compute the per-tick count from queue size to keep up under heavy
-    // chunk bursts.
-    const tickMs = 1000 / 50;
+    // Reveal at a steady rate matching charsPerSecond. No more burst
+    // acceleration based on backlog — that was causing short messages to
+    // feel abrupt: typewriter would dump the rest the moment the model
+    // out-paced 90 cps. Now the reveal stays calm and lets the advisor
+    // actually read along.
+    const tickMs = 1000 / 30; // 30 fps
     timerRef.current = setInterval(() => {
       const queue = queueRef.current;
       if (queue.length === 0) {
-        // Nothing to reveal — pause the timer until next append.
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
         return;
       }
-      // Base per-tick reveal rate.
-      let n = Math.max(1, Math.round(charsPerSecond / 50));
-      // If we're falling far behind, accelerate so the cursor doesn't
-      // get stuck minutes behind the model. Speed scales with backlog.
-      if (queue.length > maxBufferChars) n = queue.length;
-      else if (queue.length > 200) n = Math.max(n, Math.ceil(queue.length / 40));
+      // Steady per-tick reveal — base rate calibrated for tickMs.
+      let n = Math.max(1, Math.round(charsPerSecond / 30));
+      // Soft floor for absurd backlogs (>4KB queued). Even then, cap at
+      // 2× base rate so the reveal stays smooth — never a jarring dump.
+      if (queue.length > maxBufferChars) n = n * 2;
 
       const slice = queue.slice(0, n);
       queueRef.current = queue.slice(n);
@@ -83,17 +85,29 @@ export function useTypewriter({
     ensureTimer();
   }
 
-  function finish() {
+  function finish(): Promise<void> {
     finishedRef.current = true;
-    if (queueRef.current.length > 0) {
-      const remaining = queueRef.current;
-      queueRef.current = "";
-      setText((prev) => prev + remaining);
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+    // Don't flush — let the buffered text reveal at its normal rate. The
+    // returned promise resolves once the queue empties so callers can
+    // await the natural completion before handing off to the persisted
+    // message. Hard 30s ceiling to guard against a stuck timer.
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const tick = () => {
+        if (queueRef.current.length === 0) {
+          resolve();
+        } else if (Date.now() - start > 30_000) {
+          // Safety: don't hang forever. Flush the rest and resolve.
+          const remaining = queueRef.current;
+          queueRef.current = "";
+          setText((prev) => prev + remaining);
+          resolve();
+        } else {
+          setTimeout(tick, 50);
+        }
+      };
+      tick();
+    });
   }
 
   function reset() {
