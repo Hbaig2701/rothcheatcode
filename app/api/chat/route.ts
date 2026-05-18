@@ -22,6 +22,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAnthropic, CHAT_MODEL_DEFAULT, computeMessageCost } from "@/lib/chat/anthropic";
 import { buildSystemPrompt } from "@/lib/chat/system-prompt";
 import { CHAT_TOOLS, runTool, getToolStatusLabel } from "@/lib/chat/tools";
+import { parseDataUrl } from "@/lib/chat/attachments";
 import type { ChatContentBlock } from "@/lib/types/chat";
 
 export const dynamic = "force-dynamic";
@@ -101,15 +102,21 @@ export async function POST(req: NextRequest) {
     conversationId = inserted.id;
   }
 
-  // Persist the user message.
+  // Persist the user message. Attachments come in as data: URLs from the
+  // client; we convert each to a base64 image block for Anthropic. The
+  // data: URL itself is what we save in chat_messages.attachment_url so
+  // the UI can render it later without a second round-trip.
   const attachments = (body.attachments ?? []).filter((u) => typeof u === "string");
-  const userContentBlocks: ChatContentBlock[] = [
-    ...attachments.map((url) => ({
-      type: "image" as const,
-      source: { type: "url" as const, url },
-    })),
-    { type: "text" as const, text: body.message },
-  ];
+  const userContentBlocks: ChatContentBlock[] = [];
+  for (const dataUrl of attachments) {
+    const parsed = parseDataUrl(dataUrl);
+    if (!parsed) continue;
+    userContentBlocks.push({
+      type: "image",
+      source: { type: "base64", media_type: parsed.mediaType, data: parsed.base64 },
+    });
+  }
+  userContentBlocks.push({ type: "text", text: body.message });
   await supabase.from("chat_messages").insert({
     conversation_id: conversationId,
     user_id: user.id,
@@ -169,6 +176,10 @@ export async function POST(req: NextRequest) {
       };
       let finalAssistantText = "";
       let finalAssistantBlocks: ChatContentBlock[] = [];
+      // Filled by the create_support_ticket tool when the model decides to
+      // escalate. Persisted to chat_messages.created_ticket_id at end-of-loop
+      // so the admin panel + UI bubble can surface "filed ticket X" links.
+      const sideEffects: { ticketId?: string } = {};
 
       try {
         for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
@@ -248,7 +259,7 @@ export async function POST(req: NextRequest) {
             const result = await runTool(
               block.name,
               block.input,
-              { supabase, userId: user.id }
+              { supabase, userId: user.id, sideEffects }
             );
             // Persist the tool execution as its own message row so the admin
             // panel can show the full timeline.
@@ -291,6 +302,11 @@ export async function POST(req: NextRequest) {
             cache_creation_tokens: cumulativeUsage.cache_creation_tokens,
             cost_usd: cost,
             model,
+            // If create_support_ticket was called during this turn, stamp
+            // the assistant message with the ticket id. UI shows a small
+            // "Filed support ticket" note under the bubble; admin panel
+            // can filter for AI-escalated tickets.
+            created_ticket_id: sideEffects.ticketId ?? null,
           })
           .select("id")
           .single();

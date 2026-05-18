@@ -90,6 +90,43 @@ export const CHAT_TOOLS: ChatTool[] = [
       required: ["client_id", "year"],
     },
   },
+  {
+    name: "create_support_ticket",
+    description:
+      "File a support ticket on the advisor's behalf so the engineering team can investigate. ONLY call this AFTER the advisor has explicitly confirmed they want a ticket filed in this conversation. Never auto-file. Use for genuine bugs (math doesn't reconcile, label clearly wrong, feature broken) — NOT for clarification questions or feature wishes.",
+    input_schema: {
+      type: "object",
+      properties: {
+        subject: {
+          type: "string",
+          description:
+            "Short subject line, advisor-style. Example: 'Sprengel — Tax on RMDs column showing 0 in 2031'.",
+        },
+        description: {
+          type: "string",
+          description:
+            "Detailed description of the issue. Include what the advisor observed, what they expected, the client name if applicable, and any specific year/number they cited.",
+        },
+        category: {
+          type: "string",
+          enum: ["bug", "data_issue", "feature_request", "question", "other"],
+          description: "One of: bug, data_issue, feature_request, question, other.",
+        },
+        severity: {
+          type: "string",
+          enum: ["low", "medium", "high", "critical"],
+          description:
+            "low (cosmetic), medium (default — affects use), high (blocking), critical (data loss / wrong numbers being shown to clients).",
+        },
+        client_id: {
+          type: "string",
+          description:
+            "Optional UUID of the affected client so support can pull up their data quickly.",
+        },
+      },
+      required: ["subject", "description", "category"],
+    },
+  },
 ];
 
 /**
@@ -106,9 +143,19 @@ export function getToolStatusLabel(toolName: string): string {
       return "Pulling the projection";
     case "get_year_breakdown":
       return "Reading that year's numbers";
+    case "create_support_ticket":
+      return "Filing the support ticket";
     default:
       return "Looking something up";
   }
+}
+
+// Side-channel for the route to know which ticket (if any) was created
+// during the agent loop, so the FINAL assistant message can be marked with
+// created_ticket_id for the admin panel + UI affordance. The tool handler
+// stashes the ticket id here on success.
+interface ToolCallSideEffects {
+  ticketId?: string;
 }
 
 interface ToolContext {
@@ -116,6 +163,9 @@ interface ToolContext {
   // the advisor's own clients/projections. Don't use the admin client here.
   supabase: SupabaseClient;
   userId: string;
+  // Output channel for tool-specific side effects (e.g., ticket id) so the
+  // route can decorate the persisted assistant message after the loop ends.
+  sideEffects: ToolCallSideEffects;
 }
 
 /**
@@ -139,6 +189,8 @@ export async function runTool(
         return { content: await runGetProjectionSummary(input, ctx), isError: false };
       case "get_year_breakdown":
         return { content: await runGetYearBreakdown(input, ctx), isError: false };
+      case "create_support_ticket":
+        return { content: await runCreateSupportTicket(input, ctx), isError: false };
       default:
         return { content: `Unknown tool: ${toolName}`, isError: true };
     }
@@ -391,4 +443,46 @@ async function runGetYearBreakdown(
     null,
     0
   );
+}
+
+async function runCreateSupportTicket(
+  input: Record<string, unknown>,
+  ctx: ToolContext
+): Promise<string> {
+  const subject = String(input.subject ?? "").trim();
+  const description = String(input.description ?? "").trim();
+  const category = String(input.category ?? "other");
+  const severity = String(input.severity ?? "medium");
+  const clientId = input.client_id ? String(input.client_id) : null;
+
+  if (!subject) throw new Error("subject required");
+  if (!description) throw new Error("description required");
+
+  // Use the user-scoped client — RLS insert policy requires auth.uid() ===
+  // user_id, so this fails fast if anything is off.
+  const { data, error } = await ctx.supabase
+    .from("support_tickets")
+    .insert({
+      user_id: ctx.userId,
+      client_id: clientId,
+      subject,
+      // Prepend a marker so admins can spot AI-escalated tickets at a glance.
+      description: `[AI-escalated from chat]\n\n${description}`,
+      severity,
+      category,
+    })
+    .select("id")
+    .single();
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Failed to create ticket");
+
+  ctx.sideEffects.ticketId = data.id;
+
+  return JSON.stringify({
+    ticket_id: data.id,
+    status: "filed",
+    note:
+      "Ticket filed successfully. Tell the advisor it's in the queue and you've shared the relevant context.",
+  });
 }

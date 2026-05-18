@@ -62,9 +62,8 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
     };
   }, [conversationId]);
 
-  async function handleSubmit() {
-    const message = input.trim();
-    if (!message || busy) return;
+  async function handleSubmit(message: string, attachments: string[]) {
+    if ((!message && attachments.length === 0) || busy) return;
 
     setBusy(true);
     setError(null);
@@ -82,6 +81,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
       await streamChat({
         conversationId,
         message,
+        attachments,
         signal: controller.signal,
         handlers: {
           onMeta: ({ conversation_id }) => {
@@ -159,7 +159,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
       <ChatInput
         value={input}
         onChange={setInput}
-        onSubmit={handleSubmit}
+        onSubmit={(msg, atts) => void handleSubmit(msg, atts)}
         busy={busy}
       />
     </div>

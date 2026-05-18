@@ -74,9 +74,12 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
         )}
       </div>
       {message.created_ticket_id && (
-        <span className="text-xs text-muted-foreground italic">
-          Filed support ticket on your behalf.
-        </span>
+        <a
+          href={`/support/${message.created_ticket_id}`}
+          className="text-xs text-gold italic hover:underline inline-flex items-center gap-1"
+        >
+          Filed support ticket on your behalf — view it →
+        </a>
       )}
     </div>
   );
