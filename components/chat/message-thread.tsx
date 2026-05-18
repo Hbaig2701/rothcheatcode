@@ -45,21 +45,30 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Track the conversation that owns the in-flight stream so we only abort
+  // on a real SWITCH (clicking a different convo). Setting conversationId
+  // from null → new-id during the first message's stream must NOT abort:
+  // that's the new conversation that just got created server-side.
+  const streamingConvoRef = useRef<string | null>(null);
 
-  // Auto-scroll to the bottom whenever the message set or streaming text
-  // updates. Smooth on persistent messages, instant for streaming so the
-  // chat keeps pace with the model.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [data?.messages, streamingText, optimisticUser, toolStatus]);
 
-  // Cancel any in-flight stream if the user switches conversations.
+  // Abort the in-flight stream only when switching to a DIFFERENT
+  // conversation (e.g., user picked another thread from the sidebar). A
+  // null → id transition is the "new conversation being created" case and
+  // must not abort the stream that just created it.
   useEffect(() => {
-    return () => {
+    if (
+      streamingConvoRef.current !== null &&
+      conversationId !== null &&
+      streamingConvoRef.current !== conversationId
+    ) {
       abortRef.current?.abort();
-    };
+    }
   }, [conversationId]);
 
   async function handleSubmit(message: string, attachments: string[]) {
@@ -74,6 +83,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
 
     const controller = new AbortController();
     abortRef.current = controller;
+    streamingConvoRef.current = conversationId;
 
     let createdConversationId: string | null = conversationId;
 
@@ -86,10 +96,13 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
         handlers: {
           onMeta: ({ conversation_id }) => {
             createdConversationId = conversation_id;
+            // Update streamingConvoRef BEFORE the parent state change fires.
+            // Otherwise the [conversationId] effect runs with stale data
+            // and thinks this is a switch.
+            streamingConvoRef.current = conversation_id;
             if (!conversationId) onConversationCreated(conversation_id);
           },
           onText: ({ text }) => {
-            // Clear tool status the moment the assistant starts talking.
             setToolStatus(null);
             setStreamingText((prev) => prev + text);
           },
@@ -106,19 +119,23 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
       });
     } catch (err) {
       const m = err instanceof Error ? err.message : "Chat failed";
-      // Aborts are user-initiated (switching conversations) — don't show as error.
       if (m !== "AbortError" && !controller.signal.aborted) setError(m);
     } finally {
+      // Refetch the persisted messages FIRST so the cache has the saved
+      // user + assistant rows, THEN clear the local streaming state. If we
+      // cleared first the UI would briefly show neither — that was the
+      // "flash" advisors saw between stream completion and refetch landing.
+      if (createdConversationId) {
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: chatKeys.conversation(createdConversationId) }),
+          qc.invalidateQueries({ queryKey: chatKeys.conversations() }),
+        ]);
+      }
       setBusy(false);
       setOptimisticUser(null);
       setStreamingText("");
       setToolStatus(null);
-      // Refetch persisted messages — this brings in both the user message
-      // and the assistant message that the server saved.
-      if (createdConversationId) {
-        qc.invalidateQueries({ queryKey: chatKeys.conversation(createdConversationId) });
-        qc.invalidateQueries({ queryKey: chatKeys.conversations() });
-      }
+      streamingConvoRef.current = null;
     }
   }
 
