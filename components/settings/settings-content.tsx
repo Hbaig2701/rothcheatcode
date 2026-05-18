@@ -13,6 +13,7 @@ import {
   Users,
   Palette,
   Package,
+  Columns3,
   Loader2,
 } from "lucide-react";
 import { ProfileTab } from "./tabs/profile-tab";
@@ -23,6 +24,7 @@ import { BillingTab } from "./tabs/billing-tab";
 import { TeamTab } from "./tabs/team-tab";
 import { AppearanceTab } from "./tabs/appearance-tab";
 import { ProductsTab } from "./tabs/products-tab";
+import { ColumnsTab } from "./tabs/columns-tab";
 
 interface TabDef {
   value: string;
@@ -36,6 +38,7 @@ const BASE_TABS: TabDef[] = [
   { value: "business", label: "Business & Logo", icon: Building2 },
   { value: "defaults", label: "Default Values", icon: SlidersHorizontal },
   { value: "products", label: "My Products", icon: Package },
+  { value: "columns", label: "My Columns", icon: Columns3 },
   { value: "appearance", label: "Appearance", icon: Palette },
   { value: "billing", label: "Billing", icon: CreditCard },
 ];
@@ -126,6 +129,9 @@ export function SettingsContent({ user }: { user: User }) {
             </TabsContent>
             <TabsContent value="products" className="mt-0">
               <ProductsTab />
+            </TabsContent>
+            <TabsContent value="columns" className="mt-0">
+              <ColumnsTab />
             </TabsContent>
             <TabsContent value="appearance" className="mt-0">
               <AppearanceTab />

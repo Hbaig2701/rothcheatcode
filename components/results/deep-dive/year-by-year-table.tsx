@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import type { YearlyResult } from "@/lib/calculations/types";
 import type { NonSSIIncomeEntry } from "@/lib/types/client";
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
-import { loadColumnPreferences, saveColumnPreferences, getDefaultColumns } from "@/lib/table-columns/storage";
+import { resolveColumnPreferences, saveColumnPreferences } from "@/lib/table-columns/storage";
 import { ColumnSelectorModal } from "./column-selector-modal";
 import { ResizableTable } from "./resizable-table";
 import { Settings2 } from "lucide-react";
@@ -107,16 +107,17 @@ export function YearByYearTable({
     });
   }, [years, nonSsiIncome, filingStatus, widowAnalysis, widowDeathAge]);
 
-  // Load column preferences from localStorage (or use defaults).
-  // Key includes clientId so each client keeps its own column selection.
+  // Load column preferences via the fallback chain:
+  //   per-client (this storageKey) → user "favourite columns" default
+  //   (set in Settings → My Columns) → built-in DEFAULT_PRESETS.
+  // Key includes clientId so per-client edits still win once set, letting
+  // advisors fine-tune one client without losing their global favourite.
   const [selectedColumns, setSelectedColumns] = useState<string[]>(() => {
-    const saved = loadColumnPreferences(storageKey);
-    return saved?.selectedColumns || getDefaultColumns(productType);
+    return resolveColumnPreferences(storageKey, productType).selectedColumns;
   });
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
-    const saved = loadColumnPreferences(storageKey);
-    return saved?.columnWidths || {};
+    return resolveColumnPreferences(storageKey, productType).columnWidths;
   });
 
   // Build active columns in the user-chosen order.

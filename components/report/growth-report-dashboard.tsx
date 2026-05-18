@@ -15,7 +15,7 @@ import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
 import { ResizableComparisonTable } from "@/components/results/deep-dive/resizable-comparison-table";
 import { ColumnSelectorModal } from "@/components/results/deep-dive/column-selector-modal";
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
-import { loadColumnPreferences, saveColumnPreferences, getDefaultColumns } from "@/lib/table-columns/storage";
+import { resolveColumnPreferences, saveColumnPreferences, getDefaultColumns } from "@/lib/table-columns/storage";
 import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
 import { WidowSection } from "@/components/report/widow-section";
 
@@ -48,17 +48,19 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // so each client keeps its own selection and widths.
   const columnStorageKey = `growth-report-${client.id}`;
 
-  // Column customization state with SSR safety
+  // Column customization state. Lookup chain on initial mount:
+  //   per-client saved → user "favourite columns" default (Settings → My
+  //   Columns) → built-in DEFAULT_PRESETS. SSR fallback returns the
+  //   built-in preset so the server-rendered tree matches the first client
+  //   paint when no preferences exist.
   const [selectedColumns, setSelectedColumns] = useState<string[]>(() => {
     if (typeof window === 'undefined') return getDefaultColumns("growth");
-    const saved = loadColumnPreferences(columnStorageKey);
-    return saved?.selectedColumns || getDefaultColumns("growth");
+    return resolveColumnPreferences(columnStorageKey, "growth").selectedColumns;
   });
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     if (typeof window === 'undefined') return {};
-    const saved = loadColumnPreferences(columnStorageKey);
-    return saved?.columnWidths || {};
+    return resolveColumnPreferences(columnStorageKey, "growth").columnWidths;
   });
 
   // (No useEffect-on-tableView — column state persists as the user switches
