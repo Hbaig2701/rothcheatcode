@@ -23,6 +23,7 @@ import { getAnthropic, CHAT_MODEL_DEFAULT, computeMessageCost } from "@/lib/chat
 import { buildSystemPrompt } from "@/lib/chat/system-prompt";
 import { CHAT_TOOLS, runTool, getToolStatusLabel } from "@/lib/chat/tools";
 import { parseDataUrl } from "@/lib/chat/attachments";
+import { hasActiveSubscription } from "@/lib/auth/requireActiveSubscription";
 import type { ChatContentBlock } from "@/lib/types/chat";
 
 export const dynamic = "force-dynamic";
@@ -68,6 +69,12 @@ export async function POST(req: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
 
+  // Subscription gate — users hitting the payment wall shouldn't be able
+  // to call this endpoint and incur Anthropic cost on our tab.
+  if (!(await hasActiveSubscription(supabase, user.id))) {
+    return new Response("Subscription required", { status: 402 });
+  }
+
   let body: PostBody;
   try {
     body = (await req.json()) as PostBody;
@@ -106,7 +113,14 @@ export async function POST(req: NextRequest) {
   // client; we convert each to a base64 image block for Anthropic. The
   // data: URL itself is what we save in chat_messages.attachment_url so
   // the UI can render it later without a second round-trip.
-  const attachments = (body.attachments ?? []).filter((u) => typeof u === "string");
+  //
+  // Server-side cap mirrors the client-side prepareAttachment 4MB limit.
+  // Without this, a hand-crafted POST body could ship a 50MB data URL that
+  // we'd base64-decode (~66MB in memory) and forward to Anthropic.
+  const MAX_ATTACHMENT_BASE64_CHARS = 6 * 1024 * 1024; // ~4.5MB decoded
+  const attachments = (body.attachments ?? []).filter(
+    (u) => typeof u === "string" && u.length <= MAX_ATTACHMENT_BASE64_CHARS,
+  );
   const userContentBlocks: ChatContentBlock[] = [];
   for (const dataUrl of attachments) {
     const parsed = parseDataUrl(dataUrl);
@@ -160,9 +174,16 @@ export async function POST(req: NextRequest) {
       continue;
     }
     const blocks = (row.content_blocks ?? null) as ChatContentBlock[] | null;
-    if (row.role === "assistant" && blocks) {
+    if (row.role === "assistant") {
+      // ALWAYS reset the available set on an assistant row, even when
+      // blocks is null (legacy rows / errored streams). Previously this
+      // branch only ran when blocks was truthy, leaving a stale tool_use
+      // id from a prior turn — which would then incorrectly match a later
+      // tool_result and either crash or replay the wrong context.
       availableToolUseIds = new Set(
-        blocks.filter((b) => b.type === "tool_use").map((b) => (b as { id: string }).id)
+        (blocks ?? [])
+          .filter((b) => b.type === "tool_use")
+          .map((b) => (b as { id: string }).id)
       );
     } else if (row.role === "user") {
       // User turns reset the "available" set — a user message means the
@@ -200,6 +221,16 @@ export async function POST(req: NextRequest) {
       // Filled by the create_support_ticket tool when the model decides to
       // escalate. Stamped on the final assistant row after the loop ends.
       const sideEffects: { ticketId?: string } = {};
+      // Captures the most recent in-flight text being streamed (resets each
+      // iteration). If the stream errors mid-reveal, the catch path uses
+      // this to persist whatever the user already saw on screen, instead
+      // of dropping it on the floor and showing only "[error]".
+      let partialStreamedText = "";
+      // Flipped to true the moment the current iteration's assistant row
+      // is persisted. If the catch fires AFTER that (e.g., tool execution
+      // or next iter throws), the catch knows the in-flight text was
+      // already saved and only needs to append the error note.
+      let currentIterRowPersisted = false;
 
       try {
         for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
@@ -217,6 +248,8 @@ export async function POST(req: NextRequest) {
           });
 
           let iterText = "";
+          partialStreamedText = "";
+          currentIterRowPersisted = false;
           const iterUsage: CumulativeUsage = {
             input_tokens: 0,
             output_tokens: 0,
@@ -242,6 +275,7 @@ export async function POST(req: NextRequest) {
               event.delta.type === "text_delta"
             ) {
               iterText += event.delta.text;
+              partialStreamedText = iterText;
               sseEvent(controller, "text", { text: event.delta.text });
             } else if (event.type === "message_start" && event.message.usage) {
               addUsage(iterUsage, {
@@ -286,6 +320,7 @@ export async function POST(req: NextRequest) {
             .select("id")
             .single();
           lastAssistantMessageId = insertedAssistant?.id ?? lastAssistantMessageId;
+          currentIterRowPersisted = true;
 
           if (finalMessage.stop_reason !== "tool_use") {
             // end_turn (or max_tokens) — done.
@@ -352,16 +387,33 @@ export async function POST(req: NextRequest) {
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Chat request failed";
-        // Surface a placeholder error message in the transcript so the
-        // advisor sees something went wrong. Iteration-level assistant
-        // rows are already persisted; this is just the trailing error note.
-        await supabase.from("chat_messages").insert({
-          conversation_id: conversationId,
-          user_id: user.id,
-          role: "assistant",
-          content: `[error] ${message}`,
-          model,
-        });
+        // Two paths into the catch:
+        //   (a) Stream errored mid-reveal BEFORE the current iter's row was
+        //       persisted. Save the partial text + error as a single row.
+        //   (b) Tool execution or next-iter setup errored AFTER the current
+        //       iter's row was already persisted in the loop body. In that
+        //       case, don't write a duplicate assistant row — just append a
+        //       short error note row so the transcript reflects the failure.
+        if (currentIterRowPersisted) {
+          await supabase.from("chat_messages").insert({
+            conversation_id: conversationId,
+            user_id: user.id,
+            role: "assistant",
+            content: `[error] ${message}`,
+            model,
+          });
+        } else {
+          const body = partialStreamedText
+            ? `${partialStreamedText}\n\n[error: ${message}]`
+            : `[error] ${message}`;
+          await supabase.from("chat_messages").insert({
+            conversation_id: conversationId,
+            user_id: user.id,
+            role: "assistant",
+            content: body,
+            model,
+          });
+        }
         sseEvent(controller, "error", { message });
       } finally {
         controller.close();
@@ -384,6 +436,9 @@ export async function GET(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
+  if (!(await hasActiveSubscription(supabase, user.id))) {
+    return new Response("Subscription required", { status: 402 });
+  }
 
   const url = new URL(req.url);
   const includeArchived = url.searchParams.get("include_archived") === "1";

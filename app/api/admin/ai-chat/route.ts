@@ -74,20 +74,32 @@ export async function GET(_req: NextRequest) {
     .gte("created_at", thirtyDaysAgoIso)
     .order("created_at", { ascending: true });
 
+  // Bucket per server-local day. We use the server timezone consistently
+  // for both the bucket key and the 30-day backfill so the chart shows
+  // continuous days. The client converts back to its local TZ for display.
+  // Previously we used UTC .slice(0,10) on both sides — that's correct as
+  // long as both sides are UTC, but if the server runs in a non-UTC TZ
+  // (Vercel's default is UTC, so usually safe — this is a defense-in-depth
+  // fix more than a current bug).
+  function dayKey(d: Date): string {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
   const byDay = new Map<string, { day: string; messages: number; cost: number }>();
   for (const m of messagesForChart ?? []) {
     if (m.role !== "assistant") continue; // only assistant rows have cost
-    const day = (m.created_at as string).slice(0, 10);
+    const day = dayKey(new Date(m.created_at as string));
     const row = byDay.get(day) ?? { day, messages: 0, cost: 0 };
     row.messages += 1;
     row.cost += Number(m.cost_usd ?? 0);
     byDay.set(day, row);
   }
-  // Fill missing days with zeros so the chart is continuous.
   const daily: Array<{ day: string; messages: number; cost: number }> = [];
   for (let i = 29; i >= 0; i--) {
     const d = new Date(Date.now() - i * 24 * 3600 * 1000);
-    const key = d.toISOString().slice(0, 10);
+    const key = dayKey(d);
     daily.push(byDay.get(key) ?? { day: key, messages: 0, cost: 0 });
   }
 

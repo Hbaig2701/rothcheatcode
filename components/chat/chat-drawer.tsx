@@ -31,8 +31,14 @@ export function ChatDrawer({ open, onMinimize, onClose }: ChatDrawerProps) {
   return (
     <div
       className={cn(
-        "fixed bottom-6 right-6 z-40",
-        "w-[400px] max-w-[calc(100vw-2rem)] h-[600px] max-h-[calc(100vh-4rem)]",
+        // Position: on phones/narrow viewports we anchor to the bottom-
+        // right with small margins; on wider screens we use the 400×600
+        // floating panel. The width clamps to the viewport via min() so a
+        // 320px phone never overflows horizontally.
+        "fixed z-40",
+        "bottom-4 right-4 sm:bottom-6 sm:right-6",
+        "w-[min(400px,calc(100vw-2rem))]",
+        "h-[min(600px,calc(100vh-5rem))]",
         "rounded-2xl bg-surface border border-border-default shadow-2xl shadow-black/30",
         "flex flex-col overflow-hidden transition-all duration-200",
         open

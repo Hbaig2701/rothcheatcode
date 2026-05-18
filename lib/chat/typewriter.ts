@@ -48,6 +48,11 @@ export function useTypewriter({
   const queueRef = useRef<string>("");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const finishedRef = useRef(false);
+  // Flips on unmount. The finish() polling loop checks this each tick so
+  // it can resolve early and stop scheduling further setTimeouts — otherwise
+  // a polling loop started before unmount can run for up to 30 seconds
+  // after the component is gone, holding closure memory.
+  const unmountedRef = useRef(false);
 
   function ensureTimer() {
     if (timerRef.current) return;
@@ -90,14 +95,20 @@ export function useTypewriter({
     // Don't flush — let the buffered text reveal at its normal rate. The
     // returned promise resolves once the queue empties so callers can
     // await the natural completion before handing off to the persisted
-    // message. Hard 30s ceiling to guard against a stuck timer.
+    // message. Hard 30s ceiling to guard against a stuck timer. Resolves
+    // early on unmount so the closure can be GC'd.
     return new Promise((resolve) => {
       const start = Date.now();
       const tick = () => {
+        if (unmountedRef.current) {
+          // Component is gone — resolve immediately so the awaiter can
+          // exit. Calling setText after unmount would also warn.
+          resolve();
+          return;
+        }
         if (queueRef.current.length === 0) {
           resolve();
         } else if (Date.now() - start > 30_000) {
-          // Safety: don't hang forever. Flush the rest and resolve.
           const remaining = queueRef.current;
           queueRef.current = "";
           setText((prev) => prev + remaining);
@@ -123,7 +134,11 @@ export function useTypewriter({
   // Cleanup on unmount.
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      unmountedRef.current = true;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     };
   }, []);
 
