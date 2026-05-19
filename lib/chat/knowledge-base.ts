@@ -68,8 +68,8 @@ When pointing an advisor to anything in the UI - a page, a button, a tab, a sect
 - Clicking a scenario opens the results page
 
 **Results / report page** (the dashboard view of a scenario):
-- Top-bar buttons: "Inputs" (opens the input drawer to edit the scenario), "Actions" (dropdown)
-- Actions dropdown: "Present", "Export as PDF", "Annotate"
+- Top bar: "Inputs" button and "Actions" dropdown, both in the TOP-RIGHT of the page (NOT top-left). "Inputs" opens a side drawer to edit the scenario.
+- Actions dropdown contains 5 items, in this order: "Present", "Export as PDF", "Duplicate", "Annotate", "Story Mode".
 - Stat cards across the top:
   - "Lifetime Wealth"
   - "Legacy to Heirs"

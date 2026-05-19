@@ -1,9 +1,29 @@
 "use client";
 
+import { useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/lib/types/chat";
+
+/**
+ * Normalize assistant text for markdown rendering:
+ *
+ *   - Single \\n between non-empty lines becomes \\n\\n. The model often
+ *     emits one newline between paragraphs; markdown treats that as a soft
+ *     break and collapses them into one paragraph, defeating the prose
+ *     paragraph spacing. Promoting single newlines to double preserves the
+ *     model's intended structure.
+ *   - Em (U+2014) and en (U+2013) dashes get replaced with regular hyphens.
+ *     The tone prompt forbids them but the model leaks them anyway; this
+ *     is the defense layer that keeps them out of advisor-facing UI.
+ */
+function normalizeAssistantText(raw: string): string {
+  return raw
+    .replace(/—/g, "-")
+    .replace(/–/g, "-")
+    .replace(/([^\n])\n([^\n])/g, "$1\n\n$2");
+}
 
 interface MessageBubbleProps {
   // Subset of ChatMessage that the bubble needs to render. Stream-in-progress
@@ -37,6 +57,13 @@ function isIntermediateAssistantTurn(blocks: unknown): boolean {
 }
 
 export function MessageBubble({ message, streaming }: MessageBubbleProps) {
+  // Memoize the normalized text so re-renders during streaming don't rerun
+  // the regex passes on every typewriter tick.
+  const normalizedContent = useMemo(
+    () => (message.role === "assistant" ? normalizeAssistantText(message.content) : message.content),
+    [message.role, message.content],
+  );
+
   if (message.role === "tool") {
     // Tool status lines render as a thin centered note, not a bubble.
     return (
@@ -61,7 +88,7 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
     return (
       <div className="flex justify-start px-1 py-0.5">
         <p className="text-xs text-muted-foreground italic leading-relaxed max-w-[90%] whitespace-pre-wrap">
-          {message.content}
+          {normalizedContent}
         </p>
       </div>
     );
@@ -90,12 +117,12 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : streaming ? (
-          // While streaming, render plain text split on blank lines so the
-          // model's paragraph breaks (\n\n) get real visual spacing instead
-          // of collapsing into one wall of text. Markdown takes over after
-          // the message persists (the prose styling below).
+          // While streaming, render plain text split on any newline so the
+          // model's paragraph breaks get real visual spacing instead of
+          // collapsing into one wall. Single \\n is treated as a paragraph
+          // break too (it's how the model actually writes most of the time).
           <div className="leading-relaxed">
-            {message.content.split(/\n{2,}/).map((para, i, all) => {
+            {normalizedContent.split(/\n+/).map((para, i, all) => {
               const isLast = i === all.length - 1;
               return (
                 <p
@@ -111,11 +138,9 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
             })}
           </div>
         ) : (
-          // Once the full reply is persisted, we render it as markdown so
-          // any inline emphasis / code spans look right. Paragraph spacing
-          // is bumped from prose's default tight `my-1.5` to `my-3` so
-          // multi-paragraph replies read with breathing room instead of as
-          // a single block of text.
+          // Persisted markdown render. normalizedContent promoted single \\n
+          // to \\n\\n upstream so markdown actually treats paragraph breaks
+          // as paragraph breaks.
           <div
             className={cn(
               "prose prose-sm max-w-none",
@@ -125,7 +150,7 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
               "dark:prose-invert",
             )}
           >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{normalizedContent}</ReactMarkdown>
           </div>
         )}
       </div>
