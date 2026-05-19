@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_PRICES } from "@/lib/config/plans";
 import { isInternalTeamEmail } from "@/lib/auth/internal-team";
+import { readMetricsCache, writeMetricsCache, isFresh } from "@/lib/admin/metrics-cache";
 
 // Test accounts to exclude from all metrics
 const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
@@ -15,14 +16,14 @@ const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
 // calculations below. Add to this list when a similar case comes up.
 const REFUNDED_SAME_DAY_EMAILS = ['derrick@derrickphelps.com'];
 
-// In-memory cache so the admin dashboard doesn't trigger 30+ parallel Stripe
-// reads on every refresh. Stripe rate limits + transient network blips were
-// silently dropping subscribers from the MRR total, making the displayed
-// numbers fluctuate between refreshes. Cache TTL is short enough that fresh
-// signups / cancellations show up quickly but long enough to absorb a
-// rapid-fire refresh storm.
+// Cache key + TTL for the cross-instance Supabase-backed metrics cache.
+// Vercel runs multiple serverless instances - the previous in-memory cache
+// only worked on hits to the SAME instance, so refreshes that landed on a
+// different one would rebuild from Stripe and (because of pagination
+// flakiness) display slightly different numbers each time. The shared
+// table cache fixes that fluctuation.
+const CACHE_KEY = "revenue";
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-let cached: { at: number; payload: unknown } | null = null;
 
 // Chunk size for Stripe subscription retrieval. Smaller chunks avoid
 // burst-induced 429s while keeping the total wallclock manageable.
@@ -63,11 +64,18 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const skipCache = url.searchParams.get("refresh") === "1";
 
-    if (!skipCache && cached && Date.now() - cached.at < CACHE_TTL_MS) {
-      return NextResponse.json(cached.payload);
+    const admin = createAdminClient();
+
+    if (!skipCache) {
+      const cached = await readMetricsCache<Record<string, unknown>>(admin, CACHE_KEY);
+      if (isFresh(cached, CACHE_TTL_MS)) {
+        return NextResponse.json({
+          ...cached!.payload,
+          _cached_at: cached!.computed_at,
+        });
+      }
     }
 
-    const admin = createAdminClient();
     const stripe = getStripe();
 
     const { data: rawProfiles } = await admin
@@ -283,7 +291,20 @@ export async function GET(request: Request) {
       },
     };
 
-    cached = { at: Date.now(), payload };
+    // Only write the cache if Stripe was reasonably healthy. If most sub
+    // fetches failed, the payload is mostly list-price fallbacks - serving
+    // that to the next 5 minutes of refreshes would lock in inaccurate
+    // numbers. Better to leave the old cache row in place and try again
+    // on the next request.
+    const stripeHealthOk = stripeFailures === 0
+      || stripeSuccess >= stripeFailures * 4; // <= 20% failure rate
+    if (stripeHealthOk) {
+      await writeMetricsCache(admin, CACHE_KEY, payload);
+    } else {
+      console.warn(
+        `[admin/revenue] Skipping cache write — ${stripeFailures} failures vs ${stripeSuccess} successes. Old cache row preserved.`,
+      );
+    }
     return NextResponse.json(payload);
   } catch (error) {
     console.error("Revenue API error:", error);
