@@ -13,19 +13,56 @@ interface MessageBubbleProps {
     content: string;
     attachment_url?: string | null;
     created_ticket_id?: string | null;
+    // Present on persisted assistant rows. If this contains any tool_use
+    // blocks, the row is an INTERMEDIATE turn (the model wrote some text
+    // then called a tool) — render compactly so it doesn't compete with
+    // the final answer below it.
+    content_blocks?: unknown;
   };
   // Show a typing/streaming indicator after the content (used for the
   // currently-generating assistant message).
   streaming?: boolean;
 }
 
+// Cheap check — content_blocks is jsonb from the DB, shaped as an array of
+// Anthropic content blocks. We only need to know if any have type "tool_use".
+function isIntermediateAssistantTurn(blocks: unknown): boolean {
+  if (!Array.isArray(blocks)) return false;
+  for (const b of blocks) {
+    if (b && typeof b === "object" && (b as { type?: string }).type === "tool_use") {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function MessageBubble({ message, streaming }: MessageBubbleProps) {
   if (message.role === "tool") {
-    // Tool status lines render as a thin centered note, not a bubble. Phase 5
-    // will animate these while the tool is running.
+    // Tool status lines render as a thin centered note, not a bubble.
     return (
       <div className="flex justify-center py-1.5">
         <span className="text-xs text-muted-foreground italic">{message.content}</span>
+      </div>
+    );
+  }
+
+  // Intermediate assistant turns ("Let me check year 1…" before a tool
+  // call) render as compact, italicized "thinking" text instead of a full
+  // bubble — so they don't compete visually with the final answer that
+  // comes after the tool. Streaming bubbles are always rendered full-size
+  // (we don't know yet whether the model is about to call a tool).
+  const isIntermediate =
+    message.role === "assistant" &&
+    !streaming &&
+    !!message.content?.trim() &&
+    isIntermediateAssistantTurn(message.content_blocks);
+
+  if (isIntermediate) {
+    return (
+      <div className="flex justify-start px-1 py-0.5">
+        <p className="text-xs text-muted-foreground italic leading-relaxed max-w-[90%] whitespace-pre-wrap">
+          {message.content}
+        </p>
       </div>
     );
   }

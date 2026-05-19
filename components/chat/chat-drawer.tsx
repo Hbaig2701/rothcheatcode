@@ -59,8 +59,16 @@ export function ChatDrawer({ open, onMinimize, onClose }: ChatDrawerProps) {
           <Menu className="size-4" />
         </button>
 
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 flex items-center gap-2">
           <p className="text-sm font-medium text-foreground truncate">{title}</p>
+          {/* Beta tag in the drawer header reinforces the experimental
+              framing while advisors are actually using the assistant. */}
+          <span
+            className="shrink-0 text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-gold/15 text-gold border border-gold/30"
+            title="This assistant is experimental — double-check important answers."
+          >
+            Beta
+          </span>
         </div>
 
         <button

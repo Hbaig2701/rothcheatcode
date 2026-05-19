@@ -22,7 +22,7 @@ export function ChatLauncher({ onClick, hidden, hasUnread }: ChatLauncherProps) 
     <button
       type="button"
       onClick={onClick}
-      aria-label="Open AI assistant"
+      aria-label="Open AI assistant (beta)"
       className={cn(
         "fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full",
         "bg-gold text-primary-foreground font-medium text-sm shadow-xl shadow-black/20",
@@ -31,6 +31,13 @@ export function ChatLauncher({ onClick, hidden, hasUnread }: ChatLauncherProps) 
     >
       <MessageCircle className="size-4" />
       <span>Ask AI</span>
+      <span
+        // Inline beta tag on the launcher so advisors are reminded the
+        // assistant is experimental every time they open it.
+        className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary-foreground/20 text-primary-foreground"
+      >
+        Beta
+      </span>
       {hasUnread && (
         <span
           aria-label="Unread reply"

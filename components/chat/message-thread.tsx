@@ -159,7 +159,20 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {isEmpty && <EmptyState />}
         {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} />
+          // content_blocks is needed so MessageBubble can detect
+          // intermediate assistant turns (those that include tool_use blocks)
+          // and render them as compact "thinking" notes rather than full
+          // bubbles competing with the final answer.
+          <MessageBubble
+            key={m.id}
+            message={{
+              role: m.role,
+              content: m.content,
+              attachment_url: m.attachment_url,
+              created_ticket_id: m.created_ticket_id,
+              content_blocks: m.content_blocks,
+            }}
+          />
         ))}
         {optimisticUser && (
           <MessageBubble message={{ role: "user", content: optimisticUser }} />
