@@ -1,9 +1,65 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield, Table2, ArrowUpDown, MoveHorizontal, UserCog, Columns, Tags, HandCoins, Heart, Sparkles, GitCompare, SlidersHorizontal } from 'lucide-react'
+import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield, Table2, ArrowUpDown, MoveHorizontal, UserCog, Columns, Tags, HandCoins, Heart, Sparkles, GitCompare, SlidersHorizontal, MessageCircle, GraduationCap, Scale, BookOpen, Calculator, Wrench } from 'lucide-react'
 
 const updates = [
+  {
+    id: '30',
+    date: 'May 19, 2026',
+    title: 'AI Chat Assistant (Beta)',
+    description: "A new floating chat in the bottom-right of every page. Ask anything about your clients, the math, the theory, the assumptions, or how to use a feature. The assistant knows the platform end-to-end and can pull up real numbers from any client's projection (lifetime wealth advantage, year-by-year bracket, conversion sizing, heir tax impact) so the answers are grounded in your data, not generic AI guesses.\n\nWhat it does well today:\n\n* Explains why a number is what it is (\"why is Tax on RMDs lower than Total Tax?\", \"why didn't conversions trigger this year?\")\n* Pulls up specific years on demand and walks you through them\n* Compares clients side by side\n* Catches actual bugs and offers to file a support ticket with the right context attached\n* Knows the real IRS brackets, RMD divisors, IRMAA tiers, and engine defaults we use\n\nUpload a screenshot if you want it to look at something specific. Past conversations are saved so you can come back to them. It's marked Beta because we're still polishing; if it gets a number wrong or sounds off, let us know.",
+    category: 'New Feature',
+    icon: MessageCircle,
+  },
+  {
+    id: '29',
+    date: 'May 18, 2026',
+    title: 'Favourite Column Layouts in Settings',
+    description: "Tired of re-picking the same columns on every new client? Settings now has a \"My Columns\" tab where you set your favourite year-by-year layout once. Every new client opens with that layout by default.\n\nSeparate favourites for Growth FIA and Guaranteed Income reports (since the useful columns differ). Per-client edits still win once you make them, so you can fine-tune a single client without losing the default for everyone else.",
+    category: 'New Feature',
+    icon: Columns,
+  },
+  {
+    id: '28',
+    date: 'May 15, 2026',
+    title: 'Parallel Tax Breakdowns in the Lifetime Tax Card',
+    description: "The Lifetime Tax Cost tooltip now shows matching buckets on both sides:\n\n* Baseline: Tax on RMDs (marginal) + Other baseline income tax + IRMAA + Heir\n* Strategy: Conversion tax + Tax on remaining RMDs + AUM drag + Other + Penalty + IRMAA + Heir\n\nBefore, baseline collapsed to a single \"Income tax on RMDs (lifetime)\" line that was actually total fed+state lumped together, which made the comparison feel apples-to-oranges. Now the buckets line up so you can see exactly where each side spends its tax dollars.\n\nThe \"Tax on RMDs\" number you see here is the marginal tax caused by the RMDs themselves (not the year's full tax bill). Same figure now appears in the PDF Distributions summary, locked in with a fixture test so it can't silently drift on future calculation changes.",
+    category: 'Enhancement',
+    icon: Scale,
+  },
+  {
+    id: '27',
+    date: 'May 14, 2026',
+    title: 'PDF Glossary & Assumptions Page (Optional)',
+    description: "When exporting a PDF, you can now toggle on a Glossary page that defines every term the report uses (Lifetime Wealth, Tax on RMDs, Forced Distributions, Conversion Cost & Payback, etc.) plus the key engine assumptions (rate of return, heir tax rate, end age, RMD divisors).\n\nGreat for clients who want to understand what they're looking at without having to interrupt the meeting to ask. Toggle it in the same Export Report dialog where you pick which tables to include.",
+    category: 'New Feature',
+    icon: BookOpen,
+  },
+  {
+    id: '26',
+    date: 'May 13, 2026',
+    title: 'Roth Theory Training Curriculum',
+    description: "The Training Centre now has a full 8-module curriculum on the theory behind Roth conversions, separate from the platform walkthrough videos. Each module pairs a short narrative with an interactive playground so you can move sliders and see the math respond in real time.\n\nModules cover: marginal vs effective tax, bracket-fill conversions, gross-up math (pay tax from inside vs outside the IRA), RMDs and the age-73 cliff, the IRMAA cliff, the widow's penalty, annuity bonuses and conversions, and a capstone on reading a report end-to-end.\n\nFind it under Training in the sidebar. Progress badges track which modules you've completed.",
+    category: 'New Feature',
+    icon: GraduationCap,
+  },
+  {
+    id: '25',
+    date: 'May 18, 2026',
+    title: 'Custom Product Saves Now Stick',
+    description: "Fixed a bug where custom products built on top of an engine preset would have their bonus, carrier name, and surrender values silently overwritten with the preset's defaults on certain page renders. If you'd set your Allianz custom product to a 15% bonus but kept seeing it revert to 14%, this is why.\n\nNow when a custom product is loaded, every field you defined is sticky. The Bonus field is also no longer locked on custom products (the lock icon was meant for built-in presets, not your own).",
+    category: 'Bug Fix',
+    icon: Wrench,
+  },
+  {
+    id: '24',
+    date: 'May 12, 2026',
+    title: 'New \"Total Fed Tax on IRA W/D\" Column',
+    description: "Added a new year-by-year column that sums federal tax on conversions AND on RMDs in a single number. Useful when you want to see what the IRA's tax cost was for the year regardless of whether the dollars came out as a conversion or a forced RMD.\n\nPair it with the existing \"Fed Tax (Conversions)\" column to isolate the conversion-only piece. The new column is auto-added to existing column preferences so you don't have to re-pick.",
+    category: 'Enhancement',
+    icon: Calculator,
+  },
   {
     id: '23',
     date: 'May 5, 2026',
