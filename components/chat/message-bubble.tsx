@@ -90,22 +90,37 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
         ) : streaming ? (
-          // While streaming, render plain text only. Re-parsing markdown on
-          // every typewriter tick is what made the reveal feel "bulky" —
-          // each chunk reflowed the entire parsed tree. Plain text reflows
-          // are much cheaper and look smooth.
-          <p className="whitespace-pre-wrap leading-relaxed">
-            {message.content}
-            <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-foreground/60 animate-pulse rounded-sm align-middle" />
-          </p>
+          // While streaming, render plain text split on blank lines so the
+          // model's paragraph breaks (\n\n) get real visual spacing instead
+          // of collapsing into one wall of text. Markdown takes over after
+          // the message persists (the prose styling below).
+          <div className="leading-relaxed">
+            {message.content.split(/\n{2,}/).map((para, i, all) => {
+              const isLast = i === all.length - 1;
+              return (
+                <p
+                  key={i}
+                  className={cn("whitespace-pre-wrap", !isLast && "mb-3")}
+                >
+                  {para}
+                  {isLast && (
+                    <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-foreground/60 animate-pulse rounded-sm align-middle" />
+                  )}
+                </p>
+              );
+            })}
+          </div>
         ) : (
           // Once the full reply is persisted, we render it as markdown so
-          // any inline emphasis / code spans look right.
+          // any inline emphasis / code spans look right. Paragraph spacing
+          // is bumped from prose's default tight `my-1.5` to `my-3` so
+          // multi-paragraph replies read with breathing room instead of as
+          // a single block of text.
           <div
             className={cn(
               "prose prose-sm max-w-none",
-              "prose-p:my-1.5 prose-p:leading-relaxed",
-              "prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5",
+              "prose-p:my-3 prose-p:leading-relaxed",
+              "prose-ul:my-3 prose-ol:my-3 prose-li:my-1",
               "prose-strong:text-foreground prose-strong:font-semibold",
               "dark:prose-invert",
             )}
