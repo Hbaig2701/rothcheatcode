@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { PLAN_PRICES } from "@/lib/config/plans";
+import { isInternalTeamEmail } from "@/lib/auth/internal-team";
 
 // Test accounts to exclude from all metrics
 const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
@@ -69,16 +70,22 @@ export async function GET(request: Request) {
     const admin = createAdminClient();
     const stripe = getStripe();
 
-    const { data: profiles } = await admin
+    const { data: rawProfiles } = await admin
       .from("profiles")
       .select("id, email, plan, subscription_status, billing_cycle, created_at, current_period_end, stripe_customer_id, stripe_subscription_id")
       .eq("role", "advisor")
       .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
       .not('stripe_customer_id', 'is', null);
 
-    if (!profiles) {
+    if (!rawProfiles) {
       return NextResponse.json({ error: "Failed to fetch profiles" }, { status: 500 });
     }
+
+    // Strip internal team members (Vroom domain). Without this filter,
+    // internal accounts dragged MRR, signup counts, and churn numbers in
+    // misleading directions. Domain-based so new team hires are excluded
+    // automatically without a code change.
+    const profiles = rawProfiles.filter((p) => !isInternalTeamEmail(p.email));
 
     const activeProfiles = profiles.filter(p =>
       p.stripe_subscription_id && (p.subscription_status === 'active' || p.subscription_status === 'trialing')

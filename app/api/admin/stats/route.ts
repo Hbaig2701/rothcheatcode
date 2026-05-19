@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isInternalTeamEmail } from '@/lib/auth/internal-team';
 
 // Test accounts to exclude from all metrics
 const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
@@ -68,18 +69,23 @@ export async function GET(request: NextRequest) {
       .in('email', TEST_EMAILS);
     const testIds = (testProfiles ?? []).map(p => p.id);
 
-    // Get paying advisor IDs (have Stripe subscription)
-    const { data: payingProfiles } = await admin
+    // Get paying advisor IDs (have Stripe subscription).
+    // Internal team members are filtered out in-memory so admin analytics
+    // never count Vroom employees as advisors.
+    const { data: rawPayingProfiles } = await admin
       .from('profiles')
-      .select('id')
+      .select('id, email')
       .eq('role', 'advisor')
       .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
       .not('stripe_customer_id', 'is', null);
 
-    const payingIds = (payingProfiles ?? []).map(p => p.id);
+    const payingProfiles = (rawPayingProfiles ?? []).filter(
+      (p) => !isInternalTeamEmail(p.email),
+    );
+    const payingIds = payingProfiles.map(p => p.id);
 
     // Count paying advisors who signed up in range
-    const payingSignupsInRange = (payingProfiles ?? []).length; // total paying
+    const payingSignupsInRange = payingProfiles.length; // total paying
 
     // For filtered counts, use date range
     const buildQuery = (table: string) => {
@@ -96,21 +102,19 @@ export async function GET(request: NextRequest) {
       return q;
     };
 
-    // Count paying advisors signed up in the range
+    // Count paying advisors signed up in the range. Scope to the already-
+    // filtered paying ID list so internal team members are excluded
+    // consistently with the totals below.
     let advisorQuery = admin.from('profiles')
       .select('id', { count: 'exact', head: true })
-      .eq('role', 'advisor')
-      .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
-      .not('stripe_customer_id', 'is', null)
+      .in('id', payingIds.length > 0 ? payingIds : ['00000000-0000-0000-0000-000000000000'])
       .gte('created_at', startIso)
       .lte('created_at', endIso);
 
-    // All-time totals for paying customers
+    // All-time totals for paying customers (also scoped to filtered list).
     let totalAdvisorsQuery = admin.from('profiles')
       .select('id', { count: 'exact', head: true })
-      .eq('role', 'advisor')
-      .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
-      .not('stripe_customer_id', 'is', null);
+      .in('id', payingIds.length > 0 ? payingIds : ['00000000-0000-0000-0000-000000000000']);
 
     const [advisorsInRange, totalAdvisors, clients, scenarioRuns, exports] = await Promise.all([
       advisorQuery,

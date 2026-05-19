@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getStripe } from '@/lib/stripe';
 import { PLAN_PRICES } from '@/lib/config/plans';
+import { isInternalTeamEmail } from '@/lib/auth/internal-team';
 
 // Test accounts to exclude from all metrics
 const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
@@ -55,10 +56,18 @@ export async function GET(request: NextRequest) {
       // By default show active/trialing only; when churned=true show all including canceled
     }
 
-    const { data: profiles, error: profilesError } = await profilesQuery;
+    const { data: rawProfiles, error: profilesError } = await profilesQuery;
 
     if (profilesError) throw profilesError;
-    if (!profiles || profiles.length === 0) {
+    if (!rawProfiles || rawProfiles.length === 0) {
+      return NextResponse.json({ advisors: [], total: 0 });
+    }
+
+    // Strip internal team members (Vroom team accounts). Same rationale as
+    // the revenue endpoint — these are internal users, not advisors paying
+    // for the product, and they shouldn't appear in the advisor list metrics.
+    const profiles = rawProfiles.filter((p) => !isInternalTeamEmail(p.email));
+    if (profiles.length === 0) {
       return NextResponse.json({ advisors: [], total: 0 });
     }
 

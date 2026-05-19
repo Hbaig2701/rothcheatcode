@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
+import { isInternalTeamEmail } from "@/lib/auth/internal-team";
 
 // Test accounts to exclude
 const TEST_EMAILS = ['hbkidspare+homework@gmail.com', 'allank94@live.com'];
@@ -30,15 +31,17 @@ export async function GET() {
 
     const admin = createAdminClient();
 
-    // Only get paying advisors
-    const { data: payingProfiles } = await admin
+    // Only get paying advisors (also filter internal Vroom team).
+    const { data: rawPayingProfiles } = await admin
       .from("profiles")
       .select("id, email, created_at, subscription_status, plan, billing_cycle, stripe_subscription_id")
       .eq("role", "advisor")
       .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
       .not('stripe_customer_id', 'is', null);
 
-    const profiles = payingProfiles ?? [];
+    const profiles = (rawPayingProfiles ?? []).filter(
+      (p) => !isInternalTeamEmail(p.email),
+    );
     const advisorIds = profiles.map(p => p.id);
     const totalAdvisors = profiles.length;
 

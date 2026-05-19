@@ -15,6 +15,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { fetchInternalTeamProfileIds } from "@/lib/auth/internal-team";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,16 @@ export async function GET(_req: NextRequest) {
   // data regardless of which advisor is logged in.
   const admin = createAdminClient();
 
+  // Internal team (Vroom employees) are excluded from every metric on this
+  // dashboard so their usage / spend doesn't distort the advisor numbers.
+  const internalIds = await fetchInternalTeamProfileIds(admin);
+  // Supabase doesn't accept an empty IN list, so pass a UUID-shaped sentinel
+  // that won't match any real row when the list is empty.
+  const SENTINEL = "00000000-0000-0000-0000-000000000000";
+  const excludedIds = internalIds.length > 0 ? internalIds : [SENTINEL];
+  const excludeInternal = <T extends { not: (col: string, op: string, val: string) => T }>(q: T): T =>
+    q.not("user_id", "in", `(${excludedIds.join(",")})`);
+
   // 30-day cutoff.
   const thirtyDaysAgoIso = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
 
@@ -43,20 +54,26 @@ export async function GET(_req: NextRequest) {
     { count: last30Messages },
     { data: costRows },
   ] = await Promise.all([
-    admin.from("chat_conversations").select("id", { count: "exact", head: true }),
-    admin.from("chat_messages").select("id", { count: "exact", head: true }),
-    admin
-      .from("chat_conversations")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", thirtyDaysAgoIso),
-    admin
-      .from("chat_messages")
-      .select("id", { count: "exact", head: true })
-      .gte("created_at", thirtyDaysAgoIso),
-    admin
-      .from("chat_messages")
-      .select("cost_usd, created_at")
-      .not("cost_usd", "is", null),
+    excludeInternal(admin.from("chat_conversations").select("id", { count: "exact", head: true })),
+    excludeInternal(admin.from("chat_messages").select("id", { count: "exact", head: true })),
+    excludeInternal(
+      admin
+        .from("chat_conversations")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", thirtyDaysAgoIso)
+    ),
+    excludeInternal(
+      admin
+        .from("chat_messages")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", thirtyDaysAgoIso)
+    ),
+    excludeInternal(
+      admin
+        .from("chat_messages")
+        .select("cost_usd, created_at, user_id")
+        .not("cost_usd", "is", null)
+    ),
   ]);
 
   let allTimeCost = 0;
@@ -67,12 +84,14 @@ export async function GET(_req: NextRequest) {
     if ((r.created_at as string) >= thirtyDaysAgoIso) last30Cost += c;
   }
 
-  // 2. Per-day rollup over last 30 days.
-  const { data: messagesForChart } = await admin
-    .from("chat_messages")
-    .select("created_at, cost_usd, role")
-    .gte("created_at", thirtyDaysAgoIso)
-    .order("created_at", { ascending: true });
+  // 2. Per-day rollup over last 30 days (internal team excluded).
+  const { data: messagesForChart } = await excludeInternal(
+    admin
+      .from("chat_messages")
+      .select("created_at, cost_usd, role, user_id")
+      .gte("created_at", thirtyDaysAgoIso)
+      .order("created_at", { ascending: true })
+  );
 
   // Bucket per server-local day. We use the server timezone consistently
   // for both the bucket key and the 30-day backfill so the chart shows
@@ -103,11 +122,13 @@ export async function GET(_req: NextRequest) {
     daily.push(byDay.get(key) ?? { day: key, messages: 0, cost: 0 });
   }
 
-  // 3. Per-advisor leaderboard.
-  const { data: perAdvisorRaw } = await admin
-    .from("chat_messages")
-    .select("user_id, cost_usd, role, created_at")
-    .gte("created_at", thirtyDaysAgoIso);
+  // 3. Per-advisor leaderboard (internal team excluded).
+  const { data: perAdvisorRaw } = await excludeInternal(
+    admin
+      .from("chat_messages")
+      .select("user_id, cost_usd, role, created_at")
+      .gte("created_at", thirtyDaysAgoIso)
+  );
 
   const advisorAgg = new Map<
     string,
@@ -169,12 +190,14 @@ export async function GET(_req: NextRequest) {
       .sort((a, b) => b.cost - a.cost);
   }
 
-  // 4. Recent conversations across all advisors.
-  const { data: convoRows } = await admin
-    .from("chat_conversations")
-    .select("id, user_id, title, last_message_at, created_at")
-    .order("last_message_at", { ascending: false })
-    .limit(50);
+  // 4. Recent conversations across all advisors (internal team excluded).
+  const { data: convoRows } = await excludeInternal(
+    admin
+      .from("chat_conversations")
+      .select("id, user_id, title, last_message_at, created_at")
+      .order("last_message_at", { ascending: false })
+      .limit(50)
+  );
 
   // Hydrate user names for the conversation list too.
   const convoUserIds = Array.from(new Set((convoRows ?? []).map((c) => c.user_id as string)));
