@@ -774,6 +774,18 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 <span className="text-sm text-text-muted">Starting Balance</span>
                 <span className="text-base font-mono text-foreground">{toUSD(client.qualified_account_value)}</span>
               </div>
+              {(client.bonus_percent ?? 0) > 0 && (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-text-muted">+ {client.bonus_percent}% Premium Bonus</span>
+                    <span className="text-base font-mono text-gold">{toUSD(Math.round((client.qualified_account_value ?? 0) * (client.bonus_percent ?? 0) / 100))}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-text-dim font-medium">Starting Balance (with bonus)</span>
+                    <span className="text-base font-mono text-foreground">{toUSD(Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100)))}</span>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-sm text-text-muted">Final Traditional IRA</span>
                 <span className="text-base font-mono text-text-dim">{toUSD(blueFinalTraditional)}</span>
