@@ -62,6 +62,39 @@ function addUsage(acc: CumulativeUsage, u: Partial<CumulativeUsage>): void {
   acc.cache_creation_tokens += u.cache_creation_tokens ?? 0;
 }
 
+// True for errors worth retrying: Anthropic capacity issues (overloaded /
+// rate-limited) and transient 5xx / network errors. We do NOT retry 4xx
+// (invalid_request, auth, etc) - those won't succeed on retry and would
+// just waste time + tokens.
+function isRetryableAnthropicError(err: unknown): boolean {
+  if (!err) return false;
+  // SDK errors carry .status (HTTP) and .error.type (Anthropic taxonomy).
+  // Strings sometimes leak through too (e.g., from .finalMessage rejection).
+  const anyErr = err as { status?: number; error?: { type?: string }; message?: string };
+  if (anyErr.status === 429 || anyErr.status === 529) return true;
+  if (typeof anyErr.status === "number" && anyErr.status >= 500 && anyErr.status < 600) return true;
+  const errType = anyErr.error?.type;
+  if (errType === "overloaded_error" || errType === "rate_limit_error" || errType === "api_error") return true;
+  const msg = String(anyErr.message || "").toLowerCase();
+  if (msg.includes("overloaded") || msg.includes("rate_limit") || msg.includes("rate limit")) return true;
+  return false;
+}
+
+function friendlyErrorMessage(err: unknown): string {
+  const anyErr = err as { status?: number; error?: { type?: string }; message?: string };
+  const errType = anyErr.error?.type;
+  if (errType === "overloaded_error" || anyErr.status === 529) {
+    return "The AI is overloaded right now. Please send your message again in a moment.";
+  }
+  if (errType === "rate_limit_error" || anyErr.status === 429) {
+    return "Hit a rate limit - please wait a few seconds and try again.";
+  }
+  if (typeof anyErr.status === "number" && anyErr.status >= 500) {
+    return "The AI service had a temporary error. Please try again.";
+  }
+  return anyErr.message || "Chat request failed.";
+}
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const {
@@ -234,66 +267,104 @@ export async function POST(req: NextRequest) {
 
       try {
         for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
-          // The Anthropic SDK has stricter content-block types than our
-          // ChatContentBlock (image source must be Base64ImageSource OR
-          // URLImageSource, not both). Runtime shape is valid because the
-          // engine only emits blocks the SDK accepts; cast at the boundary.
-          const anthStream = anthropic.messages.stream({
-            model,
-            max_tokens: 1024,
-            system: systemBlocks,
-            tools: CHAT_TOOLS,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            messages: messages as any,
-          });
-
+          // Retry the stream attempt up to 3 times on overload / rate-limit /
+          // 5xx. We can only safely retry BEFORE any text deltas have been
+          // emitted to the client; otherwise the user would see the text
+          // duplicate. The inner try/catch enforces that.
+          const MAX_STREAM_ATTEMPTS = 3;
           let iterText = "";
-          partialStreamedText = "";
-          currentIterRowPersisted = false;
-          const iterUsage: CumulativeUsage = {
+          let iterUsage: CumulativeUsage = {
             input_tokens: 0,
             output_tokens: 0,
             cache_read_tokens: 0,
             cache_creation_tokens: 0,
           };
-          // Track which block index is a tool_use so we can emit the tool
-          // status event as soon as Anthropic announces a tool block start.
-          const announcedTools = new Set<number>();
+          let finalMessageContent: ChatContentBlock[] | null = null;
+          let finalStopReason: string | null = null;
 
-          for await (const event of anthStream) {
-            if (event.type === "content_block_start") {
-              if (event.content_block.type === "tool_use" && !announcedTools.has(event.index)) {
-                announcedTools.add(event.index);
-                sseEvent(controller, "tool", {
-                  tool_name: event.content_block.name,
-                  status: "running",
-                  label: getToolStatusLabel(event.content_block.name),
-                });
-              }
-            } else if (
-              event.type === "content_block_delta" &&
-              event.delta.type === "text_delta"
-            ) {
-              iterText += event.delta.text;
-              partialStreamedText = iterText;
-              sseEvent(controller, "text", { text: event.delta.text });
-            } else if (event.type === "message_start" && event.message.usage) {
-              addUsage(iterUsage, {
-                input_tokens: event.message.usage.input_tokens ?? 0,
-                output_tokens: event.message.usage.output_tokens ?? 0,
-                cache_read_tokens: event.message.usage.cache_read_input_tokens ?? 0,
-                cache_creation_tokens:
-                  event.message.usage.cache_creation_input_tokens ?? 0,
+          for (let attempt = 1; attempt <= MAX_STREAM_ATTEMPTS; attempt++) {
+            iterText = "";
+            partialStreamedText = "";
+            currentIterRowPersisted = false;
+            iterUsage = {
+              input_tokens: 0,
+              output_tokens: 0,
+              cache_read_tokens: 0,
+              cache_creation_tokens: 0,
+            };
+            const announcedTools = new Set<number>();
+            try {
+              // The Anthropic SDK has stricter content-block types than our
+              // ChatContentBlock (image source must be Base64ImageSource OR
+              // URLImageSource, not both). Runtime shape is valid because the
+              // engine only emits blocks the SDK accepts; cast at the boundary.
+              const anthStream = anthropic.messages.stream({
+                model,
+                max_tokens: 1024,
+                system: systemBlocks,
+                tools: CHAT_TOOLS,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                messages: messages as any,
               });
-            } else if (event.type === "message_delta" && event.usage) {
-              // message_delta carries the final output_tokens count for the
-              // turn — overwrite (not add) since message_start was 0.
-              iterUsage.output_tokens = event.usage.output_tokens ?? iterUsage.output_tokens;
+
+              for await (const event of anthStream) {
+                if (event.type === "content_block_start") {
+                  if (event.content_block.type === "tool_use" && !announcedTools.has(event.index)) {
+                    announcedTools.add(event.index);
+                    sseEvent(controller, "tool", {
+                      tool_name: event.content_block.name,
+                      status: "running",
+                      label: getToolStatusLabel(event.content_block.name),
+                    });
+                  }
+                } else if (
+                  event.type === "content_block_delta" &&
+                  event.delta.type === "text_delta"
+                ) {
+                  iterText += event.delta.text;
+                  partialStreamedText = iterText;
+                  sseEvent(controller, "text", { text: event.delta.text });
+                } else if (event.type === "message_start" && event.message.usage) {
+                  addUsage(iterUsage, {
+                    input_tokens: event.message.usage.input_tokens ?? 0,
+                    output_tokens: event.message.usage.output_tokens ?? 0,
+                    cache_read_tokens: event.message.usage.cache_read_input_tokens ?? 0,
+                    cache_creation_tokens:
+                      event.message.usage.cache_creation_input_tokens ?? 0,
+                  });
+                } else if (event.type === "message_delta" && event.usage) {
+                  // message_delta carries the final output_tokens count for the
+                  // turn — overwrite (not add) since message_start was 0.
+                  iterUsage.output_tokens = event.usage.output_tokens ?? iterUsage.output_tokens;
+                }
+              }
+
+              const finalMessage = await anthStream.finalMessage();
+              finalMessageContent = finalMessage.content as unknown as ChatContentBlock[];
+              finalStopReason = finalMessage.stop_reason;
+              break; // success — exit retry loop
+            } catch (streamErr) {
+              // If any text was already streamed to the client, retrying
+              // would duplicate it — bail to the outer catch.
+              if (iterText.length > 0) throw streamErr;
+              // Non-retryable (e.g., invalid_request_error) — bail too.
+              if (!isRetryableAnthropicError(streamErr) || attempt === MAX_STREAM_ATTEMPTS) {
+                throw streamErr;
+              }
+              // Exponential backoff: 1s, 2s. Capped to keep us under the 60s
+              // route timeout even if we hit max attempts.
+              const delayMs = Math.min(1000 * 2 ** (attempt - 1), 4000);
+              await new Promise((r) => setTimeout(r, delayMs));
             }
           }
 
-          const finalMessage = await anthStream.finalMessage();
-          const blocks = finalMessage.content as unknown as ChatContentBlock[];
+          if (!finalMessageContent) {
+            // Defensive — retry loop above either succeeds or throws, so we
+            // should never reach here. If we do, treat as error.
+            throw new Error("Stream produced no final message");
+          }
+
+          const blocks = finalMessageContent;
           const iterCost = computeMessageCost(model, iterUsage);
           addUsage(cumulativeUsage, iterUsage);
 
@@ -322,7 +393,7 @@ export async function POST(req: NextRequest) {
           lastAssistantMessageId = insertedAssistant?.id ?? lastAssistantMessageId;
           currentIterRowPersisted = true;
 
-          if (finalMessage.stop_reason !== "tool_use") {
+          if (finalStopReason !== "tool_use") {
             // end_turn (or max_tokens) — done.
             break;
           }
@@ -386,7 +457,6 @@ export async function POST(req: NextRequest) {
           cost_usd: cost,
         });
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Chat request failed";
         // Two paths into the catch:
         //   (a) Stream errored mid-reveal BEFORE the current iter's row was
         //       persisted. Save the partial text + error as a single row.
@@ -394,18 +464,22 @@ export async function POST(req: NextRequest) {
         //       iter's row was already persisted in the loop body. In that
         //       case, don't write a duplicate assistant row — just append a
         //       short error note row so the transcript reflects the failure.
+        // friendly is shown to the user. raw is kept in DB next to it so we
+        // still have the original Anthropic error for debugging.
+        const friendly = friendlyErrorMessage(err);
+        const raw = err instanceof Error ? err.message : "Chat request failed";
         if (currentIterRowPersisted) {
           await supabase.from("chat_messages").insert({
             conversation_id: conversationId,
             user_id: user.id,
             role: "assistant",
-            content: `[error] ${message}`,
+            content: `[error] ${friendly}\n\n_(raw: ${raw})_`,
             model,
           });
         } else {
           const body = partialStreamedText
-            ? `${partialStreamedText}\n\n[error: ${message}]`
-            : `[error] ${message}`;
+            ? `${partialStreamedText}\n\n[error: ${friendly}]`
+            : `[error] ${friendly}`;
           await supabase.from("chat_messages").insert({
             conversation_id: conversationId,
             user_id: user.id,
@@ -414,7 +488,7 @@ export async function POST(req: NextRequest) {
             model,
           });
         }
-        sseEvent(controller, "error", { message });
+        sseEvent(controller, "error", { message: friendly });
       } finally {
         controller.close();
       }
