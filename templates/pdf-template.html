@@ -440,6 +440,12 @@
           <span class="metric-label">Bonus</span>
           <span class="metric-value">{{bonusRate}}%</span>
         </div>
+        {{#if hasBonus}}
+        <div class="metric-row">
+          <span class="metric-label">Starting Balance (with bonus)</span>
+          <span class="metric-value">{{startingWithBonus}}</span>
+        </div>
+        {{/if}}
         {{#if riderFee}}
         <div class="metric-row">
           <span class="metric-label">Annual Rider Fee</span>

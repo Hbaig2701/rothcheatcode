@@ -257,6 +257,9 @@ interface TemplateData {
   filingStatus: string;
   initialDeposit: string;
   bonusRate: number;
+  bonusAmount: string;
+  startingWithBonus: string;
+  hasBonus: boolean;
   riderFee: number;
   rateOfReturn: number;
   rateOfReturnPercent: string;
@@ -950,6 +953,17 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     filingStatus: filingStatusMap[client.filing_status] || client.filing_status,
     initialDeposit: formatCurrency(client.qualified_account_value),
     bonusRate: client.bonus_percent ?? 10,
+    // Pre-computed for the PDF so the template can show "starting balance
+    // with bonus applied" alongside the raw deposit — matches what the
+    // engine actually starts year 1 with and what the in-app Account
+    // Summary displays.
+    bonusAmount: formatCurrency(
+      Math.round((client.qualified_account_value ?? 0) * ((client.bonus_percent ?? 0) / 100))
+    ),
+    startingWithBonus: formatCurrency(
+      Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100))
+    ),
+    hasBonus: (client.bonus_percent ?? 0) > 0,
     riderFee: productRiderFee,
     rateOfReturn: client.rate_of_return ?? 7,
     rateOfReturnPercent: String(client.rate_of_return ?? 7),
