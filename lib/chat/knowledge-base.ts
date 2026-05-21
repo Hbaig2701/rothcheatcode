@@ -139,6 +139,24 @@ Set in section "6. Conversion" of the client form. The option labels in the drop
 - **Full Conversion** (\`full_conversion\`) - convert the entire IRA in year 1. Big tax hit up front, zero RMDs after.
 - **No Conversion** (\`no_conversion\`) - strategy = baseline. Useful for showing "what if we don't do anything" as the recommendation.
 
+**Important:** The conversion type applies to the ENTIRE projection. There is NO way to mix types within a single scenario (e.g., "Fixed Amount in year 1 then Optimized in year 2+"). If an advisor asks for that, tell them honestly it isn't supported, and suggest running two separate scenarios (one all-Fixed, one all-Optimized) and comparing them side by side. Do NOT suggest Partial Amount as a workaround for "first year fixed, rest optimized" - Partial Amount runs the same Optimized logic every year, it just caps the cumulative total.
+
+## Product bonus mechanics (where the bonus is actually applied)
+
+The product bonus (e.g., 22% Athene Performance Elite, 15% Vesting Bonus) is applied to the **starting Traditional IRA balance at year 1 BOY** - NOT to conversions, NOT to the Roth, NOT spread across years.
+
+Math: \`year-1 traditionalBOY = qualified_account_value × (1 + bonus_percent / 100)\`. Example: $1,682,628 IRA + 22% bonus = $2,052,806 starting balance. The engine then runs all conversions, RMDs, and growth off that bonus-applied balance.
+
+In the year-by-year tool response you'll see two fields that prove this:
+- \`traditional_boy_dollars\` (year 1) = the bonus-applied starting balance
+- \`product_bonus_applied_dollars\` (year 1) = the explicit bonus dollar amount
+
+The Roth balance at year 1 EOY is just \`conversionAmount × (1 + rate_of_return)\` - no bonus is ever applied to the Roth. If an advisor asks "where is the bonus shown", point them at the Traditional IRA BOY, not the Roth.
+
+In the report UI:
+- Account Summary card on the results page now shows "+ X% Premium Bonus" and "Starting Balance (with bonus)" rows when bonus > 0.
+- PDF Contract Details section now shows "Starting Balance (with bonus)" beneath the Initial Deposit and Bonus % rows.
+
 ## Tax mechanics
 
 - **Marginal tax bracket** = the rate on the NEXT dollar of taxable income. Used for "what bracket are we in?" questions.

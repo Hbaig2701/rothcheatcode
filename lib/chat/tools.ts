@@ -449,10 +449,14 @@ async function runGetYearBreakdown(
       total_tax_dollars: n("totalTax"),
       irmaa_tier: row.irmaaTier,
       irmaa_surcharge_dollars: n("irmaaSurcharge"),
+      traditional_boy_dollars: n("traditionalBOY"),
       traditional_balance_dollars: n("traditionalBalance"),
       roth_balance_dollars: n("rothBalance"),
       taxable_balance_dollars: n("taxableBalance"),
       net_worth_dollars: n("netWorth"),
+      product_bonus_applied_dollars: n("productBonusApplied"),
+      total_ira_withdrawal_dollars: n("totalIRAWithdrawal"),
+      taxes_paid_from_ira_dollars: n("taxesPaidFromIRA"),
     };
   };
 
