@@ -167,16 +167,28 @@ export function ExportPdfDialog({
         }
       }
 
-      const response = await fetch("/api/generate-pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reportData: { client, projection },
-          brandingOverrides,
-          title: title.trim() || undefined,
-          sections: !isGI ? sections : undefined,
-        }),
-      });
+      // Client-side timeout slightly longer than Vercel's 60s maxDuration —
+      // ensures we always surface a friendly message rather than the
+      // browser's generic "Load failed" if the connection dies.
+      const abort = new AbortController();
+      const timeoutId = window.setTimeout(() => abort.abort(), 65_000);
+
+      let response: Response;
+      try {
+        response = await fetch("/api/generate-pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reportData: { client, projection },
+            brandingOverrides,
+            title: title.trim() || undefined,
+            sections: !isGI ? sections : undefined,
+          }),
+          signal: abort.signal,
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -184,7 +196,12 @@ export function ExportPdfDialog({
           setError(`Export limit reached (${errorData.current}/${errorData.limit}). Upgrade to continue.`);
           return;
         }
-        throw new Error(errorData.error || "Failed to generate PDF");
+        if (response.status === 504 || response.status === 502) {
+          throw new Error(
+            "Server timed out while generating the PDF. The Roth conversion engine had a busy moment — please try again in 30 seconds.",
+          );
+        }
+        throw new Error(errorData.error || `Failed to generate PDF (HTTP ${response.status})`);
       }
 
       const blob = await response.blob();
@@ -221,7 +238,21 @@ export function ExportPdfDialog({
       setTitle(""); // Clear title after successful export
       onOpenChange(false);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "PDF generation failed";
+      // The browser's raw fetch errors ("Load failed", "Failed to fetch",
+      // AbortError) are meaningless to advisors. Translate them into
+      // something actionable.
+      let message: string;
+      if (err instanceof Error) {
+        if (err.name === "AbortError") {
+          message = "PDF generation took too long (over 60 seconds) and was cancelled. Please try again — large client projections occasionally hit the timeout.";
+        } else if (/load failed|failed to fetch|network/i.test(err.message)) {
+          message = "Couldn't reach the server. Check your connection and try again. If it keeps failing, refresh the page.";
+        } else {
+          message = err.message;
+        }
+      } else {
+        message = "PDF generation failed";
+      }
       setError(message);
     } finally {
       setGenerating(false);
