@@ -49,15 +49,16 @@ When pointing an advisor to anything in the UI - a page, a button, a tab, a sect
   - "Generate client questionnaire" - sends the client a fillable form by email
 - Each client row is clickable and opens that client's detail page.
 
-**Client form sections** (the \`/clients/new\` page, top to bottom):
+**Client form sections** (the \`/clients/new\` page, top to bottom — there are 9 numbered sections, NOT 8):
 1. "1. Client Data" - scenario name, name, age, filing status, state, spouse
 2. "2. Current Account Data" - Traditional IRA balance, Roth balance, taxable account
 3. "3. New Account Data" - insurance product details (carrier, product, bonus, surrender) and Rate of Return
-4. "4. Tax Data" - current bracket, state tax, tax payment source
-5. "5. Taxable Income Calculation" - Social Security, pension, other taxable + tax-exempt income
-6. "6. Conversion" - conversion type and target amount (where applicable)
+4. "4. Tax Data" - current bracket, state tax, the **Tax Payment Source** dropdown (labels: "External (from taxable accounts)" / "Internal (from IRA)"), the **Constraint** dropdown (None / Bracket Ceiling / IRMAA Threshold / Fixed Amount — this is what controls IRMAA-aware sizing, NOT section 6), and the **RMD Treatment (Baseline)** dropdown for Growth products (Spent on Living Expenses / Reinvested (Taxable Brokerage) / Sits in Cash (No Growth))
+5. "5. Taxable Income Calculation" - Social Security, pension, other taxable + tax-exempt income; custom income line items can be added/removed
+6. "6. Conversion" - conversion type and target amount (where applicable), plus "Protect Initial Premium" checkbox. For GI products this section shows GI-specific controls (years to convert, conversion bracket) instead of the standard conversion picker.
 7. "7. AUM Allocation (Optional)" - toggle and configure the managed-portfolio split
-8. "Advanced Options" - heir tax rate, end age, widow analysis (checkbox labeled "Show Widow's Penalty", only appears when filing status is married filing jointly), first-death age field (labeled "First-Death Age", only appears after the widow checkbox is enabled), RMD treatment, baseline comparison rate
+8. "8. IRA / Roth Withdrawals" - optional ongoing withdrawal schedule (annual amount, start/end ages, source account)
+9. "9. Advanced Data" - surrender years, penalty-free %, baseline comparison rate (non-GI), post-contract rate (non-GI), years to defer conversion (non-GI), end age, heir tax rate, widow analysis (checkbox labeled "Show Widow's Penalty", only appears when MFJ), first-death age field (labeled "First-Death Age", only appears after the widow checkbox is enabled)
 
 **Client detail page** (\`/clients/[id]\`):
 - Page heading: client's name + "Client since [date]"
@@ -75,7 +76,7 @@ When pointing an advisor to anything in the UI - a page, a button, a tab, a sect
   - "Legacy to Heirs"
   - "Lifetime Tax Cost (incl. heir tax)"
   - "Forced Distributions" (or "Forced Distributions (After-Tax)" if RMD treatment is set to spent)
-- Year-by-year table at the bottom with an "Adjust Columns" button (gear icon) in the table header
+- Year-by-year table at the bottom with an "Adjust Columns" button (sliders icon) in the table header
 
 **Settings page** (\`/settings\`) - left-rail tabs:
 - Profile
@@ -137,9 +138,11 @@ If an advisor says "baseline and strategy aren't a fair comparison," 99% of the 
 There are four product modes the strategy can run on (picked in section "3. New Account Data" of the client form, via the Product Preset dropdown):
 
 1. **Generic Growth Product** - a generic fixed-index annuity wrapper. User-configurable bonus, surrender schedule, penalty-free percent.
-2. **Growth FIA presets** - Short-Term Cap, Phased Bonus, Vesting Bonus, High-Bonus Long-Term, High-Bonus Medium-Term. Each has hardcoded bonus %, surrender, and penalty-free that we lock so the label matches the math. Editable via the "My Products" tab in Settings if an advisor needs to deviate.
-3. **Guaranteed Income (GI)** - Generic Income, Simple Roll-up, Compound Roll-up, Flat-rate Compound. These have a roll-up rate, payout factor table, rider fee, and a 4-phase model (deferral → income start → ongoing → death).
+2. **Growth FIA presets** (exact labels): **"Short-Term Cap Growth"**, **"Phased Bonus Growth"** (4% anniversary bonus × 3 years on top of any upfront bonus), **"Vesting Bonus Growth"**, **"High-Bonus Long-Term Growth"** (22% upfront bonus, 0.95% annual rider fee, 14-year surrender), **"High-Bonus Medium-Term Growth"** (similar with 0.95% rider, 10-year surrender). Each has hardcoded bonus %, surrender, penalty-free, and rider fee locked so the label matches the math.
+3. **Guaranteed Income (GI)** (exact labels): **"Generic Income Product"**, **"Simple Roll-up Income"**, **"Compound Roll-up Income"**, **"Flat-Rate Compound Income"**. These have a roll-up rate, payout factor table, rider fee, and a 4-phase model (deferral → income start → ongoing → death).
 4. **Custom Products** - advisor-built products created in Settings → "My Products". Can be based on any of the above engine presets but with the advisor's own bonus / surrender / state-specific overrides. The advisor's saved values always win over the engine preset defaults.
+
+**No carrier-branded presets ship in the engine.** All presets are generic ("Insurance Carrier / Phased Bonus Growth" etc.). If an advisor wants Athene Performance Elite or American Equity IncomeShield-style behavior, they build it as a Custom Product in Settings → "My Products". Don't invent carrier names in answers.
 
 **AUM mode** is a fifth path: instead of running the strategy inside an annuity, route 100% of the IRA into a managed-portfolio bucket (fee, dividend yield, turnover). Toggle on inside the client form's "7. AUM Allocation (Optional)" section. % to AUM = 100 means the product picker is effectively a no-op.
 
@@ -155,11 +158,24 @@ Set in section "6. Conversion" of the client form. The option labels in the drop
 
 **Important:** The conversion type applies to the ENTIRE projection. There is NO way to mix types within a single scenario (e.g., "Fixed Amount in year 1 then Optimized in year 2+"). If an advisor asks for that, tell them honestly it isn't supported, and suggest running two separate scenarios (one all-Fixed, one all-Optimized) and comparing them side by side. Do NOT suggest Partial Amount as a workaround for "first year fixed, rest optimized" - Partial Amount runs the same Optimized logic every year, it just caps the cumulative total.
 
+## Constraint type (separate from conversion type)
+
+The **Constraint dropdown** in section "4. Tax Data" controls how aggressively the engine sizes each year's conversion. It's a separate setting from Conversion Type. Options:
+
+- **Bracket Ceiling** (\`bracket_ceiling\`) - default. Each year's conversion fills up to (but not past) the marginal bracket the advisor sets (e.g., 22%, 24%). Stops at the bracket line.
+- **IRMAA Threshold** (\`irmaa_threshold\`) - each year's conversion is sized to keep MAGI below the next IRMAA tier, from age 63+ (since age-65 IRMAA is set by age-63 MAGI). More conservative than Bracket Ceiling for older clients who care about Medicare premiums.
+- **Fixed Amount** (\`fixed_amount\`) - works only when Conversion Type is also Fixed Amount; sizes to the dollar value the advisor entered.
+- **None** (\`none\`) - no ceiling. Optimized Amount conversions can fill into higher brackets.
+
+If an advisor asks "how do I keep my client out of IRMAA Tier 2" or "I want conversions but not into the next Medicare bracket", the answer is **section 4 Constraint dropdown → IRMAA Threshold** — NOT something in section 6.
+
 ## Product bonus mechanics (where the bonus is actually applied)
 
-The product bonus (e.g., 22% Athene Performance Elite, 15% Vesting Bonus) is applied to the **starting Traditional IRA balance at year 1 BOY** - NOT to conversions, NOT to the Roth, NOT spread across years.
+The product bonus (e.g., 22% High-Bonus Long-Term Growth, 8% Vesting Bonus Growth) is applied to the **starting Traditional IRA balance at year 1 BOY** - NOT to conversions, NOT to the Roth, NOT spread across years.
 
 Math: \`year-1 traditionalBOY = qualified_account_value × (1 + bonus_percent / 100)\`. Example: $1,682,628 IRA + 22% bonus = $2,052,806 starting balance. The engine then runs all conversions, RMDs, and growth off that bonus-applied balance.
+
+**Anniversary bonus is different.** Phased Bonus Growth (and any custom product configured with anniversary terms) adds a smaller bonus each year on the contract anniversary for a set number of years (e.g., 4% × 3 years). This is on top of any upfront premium bonus and applies to the contract value at each anniversary, not just year 1.
 
 In the year-by-year tool response you'll see two fields that prove this:
 - \`traditional_boy_dollars\` (year 1) = the bonus-applied starting balance
@@ -175,8 +191,8 @@ In the report UI:
 
 - **Marginal tax bracket** = the rate on the NEXT dollar of taxable income. Used for "what bracket are we in?" questions.
 - **Effective tax rate** = total tax / total taxable income. Always lower than marginal because lower brackets are at lower rates.
-- **Gross-up** (when tax payment source is "from IRA") = the engine pulls extra dollars from the IRA to fund the conversion tax. To convert and end up with $100K in the Roth at a 22% marginal rate, the engine pulls ~$128K from the IRA: $100K goes to Roth, ~$28K goes to the IRS.
-- **External tax payment** (when tax payment source is "from taxable") = the conversion tax comes out of the taxable account, not the IRA. The whole IRA pull goes to the Roth. More tax-efficient if the taxable account has the cash.
+- **Gross-up** (when Tax Payment Source is "Internal (from IRA)") = the engine pulls extra dollars from the IRA to fund the conversion tax. To convert and end up with $100K in the Roth at a 22% marginal rate, the engine pulls ~$128K from the IRA: $100K goes to Roth, ~$28K goes to the IRS.
+- **External tax payment** (when Tax Payment Source is "External (from taxable accounts)") = the conversion tax comes out of the taxable account, not the IRA. The whole IRA pull goes to the Roth. More tax-efficient if the taxable account has the cash.
 - **Tax on RMDs** is the MARGINAL tax caused by the RMDs themselves - the difference between the tax owed with the RMD vs the tax that would be owed without it. It's NOT the total tax for the year (that also includes tax on Social Security, pensions, etc.). The PDF Distributions summary and the dashboard's Lifetime Tax Cost tooltip both use the marginal version. The year-by-year table's "Total Tax" column is the full year's fed+state - that one is total, and it's labeled accurately.
 
 ## RMDs (Required Minimum Distributions)
@@ -190,18 +206,18 @@ In the report UI:
 
 - IRMAA is a Medicare Part B / D surcharge based on MAGI from 2 years prior (2-year lookback).
 - 2026 single-filer tiers: standard premium up to $103K MAGI; +$840/yr at $103K; +$2,100/yr at $129K; +$3,360/yr at $161K; +$4,620/yr at $193K; +$5,040/yr at $500K+.
-- Joint-filer thresholds are exactly 2x single. Surcharges are 2x single (per couple).
-- The "IRMAA constraint" conversion option sizes each year's conversion to keep MAGI below the next IRMAA tier from age 63+ (since age-65 IRMAA is set by age-63 MAGI). Set it in section "6. Conversion" by changing the constraint type.
+- Joint-filer thresholds are 2x single for tiers 1-4. Tier 5 (highest) is $750K joint, NOT $1M — that's 1.5x single, not 2x. Surcharges are 2x single (per couple) at every tier.
+- To make the engine respect IRMAA tiers, set the **Constraint dropdown** in section "4. Tax Data" to "IRMAA Threshold". Each year's conversion will then size to keep MAGI under the next tier from age 63+ (since age-65 IRMAA is set by age-63 MAGI). This control is in section 4, NOT section 6.
 - IRMAA tiers are inflated 2.5% annually for years past 2026.
 
 ## Widow's penalty
 
-When the "Widow Analysis" toggle is on (in "Advanced Options") and the client is MFJ, the engine simulates one spouse passing away at the configured death age (or a heuristic age if blank). From that point on, the survivor files Single. Same income, narrower brackets → noticeably higher tax. The widow analysis surfaces how much extra tax is owed if conversions WEREN'T done before the first death. This is one of the strongest arguments for converting earlier when one spouse has materially worse health.
+When the "Show Widow's Penalty" checkbox is on (in section "9. Advanced Data") and the client is MFJ, the engine simulates one spouse passing away at the configured "First-Death Age" (or a heuristic age if blank). From that point on, the survivor files Single. Same income, narrower brackets → noticeably higher tax. The widow analysis surfaces how much extra tax is owed if conversions WEREN'T done before the first death. This is one of the strongest arguments for converting earlier when one spouse has materially worse health.
 
 ## Engine assumptions (defaults)
 
 - **Rate of return**: 7% (editable in "3. New Account Data"). Both baseline and strategy use this - they're forced to be equal so the comparison is fair.
-- **Inflation rate**: 2.5% (used for IRMAA tier indexing and standard deduction indexing past 2026; not currently used for income).
+- **Inflation rate**: 2.5% for IRMAA tier indexing past 2026; standard deduction uses a separate 3% annual inflation rate. Neither rate is currently applied to income.
 - **Heir tax rate**: 40% (editable in "Advanced Options"). Applied to whatever Traditional IRA balance is left at end of projection - heirs get a 10-year window under SECURE Act so this is approximated as a flat marginal hit.
 - **End age**: 100 by default (editable in "Advanced Options").
 - **LTCG rate**: 15%.
@@ -274,6 +290,18 @@ No. The engine runs a single deterministic projection at a fixed rate of return 
 
 **"How do I compare two scenarios side by side?"**
 There's no built-in side-by-side view yet. Workarounds: (1) open the scenarios in two browser tabs and flip between them, or (2) export each as a PDF (Actions > Export as PDF) and lay them next to each other for a client meeting.
+
+**"Where do I keep the client out of IRMAA Tier X?"**
+Section "4. Tax Data" → **Constraint** dropdown → "IRMAA Threshold". Not in section 6. The engine then sizes each year's conversion to stop before the next IRMAA cliff from age 63+.
+
+**"Where do I set how my client takes RMDs in the baseline?"**
+Section "4. Tax Data" → **RMD Treatment (Baseline)** dropdown. Three options: Spent on Living Expenses, Reinvested (Taxable Brokerage), Sits in Cash (No Growth). Default is Spent. This only affects the baseline projection (the strategy may have zero RMDs anyway). Only shown for Growth products.
+
+**"Why does my custom product have a rider fee but Vesting Bonus Growth doesn't?"**
+Of the five Growth presets, only **High-Bonus Long-Term Growth** and **High-Bonus Medium-Term Growth** carry an annual rider fee (0.95%). Short-Term Cap, Phased Bonus, and Vesting Bonus have no rider fee. GI products have rider fees too (varies by product). If a Custom Product needs a rider fee, set it in Settings → "My Products".
+
+**"What's the Anniversary Bonus on Phased Bonus Growth?"**
+Phased Bonus Growth adds 4% to the contract value on each of the first 3 contract anniversaries (separate from any upfront premium bonus). The engine applies this automatically. Custom Products can set their own anniversary % and number of years.
 
 ## When to escalate to a support ticket
 
