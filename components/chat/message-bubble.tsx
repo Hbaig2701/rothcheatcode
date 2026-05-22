@@ -130,34 +130,15 @@ export function MessageBubble({ message, streaming, thinking }: MessageBubblePro
       >
         {isUser ? (
           <p className="whitespace-pre-wrap">{message.content}</p>
-        ) : streaming ? (
-          // While streaming, render plain text split on any newline so the
-          // model's paragraph breaks get real visual spacing instead of
-          // collapsing into one wall. Single \\n is treated as a paragraph
-          // break too (it's how the model actually writes most of the time).
-          <div className="leading-relaxed">
-            {normalizedContent.split(/\n+/).map((para, i, all) => {
-              const isLast = i === all.length - 1;
-              return (
-                <p
-                  key={i}
-                  className={cn("whitespace-pre-wrap", !isLast && "mb-3")}
-                >
-                  {para}
-                  {isLast && (
-                    <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-foreground/60 animate-pulse rounded-sm align-middle" />
-                  )}
-                </p>
-              );
-            })}
-          </div>
         ) : (
-          // Persisted markdown render. normalizedContent promoted single \\n
-          // to \\n\\n upstream so markdown actually treats paragraph breaks
-          // as paragraph breaks. The @tailwindcss/typography plugin is NOT
-          // installed in this project (Tailwind v4 setup), so `prose`
-          // classes have no effect — element-by-element styling is applied
-          // explicitly via the components prop instead.
+          // Markdown render shared between streaming and persisted paths so
+          // **bold**, lists, etc. all format the moment they're fully emitted
+          // instead of showing raw asterisks until the message persists.
+          // normalizedContent promoted single \\n to \\n\\n upstream so
+          // markdown treats paragraph breaks as paragraph breaks. The
+          // @tailwindcss/typography plugin is NOT installed in this project
+          // (Tailwind v4 setup), so `prose` classes have no effect — styling
+          // is applied explicitly via the components prop instead.
           <div className="text-sm leading-relaxed space-y-3">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
@@ -177,6 +158,9 @@ export function MessageBubble({ message, streaming, thinking }: MessageBubblePro
             >
               {normalizedContent}
             </ReactMarkdown>
+            {streaming && (
+              <span className="inline-block w-1.5 h-3.5 bg-foreground/60 animate-pulse rounded-sm align-middle" />
+            )}
           </div>
         )}
       </div>

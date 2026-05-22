@@ -162,6 +162,13 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
 
   const messages = data?.messages ?? [];
   const isEmpty = !isLoading && messages.length === 0 && !optimisticUser && !streamingText;
+  // When meta fires mid-stream on a brand new conversation, useConversation
+  // refetches and the persisted user message (saved server-side BEFORE the
+  // stream started) lands in `messages`. Without this check, both the
+  // optimistic bubble AND the persisted one render — the user sees their
+  // message twice.
+  const lastPersistedUser = [...messages].reverse().find((m) => m.role === "user");
+  const showOptimisticUser = !!optimisticUser && lastPersistedUser?.content !== optimisticUser;
 
   return (
     <div className="flex flex-col h-full">
@@ -183,8 +190,8 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
             }}
           />
         ))}
-        {optimisticUser && (
-          <MessageBubble message={{ role: "user", content: optimisticUser }} />
+        {showOptimisticUser && (
+          <MessageBubble message={{ role: "user", content: optimisticUser! }} />
         )}
         {toolStatus && (
           <div className="flex justify-start">
