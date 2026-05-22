@@ -194,6 +194,19 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
             </div>
           </div>
         )}
+        {/* When tools have fired this turn AND there's streaming text but no
+            active tool pill, the model is mid-iteration writing intermediate
+            commentary or the final answer. We don't show the text — just a
+            generic "Thinking…" pill so the advisor sees the gears turning
+            without being drowned in the model's internal monologue. */}
+        {streamingText && hasUsedTools && !toolStatus && (
+          <div className="flex justify-start">
+            <div className="text-xs italic text-muted-foreground bg-bg-card border border-border-default/50 rounded-full px-3 py-1.5">
+              <Sparkles className="size-3 inline mr-1 text-gold animate-pulse" />
+              Thinking…
+            </div>
+          </div>
+        )}
         {streamingText && (
           <MessageBubble
             message={{ role: "assistant", content: streamingText }}
