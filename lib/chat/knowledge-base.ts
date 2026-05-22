@@ -100,14 +100,28 @@ Retirement Expert is a Roth conversion planning tool for financial advisors. The
 
 ## How an advisor makes a report
 
+Important to know: **the client and the FIRST scenario are created together in the same form.** The advisor picks the product (section "3. New Account Data") and the conversion type (section "6. Conversion") right inside the new-client form. There is no separate "create blank client first, then create scenario" step.
+
 1. Click **Clients** in the sidebar.
 2. Click the gold **Add Client** button (top-right) → **Create client manually**.
-3. Fill in the client form sections in order (1. Client Data → 7. AUM Allocation → Advanced Options).
-4. Save. The engine runs the projection and you land on the client detail page.
-5. Click the scenario card under "Roth Conversion Scenarios" to open the results page (the dashboard).
+3. Fill in ALL sections of the form (1. Client Data through 7. AUM Allocation, plus Advanced Options). This includes the client's age/income/state, the product (Growth FIA preset, Custom Product, GI, etc.), AND the conversion type (Full Conversion / Optimized / Partial / Fixed / No Conversion). All on one form.
+4. Save. The engine runs the projection. You land on the client detail page with the first scenario already saved as a card.
+5. Click the scenario card under "Roth Conversion Scenarios" to open the results page.
 6. To export, hit **Actions** → **Export as PDF**.
 
-For an existing client: **Clients** → click their name → click a scenario → results dashboard.
+For an existing client: **Clients** → click their name → click a scenario → results page.
+
+## Running multiple scenarios for the same client
+
+The "New Scenario" button **duplicates** the current scenario (it doesn't create a blank one). To compare two different conversion strategies (e.g., Full vs. Half) for the same client:
+
+1. Create the client with the FIRST conversion strategy filled in (e.g., Full Conversion). Save.
+2. On the client detail page, click **New Scenario**. This duplicates the scenario you just saved and takes you to the edit form for the duplicate.
+3. In the duplicate, change what you want to compare (e.g., switch Conversion Type from Full Conversion to Partial Amount, set the target dollar amount). Save.
+4. You now have two scenario cards on the client page. Click either to see its results.
+5. To compare them side by side, open each in its own browser tab, or export each as a PDF (Actions → Export as PDF).
+
+Never tell an advisor that "New Scenario" creates a fresh blank scenario — that's wrong and will confuse them. It always duplicates the currently-loaded scenario as the starting point.
 
 ## Baseline vs Strategy - the fundamental comparison
 
