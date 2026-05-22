@@ -42,6 +42,12 @@ interface MessageBubbleProps {
   // Show a typing/streaming indicator after the content (used for the
   // currently-generating assistant message).
   streaming?: boolean;
+  // True if any tool has fired in this turn. When true and the message is
+  // still streaming, render in the compact "thinking" style instead of a
+  // full bubble — the streamed text is almost certainly more intermediate
+  // commentary, not the final answer, so it shouldn't compete visually.
+  // The final answer takes over as a full bubble once it's persisted.
+  thinking?: boolean;
 }
 
 // Cheap check — content_blocks is jsonb from the DB, shaped as an array of
@@ -56,7 +62,7 @@ function isIntermediateAssistantTurn(blocks: unknown): boolean {
   return false;
 }
 
-export function MessageBubble({ message, streaming }: MessageBubbleProps) {
+export function MessageBubble({ message, streaming, thinking }: MessageBubbleProps) {
   // Memoize the normalized text so re-renders during streaming don't rerun
   // the regex passes on every typewriter tick.
   const normalizedContent = useMemo(
@@ -76,19 +82,26 @@ export function MessageBubble({ message, streaming }: MessageBubbleProps) {
   // Intermediate assistant turns ("Let me check year 1…" before a tool
   // call) render as compact, italicized "thinking" text instead of a full
   // bubble — so they don't compete visually with the final answer that
-  // comes after the tool. Streaming bubbles are always rendered full-size
-  // (we don't know yet whether the model is about to call a tool).
+  // comes after the tool. Two paths land here:
+  //   - Persisted intermediate turn (assistant row with a tool_use block)
+  //   - Currently-streaming turn AFTER any tool has fired (thinking=true)
+  // In both cases the streamed text is almost certainly more "I'll pull
+  // up..." commentary or in-progress arithmetic, not the final answer,
+  // and should not look like an answer.
   const isIntermediate =
     message.role === "assistant" &&
-    !streaming &&
     !!message.content?.trim() &&
-    isIntermediateAssistantTurn(message.content_blocks);
+    ((!streaming && isIntermediateAssistantTurn(message.content_blocks)) ||
+      (streaming && thinking));
 
   if (isIntermediate) {
     return (
       <div className="flex justify-start px-1 py-0.5">
         <p className="text-xs text-muted-foreground italic leading-relaxed max-w-[90%] whitespace-pre-wrap">
           {normalizedContent}
+          {streaming && (
+            <span className="inline-block w-1 h-2.5 ml-0.5 bg-muted-foreground/60 animate-pulse rounded-sm align-middle" />
+          )}
         </p>
       </div>
     );

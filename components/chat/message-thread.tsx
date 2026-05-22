@@ -47,6 +47,12 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
   const [optimisticUser, setOptimisticUser] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [toolStatus, setToolStatus] = useState<ToolStatus | null>(null);
+  // Once any tool has fired in the current turn, all subsequent streamed
+  // text is rendered as compact "thinking" text rather than a full bubble
+  // — it's almost always intermediate commentary, not the final answer.
+  // The persisted final assistant message takes over as a full bubble
+  // when the stream ends and the conversation refetches.
+  const [hasUsedTools, setHasUsedTools] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -85,6 +91,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
     setOptimisticUser(message);
     typewriter.reset();
     setToolStatus(null);
+    setHasUsedTools(false);
     setInput("");
 
     const controller = new AbortController();
@@ -113,6 +120,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
             typewriter.append(text);
           },
           onTool: ({ tool_name, status, label }) => {
+            if (status === "running") setHasUsedTools(true);
             setToolStatus({
               label: label || tool_name,
               done: status === "done",
@@ -147,6 +155,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
       setOptimisticUser(null);
       typewriter.reset();
       setToolStatus(null);
+      setHasUsedTools(false);
       streamingConvoRef.current = null;
     }
   }
@@ -189,6 +198,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
           <MessageBubble
             message={{ role: "assistant", content: streamingText }}
             streaming
+            thinking={hasUsedTools}
           />
         )}
         {error && (
