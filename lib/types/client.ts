@@ -97,6 +97,16 @@ export interface Client {
   fixed_conversion_amount: number | null; // Fixed dollar amount to convert per year (in cents), used when conversion_type = 'fixed_amount'
   target_partial_amount: number | null;   // Total amount to convert across all years (in cents), used when conversion_type = 'partial_amount'
   respect_penalty_free_limit: boolean;    // When true, cap each year's conversion at penalty_free_percent × beginning-of-year IRA
+  // Scope of what the carrier penalty-free cap restricts when
+  // respect_penalty_free_limit is true:
+  //   - 'tax_only'        : only tax dollars pulled from the IRA count
+  //                         against the cap (default, intra-carrier
+  //                         Trad → Roth conversion exempt).
+  //   - 'all_distributions': conversion + RMD + tax-from-IRA all count
+  //                         against the cap (strict reading).
+  // Optional so legacy fixtures / scripts that build Client objects don't
+  // all need to set it. Engine falls back to 'tax_only' (legacy behavior).
+  penalty_free_scope?: 'tax_only' | 'all_distributions';
   protect_initial_premium: boolean;
 
   // ===== Section 7: Roth Withdrawals =====

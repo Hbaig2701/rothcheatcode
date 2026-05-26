@@ -161,6 +161,12 @@ export const clientFormulaBaseSchema = z.object({
   // Models Allianz/American Equity-style contracts where conversions can't exceed the carrier's
   // free-withdrawal allowance without triggering surrender charges.
   respect_penalty_free_limit: z.boolean().optional().default(false),
+  // What the cap restricts when respect_penalty_free_limit is true.
+  // Default 'tax_only' preserves the existing engine behavior: only tax
+  // paid from the IRA counts, the conversion itself is an intra-carrier
+  // Trad → Roth transfer. 'all_distributions' is the strict reading:
+  // conversion + RMD + tax-from-IRA all count toward the cap.
+  penalty_free_scope: z.enum(['tax_only', 'all_distributions']).default('tax_only'),
   protect_initial_premium: z.boolean().default(true),
 
   // Section 7: Roth Withdrawals
@@ -366,6 +372,7 @@ export const clientFullBaseSchema = z.object({
   fixed_conversion_amount: z.number().int().min(0).optional().nullable().default(null),
   target_partial_amount: z.number().int().min(0).optional().nullable().default(null),
   respect_penalty_free_limit: z.boolean().optional().default(false),
+  penalty_free_scope: z.enum(['tax_only', 'all_distributions']).default('tax_only'),
   protect_initial_premium: z.boolean().default(true),
   start_age: z.number().int().min(50).max(90).default(62),
   end_age: z.number().int().min(55).max(120).default(100),
@@ -493,6 +500,7 @@ export type ClientFormData = {
   fixed_conversion_amount: number | null;
   target_partial_amount: number | null;
   respect_penalty_free_limit: boolean;
+  penalty_free_scope?: "tax_only" | "all_distributions";
   protect_initial_premium: boolean;
 
   // Section 7: Withdrawals

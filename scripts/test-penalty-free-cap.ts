@@ -383,4 +383,123 @@ startTest("Cap releases after surrender period — no external overflow once con
   assert(externalY11 === 0, `Post-surrender year should have no external tax overflow (cap is inactive); got ${fmtCents(externalY11)}`);
 }
 
+// ============================================================================
+// TEST 10: all_distributions scope — TOTAL outflow (conv + tax) ≤ cap
+// ============================================================================
+// In the strict reading, conversion + tax-from-IRA must together fit under
+// penalty_free_percent × BOY IRA. This is the Ben M. interpretation.
+startTest("all_distributions scope — total outflow (conv + tax) ≤ cap, conv sized down");
+{
+  const client = makeClient({
+    respect_penalty_free_limit: true,
+    penalty_free_scope: "all_distributions",
+    conversion_type: "optimized_amount",
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32,
+    tax_payment_source: "from_ira",
+  });
+  const input = createSimulationInput(client);
+  const result = runGrowthSimulation(input);
+  const year1 = result.formula[0];
+  const conv = year1.conversionAmount ?? 0;
+  const taxFromIra = year1.taxesPaidFromIRA ?? 0;
+  const external = year1.taxesPaidExternally ?? 0;
+  const rmd = year1.rmdAmount ?? 0;
+  const cap = 100_000_00; // 10% of $1M
+  const total = conv + taxFromIra + rmd;
+  console.log(`  Year 1: conv ${fmtCents(conv)}, taxFromIRA ${fmtCents(taxFromIra)}, external ${fmtCents(external)}, rmd ${fmtCents(rmd)}, TOTAL ${fmtCents(total)}, CAP ${fmtCents(cap)}`);
+  assert(total <= cap + 100, `Total outflow MUST fit under cap in all_distributions scope (got ${fmtCents(total)} > ${fmtCents(cap)})`);
+  assert(external === 0, `No external overflow in all_distributions scope (conversion was sized down instead); got ${fmtCents(external)}`);
+  assert(conv > 0, `Conversion should still happen (just smaller); got ${fmtCents(conv)}`);
+}
+
+// ============================================================================
+// TEST 11: tax_only vs all_distributions — same client, very different conv
+// ============================================================================
+startTest("tax_only vs all_distributions — different conv amounts under same toggle");
+{
+  const base = {
+    respect_penalty_free_limit: true,
+    conversion_type: "optimized_amount" as const,
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32,
+    tax_payment_source: "from_ira" as const,
+  };
+  const taxOnly = runGrowthSimulation(
+    createSimulationInput(makeClient({ ...base, penalty_free_scope: "tax_only" })),
+  );
+  const allDist = runGrowthSimulation(
+    createSimulationInput(makeClient({ ...base, penalty_free_scope: "all_distributions" })),
+  );
+  const t = taxOnly.formula[0];
+  const a = allDist.formula[0];
+  console.log(`  tax_only         year 1: conv ${fmtCents(t.conversionAmount ?? 0)}, taxFromIRA ${fmtCents(t.taxesPaidFromIRA ?? 0)}`);
+  console.log(`  all_distributions year 1: conv ${fmtCents(a.conversionAmount ?? 0)}, taxFromIRA ${fmtCents(a.taxesPaidFromIRA ?? 0)}`);
+  const tConv = t.conversionAmount ?? 0;
+  const aConv = a.conversionAmount ?? 0;
+  assert(aConv < tConv, `all_distributions must size conv DOWN vs tax_only (tax_only ${fmtCents(tConv)}, all_distributions ${fmtCents(aConv)})`);
+}
+
+// ============================================================================
+// TEST 12: all_distributions + fixed_amount — fixed amount honored if it fits
+// ============================================================================
+startTest("all_distributions + fixed_amount — fixed honored when conv + tax fits under cap");
+{
+  const client = makeClient({
+    respect_penalty_free_limit: true,
+    penalty_free_scope: "all_distributions",
+    conversion_type: "fixed_amount",
+    fixed_conversion_amount: 70_000_00, // $70K well under cap room
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 22,
+    tax_payment_source: "from_ira",
+  });
+  const result = runGrowthSimulation(createSimulationInput(client));
+  const y1 = result.formula[0];
+  const conv = y1.conversionAmount ?? 0;
+  const taxFromIra = y1.taxesPaidFromIRA ?? 0;
+  const total = conv + taxFromIra;
+  console.log(`  Year 1: conv ${fmtCents(conv)}, taxFromIRA ${fmtCents(taxFromIra)}, TOTAL ${fmtCents(total)}`);
+  // With $70K fixed + ~22% tax ≈ $20K → ~$90K, under $100K cap.
+  assert(total <= 100_000_00 + 100, `Total outflow under cap (got ${fmtCents(total)})`);
+  assert(conv > 60_000_00 && conv <= 70_000_00, `Conv should be near fixed amount (got ${fmtCents(conv)})`);
+}
+
+// ============================================================================
+// TEST 13: all_distributions releases after surrender period
+// ============================================================================
+startTest("all_distributions — cap releases post-surrender, no longer binds conv");
+{
+  const client = makeClient({
+    respect_penalty_free_limit: true,
+    penalty_free_scope: "all_distributions",
+    conversion_type: "optimized_amount",
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32,
+    surrender_years: 10,
+    end_age: 80,
+    tax_payment_source: "from_ira",
+  });
+  const result = runGrowthSimulation(createSimulationInput(client));
+  const y1 = result.formula[0];
+  const y11 = result.formula[10]; // First post-surrender year
+  const y1Conv = y1.conversionAmount ?? 0;
+  const y11Conv = y11?.conversionAmount ?? 0;
+  console.log(`  Year 1  (in surrender): conv ${fmtCents(y1Conv)}`);
+  console.log(`  Year 11 (post-surrender): conv ${fmtCents(y11Conv)}`);
+  // Post-surrender conversion should be NOT bound by the 10% cap
+  // (it can be larger or zero depending on remaining IRA, but it shouldn't
+  // be artificially limited to ~$100K).
+  if (y11Conv > 0) {
+    assert(
+      y11Conv > y1Conv || y11Conv > 50_000_00,
+      `Post-surrender conv should not be bound by 10% cap (y1 ${fmtCents(y1Conv)}, y11 ${fmtCents(y11Conv)})`,
+    );
+  }
+}
+
 console.log(`\n=== ${testNum} tests ${process.exitCode ? "FAILED" : "PASSED"} ===`);

@@ -113,6 +113,9 @@ export function runFormulaScenario(
   const targetPartialAmount = client.target_partial_amount ?? 0;
   const respectPenaltyFreeLimit = client.respect_penalty_free_limit ?? false;
   const penaltyFreePercent = client.penalty_free_percent ?? 10;
+  // 'tax_only' (legacy default) caps only tax-from-IRA. 'all_distributions'
+  // caps total outflow (conv + RMD + tax-from-IRA). See growth-formula.ts.
+  const penaltyFreeScope = client.penalty_free_scope ?? 'tax_only';
   const surrenderYears = client.surrender_years ?? 0;
   // RMD treatment matters for the taxable-account update logic — see the
   // big comment further down where taxableBalance is set each year.
@@ -211,10 +214,24 @@ export function runFormulaScenario(
     const taxCap = (respectPenaltyFreeLimit && inSurrenderPeriod && payTaxFromIRA)
       ? Math.round(boyIRA * penaltyFreePercent / 100)
       : Number.POSITIVE_INFINITY;
-    // Conversions can only use the IRA balance LEFT after the RMD comes off
-    // (the RMD goes to ordinary income, not into the Roth). No carrier cap on
-    // this — the cap restricts the tax-source split below, not the ceiling.
-    const effectiveIraForConversion = iraAfterRmd;
+    // Outflow cap (strict 'all_distributions' scope): conv + RMD + tax all
+    // count. RMD is mandatory so we subtract it from the cap first. The
+    // remainder is the room for the conversion (and any tax from IRA).
+    // Mirrors growth-formula.ts.
+    const useOutflowCap =
+      respectPenaltyFreeLimit &&
+      inSurrenderPeriod &&
+      penaltyFreeScope === 'all_distributions';
+    const outflowCap = useOutflowCap
+      ? Math.round(boyIRA * penaltyFreePercent / 100)
+      : Number.POSITIVE_INFINITY;
+    const conversionRoomUnderOutflowCap = useOutflowCap
+      ? Math.max(0, outflowCap - rmdAmount)
+      : Number.POSITIVE_INFINITY;
+    const effectiveIraForConversion = Math.min(
+      iraAfterRmd,
+      conversionRoomUnderOutflowCap,
+    );
 
     // Check if we should convert this year
     const shouldConvert = !conversionComplete &&
@@ -243,7 +260,12 @@ export function runFormulaScenario(
           // Detection: try Regime B; if the resulting tax indeed exceeds taxCap,
           // Regime B is correct. Otherwise fall through to Regime A.
           let useRegimeB = false;
-          if (taxCap !== Number.POSITIVE_INFINITY) {
+          // Regime B (tax overflow → external) only applies in 'tax_only'
+          // scope. In 'all_distributions' scope, effectiveIraForConversion
+          // has already been bounded by the outflow cap, so Regime A's
+          // conv + tax = effectiveIra solver naturally keeps total outflow
+          // within the carrier allowance.
+          if (taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap) {
             const tryConv = Math.max(0, effectiveIraForConversion - taxCap);
             const tryTax = calculateConversionTaxWithSS({
               conversionAmount: tryConv,
@@ -434,8 +456,12 @@ export function runFormulaScenario(
     // cap is funded externally (taxesPaidExternally on YearlyResult). Mirror
     // of the same split in growth-formula.ts.
     const conversionTaxBeforeSplit = payTaxFromIRA ? (federalConversionTax + stateConversionTax) : 0;
+    // In 'all_distributions' scope the conversion was already sized so
+    // conv + tax fits under the outflow cap; nothing overflows externally.
     const conversionTaxFromIRA = payTaxFromIRA
-      ? Math.min(taxCap, conversionTaxBeforeSplit)
+      ? (useOutflowCap
+          ? conversionTaxBeforeSplit
+          : Math.min(taxCap, conversionTaxBeforeSplit))
       : 0;
     const conversionTaxExternal = payTaxFromIRA
       ? Math.max(0, conversionTaxBeforeSplit - conversionTaxFromIRA)

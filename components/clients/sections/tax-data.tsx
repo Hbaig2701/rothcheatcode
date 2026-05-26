@@ -223,38 +223,98 @@ export function TaxDataSection() {
           dollars leave the contract and the carrier's penalty-free allowance
           is never tripped. Hidden in that case to keep the section uncluttered. */}
       {form.watch("tax_payment_source") === "from_ira" && (
-        <Controller
-          name="respect_penalty_free_limit"
-          control={form.control}
-          render={({ field }) => (
-            <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
-              <Checkbox
-                id="respect_penalty_free_limit"
-                checked={field.value}
-                onCheckedChange={field.onChange}
-                className="mt-0.5 shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <label
-                  htmlFor="respect_penalty_free_limit"
-                  className="block text-sm font-medium cursor-pointer"
-                >
-                  Respect Contract Penalty-Free Limit
-                </label>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Caps each year&apos;s tax-from-IRA payment at the carrier&apos;s
-                  penalty-free withdrawal allowance (typically {form.watch("penalty_free_percent") ?? 10}% of
-                  the prior anniversary value). The Roth conversion itself is unaffected
-                  — it&apos;s an intra-carrier Trad → Roth transfer that doesn&apos;t count
-                  against the allowance. When the cap is binding, the conversion
-                  proceeds at the chosen size and any tax beyond the cap is assumed
-                  to come from external (non-IRA) funds. Cap releases automatically
-                  once the surrender period ends.
-                </p>
+        <>
+          <Controller
+            name="respect_penalty_free_limit"
+            control={form.control}
+            render={({ field }) => (
+              <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
+                <Checkbox
+                  id="respect_penalty_free_limit"
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  className="mt-0.5 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <label
+                    htmlFor="respect_penalty_free_limit"
+                    className="block text-sm font-medium cursor-pointer"
+                  >
+                    Respect Contract Penalty-Free Limit
+                  </label>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Caps each year&apos;s withdrawal at the carrier&apos;s
+                    penalty-free allowance (typically {form.watch("penalty_free_percent") ?? 10}% of
+                    the prior anniversary value). What counts toward that cap depends
+                    on the option below. Cap releases automatically once the
+                    surrender period ends.
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
+          />
+
+          {/* Sub-option: what counts toward the cap. Only relevant when the
+              parent toggle is ON. Default 'tax_only' preserves the existing
+              behavior for every client that already has the toggle on. */}
+          {form.watch("respect_penalty_free_limit") && (
+            <Controller
+              name="penalty_free_scope"
+              control={form.control}
+              render={({ field }) => (
+                <div className="sm:col-span-2 lg:col-span-3 ml-7 mt-1 flex flex-col gap-2 border-l-2 border-border-default pl-4">
+                  <span className="text-xs font-medium text-text-dim uppercase tracking-wider">
+                    What counts toward the {form.watch("penalty_free_percent") ?? 10}% cap?
+                  </span>
+
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="tax_only"
+                      checked={field.value === "tax_only"}
+                      onChange={() => field.onChange("tax_only")}
+                      className="mt-1 shrink-0"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium">
+                        Only the tax payment (default)
+                      </span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        The Roth conversion stays inside the same carrier (Trad → Roth)
+                        and does not count as a withdrawal. Only dollars pulled from
+                        the IRA to pay the conversion tax count toward the cap. Most
+                        common interpretation for products like Allianz where the
+                        conversion is an intra-carrier transfer.
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      value="all_distributions"
+                      checked={field.value === "all_distributions"}
+                      onChange={() => field.onChange("all_distributions")}
+                      className="mt-1 shrink-0"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm font-medium">
+                        Every dollar that leaves the IRA (strict)
+                      </span>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Conversion + RMD + tax-from-IRA all count toward the cap.
+                        This forces the engine to size conversions much smaller so
+                        the total annual outflow never exceeds the carrier&apos;s
+                        penalty-free allowance. Use this when the carrier&apos;s
+                        contract treats the conversion itself as a withdrawal.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
+            />
           )}
-        />
+        </>
       )}
 
       {/* RMD Treatment (Baseline Scenario) - Only for Growth products */}

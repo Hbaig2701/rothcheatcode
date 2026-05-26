@@ -142,6 +142,11 @@ export function runGrowthFormulaScenario(
   // contract ends, conversions are unconstrained.
   const respectPenaltyFreeLimit = client.respect_penalty_free_limit ?? false;
   const penaltyFreePercent = client.penalty_free_percent ?? 10;
+  // 'tax_only' (default, legacy behavior) caps only the tax dollars paid
+  // from the IRA. 'all_distributions' is the strict reading: conversion +
+  // RMD + tax-from-IRA all count, so the conversion itself must be sized
+  // down to keep total outflow under cap.
+  const penaltyFreeScope = client.penalty_free_scope ?? 'tax_only';
   const yearsToDefer = client.years_to_defer_conversion ?? 0;
   const conversionStartAge = clientAge + yearsToDefer;
   const conversionEndAge = client.end_age ?? 100;
@@ -258,10 +263,37 @@ export function runGrowthFormulaScenario(
     // branches below run against the FULL physical IRA (iraAfterRmdAndWithdrawal)
     // — the split happens after the conversion is sized.
     const inSurrenderPeriod = yearOffset < surrenderYears;
+    // Tax cap (used in 'tax_only' scope): only the tax dollars from the IRA
+    // count against the carrier's penalty-free allowance. Conversion runs
+    // off the full physical IRA below.
     const taxCap = (respectPenaltyFreeLimit && inSurrenderPeriod && payTaxFromIRA)
       ? Math.round(boyIRA * penaltyFreePercent / 100)
       : Number.POSITIVE_INFINITY;
-    const effectiveIraForConversion = iraAfterRmdAndWithdrawal;
+    // Outflow cap (used in 'all_distributions' scope): conversion + RMD +
+    // tax-from-IRA must all fit under the allowance. The RMD is mandatory
+    // (IRS forces it) so we subtract it from the cap first. Whatever's
+    // left is the room available for the conversion (and any tax that
+    // comes from the IRA). Whether the cap should be applied also depends
+    // on whether dollars actually leave the contract — for the strict
+    // reading, the conversion itself leaves regardless of tax source, so
+    // we apply the outflow cap even when tax is paid externally.
+    const useOutflowCap =
+      respectPenaltyFreeLimit &&
+      inSurrenderPeriod &&
+      penaltyFreeScope === 'all_distributions';
+    const outflowCap = useOutflowCap
+      ? Math.round(boyIRA * penaltyFreePercent / 100)
+      : Number.POSITIVE_INFINITY;
+    // Conversion ceiling under the strict interpretation. Already accounts
+    // for the (forced) RMD. Can be negative if the RMD alone exceeds the
+    // cap — in that case conversion = 0 (we can't stop the IRS).
+    const conversionRoomUnderOutflowCap = useOutflowCap
+      ? Math.max(0, outflowCap - rmdAmount)
+      : Number.POSITIVE_INFINITY;
+    const effectiveIraForConversion = Math.min(
+      iraAfterRmdAndWithdrawal,
+      conversionRoomUnderOutflowCap,
+    );
 
     const shouldConvert = conversionType !== 'no_conversion' &&
                           age >= conversionStartAge &&
@@ -290,7 +322,12 @@ export function runGrowthFormulaScenario(
           // Detection: try Regime B first. If tax(iraAfterRmd − taxCap) > taxCap,
           // we're genuinely cap-bound. Otherwise fall through to Regime A.
           let useRegimeB = false;
-          if (taxCap !== Number.POSITIVE_INFINITY) {
+          // Regime B (tax overflow → external) only applies in the legacy
+          // 'tax_only' scope. In 'all_distributions' mode there is no
+          // overflow concept — the conversion itself has already been
+          // bounded above (effectiveIraForConversion = min(iraAfterRmd,
+          // outflowCap - rmd)), so Regime A's solver handles it cleanly.
+          if (taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap) {
             const tryConv = Math.max(0, effectiveIraForConversion - taxCap);
             const tryTaxes = convTaxAt(tryConv);
             if (tryTaxes.federalTax + tryTaxes.stateTax > taxCap) {
@@ -502,8 +539,14 @@ export function runGrowthFormulaScenario(
     // period over, or tax_payment_source = from_outside), the full tax goes
     // to either the IRA or to the implicit external bucket as before.
     const conversionTaxBeforeSplit = federalTax + stateTax;
+    // Split tax between IRA and external. In 'tax_only' scope (legacy),
+    // tax above the taxCap is funded externally. In 'all_distributions'
+    // scope, the conversion was already sized so conv + tax fits under
+    // the outflowCap — no overflow, no external bucket.
     const conversionTaxFromIRA = payTaxFromIRA
-      ? Math.min(taxCap, conversionTaxBeforeSplit)
+      ? (useOutflowCap
+          ? conversionTaxBeforeSplit
+          : Math.min(taxCap, conversionTaxBeforeSplit))
       : 0;
     const conversionTaxExternal = payTaxFromIRA
       ? Math.max(0, conversionTaxBeforeSplit - conversionTaxFromIRA)

@@ -297,6 +297,14 @@ Section "4. Tax Data" → **Constraint** dropdown → "IRMAA Threshold". Not in 
 **"Where do I set how my client takes RMDs in the baseline?"**
 Section "4. Tax Data" → **RMD Treatment (Baseline)** dropdown. Three options: Spent on Living Expenses, Reinvested (Taxable Brokerage), Sits in Cash (No Growth). Default is Spent. This only affects the baseline projection (the strategy may have zero RMDs anyway). Only shown for Growth products.
 
+**"The 10% penalty-free withdrawal isn't being respected — conversions exceed 10% of BOY IRA."**
+This is a real interpretation choice, not a bug. With the "Respect Contract Penalty-Free Limit" checkbox on (in section "4. Tax Data", only visible when Tax Payment Source is "Internal (from IRA)"), the engine offers two scopes for what counts toward the cap:
+
+- **"Only the tax payment" (default)** — the Roth conversion is treated as an intra-carrier Trad → Roth transfer and does NOT count as a withdrawal. Only dollars pulled from the IRA to PAY the conversion tax count toward the 10% cap. Conversion size is unaffected; tax overflow goes external. Matches Allianz-style contracts where the conversion stays in the same wrapper.
+- **"Every dollar that leaves the IRA"** — strict reading. Conversion + RMD + tax-from-IRA all count toward the cap. Engine sizes conversions much smaller so total annual outflow never exceeds the allowance. Use this when the carrier's contract treats the conversion itself as a withdrawal.
+
+If an advisor reports "my conversion is way bigger than 10% of the balance," ask which interpretation they want. Default is "Only the tax payment" — switch to "Every dollar that leaves the IRA" if they want conversions capped too.
+
 **"Why does my custom product have a rider fee but Vesting Bonus Growth doesn't?"**
 Of the five Growth presets, only **High-Bonus Long-Term Growth** and **High-Bonus Medium-Term Growth** carry an annual rider fee (0.95%). Short-Term Cap, Phased Bonus, and Vesting Bonus have no rider fee. GI products have rider fees too (varies by product). If a Custom Product needs a rider fee, set it in Settings → "My Products".
 

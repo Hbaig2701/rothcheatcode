@@ -98,6 +98,7 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       fixed_conversion_amount: client?.fixed_conversion_amount ?? d?.fixed_conversion_amount ?? null,
       target_partial_amount: client?.target_partial_amount ?? d?.target_partial_amount ?? null,
       respect_penalty_free_limit: client?.respect_penalty_free_limit ?? d?.respect_penalty_free_limit ?? false,
+      penalty_free_scope: client?.penalty_free_scope ?? d?.penalty_free_scope ?? "tax_only",
       protect_initial_premium: client?.protect_initial_premium ?? d?.protect_initial_premium ?? (ud.protect_initial_premium as boolean) ?? true,
 
       // Section 7: Withdrawals
