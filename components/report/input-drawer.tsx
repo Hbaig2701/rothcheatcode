@@ -64,6 +64,11 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       non_ssi_income: client?.non_ssi_income ?? [],
       withdrawals: client?.withdrawals ?? [],
       conversion_type: client?.conversion_type ?? "optimized_amount",
+      // Both penalty-free fields MUST be initialized or the TaxDataSection's
+      // Controllers render undefined values and clicking either won't persist
+      // through the drawer's save.
+      respect_penalty_free_limit: client?.respect_penalty_free_limit ?? false,
+      penalty_free_scope: client?.penalty_free_scope ?? "tax_only",
       protect_initial_premium: client?.protect_initial_premium ?? true,
       withdrawal_type: client?.withdrawal_type ?? "no_withdrawals",
       payout_type: client?.payout_type ?? "individual",

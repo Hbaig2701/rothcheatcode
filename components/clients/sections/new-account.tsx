@@ -88,6 +88,14 @@ export function NewAccountSection() {
     // conversions, not silently exceed it. Without this, products like
     // Athene Base (5% cap) would display "5%" but plan 20%/yr conversions.
     form.setValue("respect_penalty_free_limit", true);
+    // Default the cap scope to 'tax_only' if it hasn't been set yet. This
+    // preserves the advisor's prior choice (e.g., if they had
+    // 'all_distributions' selected, picking a different custom product
+    // shouldn't silently reset that). Use getValues to avoid clobbering
+    // a deliberate override.
+    if (!form.getValues("penalty_free_scope")) {
+      form.setValue("penalty_free_scope", "tax_only");
+    }
     form.setValue("rate_of_return", cfg.form_defaults?.rate_of_return ?? 7);
     form.setValue("anniversary_bonus_percent", cfg.bonus.anniversary_rate ?? null);
     form.setValue("anniversary_bonus_years", cfg.bonus.anniversary_years ?? null);

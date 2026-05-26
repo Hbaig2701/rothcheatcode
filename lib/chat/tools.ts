@@ -278,7 +278,7 @@ async function runGetClientDetails(
   const { data, error } = await ctx.supabase
     .from("clients")
     .select(
-      "id, name, age, spouse_name, spouse_age, filing_status, state, state_tax_rate, qualified_account_value, roth_ira, taxable_accounts, blueprint_type, custom_product_id, carrier_name, product_name, bonus_percent, rate_of_return, baseline_comparison_rate, conversion_type, fixed_conversion_amount, target_partial_amount, constraint_type, tax_rate, max_tax_rate, tax_payment_source, ssi_payout_age, ssi_annual_amount, spouse_ssi_payout_age, spouse_ssi_annual_amount, end_age, heir_tax_rate, widow_analysis, widow_death_age, rmd_treatment, aum_allocation_percent"
+      "id, name, age, spouse_name, spouse_age, filing_status, state, state_tax_rate, qualified_account_value, roth_ira, taxable_accounts, blueprint_type, custom_product_id, carrier_name, product_name, bonus_percent, rate_of_return, baseline_comparison_rate, conversion_type, fixed_conversion_amount, target_partial_amount, constraint_type, tax_rate, max_tax_rate, tax_payment_source, ssi_payout_age, ssi_annual_amount, spouse_ssi_payout_age, spouse_ssi_annual_amount, end_age, heir_tax_rate, widow_analysis, widow_death_age, rmd_treatment, aum_allocation_percent, respect_penalty_free_limit, penalty_free_scope, penalty_free_percent, surrender_years"
     )
     .eq("id", clientId)
     .single();

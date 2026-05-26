@@ -649,17 +649,18 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               <div className="mb-4 space-y-2">
                 <p className="text-xs text-text-muted">
                   In these years the conversion tax pulled from the IRA exceeds the {client.penalty_free_percent ?? 10}% annual penalty-free
-                  withdrawal allowance during the surrender period. The conversion itself doesn&apos;t count against the
-                  allowance (intra-carrier Trad → Roth transfer), but the tax dollars that physically leave the policy
-                  to pay the IRS do — surrender charges may apply to the excess.
+                  withdrawal allowance during the surrender period — surrender charges may apply to the excess.
+                  (Note: whether the conversion itself ALSO counts against the allowance depends on
+                  the carrier&apos;s contract. The toggle below has a sub-option for the strict interpretation.)
                 </p>
                 {!respectPenaltyFreeLimit && (
                   <p className="text-xs text-text-muted">
                     <span className="text-foreground font-medium">Why this is showing:</span>{" "}
-                    The &quot;Respect Contract Penalty-Free Limit&quot; toggle (under Tax Payment Source) is currently <span className="text-red font-medium">off</span>,
+                    The &quot;Respect Contract Penalty-Free Limit&quot; toggle (in section 4 Tax Data) is currently <span className="text-red font-medium">off</span>,
                     so the engine is pulling the full conversion tax from the IRA in each conversion year — even when that exceeds the cap.
-                    Turn it on to cap the tax-from-IRA at {client.penalty_free_percent ?? 10}% of the prior anniversary value; the conversion stays
-                    at the chosen size and any tax beyond the cap is modeled as paid from external funds, eliminating the surrender-charge exposure.
+                    Turn it on to cap the IRA outflow at {client.penalty_free_percent ?? 10}% of the prior anniversary value. You can
+                    then choose whether the cap restricts just the tax payment (default, intra-carrier conversion exempt)
+                    or every dollar that leaves the IRA (strict, conversion counts too).
                   </p>
                 )}
               </div>

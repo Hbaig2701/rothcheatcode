@@ -85,6 +85,11 @@ export function InputSidebar({ client }: InputSidebarProps) {
             payout_option: client?.payout_option ?? null,
             surrender_years: client?.surrender_years ?? 7,
             penalty_free_percent: client?.penalty_free_percent ?? 10,
+            // Both penalty-free fields must be initialized so the
+            // TaxDataSection's Controllers render with the correct value and
+            // a save through the sidebar persists the user's choice.
+            respect_penalty_free_limit: client?.respect_penalty_free_limit ?? false,
+            penalty_free_scope: client?.penalty_free_scope ?? "tax_only",
             baseline_comparison_rate: client?.baseline_comparison_rate ?? 7,
             post_contract_rate: client?.post_contract_rate ?? 7,
             years_to_defer_conversion: client?.years_to_defer_conversion ?? 0,
