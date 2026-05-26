@@ -44,7 +44,7 @@ export function NewAccountSection() {
   const form = useFormContext<ExtendedFormData>();
   const formulaType = form.watch("blueprint_type") as FormulaType;
   const customProductId = form.watch("custom_product_id");
-  const { data: productsData } = useProducts();
+  const { data: productsData, isLoading: isProductsLoading } = useProducts();
   const customProducts: CustomProductRow[] = productsData?.customDetailed ?? [];
 
   const pickerValue = customProductId
@@ -251,13 +251,26 @@ export function NewAccountSection() {
                   + Manage your products
                 </a>
               </div>
-              <Select value={pickerValue} onValueChange={handlePickerChange}>
+              <Select value={pickerValue} onValueChange={handlePickerChange} disabled={!!customProductId && isProductsLoading && !selectedCustom}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select product preset">
                     {selectedCustom ? (
                       <span className="flex items-center gap-1.5">
                         <Sparkles className="size-3.5 text-primary" />
                         {selectedCustom.name}
+                      </span>
+                    ) : customProductId ? (
+                      // Custom product id is set but the products list hasn't
+                      // resolved yet (or the product was deleted). Fall back
+                      // to whatever name we DO have on the form (loaded from
+                      // the client row) instead of showing the system preset
+                      // — otherwise the advisor sees the WRONG name, panics,
+                      // re-picks a system preset, and silently nukes their
+                      // custom_product_id link on save. Race triggers most
+                      // often on a fresh duplicate or edit page load.
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="size-3.5 text-primary" />
+                        {form.getValues("product_name") || form.getValues("carrier_name") || "Loading your product…"}
                       </span>
                     ) : (
                       selectedProduct?.label ?? "Select product preset"
