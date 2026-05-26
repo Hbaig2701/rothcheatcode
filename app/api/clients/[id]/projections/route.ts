@@ -66,6 +66,12 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     years_to_defer_conversion: client.years_to_defer_conversion,
     heir_tax_rate: client.heir_tax_rate,
     rmd_treatment: client.rmd_treatment,
+    // widow_death_age is read by widow-penalty analysis to determine the
+    // first-death year. Missing from the hash meant advisors editing the
+    // "First-Death Age" field saw no change in their projection because
+    // the cache hit on the old result. Same staleness class of bug as the
+    // penalty_free_scope one.
+    widow_death_age: client.widow_death_age,
     // Previously missing — caused stale cache when these fields changed
     tax_payment_source: client.tax_payment_source,
     state_tax_rate: client.state_tax_rate,
