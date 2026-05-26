@@ -51,6 +51,11 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     fixed_conversion_amount: client.fixed_conversion_amount,
     target_partial_amount: client.target_partial_amount,
     respect_penalty_free_limit: client.respect_penalty_free_limit,
+    // CRITICAL: include penalty_free_scope so toggling between 'tax_only'
+    // and 'all_distributions' invalidates the cached projection. Without
+    // this, the cache hits on the old projection and the advisor sees no
+    // change in lifetime wealth after switching the scope.
+    penalty_free_scope: client.penalty_free_scope,
     protect_initial_premium: client.protect_initial_premium,
     withdrawal_type: client.withdrawal_type,
     surrender_years: client.surrender_years,
