@@ -270,13 +270,14 @@ export function runGrowthFormulaScenario(
       ? Math.round(boyIRA * penaltyFreePercent / 100)
       : Number.POSITIVE_INFINITY;
     // Outflow cap (used in 'all_distributions' scope): conversion + RMD +
-    // tax-from-IRA must all fit under the allowance. The RMD is mandatory
-    // (IRS forces it) so we subtract it from the cap first. Whatever's
-    // left is the room available for the conversion (and any tax that
-    // comes from the IRA). Whether the cap should be applied also depends
-    // on whether dollars actually leave the contract — for the strict
-    // reading, the conversion itself leaves regardless of tax source, so
-    // we apply the outflow cap even when tax is paid externally.
+    // voluntary withdrawal + tax-from-IRA must all fit under the allowance.
+    // RMDs are mandatory (IRS forces them) and voluntary withdrawals were
+    // already pulled above (they're advisor-scheduled dollars that leave
+    // the contract), so both come off the cap first. Whatever's left is
+    // the room available for the conversion (and any tax-from-IRA on it).
+    // We apply the cap even when tax is paid externally — the conversion
+    // itself still physically leaves the qualified IRA under the strict
+    // reading.
     const useOutflowCap =
       respectPenaltyFreeLimit &&
       inSurrenderPeriod &&
@@ -284,11 +285,12 @@ export function runGrowthFormulaScenario(
     const outflowCap = useOutflowCap
       ? Math.round(boyIRA * penaltyFreePercent / 100)
       : Number.POSITIVE_INFINITY;
-    // Conversion ceiling under the strict interpretation. Already accounts
-    // for the (forced) RMD. Can be negative if the RMD alone exceeds the
-    // cap — in that case conversion = 0 (we can't stop the IRS).
+    // Conversion ceiling under the strict interpretation. Subtracts both
+    // the forced RMD and the advisor's voluntary IRA withdrawal — both
+    // already left the IRA before we got here. Can be negative if those
+    // distributions alone exceed the cap; in that case conversion = 0.
     const conversionRoomUnderOutflowCap = useOutflowCap
-      ? Math.max(0, outflowCap - rmdAmount)
+      ? Math.max(0, outflowCap - rmdAmount - iraWithdrawal)
       : Number.POSITIVE_INFINITY;
     const effectiveIraForConversion = Math.min(
       iraAfterRmdAndWithdrawal,

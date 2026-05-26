@@ -502,4 +502,97 @@ startTest("all_distributions — cap releases post-surrender, no longer binds co
   }
 }
 
+// ============================================================================
+// TEST 14: all_distributions counts VOLUNTARY iraWithdrawal toward cap
+// ============================================================================
+// Bug found in audit: a scheduled withdrawal that pulls from the IRA leaves
+// the contract just like a conversion does, but earlier code didn't subtract
+// it from the outflow cap. Total IRA outflow could exceed the carrier
+// allowance by the withdrawal amount.
+startTest("all_distributions — voluntary iraWithdrawal counted in cap (conv+vol+tax ≤ cap)");
+{
+  const client = makeClient({
+    respect_penalty_free_limit: true,
+    penalty_free_scope: "all_distributions",
+    conversion_type: "optimized_amount",
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32,
+    tax_payment_source: "from_ira",
+    // $30K/yr voluntary IRA withdrawal for the first few years
+    withdrawals: [
+      { year: 2026, age: 60, amount: 30_000_00, source: "ira" },
+      { year: 2027, age: 61, amount: 30_000_00, source: "ira" },
+      { year: 2028, age: 62, amount: 30_000_00, source: "ira" },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ] as any,
+  });
+  const result = runGrowthSimulation(createSimulationInput(client));
+  const y1 = result.formula[0];
+  const conv = y1.conversionAmount ?? 0;
+  const taxFromIra = y1.taxesPaidFromIRA ?? 0;
+  const rmd = y1.rmdAmount ?? 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const vol = (y1 as any).iraWithdrawal ?? 0;
+  const cap = 100_000_00;
+  const total = conv + taxFromIra + rmd + vol;
+  console.log(`  Y1: conv ${fmtCents(conv)} tax ${fmtCents(taxFromIra)} rmd ${fmtCents(rmd)} vol ${fmtCents(vol)} TOTAL ${fmtCents(total)} CAP ${fmtCents(cap)}`);
+  assert(vol >= 30_000_00 - 100, `Voluntary withdrawal should have applied (got ${fmtCents(vol)})`);
+  assert(total <= cap + 100, `Total outflow MUST fit under cap including voluntary withdrawal (got ${fmtCents(total)} > ${fmtCents(cap)})`);
+}
+
+// ============================================================================
+// TEST 15: Voluntary alone exceeds cap → conversion = 0, no engine crash
+// ============================================================================
+startTest("all_distributions — voluntary alone exceeds cap → conv = 0");
+{
+  const client = makeClient({
+    respect_penalty_free_limit: true,
+    penalty_free_scope: "all_distributions",
+    conversion_type: "optimized_amount",
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32,
+    tax_payment_source: "from_ira",
+    withdrawals: [
+      { year: 2026, age: 60, amount: 120_000_00, source: "ira" }, // exceeds $100K cap
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ] as any,
+  });
+  const result = runGrowthSimulation(createSimulationInput(client));
+  const y1 = result.formula[0];
+  const conv = y1.conversionAmount ?? 0;
+  console.log(`  Y1: conv ${fmtCents(conv)} (should be 0; voluntary alone already over cap)`);
+  assert(conv === 0, `Conv must be 0 when voluntary withdrawal alone exceeds cap (got ${fmtCents(conv)})`);
+}
+
+// ============================================================================
+// TEST 16: all_distributions + from_taxable + voluntary withdrawal
+// ============================================================================
+// Strict scope must cap conv + voluntary even when tax is external.
+startTest("all_distributions + from_taxable + voluntary — conv + vol ≤ cap");
+{
+  const client = makeClient({
+    respect_penalty_free_limit: true,
+    penalty_free_scope: "all_distributions",
+    conversion_type: "optimized_amount",
+    qualified_account_value: 1_000_000_00,
+    penalty_free_percent: 10,
+    max_tax_rate: 32,
+    tax_payment_source: "from_taxable",
+    withdrawals: [
+      { year: 2026, age: 60, amount: 30_000_00, source: "ira" },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ] as any,
+  });
+  const result = runGrowthSimulation(createSimulationInput(client));
+  const y1 = result.formula[0];
+  const conv = y1.conversionAmount ?? 0;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const vol = (y1 as any).iraWithdrawal ?? 0;
+  const total = conv + vol; // no tax-from-IRA since external
+  console.log(`  Y1: conv ${fmtCents(conv)} vol ${fmtCents(vol)} TOTAL out of IRA ${fmtCents(total)}`);
+  assert(total <= 100_000_00 + 100, `conv + vol must fit under cap even when tax is external (got ${fmtCents(total)})`);
+}
+
 console.log(`\n=== ${testNum} tests ${process.exitCode ? "FAILED" : "PASSED"} ===`);
