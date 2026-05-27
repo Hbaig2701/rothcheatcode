@@ -382,7 +382,7 @@ export function ManualBuilder({
             The premium bonus is extra money the carrier credits to the account at issue. E.g., a 10% bonus on $500K = $50K added immediately.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field>
             <FieldLabel>Premium Bonus %</FieldLabel>
             <Input
@@ -491,7 +491,7 @@ export function ManualBuilder({
                 </Button>
               </div>
             </div>
-            <div className="grid grid-cols-5 sm:grid-cols-8 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               {getVestingArray().map((pct, i) => (
                 <div key={i} className="flex flex-col items-center gap-1">
                   <span className="text-xs text-muted-foreground">Yr {i + 1}</span>
@@ -516,7 +516,7 @@ export function ManualBuilder({
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Spacer to keep section grid layout consistent */}
           {config.bonus.type === "phased" && (
             <>
@@ -629,7 +629,7 @@ export function ManualBuilder({
               </Button>
             </div>
           </div>
-          <div className="grid grid-cols-5 sm:grid-cols-8 gap-2">
+          <div className="grid grid-cols-5 gap-2">
             {config.surrender.schedule.map((charge, i) => (
               <div key={i} className="flex flex-col items-center gap-1">
                 <span className="text-xs text-muted-foreground">Yr {i + 1}</span>
@@ -725,7 +725,7 @@ export function ManualBuilder({
               How the Income Base grows during deferral. The bigger the income base when the client turns income on, the bigger the lifetime payout.
             </p>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field>
               <FieldLabel>Roll-up Type</FieldLabel>
               <Select
@@ -775,7 +775,7 @@ export function ManualBuilder({
             Optional product features that affect surrender value or projection assumptions.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field className="flex items-start gap-2 pt-6">
             <input
               type="checkbox"
@@ -1032,7 +1032,7 @@ function StateVariationsSection({
 
                   {!isNA && (
                     <>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Field>
                           <FieldLabel className="text-xs">Bonus % (override)</FieldLabel>
                           <Input
@@ -1143,7 +1143,7 @@ function ScheduleOverrideField({
         )}
       </div>
       {isOverridden && (
-        <div className="grid grid-cols-5 sm:grid-cols-8 gap-1.5">
+        <div className="grid grid-cols-5 gap-1.5">
           {display.map((v, i) => (
             <div key={i} className="flex flex-col items-center gap-0.5">
               <span className="text-[10px] text-muted-foreground">Yr {i + 1}</span>
