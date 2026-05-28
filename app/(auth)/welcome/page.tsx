@@ -76,6 +76,13 @@ function WelcomeContent() {
       const data = await res.json()
 
       if (!res.ok) {
+        // Already-used session means the account was created previously
+        // (e.g. they completed welcome once before, or clicked an old
+        // recovery email). Send them to login rather than dead-end.
+        if (res.status === 409) {
+          router.push(`/login?message=${encodeURIComponent('Your account is already set up — please sign in.')}`)
+          return
+        }
         setError(data.error || 'Failed to create account')
         setSubmitting(false)
         return

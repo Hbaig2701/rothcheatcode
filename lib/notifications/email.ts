@@ -276,6 +276,73 @@ Need a hand? Use the Support button inside the app — we usually reply within a
 }
 
 // ----------------------------------------------------------------------
+// Signup continuation (recovery email for users who paid but didn't
+// complete the /welcome form — e.g. closed the tab after Stripe redirect)
+// ----------------------------------------------------------------------
+
+interface SignupContinuationEmailInput {
+  to: string;
+  sessionId: string;
+  firstName?: string | null;
+}
+
+export async function sendSignupContinuationEmail(input: SignupContinuationEmailInput): Promise<void> {
+  const { to, sessionId, firstName } = input;
+  const greeting = firstName ? `Hi ${firstName},` : "Hi,";
+  const link = `${APP_BASE_URL}/welcome?session_id=${encodeURIComponent(sessionId)}`;
+
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f6f7f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f7f9;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 28px 8px 28px;">
+                <p style="margin:0 0 12px 0;font-size:14px;color:#6b7280;">Retirement Expert</p>
+                <h1 style="margin:0 0 8px 0;font-size:20px;font-weight:600;color:#111827;line-height:1.4;">Finish setting up your account</h1>
+                <p style="margin:0 0 20px 0;font-size:14px;color:#374151;">Your payment was successful — one quick step left.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 28px;">
+                <p style="margin:0 0 16px 0;font-size:14px;color:#374151;">${escapeHtml(greeting)}</p>
+                <p style="margin:0 0 18px 0;font-size:14px;color:#374151;line-height:1.6;">Thanks for subscribing. We just need you to set a password so we can finish creating your account. Click the button below and you'll be in within seconds.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:4px 28px 28px 28px;" align="left">
+                <a href="${link}" style="display:inline-block;padding:11px 22px;background:#d4af37;color:#1a1a1a;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">Continue setup</a>
+                <p style="margin:18px 0 0 0;font-size:12px;color:#9ca3af;line-height:1.55;">This link is tied to your payment and only works for the email you used to subscribe. If you've already finished setting up your account, just log in at <a href="${APP_BASE_URL}/login" style="color:#9ca3af;">${APP_BASE_URL}/login</a>.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const text = `${greeting}
+
+Your payment was successful — one quick step left to finish creating your account.
+
+Continue setup: ${link}
+
+This link is tied to your payment. If you've already finished setting up your account, just log in at ${APP_BASE_URL}/login.
+
+— Retirement Expert`;
+
+  await sendEmail({
+    to,
+    subject: "Finish setting up your Retirement Expert account",
+    html,
+    text,
+  });
+}
+
+// ----------------------------------------------------------------------
 // Ticket-submitted confirmation (advisor's receipt)
 // ----------------------------------------------------------------------
 

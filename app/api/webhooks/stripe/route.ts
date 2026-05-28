@@ -4,6 +4,7 @@ import { stripe, getSubscriptionPeriodEnd } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlanFromPriceId } from "@/lib/config/plans";
 import { PLAN_LIMITS } from "@/lib/config/plans";
+import { sendSignupContinuationEmail } from "@/lib/notifications/email";
 
 /** Send a notification to Slack via incoming webhook. Fails silently. */
 async function notifySlack(text: string) {
@@ -192,6 +193,25 @@ export async function POST(request: NextRequest) {
             console.log(`[Stripe Webhook] Linked customer ${customerId} to profile ${profile.id}`);
           } else {
             console.log(`[Stripe Webhook] No profile found for user_id=${userId} or email=${customerEmail}, welcome route will handle linking`);
+
+            // Recovery email: this is a NEW signup who hasn't yet completed
+            // the /welcome form. Email them a self-identifying link so the
+            // account-creation step doesn't depend on the post-checkout
+            // browser redirect succeeding. Best-effort: never block the
+            // webhook on a mail-send failure.
+            if (customerEmail) {
+              const firstName = customerName ? customerName.split(" ")[0] : null;
+              try {
+                await sendSignupContinuationEmail({
+                  to: customerEmail,
+                  sessionId: session.id as string,
+                  firstName,
+                });
+                console.log(`[Stripe Webhook] Sent signup-continuation email to ${customerEmail}`);
+              } catch (err) {
+                console.error(`[Stripe Webhook] Continuation email failed for ${customerEmail}:`, err);
+              }
+            }
           }
         }
         break;
