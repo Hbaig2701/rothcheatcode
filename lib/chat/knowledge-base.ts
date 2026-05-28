@@ -51,7 +51,7 @@ When pointing an advisor to anything in the UI - a page, a button, a tab, a sect
 
 **Client form sections** (the \`/clients/new\` page, top to bottom — there are 9 numbered sections, NOT 8):
 1. "1. Client Data" - scenario name, name, age, filing status, state, spouse
-2. "2. Current Account Data" - Traditional IRA balance, Roth balance, taxable account
+2. "2. Current Account Data" - **Qualified Account Value** (the field label — represents the Traditional IRA / 401(k) / qualified balance), Roth balance, taxable account. If an advisor searches for "Traditional IRA balance" they won't find a field by that name — point them at "Qualified Account Value".
 3. "3. New Account Data" - insurance product details (carrier, product, bonus, surrender) and Rate of Return
 4. "4. Tax Data" - current bracket, state tax, the **Tax Payment Source** dropdown (labels: "External (from taxable accounts)" / "Internal (from IRA)"), the **Constraint** dropdown (None / Bracket Ceiling / IRMAA Threshold / Fixed Amount — this is what controls IRMAA-aware sizing, NOT section 6), and the **RMD Treatment (Baseline)** dropdown for Growth products (Spent on Living Expenses / Reinvested (Taxable Brokerage) / Sits in Cash (No Growth))
 5. "5. Taxable Income Calculation" - Social Security, pension, other taxable + tax-exempt income; custom income line items can be added/removed
@@ -141,6 +141,30 @@ There are four product modes the strategy can run on (picked in section "3. New 
 2. **Growth FIA presets** (exact labels): **"Short-Term Cap Growth"**, **"Phased Bonus Growth"** (4% anniversary bonus × 3 years on top of any upfront bonus), **"Vesting Bonus Growth"**, **"High-Bonus Long-Term Growth"** (22% upfront bonus, 0.95% annual rider fee, 14-year surrender), **"High-Bonus Medium-Term Growth"** (similar with 0.95% rider, 10-year surrender). Each has hardcoded bonus %, surrender, penalty-free, and rider fee locked so the label matches the math.
 3. **Guaranteed Income (GI)** (exact labels): **"Generic Income Product"**, **"Simple Roll-up Income"**, **"Compound Roll-up Income"**, **"Flat-Rate Compound Income"**. These have a roll-up rate, payout factor table, rider fee, and a 4-phase model (deferral → income start → ongoing → death).
 4. **Custom Products** - advisor-built products created in Settings → "My Products". Can be based on any of the above engine presets but with the advisor's own bonus / surrender / state-specific overrides. The advisor's saved values always win over the engine preset defaults.
+
+## Building a Custom Product (CRITICAL — feature exists)
+
+If an advisor asks "where do I upload a brochure", "can I add my own product from a PDF", "how do I add an Athene / Allianz / Nationwide / [carrier name] product", or anything else about creating a custom carrier-named product: **the feature exists and lives at Settings → "My Products" → "Add Product"**. Do NOT tell them it doesn't exist.
+
+Two paths inside the "Add Product" dialog:
+
+- **AI Research / Upload a Brochure** — advisor uploads a PDF brochure or pastes the carrier disclosure text. The AI extracts the parameters (bonus %, surrender schedule, free withdrawal %, MVA, roll-up, payout factors, etc.) and pre-fills the product config. They review and save.
+- **Manual Builder** — advisor types the parameters themselves into a form. Use this when the brochure is short, when AI extraction came back wrong, or when the advisor wants full control.
+
+Once saved, the custom product shows up in the Product Preset dropdown when creating or editing a client scenario (section "3. New Account Data"). The advisor can name it whatever they want (including the carrier-specific name like "Athene Ascent Pro 10"). Their saved values always win over engine preset defaults.
+
+## State-specific overrides on Custom Products
+
+Custom products support per-state overrides — bonus %, surrender schedule, MVA, min issue age, min premium can all be set differently for specific states. This lives inside the product editor (Settings → "My Products" → click the product → State Variations section).
+
+If an advisor says "in [state] this product has a different bonus" or "the surrender period is shorter in CA / 24% bonus in Texas / not approved in OR" — DO NOT tell them to change the default bonus. Tell them to add a state-specific override in the State Variations section of the product editor. The default value stays unchanged for every other state; only the named state(s) get the override.
+
+Common state-specific differences carriers ship:
+- California: shorter surrender schedule (typically one year shorter than the default).
+- Oregon: product often not available at all (set "Not available in this state").
+- Texas / Florida / other bonus-friendly states: higher bonus % than the default.
+
+Whenever a question contains a state name AND a product parameter ("Texas" + "bonus %", "California" + "surrender", "Oregon" + "this product"), default to suggesting a state-specific override BEFORE suggesting a default change.
 
 **No carrier-branded presets ship in the engine.** All presets are generic ("Insurance Carrier / Phased Bonus Growth" etc.). If an advisor wants Athene Performance Elite or American Equity IncomeShield-style behavior, they build it as a Custom Product in Settings → "My Products". Don't invent carrier names in answers.
 
