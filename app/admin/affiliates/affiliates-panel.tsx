@@ -98,6 +98,19 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
     setCreating(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
+      // The API returns Zod field-level details for validation failures.
+      // Surface them so the user can see WHICH field tripped instead of a
+      // bare "Validation failed".
+      const fieldErrs = j?.details?.fieldErrors as Record<string, string[]> | undefined;
+      if (fieldErrs) {
+        const messages = Object.entries(fieldErrs)
+          .map(([field, errs]) => `${field}: ${(errs ?? []).join(", ")}`)
+          .filter((m) => m.includes(":"));
+        if (messages.length > 0) {
+          setError(`${j.error}: ${messages.join(" · ")}`);
+          return;
+        }
+      }
       setError(j.error ?? "Failed to create affiliate");
       return;
     }
