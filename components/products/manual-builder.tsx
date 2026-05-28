@@ -699,10 +699,11 @@ export function ManualBuilder({
             </Select>
             <FieldDescription>Some products restrict withdrawals more strictly in year 1.</FieldDescription>
           </Field>
-          <Field className="flex items-center pt-6 gap-2">
+          <Field orientation="horizontal" className="items-start pt-6 gap-2">
             <input
               type="checkbox"
               id="cumulative"
+              className="mt-1 shrink-0"
               checked={config.withdrawals.cumulative_withdrawal}
               onChange={(e) => updateConfig("withdrawals", { ...config.withdrawals, cumulative_withdrawal: e.target.checked, cumulative_percent: e.target.checked ? 20 : null })}
             />
@@ -776,13 +777,13 @@ export function ManualBuilder({
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field className="flex items-start gap-2 pt-6">
+          <Field orientation="horizontal" className="items-start gap-2 pt-6">
             <input
               type="checkbox"
               id="mva"
               checked={config.other.mva_applies}
               onChange={(e) => updateConfig("other", { ...config.other, mva_applies: e.target.checked })}
-              className="mt-1"
+              className="mt-1 shrink-0"
             />
             <label htmlFor="mva" className="text-sm">
               MVA applies
@@ -1020,12 +1021,13 @@ function StateVariationsSection({
 
               {isExpanded && (
                 <div className="space-y-3 pt-2 border-t border-border">
-                  <Field className="flex items-center gap-2">
+                  <Field orientation="horizontal" className="items-center gap-2">
                     <input
                       type="checkbox"
                       checked={isNA}
                       onChange={() => toggleNotAvailable(st)}
                       id={`na-${st}`}
+                      className="shrink-0"
                     />
                     <label htmlFor={`na-${st}`} className="text-sm">Not available in this state</label>
                   </Field>
@@ -1062,12 +1064,13 @@ function StateVariationsSection({
                         </Field>
                       </div>
 
-                      <Field className="flex items-center gap-2">
+                      <Field orientation="horizontal" className="items-center gap-2">
                         <input
                           type="checkbox"
                           id={`mva-${st}`}
                           checked={sa.mva_overrides?.[st] === false}
                           onChange={(e) => setMvaOverride(st, e.target.checked ? false : null)}
+                          className="shrink-0"
                         />
                         <label htmlFor={`mva-${st}`} className="text-sm">MVA does NOT apply in this state (override)</label>
                       </Field>
