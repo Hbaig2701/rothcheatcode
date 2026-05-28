@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    @page {
+      size: letter;
+      margin: 0.5in;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      color: #333;
+      font-size: 10pt;
+      background: #ffffff;
+    }
+
+    .page {
+      page-break-after: always;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .page:last-child {
+      page-break-after: avoid;
+    }
+
+    /* Cover Page — mirrors main PDF cover */
+    .cover-page {
+      background: linear-gradient(135deg, {{branding.primaryColor}} 0%, {{branding.primaryColor}}cc 100%);
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      height: 100vh;
+      padding: 60px;
+    }
+
+    .cover-page .logo-image {
+      max-width: 320px;
+      max-height: 100px;
+      margin-bottom: 60px;
+      border-radius: 12px;
+    }
+
+    .cover-page .company-name {
+      font-size: 32pt;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .cover-page .company-tagline {
+      font-size: 13pt;
+      opacity: 0.7;
+      margin-bottom: 60px;
+    }
+
+    .cover-page .report-eyebrow {
+      font-size: 11pt;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      opacity: 0.85;
+      margin-bottom: 24px;
+    }
+
+    .cover-page .report-title {
+      font-size: 40pt;
+      font-weight: 300;
+      margin-bottom: 16px;
+      line-height: 1.1;
+    }
+
+    .cover-page .age-range {
+      font-size: 16pt;
+      opacity: 0.85;
+      margin-bottom: 60px;
+      font-weight: 300;
+    }
+
+    .cover-page .prepared-for {
+      font-size: 13pt;
+      opacity: 0.75;
+      margin-bottom: 8px;
+    }
+
+    .cover-page .client-name {
+      font-size: 26pt;
+      font-weight: 300;
+      margin-bottom: 32px;
+    }
+
+    .cover-page .date {
+      font-size: 11pt;
+      opacity: 0.65;
+    }
+
+    /* Branded header on content pages */
+    .page-branding-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .page-branding-header .header-logo {
+      max-height: 64px;
+      max-width: 220px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    .page-branding-header .header-company {
+      font-size: 12pt;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .page-branding-header .header-title {
+      font-size: 9pt;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Branded footer */
+    .page-branding-footer {
+      text-align: center;
+      font-size: 8pt;
+      color: #888;
+      padding-top: 8px;
+      border-top: 1px solid #e5e7eb;
+      margin-top: 24px;
+      letter-spacing: 0.3px;
+    }
+
+    /* Story-specific styles */
+    .story-intro {
+      margin-bottom: 28px;
+    }
+
+    .story-intro .eyebrow {
+      font-size: 9pt;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: {{branding.primaryColor}};
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .story-intro h1 {
+      font-size: 22pt;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+      color: #1a1a1a;
+    }
+
+    .story-intro .age-range {
+      font-size: 12pt;
+      color: #666;
+      margin-bottom: 14px;
+    }
+
+    .story-intro .disclaimer {
+      font-size: 8.5pt;
+      color: #888;
+      font-style: italic;
+      line-height: 1.5;
+      border-left: 2px solid #e5e7eb;
+      padding: 8px 14px;
+      background: #fafafa;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* Story card */
+    .story-card {
+      border-left: 4px solid #cbd5e1;
+      background: #ffffff;
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px;
+      margin-bottom: 14px;
+      page-break-inside: avoid;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+      border-top: 1px solid #e5e7eb;
+      border-right: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .story-card.sentiment-positive {
+      border-left-color: {{branding.primaryColor}};
+    }
+
+    .story-card.sentiment-caution {
+      border-left-color: #f59e0b;
+    }
+
+    .story-card.celebration {
+      background: linear-gradient(0deg, rgba(212,175,55,0.04), rgba(212,175,55,0.04)), #ffffff;
+    }
+
+    .story-card.legacy {
+      background: linear-gradient(0deg, rgba(34,197,94,0.04), rgba(34,197,94,0.04)), #ffffff;
+      border-left-color: #16a34a;
+    }
+
+    .story-card .year-badge {
+      font-size: 8.5pt;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: {{branding.primaryColor}};
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .story-card.celebration .year-badge {
+      color: {{branding.primaryColor}};
+    }
+
+    .story-card.legacy .year-badge {
+      color: #15803d;
+    }
+
+    .story-card h2 {
+      font-size: 14pt;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+      color: #1a1a1a;
+      line-height: 1.3;
+    }
+
+    .story-card.celebration h2 {
+      color: #92400e;
+    }
+
+    .story-card.legacy h2 {
+      color: #14532d;
+    }
+
+    .story-card.sentiment-caution h2 {
+      color: #92400e;
+    }
+
+    .story-card .body {
+      font-size: 10pt;
+      color: #4b5563;
+      line-height: 1.55;
+      margin: 0 0 10px 0;
+    }
+
+    /* Plan details list (strategy_setup card) */
+    .plan-details {
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #fafafa;
+      padding: 4px 14px;
+      margin: 10px 0;
+    }
+
+    .plan-details .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 7px 0;
+      border-bottom: 1px solid #eef2f7;
+    }
+
+    .plan-details .row:last-child {
+      border-bottom: none;
+    }
+
+    .plan-details .label {
+      font-size: 8pt;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+
+    .plan-details .value {
+      font-size: 10pt;
+      color: #1a1a1a;
+      text-align: right;
+    }
+
+    /* Metrics chips */
+    .metrics-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 10px 0;
+    }
+
+    .metric-chip {
+      flex: 0 0 auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px 14px;
+      background: #fafafa;
+      min-width: 110px;
+    }
+
+    .metric-chip .label {
+      font-size: 7.5pt;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+
+    .metric-chip .value {
+      font-size: 13pt;
+      font-weight: 600;
+      color: #1a1a1a;
+      font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+    }
+
+    .metric-chip.highlight .value {
+      color: {{branding.primaryColor}};
+    }
+
+    /* Comparison callout */
+    .comparison-callout {
+      border-left: 3px solid {{branding.secondaryColor}};
+      background: rgba(212,175,55,0.05);
+      padding: 9px 14px;
+      font-style: italic;
+      color: #4b5563;
+      font-size: 9.5pt;
+      margin: 10px 0;
+      border-radius: 0 4px 4px 0;
+      line-height: 1.5;
+    }
+
+    /* Running totals footer */
+    .running-totals {
+      border-top: 1px solid #eef2f7;
+      padding-top: 8px;
+      margin-top: 10px;
+      font-size: 8.5pt;
+      color: #6b7280;
+      font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+    }
+
+    .running-totals .total-item {
+      white-space: nowrap;
+    }
+
+    .running-totals .total-roth {
+      color: #15803d;
+    }
+
+    .running-totals .label {
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COVER -->
+  <div class="page cover-page">
+    {{#if branding.logoLightUrl}}
+      <img class="logo-image" src="{{branding.logoLightUrl}}" alt="" />
+    {{else if branding.companyName}}
+      <div class="company-name">{{branding.companyName}}</div>
+      {{#if branding.tagline}}
+        <div class="company-tagline">{{branding.tagline}}</div>
+      {{/if}}
+    {{/if}}
+
+    <div class="report-eyebrow">Roth Conversion Story</div>
+    <div class="report-title">{{client.name}}</div>
+    <div class="age-range">Age {{startAge}} &rarr; Age {{endAge}}</div>
+
+    <div class="prepared-for">Prepared {{generatedDate}}</div>
+  </div>
+
+  <!-- STORY PAGES -->
+  <div class="page">
+    {{{brandingHeader "The Story"}}}
+
+    <div class="story-intro">
+      <div class="eyebrow">Roth Conversion Story</div>
+      <h1>{{client.name}}</h1>
+      <div class="age-range">Age {{startAge}} &rarr; Age {{endAge}}</div>
+      <div class="disclaimer">
+        The following illustration uses generic product archetypes to demonstrate potential outcomes.
+        This is not a representation of any specific carrier's product. Actual features and results will vary.
+      </div>
+    </div>
+
+    {{#each storyEntries}}
+      <div class="story-card {{cardClasses}}">
+        <div class="year-badge">{{year}} &middot; Age {{age}}</div>
+        <h2>{{headline}}</h2>
+        <p class="body">{{body}}</p>
+
+        {{#if details}}
+          <div class="plan-details">
+            {{#each details}}
+              <div class="row">
+                <span class="label">{{label}}</span>
+                <span class="value">{{value}}</span>
+              </div>
+            {{/each}}
+          </div>
+        {{/if}}
+
+        {{#if metrics}}
+          <div class="metrics-row">
+            {{#each metrics}}
+              <div class="metric-chip {{chipClass}}">
+                <div class="label">{{label}}</div>
+                <div class="value">{{value}}</div>
+              </div>
+            {{/each}}
+          </div>
+        {{/if}}
+
+        {{#if comparison}}
+          <div class="comparison-callout">{{comparison}}</div>
+        {{/if}}
+
+        <div class="running-totals">
+          <span class="total-item"><span class="label">Converted:</span> {{runningTotals.totalConverted}}</span>
+          <span class="total-item"><span class="label">Tax Paid:</span> {{runningTotals.totalTaxPaid}}</span>
+          <span class="total-item total-roth"><span class="label">Roth:</span> {{runningTotals.rothBalance}}</span>
+          <span class="total-item"><span class="label">IRA:</span> {{runningTotals.iraBalance}}</span>
+        </div>
+      </div>
+    {{/each}}
+
+    {{{brandingFooter}}}
+  </div>
+
+</body>
+</html>

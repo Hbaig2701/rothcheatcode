@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { X, ArrowLeft, Rocket, TrendingUp, MapPin, AlertTriangle, Target, Flag, Printer } from "lucide-react";
+import { useMemo, useState } from "react";
+import { X, ArrowLeft, Rocket, TrendingUp, MapPin, AlertTriangle, Target, Flag, Printer, Download, Loader2 } from "lucide-react";
 import type { Client } from "@/lib/types/client";
 import type { Projection } from "@/lib/types/projection";
 import { generateStory, type StoryEntry, type StoryIcon, type StorySentiment } from "@/lib/calculations/story-generator";
@@ -41,6 +41,52 @@ export function StoryMode({ client, projection, onExit }: StoryModeProps) {
   const startAge = client.age ?? 62;
   const endAge = client.end_age ?? 100;
 
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleExportPdf = async () => {
+    setExporting(true);
+    setExportError(null);
+    const abort = new AbortController();
+    const timeoutId = window.setTimeout(() => abort.abort(), 65_000);
+    try {
+      const res = await fetch("/api/generate-story-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportData: { client, projection } }),
+        signal: abort.signal,
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        if (res.status === 403 && errData.showUpgrade) {
+          setExportError(`Export limit reached (${errData.current}/${errData.limit}). Upgrade to continue.`);
+          return;
+        }
+        if (res.status === 504 || res.status === 502) {
+          setExportError("Server timed out generating the PDF. Try again in 30 seconds.");
+          return;
+        }
+        setExportError(errData.error || `Failed to generate PDF (HTTP ${res.status})`);
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${client.name?.replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "_") || "Client"}_Story.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setExportError(msg.includes("aborted") ? "Request timed out — please try again." : msg);
+    } finally {
+      window.clearTimeout(timeoutId);
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 bg-background overflow-hidden flex flex-col">
       {/* Header */}
@@ -52,13 +98,29 @@ export function StoryMode({ client, projection, onExit }: StoryModeProps) {
           <ArrowLeft className="h-5 w-5" />
           <span className="text-sm font-medium">Exit Story Mode</span>
         </button>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground bg-bg-card border border-border-default rounded-lg hover:bg-bg-card-hover transition-colors print:hidden"
-        >
-          <Printer className="h-4 w-4" />
-          Print / Save as PDF
-        </button>
+        <div className="flex items-center gap-3 print:hidden">
+          {exportError && (
+            <span className="text-xs text-red-400 max-w-[300px] truncate" title={exportError}>
+              {exportError}
+            </span>
+          )}
+          <button
+            onClick={() => window.print()}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-dim hover:text-foreground border border-border-default rounded-lg hover:bg-bg-card transition-colors"
+            title="Use your browser's print dialog (less polished)"
+          >
+            <Printer className="h-4 w-4" />
+            Print
+          </button>
+          <button
+            onClick={handleExportPdf}
+            disabled={exporting}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-primary-foreground bg-gold hover:bg-[rgba(212,175,55,0.9)] rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {exporting ? "Generating…" : "Export PDF"}
+          </button>
+        </div>
       </div>
 
       {/* Story Content */}
