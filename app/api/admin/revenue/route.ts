@@ -129,21 +129,49 @@ export async function GET(request: Request) {
       async (p) => {
         try {
           const sub = await stripe.subscriptions.retrieve(p.stripe_subscription_id!, {
-            expand: ['latest_invoice'],
+            expand: ['latest_invoice', 'discounts'],
           });
           const item = sub.items?.data?.[0];
           if (!item) return;
           const listPrice = (item.price?.unit_amount ?? 0) / 100;
           const interval = item.price?.recurring?.interval ?? 'month';
 
-          let amount = listPrice;
-          const latestInvoice = (sub as unknown as { latest_invoice?: { subtotal?: number; total?: number; amount_paid?: number } | string | null }).latest_invoice;
-          if (latestInvoice && typeof latestInvoice === 'object') {
-            const tot = latestInvoice.total ?? 0;
-            const paid = latestInvoice.amount_paid ?? 0;
-            if (tot > 0) amount = tot / 100;
-            else if (paid > 0) amount = paid / 100;
+          // Priority 1: if the subscription has a recurring discount
+          // (e.g. MAYELITE coupon attached for life), use the
+          // discount-adjusted list price. This is the forward-looking
+          // MRR truth — the latest_invoice may still be the pre-discount
+          // original (refunds/credits don't rewrite invoice totals).
+          let amount: number | null = null;
+          const expandedDiscounts = (sub as unknown as {
+            discounts?: Array<string | { coupon?: { percent_off?: number | null; amount_off?: number | null; duration?: string } }>;
+          }).discounts ?? [];
+          for (const d of expandedDiscounts) {
+            if (typeof d !== 'object' || !d.coupon) continue;
+            // Only respect coupons that apply to future invoices ('forever' or 'repeating').
+            // 'once' coupons don't affect the renewal — fall through to latest_invoice.
+            if (d.coupon.duration === 'once') continue;
+            if (d.coupon.percent_off) {
+              amount = listPrice * (1 - d.coupon.percent_off / 100);
+            } else if (d.coupon.amount_off) {
+              amount = Math.max(0, listPrice - d.coupon.amount_off / 100);
+            }
+            if (amount !== null) break;
           }
+
+          // Priority 2: latest_invoice.total (captures one-time promos on
+          // the most recent paid invoice).
+          if (amount === null) {
+            const latestInvoice = (sub as unknown as { latest_invoice?: { subtotal?: number; total?: number; amount_paid?: number } | string | null }).latest_invoice;
+            if (latestInvoice && typeof latestInvoice === 'object') {
+              const tot = latestInvoice.total ?? 0;
+              const paid = latestInvoice.amount_paid ?? 0;
+              if (tot > 0) amount = tot / 100;
+              else if (paid > 0) amount = paid / 100;
+            }
+          }
+
+          // Priority 3 (final fallback): plain list price.
+          if (amount === null) amount = listPrice;
 
           subAmounts.set(p.id, { amount, interval, fellBack: false });
           stripeSuccess++;
