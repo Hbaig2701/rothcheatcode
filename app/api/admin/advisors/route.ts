@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
       .map(async (p) => {
         try {
           const sub = await stripe.subscriptions.retrieve(p.stripe_subscription_id!, {
-            expand: ['latest_invoice'],
+            expand: ['latest_invoice', 'discounts'],
           });
           const item = sub.items?.data?.[0];
           const listPrice = item?.price?.unit_amount != null
@@ -169,6 +169,32 @@ export async function GET(request: NextRequest) {
           let netInterval = listPrice;
           const discountLabels: string[] = [];
 
+          // Priority 1: subscription-level coupon that applies to future
+          // invoices (duration=forever or repeating). This is the
+          // forward-looking truth — wins over latest_invoice, which can
+          // still be the pre-discount original when a coupon was attached
+          // post-billing (Mazhar/Roger).
+          let recurringDiscountApplied = false;
+          const expandedDiscounts = (sub as unknown as {
+            discounts?: Array<string | { coupon?: { id?: string; name?: string | null; percent_off?: number | null; amount_off?: number | null; duration?: string } }>;
+          }).discounts ?? [];
+          for (const d of expandedDiscounts) {
+            if (typeof d !== 'object' || !d.coupon) continue;
+            if (d.coupon.duration === 'once') continue;
+            if (d.coupon.percent_off) {
+              netInterval = listPrice * (1 - d.coupon.percent_off / 100);
+              discountLabels.push(d.coupon.name ?? `${d.coupon.percent_off}% off`);
+              recurringDiscountApplied = true;
+            } else if (d.coupon.amount_off) {
+              netInterval = Math.max(0, listPrice - d.coupon.amount_off / 100);
+              discountLabels.push(d.coupon.name ?? `$${(d.coupon.amount_off / 100).toFixed(0)} off`);
+              recurringDiscountApplied = true;
+            }
+          }
+
+          // Priority 2: latest_invoice (captures one-time promos baked into
+          // the most recent paid invoice — like Karen's Checkout-applied
+          // MAYELITE that wasn't attached as a recurring coupon).
           const latestInvoice = (sub as unknown as { latest_invoice?: {
             subtotal?: number;
             total?: number;
@@ -176,7 +202,7 @@ export async function GET(request: NextRequest) {
             total_discount_amounts?: Array<{ amount: number; discount: string | { coupon?: { name?: string | null; percent_off?: number | null; amount_off?: number | null } } }>;
           } | string | null }).latest_invoice;
 
-          if (latestInvoice && typeof latestInvoice === 'object') {
+          if (!recurringDiscountApplied && latestInvoice && typeof latestInvoice === 'object') {
             const tot = latestInvoice.total ?? 0;
             const paid = latestInvoice.amount_paid ?? 0;
             const sub_amt = latestInvoice.subtotal ?? 0;
