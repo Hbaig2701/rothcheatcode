@@ -37,7 +37,10 @@ export function RevenueSection() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/admin/revenue')
+    // Forward ?refresh=1 from the page URL to the API so admins can bust
+    // the cache without needing server-side intervention.
+    const refresh = typeof window !== 'undefined' && new URL(window.location.href).searchParams.get('refresh') === '1';
+    fetch(`/api/admin/revenue${refresh ? '?refresh=1' : ''}`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false) })
       .catch(() => setLoading(false))
