@@ -124,6 +124,28 @@ export async function GET(request: NextRequest) {
     };
     const pricingMap = new Map<string, Pricing>();
 
+    // Shared coupon cache (Discount.source.coupon is an ID string; we have
+    // to retrieve each coupon to read percent_off / duration / name).
+    const couponCache = new Map<string, { id: string; name: string | null; percent_off: number | null; amount_off: number | null; duration: string }>();
+    const fetchCoupon = async (couponId: string) => {
+      const cached = couponCache.get(couponId);
+      if (cached) return cached;
+      try {
+        const c = await stripe.coupons.retrieve(couponId);
+        const entry = {
+          id: c.id,
+          name: c.name ?? null,
+          percent_off: c.percent_off ?? null,
+          amount_off: c.amount_off ?? null,
+          duration: c.duration ?? 'once',
+        };
+        couponCache.set(couponId, entry);
+        return entry;
+      } catch {
+        return null;
+      }
+    };
+
     // Pass 1: seed every advisor with their plan's LIST price using the
     // plan + billing_cycle columns. This guarantees the Net Price column
     // never goes blank just because a Stripe call hiccuped.
@@ -174,20 +196,27 @@ export async function GET(request: NextRequest) {
           // forward-looking truth — wins over latest_invoice, which can
           // still be the pre-discount original when a coupon was attached
           // post-billing (Mazhar/Roger).
+          //
+          // Stripe schema: Discount.source.coupon is a coupon ID string,
+          // not an inlined coupon object. Retrieve via cached helper.
           let recurringDiscountApplied = false;
           const expandedDiscounts = (sub as unknown as {
-            discounts?: Array<string | { coupon?: { id?: string; name?: string | null; percent_off?: number | null; amount_off?: number | null; duration?: string } }>;
+            discounts?: Array<string | { source?: { type?: string; coupon?: string | null } }>;
           }).discounts ?? [];
           for (const d of expandedDiscounts) {
-            if (typeof d !== 'object' || !d.coupon) continue;
-            if (d.coupon.duration === 'once') continue;
-            if (d.coupon.percent_off) {
-              netInterval = listPrice * (1 - d.coupon.percent_off / 100);
-              discountLabels.push(d.coupon.name ?? `${d.coupon.percent_off}% off`);
+            if (typeof d !== 'object' || !d) continue;
+            const src = d.source;
+            if (!src || src.type !== 'coupon' || !src.coupon) continue;
+            const coupon = await fetchCoupon(src.coupon);
+            if (!coupon) continue;
+            if (coupon.duration === 'once') continue;
+            if (coupon.percent_off) {
+              netInterval = listPrice * (1 - coupon.percent_off / 100);
+              discountLabels.push(coupon.name ?? `${coupon.percent_off}% off`);
               recurringDiscountApplied = true;
-            } else if (d.coupon.amount_off) {
-              netInterval = Math.max(0, listPrice - d.coupon.amount_off / 100);
-              discountLabels.push(d.coupon.name ?? `$${(d.coupon.amount_off / 100).toFixed(0)} off`);
+            } else if (coupon.amount_off) {
+              netInterval = Math.max(0, listPrice - coupon.amount_off / 100);
+              discountLabels.push(coupon.name ?? `$${(coupon.amount_off / 100).toFixed(0)} off`);
               recurringDiscountApplied = true;
             }
           }

@@ -78,6 +78,29 @@ export async function GET(request: Request) {
 
     const stripe = getStripe();
 
+    // Shared per-request coupon cache. Stripe's Discount object only inlines
+    // the coupon as a string ID under `source.coupon` — we have to retrieve
+    // each coupon to get percent_off / duration. Multiple advisors typically
+    // share the same coupon (MAYELITE), so a request-scoped cache keeps the
+    // extra Stripe calls down to one per unique coupon.
+    const couponCache = new Map<string, { percent_off: number | null; amount_off: number | null; duration: string }>();
+    const fetchCoupon = async (couponId: string) => {
+      const cached = couponCache.get(couponId);
+      if (cached) return cached;
+      try {
+        const c = await stripe.coupons.retrieve(couponId);
+        const entry = {
+          percent_off: c.percent_off ?? null,
+          amount_off: c.amount_off ?? null,
+          duration: c.duration ?? 'once',
+        };
+        couponCache.set(couponId, entry);
+        return entry;
+      } catch {
+        return null;
+      }
+    };
+
     const { data: rawProfiles } = await admin
       .from("profiles")
       .select("id, email, plan, subscription_status, billing_cycle, created_at, current_period_end, stripe_customer_id, stripe_subscription_id")
@@ -141,19 +164,29 @@ export async function GET(request: Request) {
           // discount-adjusted list price. This is the forward-looking
           // MRR truth — the latest_invoice may still be the pre-discount
           // original (refunds/credits don't rewrite invoice totals).
+          //
+          // Stripe schema note: Discount.source.coupon is a coupon ID
+          // string, not an inlined coupon object. We have to retrieve the
+          // coupon to read percent_off / duration. couponCache de-dupes
+          // across subs so this is at most one extra call per unique
+          // coupon per request.
           let amount: number | null = null;
           const expandedDiscounts = (sub as unknown as {
-            discounts?: Array<string | { coupon?: { percent_off?: number | null; amount_off?: number | null; duration?: string } }>;
+            discounts?: Array<string | { source?: { type?: string; coupon?: string | null } }>;
           }).discounts ?? [];
           for (const d of expandedDiscounts) {
-            if (typeof d !== 'object' || !d.coupon) continue;
+            if (typeof d !== 'object' || !d) continue;
+            const src = d.source;
+            if (!src || src.type !== 'coupon' || !src.coupon) continue;
+            const coupon = await fetchCoupon(src.coupon);
+            if (!coupon) continue;
             // Only respect coupons that apply to future invoices ('forever' or 'repeating').
             // 'once' coupons don't affect the renewal — fall through to latest_invoice.
-            if (d.coupon.duration === 'once') continue;
-            if (d.coupon.percent_off) {
-              amount = listPrice * (1 - d.coupon.percent_off / 100);
-            } else if (d.coupon.amount_off) {
-              amount = Math.max(0, listPrice - d.coupon.amount_off / 100);
+            if (coupon.duration === 'once') continue;
+            if (coupon.percent_off) {
+              amount = listPrice * (1 - coupon.percent_off / 100);
+            } else if (coupon.amount_off) {
+              amount = Math.max(0, listPrice - coupon.amount_off / 100);
             }
             if (amount !== null) break;
           }
