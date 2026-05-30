@@ -137,12 +137,16 @@ export const clientFormulaBaseSchema = z.object({
   state_tax_rate: z.number().min(0).max(100).optional().nullable(),
 
   // Section 5: Taxable Income Calculation
-  ssi_payout_age: z.number().int().min(62, "SSI starts at 62 minimum").max(70, "SSI starts at 70 maximum").default(67),
+  // Upper cap is 100, not 70: clients who delayed claiming past 70 (no
+  // benefit increase but still allowed by SSA) and clients being entered
+  // retroactively need to set their actual claim age. 70 was rejecting
+  // valid cases — see Karen Bienvenu's bug report for the 74-yr-old Ismay.
+  ssi_payout_age: z.number().int().min(62, "SSI starts at 62 minimum").max(100, "SSI payout age must be 100 or below").default(67),
   ssi_annual_amount: z.number().int().min(0, "Amount must be positive").default(2400000), // $24,000 in cents
   // NaN-safe: HTML number inputs with valueAsNumber produce NaN for empty values
   spouse_ssi_payout_age: z.preprocess(
     (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
-    z.number().int().min(62).max(70).optional()
+    z.number().int().min(62).max(100).optional()
   ),
   spouse_ssi_annual_amount: z.preprocess(
     (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
@@ -320,7 +324,7 @@ export const clientFullBaseSchema = z.object({
   gi_conversion_bracket: z.number().min(0).max(40).default(24),
 
   // Spouse SSI fields
-  spouse_ssi_payout_age: z.number().int().min(62).max(70).optional().nullable(),
+  spouse_ssi_payout_age: z.number().int().min(62).max(100).optional().nullable(),
   spouse_ssi_annual_amount: z.number().int().min(0).optional().nullable(),
 
   // Taxable income fields
@@ -358,10 +362,10 @@ export const clientFullBaseSchema = z.object({
   ss_spouse: z.number().int().min(0).default(0),
   pension: z.number().int().min(0).default(0),
   other_income: z.number().int().min(0).default(0),
-  ss_start_age: z.number().int().min(62).max(70).default(67),
+  ss_start_age: z.number().int().min(62).max(100).default(67),
 
   // New income fields
-  ssi_payout_age: z.number().int().min(62).max(70).default(67),
+  ssi_payout_age: z.number().int().min(62).max(100).default(67),
   ssi_annual_amount: z.number().int().min(0).default(2400000),
   non_ssi_income: z.array(nonSSIIncomeEntrySchema).default([]),
   withdrawals: z.array(withdrawalEntrySchema).default([]),

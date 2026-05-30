@@ -43,7 +43,7 @@ export function TaxableIncomeSection() {
               id="ssi_payout_age"
               type="number"
               min={62}
-              max={70}
+              max={100}
               {...form.register("ssi_payout_age", { valueAsNumber: true })}
               aria-invalid={!!form.formState.errors.ssi_payout_age}
             />
@@ -78,7 +78,7 @@ export function TaxableIncomeSection() {
                 id="spouse_ssi_payout_age"
                 type="number"
                 min={62}
-                max={70}
+                max={100}
                 {...form.register("spouse_ssi_payout_age", { valueAsNumber: true })}
                 aria-invalid={!!form.formState.errors.spouse_ssi_payout_age}
               />
