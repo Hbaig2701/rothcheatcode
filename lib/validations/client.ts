@@ -146,11 +146,15 @@ export const clientFormulaBaseSchema = z.object({
   // NaN-safe: HTML number inputs with valueAsNumber produce NaN for empty values
   spouse_ssi_payout_age: z.preprocess(
     (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
-    z.number().int().min(62).max(100).optional()
+    z.number()
+      .int("Spouse SS payout age must be a whole number")
+      .min(62, "Spouse SS payout age must be 62 or higher (Social Security's minimum claim age)")
+      .max(100, "Spouse SS payout age must be 100 or below — if they're already claiming, use the age they actually started")
+      .optional()
   ),
   spouse_ssi_annual_amount: z.preprocess(
     (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
-    z.number().int().min(0).optional()
+    z.number().int().min(0, "Spouse SS annual amount must be zero or positive").optional()
   ),
   non_ssi_income: z.array(nonSSIIncomeEntrySchema).default([]),
   withdrawals: z.array(withdrawalEntrySchema).default([]),
@@ -324,8 +328,12 @@ export const clientFullBaseSchema = z.object({
   gi_conversion_bracket: z.number().min(0).max(40).default(24),
 
   // Spouse SSI fields
-  spouse_ssi_payout_age: z.number().int().min(62).max(100).optional().nullable(),
-  spouse_ssi_annual_amount: z.number().int().min(0).optional().nullable(),
+  spouse_ssi_payout_age: z.number()
+    .int("Spouse SS payout age must be a whole number")
+    .min(62, "Spouse SS payout age must be 62 or higher (Social Security's minimum claim age)")
+    .max(100, "Spouse SS payout age must be 100 or below — if they're already claiming, use the age they actually started")
+    .optional().nullable(),
+  spouse_ssi_annual_amount: z.number().int().min(0, "Spouse SS annual amount must be zero or positive").optional().nullable(),
 
   // Taxable income fields
   gross_taxable_non_ssi: z.number().int().min(0).optional().nullable(),

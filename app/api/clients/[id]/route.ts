@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { clientFullPartialSchema } from "@/lib/validations/client";
 import { getVisibleUserIds } from "@/lib/auth/visibleUserIds";
+import { translateDbError } from "@/lib/utils/db-errors";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -143,7 +144,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 });
     }
     console.error("Error updating client:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const friendly = translateDbError(error);
+    // 23xxx = integrity_constraint_violation family — the user can fix it.
+    const status = error.code?.startsWith("23") ? 400 : 500;
+    return NextResponse.json({ error: friendly }, { status });
   }
 
   const extractScenarioName = (val: any) => {

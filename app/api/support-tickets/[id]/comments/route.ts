@@ -54,11 +54,25 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  // Bump ticket updated_at by touching status to itself? Cheaper: update updated_at via trigger.
-  // The updated_at trigger only fires on UPDATE of support_tickets, so do a no-op update.
+  // Admin comments on an Open ticket auto-promote it to In Progress so the
+  // support queue reflects what's actually been triaged. One-way ratchet:
+  // we only transition open → in_progress, never reverse a more advanced
+  // state (a reply on a Resolved ticket leaves it Resolved). Advisor replies
+  // don't auto-transition either — re-opening is an explicit action.
+  const { data: ticketCurrent } = await supabase
+    .from('support_tickets')
+    .select('status')
+    .eq('id', id)
+    .maybeSingle()
+  const shouldAutoPromote = userIsAdmin && ticketCurrent?.status === 'open'
+
+  const ticketUpdate: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (shouldAutoPromote) {
+    ticketUpdate.status = 'in_progress'
+  }
   await supabase
     .from('support_tickets')
-    .update({ updated_at: new Date().toISOString() })
+    .update(ticketUpdate)
     .eq('id', id)
 
   // Audit event
@@ -69,6 +83,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     old_value: null,
     new_value: null,
   })
+  if (shouldAutoPromote) {
+    await supabase.from('support_ticket_events').insert({
+      ticket_id: id,
+      user_id: user.id,
+      event_type: 'status_change',
+      old_value: 'open',
+      new_value: 'in_progress',
+    })
+  }
 
   // In-app notification + email: when an admin posts a public reply, the
   // advisor who owns the ticket gets both a bell notification AND a

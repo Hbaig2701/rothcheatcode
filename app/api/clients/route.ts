@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clientFullSchema } from "@/lib/validations/client";
 import { checkClientLimit } from "@/lib/usage";
 import { isGuaranteedIncomeProduct } from "@/lib/config/products";
+import { translateDbError } from "@/lib/utils/db-errors";
 
 // GET /api/clients - List all clients for the authenticated user
 export async function GET(request: NextRequest) {
@@ -185,7 +186,9 @@ export async function POST(request: NextRequest) {
 
   if (error) {
     console.error("Error creating client:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const friendly = translateDbError(error);
+    const status = error.code?.startsWith("23") ? 400 : 500;
+    return NextResponse.json({ error: friendly }, { status });
   }
 
   return NextResponse.json(data, { status: 201 });
