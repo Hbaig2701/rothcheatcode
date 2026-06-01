@@ -182,6 +182,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
           <MessageBubble
             key={m.id}
             message={{
+              id: m.id,
               role: m.role,
               content: m.content,
               attachment_url: m.attachment_url,

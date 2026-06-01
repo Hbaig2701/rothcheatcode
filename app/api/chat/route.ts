@@ -19,10 +19,12 @@
  */
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getAnthropic, CHAT_MODEL_DEFAULT, computeMessageCost } from "@/lib/chat/anthropic";
 import { buildSystemPrompt } from "@/lib/chat/system-prompt";
 import { CHAT_TOOLS, runTool, getToolStatusLabel } from "@/lib/chat/tools";
 import { parseDataUrl } from "@/lib/chat/attachments";
+import { scanAssistantTextForHallucinations } from "@/lib/chat/hallucination-guard";
 import { hasActiveSubscription } from "@/lib/auth/requireActiveSubscription";
 import type { ChatContentBlock } from "@/lib/types/chat";
 
@@ -393,6 +395,31 @@ export async function POST(req: NextRequest) {
           lastAssistantMessageId = insertedAssistant?.id ?? lastAssistantMessageId;
           currentIterRowPersisted = true;
 
+          // Post-response hallucination guard. We do NOT block the response;
+          // we just log known bad patterns (claiming form fields that don't
+          // exist, mis-stating SSI age limits, referencing sections > 9)
+          // into chat_assistant_flags so the admin panel can surface them.
+          // Fire-and-forget — never let a guard failure break the user's chat.
+          // Uses the admin client because chat_assistant_flags is admin-only
+          // (no per-advisor INSERT policy by design).
+          if (lastAssistantMessageId && iterText) {
+            const flags = scanAssistantTextForHallucinations(iterText);
+            if (flags.length > 0) {
+              const adminForFlags = createAdminClient();
+              adminForFlags
+                .from("chat_assistant_flags")
+                .insert({
+                  message_id: lastAssistantMessageId,
+                  conversation_id: conversationId,
+                  user_id: user.id,
+                  flags,
+                })
+                .then(({ error }) => {
+                  if (error) console.error("[hallucination-guard] insert failed", error.message);
+                });
+            }
+          }
+
           if (finalStopReason !== "tool_use") {
             // end_turn (or max_tokens) — done.
             break;
@@ -438,8 +465,15 @@ export async function POST(req: NextRequest) {
         // If the model escalated to a ticket during this turn, stamp the
         // last assistant row with the ticket id so the UI bubble can render
         // "Filed support ticket — view it →".
+        //
+        // chat_messages has NO RLS UPDATE policy (intentional, immutable
+        // audit log), so this targeted single-column annotation goes through
+        // the admin client. Without this, the UPDATE here was silently
+        // dropped — every bot-filed ticket was missing the message linkage
+        // on refresh.
         if (sideEffects.ticketId && lastAssistantMessageId) {
-          await supabase
+          const adminForTicketStamp = createAdminClient();
+          await adminForTicketStamp
             .from("chat_messages")
             .update({ created_ticket_id: sideEffects.ticketId })
             .eq("id", lastAssistantMessageId);

@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:report": "npx tsx lib/calculations/__tests__/report-fixtures.test.ts"
+    "test:report": "npx tsx lib/calculations/__tests__/report-fixtures.test.ts",
+    "generate-ui-map": "npx tsx scripts/generate-ui-map.ts"
   },
   "dependencies": {
     "@ag-media/react-pdf-table": "^2.0.3",

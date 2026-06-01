@@ -24,11 +24,19 @@
  * off cheaply. Split into a second doc if it ever needs to grow much.
  */
 
+import { GENERATED_UI_MAP } from "./generated/ui-map";
+
 export const KNOWLEDGE_BASE = `# Retirement Expert - How the platform works
 
 ## CRITICAL: Use only UI labels from the UI Map below
 
 When pointing an advisor to anything in the UI - a page, a button, a tab, a section, a column - use ONLY the exact labels listed in the "UI Map" section below. Do not invent names ("New Account", "Reports tab", "Generate Report button") that aren't in the map. If you're not sure what something is called, describe it by location ("scroll down to the AUM Allocation section of the client form", "the gold pill in the top-right of the Clients page") instead of guessing a name. Inventing UI labels is the fastest way to confuse the advisor and erode their trust.
+
+## CRITICAL: The generated field map below is the source of truth
+
+The "Form sections (GENERATED FROM SOURCE)" block below is auto-extracted from the React form components and Zod validators in this codebase. If a field name or numeric range is NOT listed there, it does NOT exist in the form — do not invent one. If you've seen the field discussed elsewhere in this prompt and it isn't in the generated map, the generated map wins. Past hallucinations the bot has produced and that this map prevents: claiming Section 2 has a "Roth balance" input (it doesn't); claiming SSI payout age maxes out at 70 or 83 (real range is 62–100); telling advisors to scroll inside a section to find a field that the section doesn't render.
+
+${GENERATED_UI_MAP}
 
 ## UI Map (exact labels)
 
@@ -51,7 +59,7 @@ When pointing an advisor to anything in the UI - a page, a button, a tab, a sect
 
 **Client form sections** (the \`/clients/new\` page, top to bottom — there are 9 numbered sections, NOT 8):
 1. "1. Client Data" - scenario name, name, age, filing status, state, spouse
-2. "2. Current Account Data" - **Qualified Account Value** (the field label — represents the Traditional IRA / 401(k) / qualified balance), Roth balance, taxable account. If an advisor searches for "Traditional IRA balance" they won't find a field by that name — point them at "Qualified Account Value".
+2. "2. Current Account Data" - **Qualified Account Value** is the ONLY input in this section. It represents the Traditional IRA / 401(k) / qualified balance. The form does NOT have a separate Roth IRA input or Taxable Account input today — those fields exist in the database schema but are not surfaced in the main client form (\`/clients/new\`). If an advisor asks where to enter Roth or taxable balances, do NOT tell them to scroll inside Section 2 looking for them — the fields are not there. For Growth FIA products the engine assumes Roth starts at $0 and is built up via conversions, so a starting Roth balance is not used. For Guaranteed Income or legacy products where the engine does read \`roth_ira\`, the only path to enter it today is the client-facing intake link (the "Generate client questionnaire" option on the Clients page). If an advisor searches for "Traditional IRA balance" they won't find a field by that name — point them at "Qualified Account Value".
 3. "3. New Account Data" - insurance product details (carrier, product, bonus, surrender) and Rate of Return
 4. "4. Tax Data" - current bracket, state tax, the **Tax Payment Source** dropdown (labels: "External (from taxable accounts)" / "Internal (from IRA)"), the **Constraint** dropdown (None / Bracket Ceiling / IRMAA Threshold / Fixed Amount — this is what controls IRMAA-aware sizing, NOT section 6), and the **RMD Treatment (Baseline)** dropdown for Growth products (Spent on Living Expenses / Reinvested (Taxable Brokerage) / Sits in Cash (No Growth))
 5. "5. Taxable Income Calculation" - Social Security, pension, other taxable + tax-exempt income; custom income line items can be added/removed
@@ -334,6 +342,12 @@ Of the five Growth presets, only **High-Bonus Long-Term Growth** and **High-Bonu
 
 **"What's the Anniversary Bonus on Phased Bonus Growth?"**
 Phased Bonus Growth adds 4% to the contract value on each of the first 3 contract anniversaries (separate from any upfront premium bonus). The engine applies this automatically. Custom Products can set their own anniversary % and number of years.
+
+**"What age can I enter for SSI Next Payout Age / Spouse SSI Next Payout Age?"**
+The allowed range is **62 to 100, inclusive** (set in the Zod validator and the DB constraint). 62 is the SSA minimum claim age. 100 is the upper bound that covers clients already claiming, retroactive entries, and clients who delayed past 70 (allowed by SSA with no benefit increase). Do NOT guess different limits — the bot has hallucinated "max 70" and "max 83" in past conversations; both were wrong and frustrated the advisor. If a client is already collecting SS, enter the age they actually started; if unsure, use the Full Retirement Age (typically 67) or any age ≤ their current age. The engine just compares \`currentAge >= ssStartAge\` to start the income stream, so any in-range value at or below their current age produces the same forward-looking result.
+
+**"What does End Age mean / what should I set it to?"**
+End Age (in section "9. Advanced Data") is the **final calendar year the projection models** — NOT "one year past the client's current age" and NOT a life event. For a Roth conversion / wealth-transfer plan, set End Age to a realistic life expectancy (commonly 90–100), not to next year. Setting End Age to, say, 84 for an 83-year-old client makes the projection ONE year long — which is almost never what the advisor wants. Default is 100, which is appropriate for most plans. Only lower it if the advisor has a specific reason (terminal illness, advisor-defined planning horizon).
 
 ## When to escalate to a support ticket
 

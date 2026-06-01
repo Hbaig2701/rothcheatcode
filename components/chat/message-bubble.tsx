@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { ThumbsDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ChatMessage } from "@/lib/types/chat";
 
@@ -29,6 +30,9 @@ interface MessageBubbleProps {
   // Subset of ChatMessage that the bubble needs to render. Stream-in-progress
   // messages aren't persisted yet, so we accept a lighter shape too.
   message: {
+    // The chat_messages.id (only set on persisted rows). When present, the
+    // thumbs-down button is enabled and uses this id to file feedback.
+    id?: string;
     role: ChatMessage["role"];
     content: string;
     attachment_url?: string | null;
@@ -172,6 +176,66 @@ export function MessageBubble({ message, streaming, thinking }: MessageBubblePro
           Filed support ticket on your behalf — view it →
         </a>
       )}
+      {/* Thumbs-down: only on persisted final assistant messages (no streaming,
+          has an id, has actual text content). One-click → fires off the
+          conversation transcript as a support ticket. Idempotent on the server. */}
+      {!isUser && !streaming && message.id && message.content?.trim().length > 0 && !isPersistedIntermediate && (
+        <ThumbsDownFeedbackButton messageId={message.id} alreadyTicketed={!!message.created_ticket_id} />
+      )}
     </div>
+  );
+}
+
+function ThumbsDownFeedbackButton({ messageId, alreadyTicketed }: { messageId: string; alreadyTicketed: boolean }) {
+  const [state, setState] = useState<"idle" | "submitting" | "submitted" | "error">("idle");
+
+  // If the message already has a ticket (either filed by the bot or via a
+  // prior thumbs-down), don't show the button — the affordance above
+  // already covers it.
+  if (alreadyTicketed) return null;
+
+  async function handleClick() {
+    if (state === "submitting" || state === "submitted") return;
+    setState("submitting");
+    try {
+      const res = await fetch("/api/chat/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message_id: messageId }),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      setState("submitted");
+    } catch (err) {
+      console.error("[chat-feedback]", err);
+      setState("error");
+    }
+  }
+
+  if (state === "submitted") {
+    return (
+      <span className="text-xs text-text-muted italic">
+        Thanks - we filed this as a support ticket so the team can review.
+      </span>
+    );
+  }
+  if (state === "error") {
+    return (
+      <span className="text-xs text-red-500 italic">
+        Couldn&apos;t file the ticket. Please try again or open one manually from the Support page.
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={state === "submitting"}
+      title="This answer was wrong or unhelpful - flag it for the team"
+      className="text-xs text-text-muted hover:text-foreground inline-flex items-center gap-1 transition-colors disabled:opacity-50"
+    >
+      <ThumbsDown className="h-3 w-3" />
+      <span>{state === "submitting" ? "Sending..." : "This was wrong"}</span>
+    </button>
   );
 }
