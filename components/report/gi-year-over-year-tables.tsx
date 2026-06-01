@@ -34,6 +34,10 @@ const TABS: Tab[] = [
 
 const formatCurrency = (value: number): string => {
   if (value === 0) return "0";
+  // Infinity = top federal bracket has no ceiling. Render em-dash so the
+  // "Max Bracket(37%)" column doesn't show "$∞" — same fix as the growth
+  // tables and the PDF formatter (Jorge Tola report bug).
+  if (!Number.isFinite(value)) return "—";
   const dollars = value / 100;
   return new Intl.NumberFormat("en-US", {
     style: "decimal",

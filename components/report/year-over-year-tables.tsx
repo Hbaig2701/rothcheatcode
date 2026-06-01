@@ -33,6 +33,10 @@ const TABS: Tab[] = [
 // Helper: Format currency (values are in cents)
 const formatCurrency = (value: number): string => {
   if (value === 0) return "0";
+  // Infinity is what getBracketCeiling() returns for the 37% top bracket
+  // (no ceiling above it). Without this guard the "Max Bracket(37%)" column
+  // renders "$∞" — same display bug Jorge Tola hit in the PDF.
+  if (!Number.isFinite(value)) return "—";
   const dollars = value / 100;
   return new Intl.NumberFormat("en-US", {
     style: "decimal",

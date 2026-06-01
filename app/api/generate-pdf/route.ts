@@ -306,6 +306,12 @@ interface TemplateData {
 
 function formatCurrency(cents: number): string {
   if (cents === 0) return '$0';
+  // Infinity sneaks in via getBracketCeiling() when max_tax_rate = 37 (the
+  // top federal bracket has no upper bound). Without this guard the PDF's
+  // "Max Tax Bracket (37%)" column renders "$∞" for every row, which Jorge
+  // Tola flagged as "the numbers don't appear" on Fred Schafer's report.
+  // Em-dash matches the same totals-row convention already in the template.
+  if (!Number.isFinite(cents)) return '—';
   const dollars = cents / 100;
   return '$' + new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(dollars);
 }
