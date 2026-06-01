@@ -21,6 +21,17 @@ export const profileSchema = z.object({
 export type ProfileFormData = z.infer<typeof profileSchema>;
 
 // ============================================================================
+// Appearance / preferences (no dedicated tab schema — these are stored on
+// user_settings and edited from the Appearance tab alongside the theme).
+// ============================================================================
+
+export const preferencesSchema = z.object({
+  chat_widget_enabled: z.boolean().optional(),
+});
+
+export type PreferencesFormData = z.infer<typeof preferencesSchema>;
+
+// ============================================================================
 // Security Tab
 // ============================================================================
 

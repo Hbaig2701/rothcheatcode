@@ -5,6 +5,7 @@ import {
   profileSchema,
   businessSchema,
   defaultValuesSchema,
+  preferencesSchema,
 } from "@/lib/validations/settings";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +83,7 @@ export async function PUT(request: NextRequest) {
   const allowedSchema = profileSchema
     .merge(businessSchema.partial())
     .merge(defaultValuesSchema.partial())
+    .merge(preferencesSchema)
     .merge(z.object({ default_values: defaultValuesSchema.partial().optional() }))
     .partial();
   const parsed = allowedSchema.safeParse(updates);

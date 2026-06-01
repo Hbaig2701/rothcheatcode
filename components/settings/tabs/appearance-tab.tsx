@@ -1,10 +1,45 @@
 "use client";
 
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "@/components/providers/theme-provider";
 import { Sun, Moon } from "lucide-react";
 
+interface SettingsResponse {
+  chat_widget_enabled?: boolean;
+}
+
 export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
+  const qc = useQueryClient();
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: async (): Promise<SettingsResponse> => {
+      const res = await fetch("/api/settings");
+      if (!res.ok) throw new Error("Failed to load settings");
+      return res.json();
+    },
+  });
+
+  // Treat missing/undefined as enabled — keeps existing accounts opted in
+  // by default, matches the column default in the migration.
+  const chatEnabled = settings?.chat_widget_enabled !== false;
+  const [optimisticEnabled, setOptimisticEnabled] = useState<boolean | null>(null);
+  const effectiveEnabled = optimisticEnabled ?? chatEnabled;
+
+  const toggleMutation = useMutation({
+    mutationFn: async (next: boolean) => {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_widget_enabled: next }),
+      });
+      if (!res.ok) throw new Error("Failed to update preference");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["settings"] }),
+    onError: () => setOptimisticEnabled(null),
+  });
 
   return (
     <div className="space-y-8">
@@ -72,6 +107,48 @@ export function AppearanceTab() {
             )}
           </button>
         </div>
+      </div>
+
+      <div className="border-t border-border pt-8">
+        <p className="text-sm font-medium text-foreground mb-1">AI assistant</p>
+        <p className="text-xs text-muted-foreground mb-4 max-w-md">
+          The floating gold button in the bottom-right that opens the in-app assistant.
+          Turn it off to hide the button entirely.
+        </p>
+        <label
+          htmlFor="chat-widget-toggle"
+          className="flex items-center justify-between max-w-md rounded-lg border border-border p-4 cursor-pointer hover:border-primary/40 transition-colors"
+        >
+          <div className="space-y-0.5">
+            <p className="text-sm font-medium text-foreground">Show assistant launcher</p>
+            <p className="text-xs text-muted-foreground">
+              {effectiveEnabled
+                ? "Launcher appears on every page."
+                : "Launcher is hidden."}
+            </p>
+          </div>
+          <button
+            id="chat-widget-toggle"
+            type="button"
+            role="switch"
+            aria-checked={effectiveEnabled}
+            disabled={toggleMutation.isPending}
+            onClick={() => {
+              const next = !effectiveEnabled;
+              setOptimisticEnabled(next);
+              toggleMutation.mutate(next);
+            }}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors disabled:opacity-50 ${
+              effectiveEnabled ? "bg-primary" : "bg-muted"
+            }`}
+          >
+            <span
+              className={`inline-block size-5 transform rounded-full bg-white transition-transform ${
+                effectiveEnabled ? "translate-x-5" : "translate-x-0.5"
+              }`}
+            />
+          </button>
+        </label>
       </div>
     </div>
   );
