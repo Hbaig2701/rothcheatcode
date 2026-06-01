@@ -8,82 +8,84 @@ These are the exact sections rendered in the main client form (\`/clients/new\`)
 
 ## 1. Client Data
 Source: \`components/clients/sections/client-data.tsx\`
-- \`age\` (number, range: 18 to 100)
-- \`filing_status\`
-- \`name\` (number, range: 1 to 100)
-- \`scenario_name\` (number, range: −∞ to 100)
-- \`spouse_age\` (number, range: 18 to 100)
-- \`spouse_name\` (number, range: −∞ to 100)
+- **Age** (\`age\`) — number, range: 18 to 100
+- **Filing Status** (\`filing_status\`)
+- **Name** (\`name\`)
+- **Scenario Name (Optional)** (\`scenario_name\`)
+- **Spouse Age** (\`spouse_age\`) — number, range: 18 to 100
+- **Spouse Name** (\`spouse_name\`)
 
 ## 2. Current Account Data
 Source: \`components/clients/sections/current-account.tsx\`
-- \`qualified_account_value\` (number, range: 0 to +∞)
+- **Qualified Account Value** (\`qualified_account_value\`) — number, range: 0 to +∞
 
 ## 3. New Account Data
 Source: \`components/clients/sections/new-account.tsx\`
-- \`blueprint_type\`
-- \`bonus_percent\` (number, range: 0 to 100)
-- \`carrier_name\` (number, range: 1 to 100)
-- \`gi_conversion_bracket\` (number, range: 0 to 40)
-- \`gi_conversion_years\` (number, range: 1 to 15)
-- \`income_start_age\` (number, range: 55 to 80)
-- \`payout_option\`
-- \`payout_type\`
-- \`product_name\` (number, range: 1 to 100)
-- \`rate_of_return\` (number, range: 0 to 30)
-- \`roll_up_option\`
-- \`surrender_schedule\` (number, range: 0 to 100)
+_Insurance product details_
+- **Product Preset** (\`blueprint_type\`)
+- **Bonus %** (\`bonus_percent\`) — number, range: 0 to 100
+- **Carrier Name** (\`carrier_name\`)
+- **Conversion Tax Bracket** (\`gi_conversion_bracket\`) — number, range: 0 to 40
+- **Years to Convert Before GI Purchase** (\`gi_conversion_years\`) — number, range: 1 to 15
+- **Income Start Age** (\`income_start_age\`) — number, range: 55 to 80
+- **Payout Option** (\`payout_option\`)
+- **Payout Type** (\`payout_type\`)
+- **Product Name** (\`product_name\`)
+- **Rate of Return %** (\`rate_of_return\`) — number, range: 0 to 30
+- **Roll-Up Option** (\`roll_up_option\`)
+- \`surrender_schedule\`
 
 ## 4. Tax Data
 Source: \`components/clients/sections/tax-data.tsx\`
-- \`constraint_type\`
-- \`max_tax_rate\` (number, range: 0 to 100)
+- **Constraint** (\`constraint_type\`)
+- **Max Tax Rate** (\`max_tax_rate\`) — number, range: 0 to 100
 - \`penalty_free_scope\`
 - \`respect_penalty_free_limit\`
-- \`rmd_treatment\`
-- \`state\`
-- \`state_tax_rate\` (number, range: 0 to 100)
-- \`tax_payment_source\`
-- \`tax_rate\` (number, range: 0 to 100)
+- **RMD Treatment (Baseline)** (\`rmd_treatment\`)
+- **State** (\`state\`)
+- **State Tax** (\`state_tax_rate\`) — number, range: 0 to 100
+- **Tax Payment Source** (\`tax_payment_source\`)
+- **Current Bracket (informational)** (\`tax_rate\`) — number, range: 0 to 100
 
 ## 5. Taxable Income Calculation
 Source: \`components/clients/sections/taxable-income.tsx\`
-- \`spouse_ssi_annual_amount\` (number, range: 0 to +∞)
-- \`spouse_ssi_payout_age\` (number, range: 62 to 100)
-- \`ssi_annual_amount\` (number, range: 0 to +∞)
-- \`ssi_payout_age\` (number, range: 62 to 100)
+- **Annual Amount** (\`spouse_ssi_annual_amount\`) — number, range: 0 to +∞
+- **Next Payout Age** (\`spouse_ssi_payout_age\`) — number, range: 62 to 100
+- **Annual Amount** (\`ssi_annual_amount\`) — number, range: 0 to +∞
+- **Next Payout Age** (\`ssi_payout_age\`) — number, range: 62 to 100
 
 ## 6. Conversion
 Source: \`components/clients/sections/conversion.tsx\`
-- \`conversion_type\`
-- \`fixed_conversion_amount\` (number, range: 0 to +∞)
+- **Conversion Type** (\`conversion_type\`)
+- **Annual Conversion Amount** (\`fixed_conversion_amount\`) — number, range: 0 to +∞
 - \`protect_initial_premium\`
-- \`target_partial_amount\` (number, range: 0 to +∞)
+- **Total Amount to Convert** (\`target_partial_amount\`) — number, range: 0 to +∞
 
 ## 7. AUM Allocation (Optional)
 Source: \`components/clients/sections/aum-allocation.tsx\`
-- \`aum_allocation_percent\` (number, range: 0 to 100)
-- \`aum_dividend_yield\` (number, range: 0 to 20)
-- \`aum_fee_percent\` (number, range: 0 to 10)
-- \`aum_turnover_percent\` (number, range: 0 to 100)
-- \`aum_withdrawal_years\` (number, range: 1 to 30)
-- \`ltcg_rate\` (number, range: 0 to 50)
+- **% to AUM** (\`aum_allocation_percent\`) — number, range: 0 to 100
+- **Dividend yield (%/yr)** (\`aum_dividend_yield\`) — number, range: 0 to 20
+- **AUM fee (%/yr)** (\`aum_fee_percent\`) — number, range: 0 to 10
+- **Annual turnover (%)** (\`aum_turnover_percent\`) — number, range: 0 to 100
+- **Withdrawal years** (\`aum_withdrawal_years\`) — number, range: 1 to 30
+- **LTCG rate (%)** (\`ltcg_rate\`) — number, range: 0 to 50
 
 ## 8. IRA / Roth Withdrawals
 Source: \`components/clients/sections/roth-withdrawals.tsx\`
-- (no individual field inputs detected — likely a table or composite control)
+_Schedule voluntary withdrawals from the qualified buckets, in addition to RMDs and any Roth conversions._
+- (no individual field inputs detected — this section is rendered as a table or composite control; see the description above for what it does)
 
 ## 9. Advanced Data
 Source: \`components/clients/sections/advanced-data.tsx\`
-- \`baseline_comparison_rate\` (number, range: 0 to 30)
-- \`end_age\` (number, range: 55 to 120)
-- \`heir_tax_rate\` (number, range: 0 to 100)
-- \`penalty_free_percent\` (number, range: 0 to 100)
-- \`post_contract_rate\` (number, range: 0 to 30)
-- \`surrender_years\` (number, range: 0 to 20)
-- \`widow_analysis\`
-- \`widow_death_age\` (number, range: 60 to 100)
-- \`years_to_defer_conversion\` (number, range: 0 to 30)
+- **Baseline Comparison Rate** (\`baseline_comparison_rate\`) — number, range: 0 to 30
+- **End Age** (\`end_age\`) — number, range: 55 to 120
+- **Heir Tax Rate** (\`heir_tax_rate\`) — number, range: 0 to 100
+- **Penalty Free %** (\`penalty_free_percent\`) — number, range: 0 to 100
+- **Post Contract Rate** (\`post_contract_rate\`) — number, range: 0 to 30
+- **Surrender Years** (\`surrender_years\`) — number, range: 0 to 20
+- **Show Widow's Penalty** (\`widow_analysis\`)
+- **First-Death Age** (\`widow_death_age\`) — number, range: 60 to 100
+- **Years to Defer Conversion** (\`years_to_defer_conversion\`) — number, range: 0 to 30
 
 ## Orphan components — NOT rendered in the form
 

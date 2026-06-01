@@ -173,7 +173,7 @@ export function MessageBubble({ message, streaming, thinking }: MessageBubblePro
           href={`/support/${message.created_ticket_id}`}
           className="text-xs text-gold italic hover:underline inline-flex items-center gap-1"
         >
-          Filed support ticket on your behalf — view it →
+          Support ticket linked to this reply — view it →
         </a>
       )}
       {/* Thumbs-down: only on persisted final assistant messages (no streaming,

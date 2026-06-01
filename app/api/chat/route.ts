@@ -396,27 +396,31 @@ export async function POST(req: NextRequest) {
           currentIterRowPersisted = true;
 
           // Post-response hallucination guard. We do NOT block the response;
-          // we just log known bad patterns (claiming form fields that don't
-          // exist, mis-stating SSI age limits, referencing sections > 9)
-          // into chat_assistant_flags so the admin panel can surface them.
+          // we just log known bad patterns (non-existent form fields,
+          // mis-stated SSI age limits, section numbers > 9) into
+          // chat_assistant_flags so the admin panel can surface them.
           // Fire-and-forget — never let a guard failure break the user's chat.
           // Uses the admin client because chat_assistant_flags is admin-only
           // (no per-advisor INSERT policy by design).
           if (lastAssistantMessageId && iterText) {
             const flags = scanAssistantTextForHallucinations(iterText);
             if (flags.length > 0) {
-              const adminForFlags = createAdminClient();
-              adminForFlags
-                .from("chat_assistant_flags")
-                .insert({
-                  message_id: lastAssistantMessageId,
-                  conversation_id: conversationId,
-                  user_id: user.id,
-                  flags,
-                })
-                .then(({ error }) => {
-                  if (error) console.error("[hallucination-guard] insert failed", error.message);
-                });
+              try {
+                const adminForFlags = createAdminClient();
+                adminForFlags
+                  .from("chat_assistant_flags")
+                  .insert({
+                    message_id: lastAssistantMessageId,
+                    conversation_id: conversationId,
+                    user_id: user.id,
+                    flags,
+                  })
+                  .then(({ error }) => {
+                    if (error) console.error("[hallucination-guard] insert failed", error.message);
+                  });
+              } catch (err) {
+                console.error("[hallucination-guard] admin client unavailable", err);
+              }
             }
           }
 
@@ -464,19 +468,31 @@ export async function POST(req: NextRequest) {
 
         // If the model escalated to a ticket during this turn, stamp the
         // last assistant row with the ticket id so the UI bubble can render
-        // "Filed support ticket — view it →".
+        // "Support ticket linked to this reply" on refresh.
         //
         // chat_messages has NO RLS UPDATE policy (intentional, immutable
         // audit log), so this targeted single-column annotation goes through
-        // the admin client. Without this, the UPDATE here was silently
-        // dropped — every bot-filed ticket was missing the message linkage
-        // on refresh.
+        // the admin client. Without this, the UPDATE was silently dropped —
+        // every bot-filed ticket was missing the message linkage on refresh.
+        // We log failure paths loudly so a missing/misconfigured service-role
+        // env var doesn't slip through as another silent regression.
         if (sideEffects.ticketId && lastAssistantMessageId) {
-          const adminForTicketStamp = createAdminClient();
-          await adminForTicketStamp
-            .from("chat_messages")
-            .update({ created_ticket_id: sideEffects.ticketId })
-            .eq("id", lastAssistantMessageId);
+          try {
+            const adminForTicketStamp = createAdminClient();
+            const { error: stampError } = await adminForTicketStamp
+              .from("chat_messages")
+              .update({ created_ticket_id: sideEffects.ticketId })
+              .eq("id", lastAssistantMessageId);
+            if (stampError) {
+              console.error("[chat] bot-ticket stamp failed", {
+                messageId: lastAssistantMessageId,
+                ticketId: sideEffects.ticketId,
+                error: stampError.message,
+              });
+            }
+          } catch (err) {
+            console.error("[chat] admin client unavailable for ticket stamp", err);
+          }
         }
 
         await supabase

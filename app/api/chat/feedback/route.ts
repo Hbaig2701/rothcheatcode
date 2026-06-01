@@ -62,10 +62,29 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Only assistant messages can be flagged" }, { status: 400 });
   }
 
-  // Idempotency: if a ticket already exists for this message, don't make
-  // a second one. Surface the existing ticket id instead.
+  // Idempotency layer 1: if a ticket is already linked, return it. This is
+  // the common case after refresh — the bubble would already be showing the
+  // "View ticket" affordance, but the user may have refreshed twice and
+  // clicked again before that rendered. Cheap deduplication.
   if (msg.created_ticket_id) {
     return NextResponse.json({ ticket_id: msg.created_ticket_id, deduped: true });
+  }
+
+  // Idempotency layer 2: same advisor, same message_id, recent (<60s) ticket
+  // with our marker prefix. Catches the case where the previous request
+  // SUCCEEDED on the ticket insert but FAILED on the chat_messages stamp
+  // (admin client error, service-role env var missing, network blip). Without
+  // this check, a retry would create a duplicate ticket every time.
+  const sixtySecondsAgo = new Date(Date.now() - 60_000).toISOString();
+  const { data: recentDupes } = await supabase
+    .from("support_tickets")
+    .select("id, created_at")
+    .eq("user_id", user.id)
+    .gte("created_at", sixtySecondsAgo)
+    .like("description", `%chat_message_id:${messageId}%`)
+    .limit(1);
+  if (recentDupes && recentDupes.length > 0) {
+    return NextResponse.json({ ticket_id: recentDupes[0].id, deduped: true });
   }
 
   // Pull the surrounding transcript — the 10 messages around this one,
@@ -86,8 +105,11 @@ export async function POST(request: NextRequest) {
   const flaggedSnippet = (msg.content ?? "").trim().slice(0, 400);
   const subject = `Chat response flagged: "${flaggedSnippet.slice(0, 60)}${flaggedSnippet.length > 60 ? "..." : ""}"`;
 
+  // Stable marker the idempotency lookup above grep-matches against. Don't
+  // change the format without updating the .like() pattern.
+  const idempotencyMarker = `chat_message_id:${messageId}`;
   const description =
-    `[Advisor flagged a chat response via the thumbs-down button.]\n\n` +
+    `[Advisor flagged a chat response via the thumbs-down button. ${idempotencyMarker}]\n\n` +
     (note ? `Advisor's note:\n${note}\n\n` : "") +
     `Flagged message (assistant, ${msg.created_at}):\n${msg.content}\n\n` +
     `Conversation transcript:\n${transcript}`;
@@ -110,16 +132,31 @@ export async function POST(request: NextRequest) {
   }
 
   // Stamp the message with the ticket id so the chat bubble can render the
-  // "Filed support ticket - view it →" affordance. chat_messages has NO
-  // RLS UPDATE policy (intentional — it's an immutable audit log), so we
-  // use the admin client for this single-column annotation. The advisor
-  // owns the message (we verified above via the user-scoped SELECT) so
-  // this is safe.
-  const admin = createAdminClient();
-  await admin
-    .from("chat_messages")
-    .update({ created_ticket_id: ticket.id })
-    .eq("id", messageId);
+  // "Support ticket linked to this reply" affordance. chat_messages has NO
+  // RLS UPDATE policy (intentional, immutable audit log), so we use the
+  // admin client for this targeted single-column annotation. The advisor
+  // owns the message (verified above via the user-scoped SELECT).
+  //
+  // If the stamp fails, we still return success — the ticket DID get
+  // created, the advisor's button has shown "submitted" state, and the
+  // idempotency lookup above will prevent a duplicate if they retry.
+  // We log loudly so the admin can spot a misconfigured service role.
+  try {
+    const admin = createAdminClient();
+    const { error: stampError } = await admin
+      .from("chat_messages")
+      .update({ created_ticket_id: ticket.id })
+      .eq("id", messageId);
+    if (stampError) {
+      console.error("[chat-feedback] message stamp failed", {
+        messageId,
+        ticketId: ticket.id,
+        error: stampError.message,
+      });
+    }
+  } catch (err) {
+    console.error("[chat-feedback] admin client unavailable", err);
+  }
 
   return NextResponse.json({ ticket_id: ticket.id });
 }

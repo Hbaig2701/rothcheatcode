@@ -55,15 +55,103 @@ function extractTitle(src: string, fallback?: string): string {
   return "(no title found)";
 }
 
+// Many sections have a `description="..."` on <FormSection> that explains
+// what the section does. When the section is a composite control (no
+// individual <Controller> fields, like the withdrawals table), the
+// description is the only thing the bot has to go on — without it the
+// generated map just says "(no individual fields detected)" which is
+// useless for advisors asking how to use that section.
+function extractDescription(src: string): string | null {
+  const m = src.match(/<FormSection[\s\S]{0,400}?description=\{?"([^"]+)"/);
+  return m ? m[1].trim() : null;
+}
+
 // Extract every field NAME mentioned in a Controller name="..." or
 // register("...") call. These are the only ways react-hook-form fields are
-// wired in this codebase. We also catch the <Input id="..."/> pattern as a
-// fallback for simple inputs that don't use Controller.
+// wired in this codebase.
 function extractFieldNames(src: string): string[] {
   const names = new Set<string>();
   for (const m of src.matchAll(/name=["']([a-z_][a-z0-9_]*)["']/gi)) names.add(m[1]);
   for (const m of src.matchAll(/register\(\s*["']([a-z_][a-z0-9_]*)["']/gi)) names.add(m[1]);
   return Array.from(names).sort();
+}
+
+// Pair field names with the EXACT user-facing label rendered next to them.
+// We match <FieldLabel htmlFor="X">Label text</FieldLabel> patterns, since
+// the htmlFor attribute is keyed to the form field's `id`/`name`. Without
+// this, the generated map only knew `max_tax_rate` (the schema name), so
+// the bot would echo snake_case to advisors instead of "Max Tax Rate".
+// That violates the existing "plain language, no tech jargon" tone rule
+// and was the regression v1 of this generator shipped with.
+function extractFieldLabels(src: string): Map<string, string> {
+  const out = new Map<string, string>();
+  // Pass 1: explicit pairing via <FieldLabel htmlFor="foo">Label</FieldLabel>.
+  for (const m of src.matchAll(/<FieldLabel[^>]*\bhtmlFor=["']([^"']+)["'][^>]*>([\s\S]*?)<\/FieldLabel>/g)) {
+    const name = m[1];
+    const label = cleanLabelText(m[2]);
+    if (label) out.set(name, label);
+  }
+  // Pass 2: <Controller name="X"> followed (a few lines later, inside the
+  // render prop) by a bare <FieldLabel>Label</FieldLabel> with NO htmlFor —
+  // typical for radio groups (`tax_payment_source`, `conversion_type`) and
+  // checkbox clusters (`protect_initial_premium`). We walk FORWARD from each
+  // unlabelled `name=` to the next `name=` declaration (the boundary into a
+  // sibling field) and look for the first FieldLabel in that window. This
+  // prevents false pairing with a previous field's label.
+  const nameMatches = [...src.matchAll(/name=["']([a-z_][a-z0-9_]*)["']/g)];
+  for (let i = 0; i < nameMatches.length; i++) {
+    const m = nameMatches[i];
+    const name = m[1];
+    if (out.has(name)) continue;
+    const startIdx = (m.index ?? 0) + m[0].length;
+    // Window = from end of this name= to the start of the next name=
+    // (or end of file). Inner radio <input name="X">s have the same
+    // name as the outer Controller, so they'd be skipped by out.has(name).
+    // Bound the forward search at min(400 chars, next name= boundary). The
+    // 400-char cap keeps us inside the Controller's own render prop — going
+    // further drifts into the NEXT sibling field's UI and we mislabel.
+    // `surrender_schedule` is a custom composite with no FieldLabel of its
+    // own; without the cap, the forward search would borrow "Annual Rider
+    // Fee" from the next Controller and report it under surrender_schedule.
+    const nextNameIdx = i + 1 < nameMatches.length ? nameMatches[i + 1].index ?? src.length : src.length;
+    const endIdx = Math.min(nextNameIdx, startIdx + 400);
+    const window = src.slice(startIdx, endIdx);
+    const labelMatch = window.match(/<FieldLabel(?![^>]*htmlFor)[^>]*>([\s\S]*?)<\/FieldLabel>/);
+    if (!labelMatch) continue;
+    const label = cleanLabelText(labelMatch[1]);
+    if (label) out.set(name, label);
+  }
+  return out;
+}
+
+// Strip nested JSX expressions ({...}) and tags from a FieldLabel's children.
+// Source labels often look like:
+//   "Bonus % {isBonusLocked && (<Lock className=... />)}"
+// We want just "Bonus %". JSX expressions can nest, so we walk the string
+// with a brace counter rather than a naive regex.
+function cleanLabelText(raw: string): string {
+  let out = "";
+  let depth = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (c === "{") { depth++; continue; }
+    if (c === "}") { depth = Math.max(0, depth - 1); continue; }
+    if (depth === 0) out += c;
+  }
+  return out
+    .replace(/<[^>]+>/g, "")          // strip nested HTML/React tags
+    // Decode the small set of HTML entities JSX commonly emits in labels.
+    // Without this we'd render "Show Widow&apos;s Penalty" verbatim to the
+    // bot, which would then parrot the entity to advisors.
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")             // collapse whitespace
+    .replace(/[ \t]+([.,!?:])/g, "$1") // trim space before sentence punctuation
+    .trim();
 }
 
 // Parse the Zod schema for numeric ranges. Catches two shapes seen in
@@ -78,12 +166,13 @@ function extractFieldNames(src: string): string[] {
 function extractZodRanges(schemaSrc: string): Map<string, { min?: number; max?: number }> {
   const out = new Map<string, { min?: number; max?: number }>();
   // Match the start of a field assignment at indent ≥ 2 spaces. Captures
-  // the field name; we then read until the matching balance closes.
+  // the field name; we then read until the matching balance closes. The
+  // captured `value` is everything after `z.` up to the field's terminating
+  // comma at depth 0.
   const startRegex = /(?:^|\n)\s{2,}([a-z_][a-z0-9_]*)\s*:\s*z\./g;
   for (const m of schemaSrc.matchAll(startRegex)) {
     const name = m[1];
     const startIdx = (m.index ?? 0) + m[0].length;
-    // Read until the comma that closes this field at the field's own depth.
     let depth = 0;
     let i = startIdx;
     while (i < schemaSrc.length) {
@@ -91,10 +180,24 @@ function extractZodRanges(schemaSrc: string): Map<string, { min?: number; max?: 
       if (c === "(" || c === "{" || c === "[") depth++;
       else if (c === ")" || c === "}" || c === "]") depth--;
       else if (c === "," && depth === 0) break;
-      else if (c === "\n" && depth === 0) break; // bare-line field end
+      else if (c === "\n" && depth === 0) break;
       i++;
     }
     const value = schemaSrc.slice(startIdx, i);
+    // CRITICAL: only emit numeric ranges for fields actually typed as
+    // a *single* number. v1 shipped with two bugs:
+    //   1. `z.string().min(1).max(100)` → reported as "number, range 1-100"
+    //   2. `z.array(z.number().min(0).max(100))` → reported as a scalar with
+    //      that range, when it's actually an array of percents
+    // We accept only:
+    //   - "number(" at the very start (primary case: z.number()...)
+    //   - "preprocess(" at the start AND z.number() somewhere inside its
+    //     args (the NaN-safe SS payout age pattern)
+    // Anything starting with "string", "array", "enum", "boolean", "object",
+    // "tuple", "record", "union", "literal", etc. is rejected.
+    const startsWithNumber = value.startsWith("number(");
+    const isPreprocessedNumber = value.startsWith("preprocess(") && /\bz\.number\(/.test(value);
+    if (!startsWithNumber && !isPreprocessedNumber) continue;
     const minMatch = value.match(/\.min\(\s*(-?\d+)/);
     const maxMatch = value.match(/\.max\(\s*(-?\d+)/);
     if (minMatch || maxMatch) {
@@ -144,20 +247,29 @@ function generate(): string {
     // Titles already start with their own number prefix ("1. Client Data"),
     // so we use them as-is rather than double-numbering.
     const title = extractTitle(src, s.fallbackTitle);
+    const description = extractDescription(src);
     const fields = extractFieldNames(src);
+    const labels = extractFieldLabels(src);
     lines.push(`## ${title}`);
     lines.push(`Source: \`${s.file}\``);
+    if (description) lines.push(`_${description}_`);
     if (fields.length === 0) {
-      lines.push("- (no individual field inputs detected — likely a table or composite control)");
+      lines.push("- (no individual field inputs detected — this section is rendered as a table or composite control; see the description above for what it does)");
     } else {
       for (const f of fields) {
+        const label = labels.get(f);
         const r = ranges.get(f);
+        // Format: **Label** (schema_name, optional range). Bot is expected to
+        // say "Max Tax Rate" to the advisor, not "max_tax_rate" — the schema
+        // name is parenthetical so the bot can still match advisor questions
+        // that mention the underlying key.
+        const head = label ? `**${label}** (\`${f}\`)` : `\`${f}\``;
         if (r) {
           const minStr = r.min !== undefined ? r.min : "−∞";
           const maxStr = r.max !== undefined ? r.max : "+∞";
-          lines.push(`- \`${f}\` (number, range: ${minStr} to ${maxStr})`);
+          lines.push(`- ${head} — number, range: ${minStr} to ${maxStr}`);
         } else {
-          lines.push(`- \`${f}\``);
+          lines.push(`- ${head}`);
         }
       }
     }
