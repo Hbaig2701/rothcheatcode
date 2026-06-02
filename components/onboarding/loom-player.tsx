@@ -147,7 +147,21 @@ export function LoomPlayer({ src, title }: LoomPlayerProps) {
         <div style={{ position: "relative", paddingBottom: "56.470588235294116%", height: 0 }}>
           <iframe
             src={src}
+            // Modern Loom embeds need explicit feature-policy grants to
+            // initialise the player when embedded cross-origin. Without
+            // these the iframe loads but Loom's React app falls into its
+            // generic "Sorry, something went wrong" state. Granting the
+            // standard video-embed feature set (autoplay, fullscreen,
+            // encrypted-media, picture-in-picture, web-share, plus
+            // accelerometer/gyroscope which Loom probes during init)
+            // restores playback for users whose browsers enforce these
+            // permissions strictly.
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture; web-share"
             allowFullScreen
+            // referrerpolicy matters for some workspace-level embed checks.
+            // strict-origin sends the origin without the path, which is
+            // what most third-party embed permissions key off of.
+            referrerPolicy="strict-origin"
             style={{
               position: "absolute",
               top: 0,
@@ -159,6 +173,19 @@ export function LoomPlayer({ src, title }: LoomPlayerProps) {
             title={title ?? "Onboarding video"}
           />
         </div>
+      </div>
+
+      <div className="mt-3 text-xs text-text-dim">
+        Trouble loading the video?{" "}
+        <a
+          href={src.replace("/embed/", "/share/").split("?")[0]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-gold underline hover:no-underline"
+        >
+          Open it directly on Loom
+        </a>{" "}
+        in a new tab.
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-4">
