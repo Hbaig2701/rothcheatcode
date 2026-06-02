@@ -2,6 +2,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { PlayCircle, ArrowLeft, Clock, BookOpen, Video } from "lucide-react";
+import { LoomPlayer } from "@/components/onboarding/loom-player";
+
+const LOOM_EMBED_URL =
+  "https://www.loom.com/embed/bd3597328d384a0e8b444e5975713a46?hide_owner=true&hide_share=true&hide_title=true&hideEmbedTopBar=true";
 
 export const dynamic = "force-dynamic";
 
@@ -46,24 +50,10 @@ export default async function OnboardingVideoPage() {
         </div>
       </div>
 
-      {/* Loom embed — responsive 16:9-ish aspect ratio per Loom's snippet */}
-      <div className="rounded-[14px] overflow-hidden border border-border-default bg-bg-card shadow-lg">
-        <div style={{ position: "relative", paddingBottom: "56.470588235294116%", height: 0 }}>
-          <iframe
-            src="https://www.loom.com/embed/bd3597328d384a0e8b444e5975713a46"
-            allowFullScreen
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              border: 0,
-            }}
-            title="Retirement Expert onboarding video"
-          />
-        </div>
-      </div>
+      {/* Loom embed via LoomPlayer client component — tracks engagement
+          + completion against /api/onboarding so we can fill the
+          first-login modal and the admin funnel. */}
+      <LoomPlayer src={LOOM_EMBED_URL} title="Retirement Expert onboarding video" />
 
       <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
         <Link

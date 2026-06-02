@@ -8,6 +8,7 @@ import { PaymentFailedBanner } from '@/components/payment-failed-banner'
 import { PaymentWallModal } from '@/components/payment-wall-modal'
 import { NotificationBell } from '@/components/notifications/notification-bell'
 import { ChatWidget } from '@/components/chat/chat-widget'
+import { OnboardingModal } from '@/components/onboarding/onboarding-modal'
 
 export default async function DashboardLayout({
   children,
@@ -122,6 +123,10 @@ export default async function DashboardLayout({
 
       {/* In-app AI assistant — floating launcher + drawer at bottom-right. */}
       <ChatWidget />
+
+      {/* First-login onboarding takeover. Renders nothing once the
+          advisor has either watched the video or dismissed the modal. */}
+      <OnboardingModal />
     </SidebarProvider>
   )
 }
