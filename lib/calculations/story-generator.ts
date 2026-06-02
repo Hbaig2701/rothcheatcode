@@ -94,12 +94,15 @@ export function generateStory(
   // year for a 75-year-old whose ssi_payout_age = 69 emits "Social Security
   // Begins" in year 1, which reads as inaccurate ("they've been collecting
   // for six years already, it doesn't 'begin' now"). Greg Stopp flagged
-  // this for Dr. Michael Policar and his wife. We rely on client.age /
-  // client.spouse_age as the projection-start ages.
+  // this for Dr. Michael Policar and his wife.
+  //
+  // Uses strict `>` (not `>=`) so a client whose CURRENT age equals their
+  // claim age still gets the milestone — they really are starting SS this
+  // projection year, and "begins this year" is accurate for them.
   const clientAgeAtStart = client.age ?? 0;
   const spouseAgeAtStart = client.spouse_age ?? 0;
-  let ssStarted = clientAgeAtStart >= (client.ssi_payout_age ?? 67);
-  let spouseSsStarted = spouseAgeAtStart >= (client.spouse_ssi_payout_age ?? 67);
+  let ssStarted = clientAgeAtStart > (client.ssi_payout_age ?? 67);
+  let spouseSsStarted = spouseAgeAtStart > (client.spouse_ssi_payout_age ?? 67);
 
   // Calculate totals upfront
   const totalConversionYears = years.filter(y => y.conversionAmount > 0).length;

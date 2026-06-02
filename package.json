@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:report": "npx tsx lib/calculations/__tests__/report-fixtures.test.ts",
     "test:chat-guard": "npx tsx scripts/test-hallucination-guard.ts",
+    "test:story-ss": "npx tsx scripts/test-ss-begins-edge-cases.ts",
     "generate-ui-map": "npx tsx scripts/generate-ui-map.ts"
   },
   "dependencies": {
