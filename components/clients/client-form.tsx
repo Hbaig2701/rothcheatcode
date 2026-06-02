@@ -174,7 +174,13 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       year: "Year",
       gross_taxable: "Gross Taxable Amount",
       tax_exempt: "Tax Exempt Amount",
-      non_ssi_income: "Non-SSI Income",
+      // Section-prefixed labels for array-shaped fields so the error list
+      // tells advisors exactly where to scroll to fix the rows. Without
+      // these, a row-level error like "Withdrawals Row 3: Year must be
+      // 2024 or later" doesn't point at Section 8 — Jorge Tola hit this
+      // and filed a ticket instead of finding the section himself.
+      non_ssi_income: "Section 5: Taxable Income",
+      withdrawals: "Section 8: IRA / Roth Withdrawals",
     };
 
     const getLabel = (key: string) => fieldLabels[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());

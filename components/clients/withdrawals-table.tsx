@@ -69,6 +69,18 @@ export function WithdrawalsTable() {
       setRecurringError("Start age must be ≤ end age");
       return;
     }
+    // Block fills that would compute years in the past. Without this guard,
+    // entering a start age below the client's current age generates rows
+    // dated 2019/2020/etc., which the Zod schema then rejects with eight
+    // separate "Year must be 2024 or later" messages on save. Jorge Tola
+    // hit this on a 62-year-old client when he typed start age 55 by mistake
+    // — opened a support ticket instead of scrolling down to fix the rows.
+    if (startAge < currentAge) {
+      setRecurringError(
+        `Start age can't be earlier than the client's current age (${currentAge}). Withdrawals can only be scheduled from today forward.`
+      );
+      return;
+    }
     if (recurringAmount == null || recurringAmount <= 0) {
       setRecurringError("Annual amount must be greater than zero");
       return;
