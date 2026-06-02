@@ -361,8 +361,12 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
     );
     if (maxReached > 0) return `${maxReached}%`;
     // Fall back to the configured ceiling if the engine didn't surface a
-    // marginal bracket on any conversion year (older projections).
-    const rate = client.tax_rate || client.max_tax_rate || 24;
+    // marginal bracket on any conversion year (older projections). The
+    // CEILING is max_tax_rate — tax_rate is the "Current Bracket" reference
+    // field which has no bearing on what the strategy targeted. v1 had the
+    // order reversed and would render "24%" when the advisor configured
+    // max_tax_rate=32.
+    const rate = client.max_tax_rate ?? client.tax_rate ?? 24;
     return `${rate}%`;
   };
 
@@ -598,7 +602,19 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   <p className="text-xs text-text-dim mb-2">Age {year.age}</p>
                   <p className="text-lg font-mono font-medium text-gold">{toUSD(year.conversionAmount)}</p>
                   <p className="text-xs text-text-dim mt-1">Convert</p>
-                  <p className="text-sm font-mono text-foreground mt-2">{client.tax_rate || 24}%</p>
+                  {/* Marginal federal bracket the engine actually reached in this
+                      conversion year. Falls back to the configured ceiling
+                      (max_tax_rate) for older cached projections that didn't
+                      surface federalTaxBracket per year. The previous version
+                      hardcoded client.tax_rate, which is the "Current Bracket
+                      (informational)" field — same number for every tile,
+                      regardless of where the engine actually landed. Greg
+                      Stopp flagged this on Policar's report (saw "24%" on
+                      every tile while the strategy summary correctly said
+                      "Stay in the 32% bracket"). */}
+                  <p className="text-sm font-mono text-foreground mt-2">
+                    {year.federalTaxBracket ?? client.max_tax_rate ?? 24}%
+                  </p>
                   <p className="text-xs text-text-dim">Bracket</p>
                 </div>
               ))}
