@@ -31,6 +31,8 @@ import { cn } from "@/lib/utils";
 import { useProducts } from "@/lib/queries/products";
 import { ARCHETYPE_LABELS } from "@/lib/products/types";
 import type { CustomProductRow, ProductArchetype } from "@/lib/products/types";
+import { FieldHelp } from "@/components/clients/field-help";
+import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
 // Encoded picker value: "system:<formula>" or "custom:<uuid>"
 const SYSTEM = "system:";
@@ -243,7 +245,10 @@ export function NewAccountSection() {
           return (
             <Field>
               <div className="flex items-center gap-2">
-                <FieldLabel htmlFor="blueprint_type">Product Preset</FieldLabel>
+                <FieldLabel htmlFor="blueprint_type" className="flex items-center gap-1.5">
+                  Product Preset
+                  <FieldHelp {...FIELD_HELP.blueprint_type} />
+                </FieldLabel>
                 <a
                   href="https://docs.google.com/document/d/1no9bs58mgqS97Bw_19pOoslGoALP0lz6/edit?usp=sharing&ouid=106247356235746651631&rtpof=true&sd=true"
                   target="_blank"
@@ -369,6 +374,7 @@ export function NewAccountSection() {
       <Field data-invalid={!!form.formState.errors.carrier_name}>
         <FieldLabel htmlFor="carrier_name" className="flex items-center gap-1.5">
           Carrier Name
+          <FieldHelp {...FIELD_HELP.carrier_name} />
           {isCarrierLocked && <Lock className="size-3 text-muted-foreground" />}
         </FieldLabel>
         <Input
@@ -385,6 +391,7 @@ export function NewAccountSection() {
       <Field data-invalid={!!form.formState.errors.product_name}>
         <FieldLabel htmlFor="product_name" className="flex items-center gap-1.5">
           Product Name
+          <FieldHelp {...FIELD_HELP.product_name} />
           {isProductLocked && <Lock className="size-3 text-muted-foreground" />}
         </FieldLabel>
         <Input
@@ -405,6 +412,7 @@ export function NewAccountSection() {
           <Field data-invalid={fieldState.invalid}>
             <FieldLabel htmlFor="bonus_percent" className="flex items-center gap-1.5">
               Bonus %
+              <FieldHelp {...FIELD_HELP.bonus_percent} />
               {isBonusLocked && <Lock className="size-3 text-muted-foreground" />}
             </FieldLabel>
             <PercentInput
@@ -515,7 +523,10 @@ export function NewAccountSection() {
         control={form.control}
         render={({ field: { ref, ...field }, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="rate_of_return">Rate of Return %</FieldLabel>
+            <FieldLabel htmlFor="rate_of_return" className="flex items-center gap-1.5">
+              Rate of Return %
+              <FieldHelp {...FIELD_HELP.rate_of_return} />
+            </FieldLabel>
             <PercentInput
               {...field}
               aria-invalid={fieldState.invalid}
@@ -536,7 +547,10 @@ export function NewAccountSection() {
               control={form.control}
               render={({ field }) => (
                 <Field>
-                  <FieldLabel htmlFor="roll_up_option">Roll-Up Option</FieldLabel>
+                  <FieldLabel htmlFor="roll_up_option" className="flex items-center gap-1.5">
+                    Roll-Up Option
+                    <FieldHelp {...FIELD_HELP.roll_up_option} />
+                  </FieldLabel>
                   <Select
                     value={field.value ?? "simple"}
                     onValueChange={(v) => field.onChange(v)}
@@ -567,7 +581,10 @@ export function NewAccountSection() {
               control={form.control}
               render={({ field }) => (
                 <Field>
-                  <FieldLabel htmlFor="payout_option">Payout Option</FieldLabel>
+                  <FieldLabel htmlFor="payout_option" className="flex items-center gap-1.5">
+                    Payout Option
+                    <FieldHelp {...FIELD_HELP.payout_option} />
+                  </FieldLabel>
                   <Select
                     value={field.value ?? "level"}
                     onValueChange={(v) => field.onChange(v)}
@@ -594,7 +611,10 @@ export function NewAccountSection() {
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel>Payout Type</FieldLabel>
+                <FieldLabel className="flex items-center gap-1.5">
+                  Payout Type
+                  <FieldHelp {...FIELD_HELP.payout_type} />
+                </FieldLabel>
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -625,7 +645,10 @@ export function NewAccountSection() {
 
           {/* Income Start Age */}
           <Field data-invalid={!!form.formState.errors.income_start_age}>
-            <FieldLabel htmlFor="income_start_age">Income Start Age</FieldLabel>
+            <FieldLabel htmlFor="income_start_age" className="flex items-center gap-1.5">
+              Income Start Age
+              <FieldHelp {...FIELD_HELP.income_start_age} />
+            </FieldLabel>
             <Input
               id="income_start_age"
               type="number"
@@ -640,7 +663,10 @@ export function NewAccountSection() {
 
           {/* GI Conversion Years */}
           <Field data-invalid={!!form.formState.errors.gi_conversion_years}>
-            <FieldLabel htmlFor="gi_conversion_years">Years to Convert Before GI Purchase</FieldLabel>
+            <FieldLabel htmlFor="gi_conversion_years" className="flex items-center gap-1.5">
+              Years to Convert Before GI Purchase
+              <FieldHelp {...FIELD_HELP.gi_conversion_years} />
+            </FieldLabel>
             <Input
               id="gi_conversion_years"
               type="number"
@@ -659,7 +685,10 @@ export function NewAccountSection() {
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel>Conversion Tax Bracket</FieldLabel>
+                <FieldLabel className="flex items-center gap-1.5">
+                  Conversion Tax Bracket
+                  <FieldHelp {...FIELD_HELP.gi_conversion_bracket} />
+                </FieldLabel>
                 <Select
                   value={field.value?.toString() || "24"}
                   onValueChange={(val) => field.onChange(Number(val))}

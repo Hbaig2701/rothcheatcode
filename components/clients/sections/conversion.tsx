@@ -7,6 +7,8 @@ import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui
 import { Checkbox } from "@/components/ui/checkbox";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
+import { FieldHelp } from "@/components/clients/field-help";
+import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
 const CONVERSION_TYPE_OPTIONS = [
   { value: "optimized_amount", label: "Optimized Amount", help: "Each year, fill up to the target tax bracket. Continues until the IRA is empty or the projection ends." },
@@ -34,7 +36,10 @@ export function ConversionSection() {
         control={form.control}
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel>Conversion Type</FieldLabel>
+            <FieldLabel className="flex items-center gap-1.5">
+              Conversion Type
+              <FieldHelp {...FIELD_HELP.conversion_type} />
+            </FieldLabel>
             <div className="space-y-2">
               {CONVERSION_TYPE_OPTIONS.map((option) => (
                 <label key={option.value} className="flex items-start gap-2 cursor-pointer">
@@ -64,7 +69,10 @@ export function ConversionSection() {
           control={form.control}
           render={({ field: { ref, value, onChange, ...field }, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="fixed_conversion_amount">Annual Conversion Amount</FieldLabel>
+              <FieldLabel htmlFor="fixed_conversion_amount" className="flex items-center gap-1.5">
+                Annual Conversion Amount
+                <FieldHelp {...FIELD_HELP.fixed_conversion_amount} />
+              </FieldLabel>
               <CurrencyInput
                 {...field}
                 value={value ?? 0}
@@ -85,7 +93,10 @@ export function ConversionSection() {
           control={form.control}
           render={({ field: { ref, value, onChange, ...field }, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="target_partial_amount">Total Amount to Convert</FieldLabel>
+              <FieldLabel htmlFor="target_partial_amount" className="flex items-center gap-1.5">
+                Total Amount to Convert
+                <FieldHelp {...FIELD_HELP.target_partial_amount} />
+              </FieldLabel>
               <CurrencyInput
                 {...field}
                 value={value ?? 0}
@@ -120,9 +131,10 @@ export function ConversionSection() {
             <div className="flex-1 min-w-0">
               <label
                 htmlFor="protect_initial_premium"
-                className="block text-sm font-medium cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium cursor-pointer"
               >
                 Protect Initial Premium
+                <FieldHelp {...FIELD_HELP.protect_initial_premium} />
               </label>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Prevent withdrawals from reducing original premium.

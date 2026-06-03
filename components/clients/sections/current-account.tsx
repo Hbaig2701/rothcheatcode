@@ -5,6 +5,8 @@ import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { FieldHelp } from "@/components/clients/field-help";
+import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
 export function CurrentAccountSection() {
   const form = useFormContext<ClientFormData>();
@@ -17,7 +19,10 @@ export function CurrentAccountSection() {
         control={form.control}
         render={({ field: { ref, ...field }, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="qualified_account_value">Qualified Account Value</FieldLabel>
+            <FieldLabel htmlFor="qualified_account_value" className="flex items-center gap-1.5">
+              Qualified Account Value
+              <FieldHelp {...FIELD_HELP.qualified_account_value} />
+            </FieldLabel>
             <CurrencyInput
               {...field}
               aria-invalid={fieldState.invalid}

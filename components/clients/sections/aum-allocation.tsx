@@ -7,6 +7,8 @@ import { FormSection } from "@/components/clients/form-section";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { FieldHelp } from "@/components/clients/field-help";
+import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
 /**
  * Section 7: AUM Allocation (optional)
@@ -43,9 +45,10 @@ export function AumAllocationSection() {
         <div className="flex-1 min-w-0">
           <label
             htmlFor="aum_allocation_enabled"
-            className="block text-sm font-medium cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-sm font-medium cursor-pointer"
           >
             Send part of the IRA to a managed brokerage account (AUM)
+            <FieldHelp {...FIELD_HELP.aum_allocation_enabled} />
           </label>
           <p className="text-sm text-muted-foreground mt-0.5">
             The Roth conversion runs on the remainder. Combined view shows the full strategy.
@@ -61,7 +64,10 @@ export function AumAllocationSection() {
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="aum_allocation_percent">% to AUM</FieldLabel>
+                <FieldLabel htmlFor="aum_allocation_percent" className="flex items-center gap-1.5">
+                  % to AUM
+                  <FieldHelp {...FIELD_HELP.aum_allocation_percent} />
+                </FieldLabel>
                 <Input
                   id="aum_allocation_percent"
                   type="number"
@@ -86,7 +92,10 @@ export function AumAllocationSection() {
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="aum_withdrawal_years">Withdrawal years</FieldLabel>
+                <FieldLabel htmlFor="aum_withdrawal_years" className="flex items-center gap-1.5">
+                  Withdrawal years
+                  <FieldHelp {...FIELD_HELP.aum_withdrawal_years} />
+                </FieldLabel>
                 <Input
                   id="aum_withdrawal_years"
                   type="number"
@@ -111,7 +120,10 @@ export function AumAllocationSection() {
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="aum_fee_percent">AUM fee (%/yr)</FieldLabel>
+                <FieldLabel htmlFor="aum_fee_percent" className="flex items-center gap-1.5">
+                  AUM fee (%/yr)
+                  <FieldHelp {...FIELD_HELP.aum_fee_percent} />
+                </FieldLabel>
                 <Input
                   id="aum_fee_percent"
                   type="number"
@@ -145,7 +157,10 @@ export function AumAllocationSection() {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="aum_dividend_yield">Dividend yield (%/yr)</FieldLabel>
+                    <FieldLabel htmlFor="aum_dividend_yield" className="flex items-center gap-1.5">
+                      Dividend yield (%/yr)
+                      <FieldHelp {...FIELD_HELP.aum_dividend_yield} />
+                    </FieldLabel>
                     <Input
                       id="aum_dividend_yield"
                       type="number"
@@ -166,7 +181,10 @@ export function AumAllocationSection() {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="aum_turnover_percent">Annual turnover (%)</FieldLabel>
+                    <FieldLabel htmlFor="aum_turnover_percent" className="flex items-center gap-1.5">
+                      Annual turnover (%)
+                      <FieldHelp {...FIELD_HELP.aum_turnover_percent} />
+                    </FieldLabel>
                     <Input
                       id="aum_turnover_percent"
                       type="number"
@@ -189,7 +207,10 @@ export function AumAllocationSection() {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="ltcg_rate">LTCG rate (%)</FieldLabel>
+                    <FieldLabel htmlFor="ltcg_rate" className="flex items-center gap-1.5">
+                      LTCG rate (%)
+                      <FieldHelp {...FIELD_HELP.ltcg_rate} />
+                    </FieldLabel>
                     <Input
                       id="ltcg_rate"
                       type="number"

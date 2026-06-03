@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Controller } from "react-hook-form";
+import { FieldHelp } from "@/components/clients/field-help";
+import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
 const FILING_STATUS_OPTIONS = [
   { value: "single", label: "Single" },
@@ -44,7 +46,10 @@ export function ClientDataSection() {
     <FormSection title="1. Client Data">
       {/* Scenario Name (Optional) */}
       <Field data-invalid={!!form.formState.errors.scenario_name}>
-        <FieldLabel htmlFor="scenario_name">Scenario Name (Optional)</FieldLabel>
+        <FieldLabel htmlFor="scenario_name" className="flex items-center gap-1.5">
+          Scenario Name (Optional)
+          <FieldHelp {...FIELD_HELP.scenario_name} />
+        </FieldLabel>
         <Input
           id="scenario_name"
           placeholder="e.g. Aggressive Strategy"
@@ -62,7 +67,10 @@ export function ClientDataSection() {
           const selectedOption = FILING_STATUS_OPTIONS.find(opt => opt.value === field.value);
           return (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="filing_status">Filing Status</FieldLabel>
+              <FieldLabel htmlFor="filing_status" className="flex items-center gap-1.5">
+                Filing Status
+                <FieldHelp {...FIELD_HELP.filing_status} />
+              </FieldLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger
                   id="filing_status"
@@ -89,7 +97,10 @@ export function ClientDataSection() {
 
       {/* Client Name */}
       <Field data-invalid={!!form.formState.errors.name}>
-        <FieldLabel htmlFor="name">Name</FieldLabel>
+        <FieldLabel htmlFor="name" className="flex items-center gap-1.5">
+          Name
+          <FieldHelp {...FIELD_HELP.name} />
+        </FieldLabel>
         <Input
           id="name"
           {...form.register("name")}
@@ -100,7 +111,10 @@ export function ClientDataSection() {
 
       {/* Client Age */}
       <Field data-invalid={!!form.formState.errors.age}>
-        <FieldLabel htmlFor="age">Age</FieldLabel>
+        <FieldLabel htmlFor="age" className="flex items-center gap-1.5">
+          Age
+          <FieldHelp {...FIELD_HELP.age} />
+        </FieldLabel>
         <Input
           id="age"
           type="number"
@@ -115,7 +129,10 @@ export function ClientDataSection() {
       {/* Spouse Name (Conditional) */}
       {isMarried && (
         <Field data-invalid={!!form.formState.errors.spouse_name} className="animate-in fade-in slide-in-from-top-1">
-          <FieldLabel htmlFor="spouse_name">Spouse Name</FieldLabel>
+          <FieldLabel htmlFor="spouse_name" className="flex items-center gap-1.5">
+            Spouse Name
+            <FieldHelp {...FIELD_HELP.spouse_name} />
+          </FieldLabel>
           <Input
             id="spouse_name"
             {...form.register("spouse_name")}
@@ -128,7 +145,10 @@ export function ClientDataSection() {
       {/* Spouse Age (Conditional) */}
       {isMarried && (
         <Field data-invalid={!!form.formState.errors.spouse_age} className="animate-in fade-in slide-in-from-top-1">
-          <FieldLabel htmlFor="spouse_age">Spouse Age</FieldLabel>
+          <FieldLabel htmlFor="spouse_age" className="flex items-center gap-1.5">
+            Spouse Age
+            <FieldHelp {...FIELD_HELP.spouse_age} />
+          </FieldLabel>
           <Input
             id="spouse_age"
             type="number"

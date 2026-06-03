@@ -23,6 +23,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { US_STATES, getDefaultStateTaxRate } from "@/lib/data/states";
 import { Lock, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FieldHelp } from "@/components/clients/field-help";
+import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
 const CONSTRAINT_OPTIONS = [
   { value: "none", label: "None" },
@@ -107,7 +109,10 @@ export function TaxDataSection() {
           const selectedOption = CONSTRAINT_OPTIONS.find(opt => opt.value === field.value);
           return (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="constraint_type">Constraint</FieldLabel>
+              <FieldLabel htmlFor="constraint_type" className="flex items-center gap-1.5">
+                Constraint
+                <FieldHelp {...FIELD_HELP.constraint_type} />
+              </FieldLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger
                   id="constraint_type"
@@ -139,7 +144,10 @@ export function TaxDataSection() {
         control={form.control}
         render={({ field: { ref, ...field }, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="tax_rate">Current Bracket (informational)</FieldLabel>
+            <FieldLabel htmlFor="tax_rate" className="flex items-center gap-1.5">
+              Current Bracket (informational)
+              <FieldHelp {...FIELD_HELP.tax_rate} />
+            </FieldLabel>
             <PercentInput
               {...field}
               aria-invalid={fieldState.invalid}
@@ -161,7 +169,10 @@ export function TaxDataSection() {
           const selectedOption = TAX_BRACKET_OPTIONS.find(opt => opt.value === field.value);
           return (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="max_tax_rate">Max Tax Rate</FieldLabel>
+              <FieldLabel htmlFor="max_tax_rate" className="flex items-center gap-1.5">
+                Max Tax Rate
+                <FieldHelp {...FIELD_HELP.max_tax_rate} />
+              </FieldLabel>
               <Select
                 value={field.value?.toString() ?? ""}
                 onValueChange={(val) => {
@@ -198,7 +209,10 @@ export function TaxDataSection() {
         control={form.control}
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
-            <FieldLabel>Tax Payment Source</FieldLabel>
+            <FieldLabel className="flex items-center gap-1.5">
+              Tax Payment Source
+              <FieldHelp {...FIELD_HELP.tax_payment_source} />
+            </FieldLabel>
             <div className="space-y-2">
               {TAX_SOURCE_OPTIONS.map((option) => (
                 <label key={option.value} className="flex items-center gap-2 cursor-pointer">
@@ -243,9 +257,10 @@ export function TaxDataSection() {
             <div className="flex-1 min-w-0">
               <label
                 htmlFor="respect_penalty_free_limit"
-                className="block text-sm font-medium cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-sm font-medium cursor-pointer"
               >
                 Respect Contract Penalty-Free Limit
+                <FieldHelp {...FIELD_HELP.respect_penalty_free_limit} />
               </label>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Caps each year&apos;s withdrawal at the carrier&apos;s
@@ -268,8 +283,9 @@ export function TaxDataSection() {
           control={form.control}
           render={({ field }) => (
             <div className="sm:col-span-2 lg:col-span-3 ml-7 mt-1 flex flex-col gap-2 border-l-2 border-border-default pl-4">
-              <span className="text-xs font-medium text-text-dim uppercase tracking-wider">
+              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-dim uppercase tracking-wider">
                 What counts toward the {form.watch("penalty_free_percent") ?? 10}% cap?
+                <FieldHelp {...FIELD_HELP.penalty_free_scope} />
               </span>
 
               <label className="flex items-start gap-2 cursor-pointer">
@@ -332,7 +348,10 @@ export function TaxDataSection() {
             const selectedOption = RMD_TREATMENT_OPTIONS.find(opt => opt.value === field.value);
             return (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="rmd_treatment">RMD Treatment (Baseline)</FieldLabel>
+                <FieldLabel htmlFor="rmd_treatment" className="flex items-center gap-1.5">
+                  RMD Treatment (Baseline)
+                  <FieldHelp {...FIELD_HELP.rmd_treatment} />
+                </FieldLabel>
                 <Select value={field.value} onValueChange={field.onChange}>
                   <SelectTrigger
                     id="rmd_treatment"
@@ -370,7 +389,10 @@ export function TaxDataSection() {
           const selectedState = US_STATES.find(s => s.code === field.value);
           return (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="state">State</FieldLabel>
+              <FieldLabel htmlFor="state" className="flex items-center gap-1.5">
+                State
+                <FieldHelp {...FIELD_HELP.state} />
+              </FieldLabel>
               <Select value={field.value} onValueChange={field.onChange}>
                 <SelectTrigger
                   id="state"
@@ -403,6 +425,7 @@ export function TaxDataSection() {
           <Field data-invalid={fieldState.invalid}>
             <FieldLabel htmlFor="state_tax_rate" className="flex items-center gap-1.5">
               State Tax
+              <FieldHelp {...FIELD_HELP.state_tax_rate} />
               {!isManualEdit && <Lock className="size-3 text-muted-foreground" />}
             </FieldLabel>
             <PercentInput

@@ -10,6 +10,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { isFieldLocked, isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import { Lock, LockOpen, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FieldHelp } from "@/components/clients/field-help";
+import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
 export function AdvancedDataSection() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -75,6 +77,7 @@ export function AdvancedDataSection() {
           <Field data-invalid={!!form.formState.errors.surrender_years}>
             <FieldLabel htmlFor="surrender_years" className="flex items-center gap-1.5">
               Surrender Years
+              <FieldHelp {...FIELD_HELP.surrender_years} />
               {isSurrenderLocked && <Lock className="size-3 text-muted-foreground" />}
               {overrideSurrender && surrenderCanOverride && (
                 <LockOpen className="size-3 text-amber-600 dark:text-amber-400" />
@@ -114,6 +117,7 @@ export function AdvancedDataSection() {
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="penalty_free_percent" className="flex items-center gap-1.5">
                   Penalty Free %
+                  <FieldHelp {...FIELD_HELP.penalty_free_percent} />
                   {isPenaltyFreeLocked && <Lock className="size-3 text-muted-foreground" />}
                   {overridePenaltyFree && penaltyFreeCanOverride && (
                     <LockOpen className="size-3 text-amber-600 dark:text-amber-400" />
@@ -151,7 +155,10 @@ export function AdvancedDataSection() {
               control={form.control}
               render={({ field: { ref, ...field }, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="baseline_comparison_rate">Baseline Comparison Rate</FieldLabel>
+                  <FieldLabel htmlFor="baseline_comparison_rate" className="flex items-center gap-1.5">
+                    Baseline Comparison Rate
+                    <FieldHelp {...FIELD_HELP.baseline_comparison_rate} />
+                  </FieldLabel>
                   <PercentInput
                     {...field}
                     aria-invalid={fieldState.invalid}
@@ -170,7 +177,10 @@ export function AdvancedDataSection() {
               control={form.control}
               render={({ field: { ref, ...field }, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="post_contract_rate">Post Contract Rate</FieldLabel>
+                  <FieldLabel htmlFor="post_contract_rate" className="flex items-center gap-1.5">
+                    Post Contract Rate
+                    <FieldHelp {...FIELD_HELP.post_contract_rate} />
+                  </FieldLabel>
                   <PercentInput
                     {...field}
                     aria-invalid={fieldState.invalid}
@@ -190,7 +200,10 @@ export function AdvancedDataSection() {
           {/* Years to Defer Conversion - Growth products only (GI uses gi_conversion_years) */}
           {!isGI && (
             <Field data-invalid={!!form.formState.errors.years_to_defer_conversion}>
-              <FieldLabel htmlFor="years_to_defer_conversion">Years to Defer Conversion</FieldLabel>
+              <FieldLabel htmlFor="years_to_defer_conversion" className="flex items-center gap-1.5">
+                Years to Defer Conversion
+                <FieldHelp {...FIELD_HELP.years_to_defer_conversion} />
+              </FieldLabel>
               <Input
                 id="years_to_defer_conversion"
                 type="number"
@@ -205,7 +218,10 @@ export function AdvancedDataSection() {
 
           {/* End Age - Always editable */}
           <Field data-invalid={!!form.formState.errors.end_age}>
-            <FieldLabel htmlFor="end_age">End Age</FieldLabel>
+            <FieldLabel htmlFor="end_age" className="flex items-center gap-1.5">
+              End Age
+              <FieldHelp {...FIELD_HELP.end_age} />
+            </FieldLabel>
             <Input
               id="end_age"
               type="number"
@@ -223,7 +239,10 @@ export function AdvancedDataSection() {
             control={form.control}
             render={({ field: { ref, ...field }, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="heir_tax_rate">Heir Tax Rate</FieldLabel>
+                <FieldLabel htmlFor="heir_tax_rate" className="flex items-center gap-1.5">
+                  Heir Tax Rate
+                  <FieldHelp {...FIELD_HELP.heir_tax_rate} />
+                </FieldLabel>
                 <PercentInput
                   {...field}
                   aria-invalid={fieldState.invalid}
@@ -249,8 +268,9 @@ export function AdvancedDataSection() {
                   checked={field.value}
                   onCheckedChange={field.onChange}
                 />
-                <FieldLabel htmlFor="widow_analysis">
+                <FieldLabel htmlFor="widow_analysis" className="flex items-center gap-1.5">
                   Show Widow&apos;s Penalty
+                  <FieldHelp {...FIELD_HELP.widow_analysis} />
                 </FieldLabel>
                 <FieldDescription>Include analysis of single-filer tax impact</FieldDescription>
               </Field>
@@ -266,7 +286,10 @@ export function AdvancedDataSection() {
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="widow_death_age">First-Death Age</FieldLabel>
+                  <FieldLabel htmlFor="widow_death_age" className="flex items-center gap-1.5">
+                    First-Death Age
+                    <FieldHelp {...FIELD_HELP.widow_death_age} />
+                  </FieldLabel>
                   <Input
                     id="widow_death_age"
                     type="number"

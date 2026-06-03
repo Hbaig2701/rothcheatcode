@@ -8,6 +8,8 @@ import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { IncomeTable } from "@/components/clients/income-table";
+import { FieldHelp } from "@/components/clients/field-help";
+import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
 export function TaxableIncomeSection() {
   const form = useFormContext<ClientFormData>();
@@ -38,7 +40,10 @@ export function TaxableIncomeSection() {
         <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Client SSI</h3>
         <div className="grid grid-cols-2 gap-3">
           <Field data-invalid={!!form.formState.errors.ssi_payout_age}>
-            <FieldLabel htmlFor="ssi_payout_age">Next Payout Age</FieldLabel>
+            <FieldLabel htmlFor="ssi_payout_age" className="flex items-center gap-1.5">
+              Next Payout Age
+              <FieldHelp {...FIELD_HELP.ssi_payout_age} />
+            </FieldLabel>
             <Input
               id="ssi_payout_age"
               type="number"
@@ -55,7 +60,10 @@ export function TaxableIncomeSection() {
             control={form.control}
             render={({ field: { ref, ...field }, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="ssi_annual_amount">Annual Amount</FieldLabel>
+                <FieldLabel htmlFor="ssi_annual_amount" className="flex items-center gap-1.5">
+                  Annual Amount
+                  <FieldHelp {...FIELD_HELP.ssi_annual_amount} />
+                </FieldLabel>
                 <CurrencyInput
                   {...field}
                   aria-invalid={fieldState.invalid}
@@ -73,7 +81,10 @@ export function TaxableIncomeSection() {
           <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Spouse SSI</h3>
           <div className="grid grid-cols-2 gap-3">
             <Field data-invalid={!!form.formState.errors.spouse_ssi_payout_age}>
-              <FieldLabel htmlFor="spouse_ssi_payout_age">Next Payout Age</FieldLabel>
+              <FieldLabel htmlFor="spouse_ssi_payout_age" className="flex items-center gap-1.5">
+                Next Payout Age
+                <FieldHelp {...FIELD_HELP.spouse_ssi_payout_age} />
+              </FieldLabel>
               <Input
                 id="spouse_ssi_payout_age"
                 type="number"
@@ -90,7 +101,10 @@ export function TaxableIncomeSection() {
               control={form.control}
               render={({ field: { ref, ...field }, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="spouse_ssi_annual_amount">Annual Amount</FieldLabel>
+                  <FieldLabel htmlFor="spouse_ssi_annual_amount" className="flex items-center gap-1.5">
+                    Annual Amount
+                    <FieldHelp {...FIELD_HELP.spouse_ssi_annual_amount} />
+                  </FieldLabel>
                   <CurrencyInput
                     {...field}
                     aria-invalid={fieldState.invalid}
@@ -105,6 +119,10 @@ export function TaxableIncomeSection() {
 
       {/* Non-SSI Income Table — spans full width */}
       <div className="sm:col-span-2 lg:col-span-3 pt-2">
+        <div className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+          <FieldHelp {...FIELD_HELP.non_ssi_income_table} />
+          <span>What goes here?</span>
+        </div>
         <IncomeTable />
       </div>
     </FormSection>

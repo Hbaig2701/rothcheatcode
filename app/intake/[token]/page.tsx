@@ -7,6 +7,8 @@ import { INCOME_TYPES, type IncomeType } from "@/lib/types/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, CheckCircle, AlertCircle, Plus, Trash2 } from "lucide-react";
+import { FieldHelp } from "@/components/clients/field-help";
+import { FIELD_HELP, type FieldHelpEntry } from "@/lib/copy/field-help-content";
 
 type IncomeEntry = {
   type: IncomeType;
@@ -297,7 +299,7 @@ export default function IntakeFormPage() {
             <h2 className="text-lg font-semibold text-foreground">Personal Information</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FieldGroup label="Full Name" error={fieldErrors.name} required>
+              <FieldGroup label="Full Name" error={fieldErrors.name} required help={FIELD_HELP.intake_name}>
                 <Input
                   value={form.name}
                   onChange={(e) => updateField("name", e.target.value)}
@@ -305,7 +307,7 @@ export default function IntakeFormPage() {
                 />
               </FieldGroup>
 
-              <FieldGroup label="Age" error={fieldErrors.age} required>
+              <FieldGroup label="Age" error={fieldErrors.age} required help={FIELD_HELP.intake_age}>
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -319,7 +321,7 @@ export default function IntakeFormPage() {
               </FieldGroup>
             </div>
 
-            <FieldGroup label="Filing Status" error={fieldErrors.filing_status} required>
+            <FieldGroup label="Filing Status" error={fieldErrors.filing_status} required help={FIELD_HELP.intake_filing_status}>
               <select
                 value={form.filing_status}
                 onChange={(e) => updateField("filing_status", e.target.value as "single" | "married_filing_jointly")}
@@ -332,14 +334,14 @@ export default function IntakeFormPage() {
 
             {isMarried && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
-                <FieldGroup label="Spouse Name" error={fieldErrors.spouse_name} required>
+                <FieldGroup label="Spouse Name" error={fieldErrors.spouse_name} required help={FIELD_HELP.intake_spouse_name}>
                   <Input
                     value={form.spouse_name}
                     onChange={(e) => updateField("spouse_name", e.target.value)}
                     placeholder="Jane Smith"
                   />
                 </FieldGroup>
-                <FieldGroup label="Spouse Age" error={fieldErrors.spouse_age} required>
+                <FieldGroup label="Spouse Age" error={fieldErrors.spouse_age} required help={FIELD_HELP.intake_spouse_age}>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -354,7 +356,7 @@ export default function IntakeFormPage() {
               </div>
             )}
 
-            <FieldGroup label="State" error={fieldErrors.state} required>
+            <FieldGroup label="State" error={fieldErrors.state} required help={FIELD_HELP.intake_state}>
               <select
                 value={form.state}
                 onChange={(e) => updateField("state", e.target.value)}
@@ -379,7 +381,7 @@ export default function IntakeFormPage() {
               Enter approximate current balances. Your advisor can adjust these later.
             </p>
 
-            <FieldGroup label="Qualified Account Value (IRA, 401k, etc.)" error={fieldErrors.qualified_account_value} required>
+            <FieldGroup label="Qualified Account Value (IRA, 401k, etc.)" error={fieldErrors.qualified_account_value} required help={FIELD_HELP.intake_qualified_account_value}>
               <DollarInput
                 value={form.qualified_account_value}
                 onChange={(v) => updateField("qualified_account_value", v)}
@@ -388,7 +390,7 @@ export default function IntakeFormPage() {
             </FieldGroup>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FieldGroup label="Roth IRA Balance" error={fieldErrors.roth_ira}>
+              <FieldGroup label="Roth IRA Balance" error={fieldErrors.roth_ira} help={FIELD_HELP.intake_roth_ira}>
                 <DollarInput
                   value={form.roth_ira}
                   onChange={(v) => updateField("roth_ira", v)}
@@ -396,7 +398,7 @@ export default function IntakeFormPage() {
                 />
               </FieldGroup>
 
-              <FieldGroup label="Taxable Account Balance" error={fieldErrors.taxable_accounts}>
+              <FieldGroup label="Taxable Account Balance" error={fieldErrors.taxable_accounts} help={FIELD_HELP.intake_taxable_accounts}>
                 <DollarInput
                   value={form.taxable_accounts}
                   onChange={(v) => updateField("taxable_accounts", v)}
@@ -411,7 +413,7 @@ export default function IntakeFormPage() {
             <h2 className="text-lg font-semibold text-foreground">Social Security</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FieldGroup label="Expected SSI Start Age" error={fieldErrors.ssi_payout_age} required>
+              <FieldGroup label="Expected SSI Start Age" error={fieldErrors.ssi_payout_age} required help={FIELD_HELP.intake_ssi_payout_age}>
                 <Input
                   type="text"
                   inputMode="numeric"
@@ -425,7 +427,7 @@ export default function IntakeFormPage() {
                 <p className="text-xs text-muted-foreground mt-1">Between 62 and 70</p>
               </FieldGroup>
 
-              <FieldGroup label="Expected Annual SSI Amount" error={fieldErrors.ssi_annual_amount} required>
+              <FieldGroup label="Expected Annual SSI Amount" error={fieldErrors.ssi_annual_amount} required help={FIELD_HELP.intake_ssi_annual_amount}>
                 <DollarInput
                   value={form.ssi_annual_amount}
                   onChange={(v) => updateField("ssi_annual_amount", v)}
@@ -436,7 +438,7 @@ export default function IntakeFormPage() {
 
             {isMarried && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-border">
-                <FieldGroup label="Spouse SSI Start Age" error={fieldErrors.spouse_ssi_payout_age}>
+                <FieldGroup label="Spouse SSI Start Age" error={fieldErrors.spouse_ssi_payout_age} help={FIELD_HELP.intake_spouse_ssi_payout_age}>
                   <Input
                     type="text"
                     inputMode="numeric"
@@ -450,7 +452,7 @@ export default function IntakeFormPage() {
                   <p className="text-xs text-muted-foreground mt-1">Between 62 and 70</p>
                 </FieldGroup>
 
-                <FieldGroup label="Spouse Annual SSI Amount" error={fieldErrors.spouse_ssi_annual_amount}>
+                <FieldGroup label="Spouse Annual SSI Amount" error={fieldErrors.spouse_ssi_annual_amount} help={FIELD_HELP.intake_spouse_ssi_annual_amount}>
                   <DollarInput
                     value={form.spouse_ssi_annual_amount}
                     onChange={(v) => updateField("spouse_ssi_annual_amount", v)}
@@ -465,7 +467,10 @@ export default function IntakeFormPage() {
           <section className="bg-card border border-border rounded-2xl p-6 space-y-5">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Other Income</h2>
+                <h2 className="inline-flex items-center gap-1.5 text-lg font-semibold text-foreground">
+                  Other Income
+                  <FieldHelp {...FIELD_HELP.intake_income_entries} />
+                </h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   Add any non-Social Security income sources — pension, rental income, dividends, etc.
                 </p>
@@ -630,18 +635,21 @@ function FieldGroup({
   label,
   error,
   required,
+  help,
   children,
 }: {
   label: string;
   error?: string;
   required?: boolean;
+  help?: FieldHelpEntry;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-medium text-foreground">
+      <label className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
         {label}
         {required && <span className="text-red ml-0.5">*</span>}
+        {help && <FieldHelp {...help} />}
       </label>
       {children}
       {error && <p className="text-xs text-red">{error}</p>}
