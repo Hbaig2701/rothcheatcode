@@ -13,6 +13,7 @@ function WelcomeContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const sessionId = searchParams.get('session_id')
+  const isPreview = searchParams.get('preview') === '1'
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -29,6 +30,13 @@ function WelcomeContent() {
   } | null>(null)
 
   useEffect(() => {
+    if (isPreview) {
+      setEmail('preview@example.com')
+      setSessionData({ plan: 'standard', cycle: 'annual' })
+      setLoading(false)
+      return
+    }
+
     if (!sessionId) {
       router.push('/plans')
       return
@@ -49,7 +57,7 @@ function WelcomeContent() {
         setError('Failed to verify payment session')
         setLoading(false)
       })
-  }, [sessionId, router])
+  }, [sessionId, isPreview, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -67,6 +75,11 @@ function WelcomeContent() {
 
     if (!acceptedTerms) {
       setError('Please accept the Terms & Conditions to continue')
+      return
+    }
+
+    if (isPreview) {
+      alert('Preview mode — form looks good! No account was created.')
       return
     }
 
@@ -133,6 +146,12 @@ function WelcomeContent() {
           <img src="/logo.png" alt="Retirement Expert" className="h-10 w-auto hidden dark:block" />
           <img src="/logo-light.png" alt="Retirement Expert" className="h-10 w-auto dark:hidden" />
         </div>
+
+        {isPreview && (
+          <div className="rounded-md border border-yellow-500/40 bg-yellow-500/10 px-3 py-2 text-center text-xs text-yellow-600 dark:text-yellow-300">
+            Preview mode — no account will be created on submit.
+          </div>
+        )}
 
         <Card>
           <CardHeader className="text-center">
