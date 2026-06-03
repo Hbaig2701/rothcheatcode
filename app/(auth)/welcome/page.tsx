@@ -19,6 +19,7 @@ function WelcomeContent() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -61,6 +62,11 @@ function WelcomeContent() {
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
+      return
+    }
+
+    if (!acceptedTerms) {
+      setError('Please accept the Terms & Conditions to continue')
       return
     }
 
@@ -210,7 +216,29 @@ function WelcomeContent() {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={submitting}>
+              <label className="flex items-start gap-2 text-sm text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  required
+                  className="mt-0.5 h-4 w-4 cursor-pointer"
+                />
+                <span>
+                  By ticking this box, I agree to the{' '}
+                  <a
+                    href="https://retirementexpert.ai/terms-of-use"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-foreground underline hover:no-underline"
+                  >
+                    Terms &amp; Conditions
+                  </a>
+                  .
+                </span>
+              </label>
+
+              <Button type="submit" className="w-full" disabled={submitting || !acceptedTerms}>
                 {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Account & Get Started
               </Button>
