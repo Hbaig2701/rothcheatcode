@@ -173,13 +173,36 @@ export async function GET(request: NextRequest) {
     // date) for every advisor with a sub. We just expand latest_invoice — it
     // already reflects every discount Stripe applied. If a single retrieve
     // fails, that advisor falls back to the list-price seed from pass 1.
-    const subFetches = profiles
-      .filter(p => p.stripe_subscription_id)
-      .map(async (p) => {
+    //
+    // CRITICAL: throttle Stripe calls (STRIPE_CONCURRENCY=5, matching the
+    // revenue route). Without throttling, ~60 parallel sub.retrieve calls
+    // get rate-limited and ~half fail silently — those advisors then show
+    // the LIST price ($2970 instead of the discounted net), confusing the
+    // admin into thinking the discount tracking is broken. With throttling,
+    // failures drop from ~35/58 to <5/58 (Stripe's rate limit is 100 req/s
+    // but bursts of 60+ with expand=latest_invoice,discounts overshoot it).
+    const STRIPE_CONCURRENCY = 5;
+    const RETRY_DELAY_MS = 400;
+    const retrieveSubWithRetry = async (subId: string) => {
+      try {
+        return await stripe.subscriptions.retrieve(subId, {
+          expand: ['latest_invoice', 'discounts'],
+        });
+      } catch (err) {
+        // One quick retry. Stripe rate-limit errors are transient.
+        await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+        return await stripe.subscriptions.retrieve(subId, {
+          expand: ['latest_invoice', 'discounts'],
+        });
+      }
+    };
+
+    const subbedProfiles = profiles.filter((p) => p.stripe_subscription_id);
+    for (let i = 0; i < subbedProfiles.length; i += STRIPE_CONCURRENCY) {
+      const slice = subbedProfiles.slice(i, i + STRIPE_CONCURRENCY);
+      await Promise.all(slice.map(async (p) => {
         try {
-          const sub = await stripe.subscriptions.retrieve(p.stripe_subscription_id!, {
-            expand: ['latest_invoice', 'discounts'],
-          });
+          const sub = await retrieveSubWithRetry(p.stripe_subscription_id!);
           const item = sub.items?.data?.[0];
           const listPrice = item?.price?.unit_amount != null
             ? item.price.unit_amount / 100
@@ -294,8 +317,8 @@ export async function GET(request: NextRequest) {
           // the list-price seed from pass 1 so the column doesn't go blank.
           console.error(`[admin/advisors] Stripe sub fetch failed for ${p.id}:`, err instanceof Error ? err.message : err);
         }
-      });
-    await Promise.all(subFetches);
+      }));
+    }
 
     const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
 
