@@ -125,6 +125,7 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       widow_analysis: client?.widow_analysis ?? d?.widow_analysis ?? false,
       widow_death_age: client?.widow_death_age ?? d?.widow_death_age ?? null,
       rmd_treatment: client?.rmd_treatment ?? d?.rmd_treatment ?? (ud.rmd_treatment as ClientFormData["rmd_treatment"]) ?? "reinvested",
+      rmds_handled_externally: client?.rmds_handled_externally ?? false,
       // AUM split-allocation defaults — 0% means feature off (current behavior).
       aum_allocation_percent: client?.aum_allocation_percent ?? d?.aum_allocation_percent ?? 0,
       aum_fee_percent: client?.aum_fee_percent ?? d?.aum_fee_percent ?? 1,

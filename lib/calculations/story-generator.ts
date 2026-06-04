@@ -696,8 +696,11 @@ export function generateStory(
       });
     }
 
-    // RMD AGE (73 is current RMD start age)
-    if (year.age === 73) {
+    // RMD AGE (73 is current RMD start age). Suppress when RMDs are handled
+    // externally on this bucket — the narrative would be misleading because
+    // both baseline and strategy have zero RMDs in the projection (RMDs are
+    // happening on a different IRA bucket the engine isn't modeling).
+    if (year.age === 73 && !client.rmds_handled_externally) {
       const baselineRMD = baselineYear?.rmdAmount ?? 0;
       storyEntries.push({
         year: year.year,

@@ -86,6 +86,7 @@ function makeClient(overrides: Partial<Client> = {}): Client {
     widow_analysis: false,
     widow_death_age: null,
     rmd_treatment: 'reinvested',
+    rmds_handled_externally: false,
     aum_allocation_percent: 0,
     aum_fee_percent: 1,
     aum_dividend_yield: 2,

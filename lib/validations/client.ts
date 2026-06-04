@@ -204,6 +204,9 @@ export const clientFormulaBaseSchema = z.object({
   // birth year + 85). 60-100 covers reasonable planning ranges.
   widow_death_age: z.number().int().min(60).max(100).nullable().optional(),
   rmd_treatment: rmdTreatmentEnum.default("reinvested"),
+  // Split-bucket strategy support: skip RMD computation entirely on the
+  // modeled IRA bucket (both baseline and strategy stay symmetric).
+  rmds_handled_externally: z.boolean().default(false),
 
   // AUM split-allocation. 0 means feature is off — preserves existing flow.
   aum_allocation_percent: z.number().min(0).max(100).default(0),
@@ -409,6 +412,7 @@ export const clientFullBaseSchema = z.object({
   post_contract_rate: z.number().min(0).max(30).default(7),
   years_to_defer_conversion: z.number().int().min(0).max(30).default(0),
   rmd_treatment: rmdTreatmentEnum.default("reinvested"),
+  rmds_handled_externally: z.boolean().default(false),
 
   // AUM split-allocation (mirrored from clientFormulaBaseSchema; the legacy
   // schema is what the PUT /api/clients/[id] handler validates against).
@@ -539,6 +543,7 @@ export type ClientFormData = {
   widow_analysis: boolean;
   widow_death_age?: number | null;
   rmd_treatment: "spent" | "reinvested" | "cash";
+  rmds_handled_externally: boolean;
 
   // AUM split-allocation
   aum_allocation_percent: number;

@@ -196,9 +196,15 @@ export function runGrowthFormulaScenario(
     const deductions = getStandardDeduction(client.filing_status, age, currentSpouseAgeForDeduction, year);
 
     // Step 0: Calculate RMD if client is old enough and still has a traditional IRA balance
-    // This handles the case where conversions don't fully deplete the IRA before RMD age
-    const rmdResult = calculateRMD({ age, traditionalBalance: boyIRA, birthYear });
-    const rmdAmount = Math.min(rmdResult.rmdAmount, boyIRA);
+    // This handles the case where conversions don't fully deplete the IRA before RMD age.
+    // SHORT-CIRCUIT: when rmds_handled_externally is true, the modeled bucket
+    // is only part of the client's total IRA and RMDs are taken from a separate
+    // bucket not modeled here. Skip entirely so RMDs don't eat into the
+    // conversion target (e.g., Greg Stopp's Policar case: $1.3M target was
+    // landing at $1.17M because RMDs were drawing from the same bucket).
+    const rmdAmount = client.rmds_handled_externally
+      ? 0
+      : Math.min(calculateRMD({ age, traditionalBalance: boyIRA, birthYear }).rmdAmount, boyIRA);
     const iraAfterRmd = boyIRA - rmdAmount;
 
     // Step 0b: Voluntary withdrawals on top of RMDs (advisor-scheduled).

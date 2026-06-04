@@ -339,8 +339,10 @@ export function TaxDataSection() {
         />
       )}
 
-      {/* RMD Treatment (Baseline Scenario) - Only for Growth products */}
-      {!isGI && (
+      {/* RMD Treatment (Baseline Scenario) - Only for Growth products.
+          Hidden when "RMDs Handled Externally" is on, because there are no
+          RMDs in either scenario to treat. */}
+      {!isGI && !form.watch("rmds_handled_externally") && (
         <Controller
           name="rmd_treatment"
           control={form.control}
@@ -380,6 +382,40 @@ export function TaxDataSection() {
           }}
         />
       )}
+
+      {/* RMDs Handled Externally — split-bucket strategy support. When ON
+          the engine skips RMD computation entirely (both baseline AND
+          strategy) so the modeled bucket doesn't get RMDs eating into the
+          conversion target. Available for both Growth FIA and GI products
+          since GI strategies can also have a split-bucket setup. */}
+      <Controller
+        name="rmds_handled_externally"
+        control={form.control}
+        render={({ field }) => (
+          <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
+            <Checkbox
+              id="rmds_handled_externally"
+              checked={field.value}
+              onCheckedChange={field.onChange}
+              className="mt-0.5 shrink-0"
+            />
+            <div className="flex-1 min-w-0">
+              <label
+                htmlFor="rmds_handled_externally"
+                className="inline-flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+              >
+                RMDs Handled Externally
+                <FieldHelp {...FIELD_HELP.rmds_handled_externally} />
+              </label>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Skips RMD calculation on this bucket entirely. Use when the client&apos;s real-world RMDs
+                come from a separate IRA (e.g., a different custodian) not modeled here. Both the baseline
+                and strategy projections will skip RMDs equally to keep the comparison fair.
+              </p>
+            </div>
+          </div>
+        )}
+      />
 
       {/* State */}
       <Controller

@@ -96,9 +96,16 @@ export function runBaselineScenario(
     const boyRoth = rothBalance;
     const boyTaxable = taxableBalance;
 
-    // Calculate RMD based on prior year-end balance (which is current BOY)
-    const rmdResult = calculateRMD({ age, traditionalBalance: boyIRA, birthYear });
-    const rmdAmount = rmdResult.rmdAmount;
+    // Calculate RMD based on prior year-end balance (which is current BOY).
+    // SHORT-CIRCUIT: when rmds_handled_externally is true, the advisor is
+    // modeling only part of the client's IRA and RMDs are being taken from
+    // a bucket NOT modeled here — so we skip RMD entirely. All downstream
+    // math (taxable income, treatment, balances) sees 0 and behaves as if
+    // RMDs don't exist on this bucket. Baseline AND strategy gate the same
+    // way so the comparison stays apples-to-apples.
+    const rmdAmount = client.rmds_handled_externally
+      ? 0
+      : calculateRMD({ age, traditionalBalance: boyIRA, birthYear }).rmdAmount;
 
     // Voluntary withdrawals on top of RMDs. RMD comes off conceptually first,
     // so the available IRA for voluntary draw is (boyIRA - RMD). Roth is whole

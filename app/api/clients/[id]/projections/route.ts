@@ -66,6 +66,9 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     years_to_defer_conversion: client.years_to_defer_conversion,
     heir_tax_rate: client.heir_tax_rate,
     rmd_treatment: client.rmd_treatment,
+    // Toggling this flag changes whether the engine computes RMDs at all
+    // — must be in the cache hash or flipping it shows stale projections.
+    rmds_handled_externally: client.rmds_handled_externally,
     // widow_death_age is read by widow-penalty analysis to determine the
     // first-death year. Missing from the hash meant advisors editing the
     // "First-Death Age" field saw no change in their projection because

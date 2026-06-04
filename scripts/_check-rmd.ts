@@ -37,6 +37,7 @@ const client: Client = {
   years_to_defer_conversion: 0, end_age: 90, heir_tax_rate: 40,
   widow_analysis: false, widow_death_age: null,
   rmd_treatment: "reinvested",
+  rmds_handled_externally: false,
   date_of_birth: null, spouse_dob: null, life_expectancy: null,
   traditional_ira: 0, roth_ira: 0, taxable_accounts: 0, other_retirement: 0,
   federal_bracket: "auto", include_niit: false, include_aca: false,

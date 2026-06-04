@@ -138,6 +138,14 @@ export interface Client {
   // enforced by the form is 60-100.
   widow_death_age: number | null;
   rmd_treatment: 'spent' | 'reinvested' | 'cash'; // How RMDs are treated in baseline
+  // Split-bucket strategies: when the advisor is modeling ONLY part of the
+  // client's IRA (e.g., $1.3M to Athene, $1.2M staying at Fidelity), real-world
+  // RMDs are typically taken from the bucket NOT being modeled here. With this
+  // toggle ON, the engine skips RMD computation entirely for BOTH baseline and
+  // strategy (keeping the comparison fair) so the modeled bucket doesn't get
+  // RMDs eating into the conversion target. Advisor should add the external
+  // RMD as Other Income in Section 5 if they want the full tax picture.
+  rmds_handled_externally: boolean;
 
   // ===== AUM Split Allocation =====
   // When aum_allocation_percent > 0, the engine splits the IRA balance: the
@@ -253,6 +261,7 @@ export interface FormulaFormData {
   widow_analysis: boolean;
   widow_death_age: number | null;
   rmd_treatment: 'spent' | 'reinvested' | 'cash';
+  rmds_handled_externally: boolean;
 
   // Additional needed for tax payments
   taxable_accounts: number;

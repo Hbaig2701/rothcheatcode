@@ -72,9 +72,11 @@ export function runWidowScenario(
     const taxableGrowth = Math.round(taxableBalance * growthRate);
     taxableBalance += taxableGrowth;
 
-    // Calculate RMD
-    const rmdResult = calculateRMD({ age, traditionalBalance, birthYear });
-    const rmdAmount = rmdResult.rmdAmount;
+    // Calculate RMD. SHORT-CIRCUIT: rmds_handled_externally → no RMDs on
+    // this bucket (split-bucket strategies; matches baseline.ts / growth-formula.ts).
+    const rmdAmount = client.rmds_handled_externally
+      ? 0
+      : calculateRMD({ age, traditionalBalance, birthYear }).rmdAmount;
     traditionalBalance -= rmdAmount;
 
     // Social Security - ONLY client's benefit, no spouse

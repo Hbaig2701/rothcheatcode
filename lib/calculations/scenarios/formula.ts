@@ -146,8 +146,11 @@ export function runFormulaScenario(
     // no forced distributions — wrong for any client who converts past
     // RMD age. Other engines (growth-formula.ts, baseline.ts) compute it;
     // this fallback now matches them.
-    const rmdResult = calculateRMD({ age, traditionalBalance: boyIRA, birthYear });
-    const rmdAmount = rmdResult.rmdAmount;
+    // SHORT-CIRCUIT: rmds_handled_externally → skip RMDs entirely on this
+    // bucket (split-bucket strategies; matches baseline.ts and growth-formula.ts).
+    const rmdAmount = client.rmds_handled_externally
+      ? 0
+      : calculateRMD({ age, traditionalBalance: boyIRA, birthYear }).rmdAmount;
     const iraAfterRmd = boyIRA - rmdAmount;
 
     // Primary SSI income (with COLA)

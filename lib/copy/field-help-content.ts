@@ -179,6 +179,11 @@ export const FIELD_HELP = {
     body: "How Required Minimum Distributions are handled in the 'do nothing' baseline scenario for comparison. Spent = consumed for living expenses (gone). Reinvested = redeposited into a taxable brokerage where they keep growing. Cash = sits in a checking account earning nothing. Only affects the baseline; the strategy projection is unaffected.",
     example: "Most retirees use RMDs to live on → Spent. Wealthy client who doesn't need the income → Reinvested.",
   },
+  rmds_handled_externally: {
+    title: "RMDs Handled Externally",
+    body: "Turn ON when you're modeling only PART of the client's total IRA in this software and RMDs are being taken from a separate bucket (e.g., a different custodian) that's not modeled here. The engine will skip RMD calculation entirely on this bucket for both the strategy AND the baseline — keeping the comparison fair. If you want the full tax picture, manually add the external RMD amount as an entry in Section 5 (Taxable Income).",
+    example: "Client has $2.5M total IRA — $1.3M moves to an Athene FIA for Roth conversion, $1.2M stays at Fidelity as Traditional. You're modeling only the $1.3M bucket here and taking real-world RMDs from Fidelity. Toggle ON → engine won't eat into your $1.3M conversion target with phantom RMDs.",
+  },
   state: {
     title: "State of Residence",
     body: "The state the client lives in for tax purposes. Drives the State Tax rate (auto-filled when you select a state) and triggers any state-specific product availability or bonus overrides.",
