@@ -1,6 +1,7 @@
 import type { YearlyResult } from './types';
 import type { Client } from '@/lib/types/client';
 import type { Projection } from '@/lib/types/projection';
+import { computePerYearMarginalConversionTax } from './marginal-conversion-tax';
 
 // Story entry types
 export type StoryTrigger =
@@ -84,6 +85,13 @@ export function generateStory(
   // Tracking variables
   let totalConverted = 0;
   let totalTaxPaid = 0;
+  // Two-column tax accounting for Story Mode: total bill INCLUDES tax on SS,
+  // pension, and any other ordinary income — the conversion-only number is
+  // the marginal increment caused by the conversion specifically. Greg Stopp's
+  // call notes flagged the lumped "Tax Paid" display as confusing for clients
+  // ("looks like the strategy is costing them $X when most of that $X was
+  // owed anyway on their other income").
+  let totalConversionOnlyTax = 0;
   let hasExceededOriginal = false;
   let hasHitHalfway = false;
   let hasFullyConverted = false;
@@ -273,15 +281,17 @@ export function generateStory(
     // CONVERSION START
     if (year.conversionAmount > 0 && totalConverted === 0) {
       conversionYearCount = 1;
+      const conversionOnlyTax = computePerYearMarginalConversionTax(year, client);
       storyEntries.push({
         year: year.year,
         age: year.age,
         trigger: 'conversion_start',
         headline: 'Your Roth Conversion Begins',
-        body: `This year, we begin moving money from your Traditional IRA to a Roth IRA. We convert ${formatCurrency(year.conversionAmount)} and pay ${formatCurrency(taxPaidThisYear)} in taxes at the ${targetBracket}% bracket. This is strategic — by paying tax now at a lower rate, we avoid higher taxes later.`,
+        body: `This year, we begin moving money from your Traditional IRA to a Roth IRA. We convert ${formatCurrency(year.conversionAmount)} — the conversion itself adds ${formatCurrency(conversionOnlyTax)} in tax at the ${targetBracket}% bracket. (Your total tax bill for the year is ${formatCurrency(taxPaidThisYear)} once Social Security, pension, and other income are included.) This is strategic — by paying tax now at a lower rate, we avoid higher taxes later.`,
         metrics: [
           { label: 'Converted', value: formatCurrency(year.conversionAmount) },
-          { label: 'Tax Paid', value: formatCurrency(taxPaidThisYear) },
+          { label: 'Tax on Conversion', value: formatCurrency(conversionOnlyTax) },
+          { label: 'Total Tax This Year', value: formatCurrency(taxPaidThisYear) },
           { label: 'Tax Bracket', value: `${targetBracket}%` },
         ],
         comparison: `Without this strategy, this money would be taxed at ${heirTaxRate * 100}%+ when your heirs inherit, or when RMDs force withdrawals at age 73.`,
@@ -296,21 +306,25 @@ export function generateStory(
       });
       totalConverted += year.conversionAmount;
       totalTaxPaid += taxPaidThisYear;
+      totalConversionOnlyTax += conversionOnlyTax;
     }
     // CONVERSION END (last conversion year)
     else if (year.conversionAmount > 0 && conversionYearCount === totalConversionYears - 1) {
       conversionYearCount++;
+      const conversionOnlyTax = computePerYearMarginalConversionTax(year, client);
       totalConverted += year.conversionAmount;
       totalTaxPaid += taxPaidThisYear;
+      totalConversionOnlyTax += conversionOnlyTax;
       storyEntries.push({
         year: year.year,
         age: year.age,
         trigger: 'conversion_end',
         headline: 'Conversions Complete',
-        body: `Your final conversion of ${formatCurrency(year.conversionAmount)} is complete. Over ${totalConversionYears} years, you converted ${formatCurrency(totalConverted)} to Roth, paying ${formatCurrency(totalTaxPaid)} in taxes. Your retirement savings are now positioned for tax-free growth.`,
+        body: `Your final conversion of ${formatCurrency(year.conversionAmount)} is complete. Over ${totalConversionYears} years, you converted ${formatCurrency(totalConverted)} to Roth. The conversion strategy itself cost ${formatCurrency(totalConversionOnlyTax)} in tax across all ${totalConversionYears} conversion years — separate from the ${formatCurrency(totalTaxPaid - totalConversionOnlyTax)} in tax that would have been owed regardless on Social Security, pension, and other ordinary income. Your retirement savings are now positioned for tax-free growth.`,
         metrics: [
           { label: 'Total Converted', value: formatCurrency(totalConverted) },
-          { label: 'Total Tax Paid', value: formatCurrency(totalTaxPaid) },
+          { label: 'Tax on Conversion Only', value: formatCurrency(totalConversionOnlyTax) },
+          { label: 'Tax on Other Income (Same Years)', value: formatCurrency(totalTaxPaid - totalConversionOnlyTax) },
           { label: 'Roth Balance', value: formatCurrency(year.rothBalance) },
         ],
         runningTotals: {
@@ -326,8 +340,10 @@ export function generateStory(
     // CONVERSION YEAR (middle years) - only show for longer conversion periods
     else if (year.conversionAmount > 0 && conversionYearCount > 0 && conversionYearCount < totalConversionYears - 1) {
       conversionYearCount++;
+      const conversionOnlyTax = computePerYearMarginalConversionTax(year, client);
       totalConverted += year.conversionAmount;
       totalTaxPaid += taxPaidThisYear;
+      totalConversionOnlyTax += conversionOnlyTax;
 
       // Only add story entries for every other year if many conversions, to avoid clutter
       if (totalConversionYears <= 5 || conversionYearCount % 2 === 0) {
@@ -336,9 +352,11 @@ export function generateStory(
           age: year.age,
           trigger: 'conversion_year',
           headline: `Year ${conversionYearCount} of ${totalConversionYears}`,
-          body: `We convert another ${formatCurrency(year.conversionAmount)} this year, staying within the ${targetBracket}% bracket. Your Roth balance grows to ${formatCurrency(year.rothBalance)}.`,
+          body: `We convert another ${formatCurrency(year.conversionAmount)} this year, adding ${formatCurrency(conversionOnlyTax)} in conversion tax at the ${targetBracket}% bracket. Your Roth balance grows to ${formatCurrency(year.rothBalance)}.`,
           metrics: [
             { label: 'Converted', value: formatCurrency(year.conversionAmount) },
+            { label: 'Tax on Conversion', value: formatCurrency(conversionOnlyTax) },
+            { label: 'Total Tax This Year', value: formatCurrency(taxPaidThisYear) },
             { label: 'Roth Balance', value: formatCurrency(year.rothBalance) },
           ],
           runningTotals: {
