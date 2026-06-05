@@ -131,7 +131,12 @@ export const clientFormulaBaseSchema = z.object({
   // Section 4: Tax Data
   state: z.string().length(2, "Use 2-letter state code"),
   constraint_type: constraintTypeEnum.default("none"),
-  tax_rate: z.number().min(0).max(100).default(24),
+  // tax_rate: retired from the form 2026-06-05. Kept optional with a 0 default
+  // so existing API consumers (POST/PUT bodies that still include it) don't
+  // fail validation. Nothing in the engine reads it anymore — bracket-aware
+  // math is used everywhere. DB column remains for back-compat with historical
+  // projections that referenced it.
+  tax_rate: z.number().min(0).max(100).default(0).optional(),
   max_tax_rate: z.number().min(0).max(100).default(24),
   tax_payment_source: taxSourceEnum.default("from_taxable"),
   state_tax_rate: z.number().min(0).max(100).optional().nullable(),
@@ -232,8 +237,10 @@ export const clientFormulaSchema = clientFormulaBaseSchema.superRefine((data, ct
     });
   }
 
-  // Max tax rate should be >= current tax rate
-  if (data.max_tax_rate < data.tax_rate) {
+  // Max tax rate sanity check against the legacy "current tax rate" field.
+  // tax_rate is optional now (field retired from form 2026-06-05), so only
+  // validate when a value was actually supplied.
+  if (data.tax_rate !== undefined && data.max_tax_rate < data.tax_rate) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Max tax rate cannot be less than current tax rate",
@@ -365,7 +372,12 @@ export const clientFullBaseSchema = z.object({
   include_niit: z.boolean().default(true),
   include_aca: z.boolean().default(false),
   constraint_type: constraintTypeEnum.default("none"),
-  tax_rate: z.number().min(0).max(100).default(24),
+  // tax_rate: retired from the form 2026-06-05. Kept optional with a 0 default
+  // so existing API consumers (POST/PUT bodies that still include it) don't
+  // fail validation. Nothing in the engine reads it anymore — bracket-aware
+  // math is used everywhere. DB column remains for back-compat with historical
+  // projections that referenced it.
+  tax_rate: z.number().min(0).max(100).default(0).optional(),
   max_tax_rate: z.number().min(0).max(100).default(24),
 
   // Income Sources (legacy)
@@ -487,7 +499,10 @@ export type ClientFormData = {
   // Section 4: Tax Data
   state: string;
   constraint_type: "bracket_ceiling" | "irmaa_threshold" | "fixed_amount" | "none";
-  tax_rate: number;
+  // tax_rate retired from form 2026-06-05 — see Zod schema notes above.
+  // Optional so callers (including DB rows that still have it populated) stay
+  // type-compatible.
+  tax_rate?: number;
   max_tax_rate: number;
   tax_payment_source: "from_ira" | "from_taxable";
   state_tax_rate: number | null;

@@ -48,7 +48,6 @@ Source: \`components/clients/sections/tax-data.tsx\`
 - **State** (\`state\`)
 - **State Tax** (\`state_tax_rate\`) — number, range: 0 to 100
 - **Tax Payment Source** (\`tax_payment_source\`)
-- **Current Bracket (informational)** (\`tax_rate\`) — number, range: 0 to 100
 
 ## 5. Taxable Income Calculation
 Source: \`components/clients/sections/taxable-income.tsx\`
@@ -75,7 +74,7 @@ Source: \`components/clients/sections/aum-allocation.tsx\`
 
 ## 8. IRA / Roth Withdrawals
 Source: \`components/clients/sections/roth-withdrawals.tsx\`
-_Schedule voluntary distributions from the qualified buckets. Voluntary IRA pulls satisfy the RMD up to their amount (matches IRS rules); only the shortfall, if any, is forced as additional RMD._
+_Schedule voluntary distributions from the qualified buckets. IRA pulls count toward the RMD (no extra RMD is forced on top); only the shortfall, if any, is added as forced RMD._
 - (no individual field inputs detected — this section is rendered as a table or composite control; see the description above for what it does)
 
 ## 9. Advanced Data
@@ -126,7 +125,6 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **Years to Convert Before GI Purchase** (\`gi_conversion_years\`): On a Guaranteed Income strategy you can convert some of the Traditional IRA to Roth BEFORE buying the annuity. This sets the conversion window in years. IMPORTANT: the engine spreads the conversion EVENLY across the window (starting IRA ÷ years) — it doesn't bracket-fill year by year. Whatever's left at the end of the window funds the annuity.
 - **Conversion Tax Bracket** (\`gi_conversion_bracket\`): The FLAT federal rate the engine applies to each year's GI conversion. Unlike the Growth FIA strategy, GI conversions are pre-sized to evenly distribute the IRA across the conversion window — this field doesn't change how MUCH is converted, only the tax rate assumed on the converted dollars. Pick whichever bracket you expect the client to land in across the conversion years.
 - **Conversion Constraint** (\`constraint_type\`): The rule that caps annual conversions. 'Bracket Ceiling' fills up to the Max Tax Rate each year (most common). 'IRMAA Threshold' caps at the Medicare premium tier the client wants to stay under. 'Fixed Amount' converts the same dollar amount yearly. 'None' lets the engine run unconstrained.
-- **Current Bracket** (\`tax_rate\`): The client's current marginal federal bracket — what they pay on their next dollar of income today. For Growth FIA strategies this is informational only and Max Tax Rate drives the math. For Guaranteed Income strategies the engine DOES use this rate to size the baseline (do-nothing IRA) tax drag, so enter a realistic number either way.
 - **Max Tax Rate** (\`max_tax_rate\`): The bracket ceiling the engine will fill conversions up to each year. The single most important field for sizing the strategy. Pick the highest bracket you're willing to convert into — the engine fills to the top of that bracket every year. '0%' means convert only up to the standard deduction (no federal tax).
 - **Tax Payment Source** (\`tax_payment_source\`): Where the conversion tax dollars come from. 'External (from taxable)' is the better outcome — taxes paid from outside savings, so 100% of the converted amount lands in Roth. 'Internal (from IRA)' grosses up the conversion to cover taxes — easier for clients without outside cash but less efficient.
 - **Respect Carrier Penalty-Free Limit** (\`respect_penalty_free_limit\`): Many FIAs cap penalty-free withdrawals at ~10%/yr of prior anniversary value during the surrender period. Turn this ON to make the engine size conversions so the carrier cap isn't exceeded. Turn OFF if the client is willing to pay surrender charges or the contract isn't restrictive.
@@ -151,7 +149,7 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **Dividend Yield (%/yr)** (\`aum_dividend_yield\`): Annual dividend yield on the AUM portfolio. Taxed yearly at the LTCG rate below — creates a small drag on after-tax returns.
 - **Annual Turnover (%)** (\`aum_turnover_percent\`): Share of unrealized capital gains realized each year due to portfolio rebalancing. Realized gains pay LTCG tax annually — higher turnover = more tax drag.
 - **LTCG Rate (%)** (\`ltcg_rate\`): Long-term capital gains rate applied to dividends + realized turnover. Federal LTCG is 0/15/20% depending on income; add state if your state taxes LTCG as ordinary income.
-- **IRA / Roth Withdrawals** (\`withdrawals_table\`): Voluntary distributions the client wants to take each year. Enter the TOTAL the client wants pulled — for IRA, this satisfies the RMD up to its amount (matches IRS rules: a voluntary distribution counts toward that year's RMD; no extra RMD is forced on top). Only the shortfall (if voluntary < RMD) is added as a forced RMD. Source 'IRA' adds to taxable income (10% penalty if under 59½), 'Roth' is tax-free, 'Auto' lets the baseline draw from IRA while the strategy draws from Roth.
+- **IRA / Roth Withdrawals** (\`withdrawals_table\`): Voluntary distributions the client wants to take each year. Enter the TOTAL amount the client wants pulled — for IRA withdrawals, this satisfies the RMD up to its amount (matches IRS rules: a voluntary distribution counts toward that year's RMD; no extra RMD is forced on top). Only the shortfall (if voluntary < RMD) is added as a forced RMD. Source 'IRA' adds to taxable income (10% penalty if under 59½), 'Roth' is tax-free, 'Auto' lets the baseline draw from IRA while the strategy draws from Roth.
 - **Surrender Years** (\`surrender_years\`): Number of years the annuity carries surrender charges (the period during which early withdrawals incur a penalty). Locked when a system preset is selected — click 'Override preset' if a state-specific version of the same product has a different schedule.
 - **Penalty Free %** (\`penalty_free_percent\`): The percentage of the prior anniversary value the client can withdraw each year during the surrender period without a surrender charge. Typically 10%. Combined with the 'Respect Penalty-Free Limit' toggle in Section 4 to constrain conversions.
 - **Baseline Comparison Rate** (\`baseline_comparison_rate\`): Annual return rate used for the 'do nothing' baseline IRA projection. Auto-synced with the strategy's Rate of Return so the comparison stays fair — adjust only if you have a specific reason (e.g., comparing the strategy to a 60/40 portfolio at a different assumption). HEADS UP: any manual override here gets reset the moment you touch Rate of Return again, so set this LAST.

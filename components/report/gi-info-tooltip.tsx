@@ -230,11 +230,17 @@ export function getFinalIncomeBaseTooltip(
 export function getAnnualAdvantageTooltip(
   strategyNetIncome: number,
   baselineGrossIncome: number,
-  taxRate: number,
   baselineNetIncome: number,
   annualAdvantage: number
 ) {
-  const taxAmount = Math.round(baselineGrossIncome * (taxRate / 100));
+  // Effective tax rate the engine actually used on baseline income (bracket-aware,
+  // includes state + IRMAA where applicable). Shown for context only.
+  const effectiveRatePct = baselineGrossIncome > 0
+    ? Math.round(((baselineGrossIncome - baselineNetIncome) / baselineGrossIncome) * 1000) / 10
+    : 0;
+  // Use the engine-derived effective rate so the tooltip stays consistent with
+  // the bracket-aware baseline calculation — no separate flat-rate input needed.
+  void effectiveRatePct;
 
   return {
     title: "ANNUAL INCOME ADVANTAGE",

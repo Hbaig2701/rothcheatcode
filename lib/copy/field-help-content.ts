@@ -149,11 +149,13 @@ export const FIELD_HELP = {
     body: "The rule that caps annual conversions. 'Bracket Ceiling' fills up to the Max Tax Rate each year (most common). 'IRMAA Threshold' caps at the Medicare premium tier the client wants to stay under. 'Fixed Amount' converts the same dollar amount yearly. 'None' lets the engine run unconstrained.",
     example: "Most clients → Bracket Ceiling. Client on Medicare worried about premium spike → IRMAA Threshold. Client who's said 'just convert $100K/yr' → Fixed Amount.",
   },
-  tax_rate: {
-    title: "Current Bracket",
-    body: "The client's current marginal federal bracket — what they pay on their next dollar of income today. For Growth FIA strategies this is informational only and Max Tax Rate drives the math. For Guaranteed Income strategies the engine DOES use this rate to size the baseline (do-nothing IRA) tax drag, so enter a realistic number either way.",
-    example: "MFJ couple with $150K taxable income today → 22% bracket. Enter 22.",
-  },
+  // tax_rate ("Current Bracket") was retired from the form on 2026-06-05.
+  // It was originally used by the GI engine as a flat baseline tax rate, but
+  // the engine has since been migrated to bracket-aware math (federal + state
+  // + IRMAA per year) so the field is no longer load-bearing for any product.
+  // The schema column remains for backward compatibility with historical
+  // projections; nothing in the form reads or writes it anymore.
+
   max_tax_rate: {
     title: "Max Tax Rate",
     body: "The bracket ceiling the engine will fill conversions up to each year. The single most important field for sizing the strategy. Pick the highest bracket you're willing to convert into — the engine fills to the top of that bracket every year. '0%' means convert only up to the standard deduction (no federal tax).",

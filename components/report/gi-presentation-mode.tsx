@@ -45,10 +45,15 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
   const { projection } = projectionResponse;
   const incomeChartData = transformToGIIncomeChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
-  const flatTaxRate = client.tax_rate / 100;
+  // Baseline lifetime tax + effective rate are derived from the engine's
+  // bracket-aware year-by-year output below. Previously this read
+  // client.tax_rate (the "Current Bracket (informational)" field) and applied
+  // it as a flat rate on baseline gross income — lower fidelity than the
+  // engine's own per-year tax calculation. Removed 2026-06-05.
 
   // GI-specific calculations
   const giYearlyData = projection.gi_yearly_data || [];
+  const giBaselineYearlyData = projection.gi_baseline_yearly_data || [];
 
   // Income Base Journey values
   // Use gi_purchase_amount (Roth balance at purchase) NOT client.qualified_account_value (Traditional IRA before conversion)
@@ -83,8 +88,12 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
   const strategyLifetimeNet = strategyAnnualNet * incomeYears;
   const baselineLifetimeNet = baselineAnnualNet * incomeYears;
 
-  // Baseline taxes (flat rate)
-  const baselineLifetimeTax = Math.round(baselineAnnualGross * flatTaxRate) * incomeYears;
+  // Baseline lifetime taxes — sum the engine's per-year bracket-aware
+  // (gross − net) for each income year. No flat-rate multiplier.
+  const baselineLifetimeTax = giBaselineYearlyData.reduce(
+    (sum, y) => sum + (y.phase === 'income' ? ((y.guaranteedIncomeGross || 0) - (y.guaranteedIncomeNet || 0)) : 0),
+    0
+  );
 
   // Depletion info
   const depletionAge = projection.gi_depletion_age;

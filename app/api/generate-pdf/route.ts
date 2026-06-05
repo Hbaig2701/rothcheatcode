@@ -1136,8 +1136,14 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
         const baseRMD = baseYear.rmdAmount || 0;
         const stratRMD = stratYear?.rmdAmount || 0;
         const avoided = baseRMD - stratRMD;
-        const taxRate = (client.tax_rate ?? 22) / 100;
-        const taxSaved = Math.round(avoided * taxRate);
+        // Tax saved uses the engine's actual marginal bracket for that
+        // baseline year (set per-year in the simulation). Falls back to the
+        // bracket ceiling configured for the strategy if the engine didn't
+        // surface a marginal bracket. Previously this used client.tax_rate
+        // ("Current Bracket (informational)") as a flat 22% multiplier —
+        // less accurate than the per-year marginal the engine already computed.
+        const bracketPct = (baseYear.federalTaxBracket ?? client.max_tax_rate ?? 22) as number;
+        const taxSaved = Math.round(avoided * (bracketPct / 100));
         return {
           year: baseYear.year,
           age: baseYear.age,
@@ -1149,21 +1155,27 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       });
     })(),
     rmdAvoidanceTotals: (() => {
-      const taxRate = (client.tax_rate ?? 22) / 100;
-      let baseSum = 0, stratSum = 0;
+      // Total tax saved = sum of per-year (avoidedRMD * thatYear'sBracket).
+      // Per-year bracket is what the engine actually applied; falls back to
+      // the strategy's bracket ceiling if missing.
+      let baseSum = 0, stratSum = 0, taxSavedSum = 0;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       projection.baseline_years.filter((y: any) => y.rmdAmount > 0).forEach((baseYear: any) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const stratYear = projection.blueprint_years.find((y: any) => y.year === baseYear.year);
-        baseSum += baseYear.rmdAmount || 0;
-        stratSum += stratYear?.rmdAmount || 0;
+        const baseRMD = baseYear.rmdAmount || 0;
+        const stratRMD = stratYear?.rmdAmount || 0;
+        baseSum += baseRMD;
+        stratSum += stratRMD;
+        const bracketPct = (baseYear.federalTaxBracket ?? client.max_tax_rate ?? 22) as number;
+        taxSavedSum += Math.round((baseRMD - stratRMD) * (bracketPct / 100));
       });
       const avoidedSum = baseSum - stratSum;
       return {
         baselineRMD: formatCurrency(baseSum),
         strategyRMD: formatCurrency(stratSum),
         rmdAvoided: formatCurrency(avoidedSum),
-        taxSaved: formatCurrency(Math.round(avoidedSum * taxRate)),
+        taxSaved: formatCurrency(taxSavedSum),
       };
     })(),
   };
@@ -1258,7 +1270,14 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
 
   const giYearlyData = projection.gi_yearly_data || [];
   const baselineGIYearlyData = projection.gi_baseline_yearly_data || [];
-  const taxRate = client.tax_rate || 24;
+  // Effective tax rate the engine actually applied to baseline GI income,
+  // derived from gi_baseline_annual_tax / gi_baseline_annual_income_gross
+  // (federal + state, bracket-aware, includes SS taxability). Previously this
+  // read client.tax_rate ("Current Bracket (informational)") which has been
+  // retired in favor of bracket-aware math everywhere.
+  const taxRate = projection.gi_baseline_annual_income_gross && projection.gi_baseline_annual_income_gross > 0
+    ? Math.round((projection.gi_baseline_annual_tax / projection.gi_baseline_annual_income_gross) * 100)
+    : 0;
   const flatTaxRate = taxRate / 100;
 
   // Calculate metrics

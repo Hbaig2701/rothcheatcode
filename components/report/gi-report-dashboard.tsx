@@ -77,16 +77,18 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const baseIrmaa = sum(projection.baseline_years, "irmaaSurcharge");
   const baseFinalTraditional = projection.baseline_final_traditional;
 
-  // For GI baseline, lifetime income is the key metric
-  // Use FLAT TAX RATE for consistency across all displays (chart, table, cards)
+  // For GI baseline, lifetime income is the key metric.
+  // Sum the real bracket-aware net income the engine computed per income year
+  // (see runGIBaselineScenario — federal + state + IRMAA via the same modules
+  // the Growth FIA engine uses). Previously this multiplied gross income by
+  // client.tax_rate / 100, which was the only consumer of that "informational"
+  // form field — and produced lower-fidelity numbers than the engine itself
+  // already had on hand.
   const baselineGIYearlyData = projection.gi_baseline_yearly_data || [];
-  const flatTaxRate = client.tax_rate / 100;
   let baselineTotalNetIncome = 0;
   baselineGIYearlyData.forEach((year) => {
     if (year.phase === 'income') {
-      const grossIncome = year.guaranteedIncomeGross || 0;
-      const taxAtFlatRate = Math.round(grossIncome * flatTaxRate);
-      baselineTotalNetIncome += grossIncome - taxAtFlatRate;
+      baselineTotalNetIncome += year.guaranteedIncomeNet || 0;
     }
   });
 
@@ -455,7 +457,6 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
             tooltip={getAnnualAdvantageTooltip(
               projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0,
               projection.gi_baseline_annual_income_gross || 0,
-              client.tax_rate || 24,
               projection.gi_baseline_annual_income_net || 0,
               (projection.gi_strategy_annual_income_net || projection.gi_annual_income_gross || 0) - (projection.gi_baseline_annual_income_net || 0)
             )}
@@ -478,25 +479,48 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
           <ComparisonCard
             label="Taxes Paid"
             baseline={(() => {
-              // Baseline: pays tax on GI income every year
-              const incomeYears = client.end_age - (incomeStartAge || 70) + 1;
-              const annualTax = Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100));
-              return annualTax * incomeYears;
+              // Baseline lifetime tax = sum of the year-by-year bracket-aware
+              // tax the engine actually computed for each income year (federal
+              // + state via the same modules used elsewhere in the engine).
+              // No flat-rate multiplication.
+              const yearly = projection.gi_baseline_yearly_data || [];
+              return yearly.reduce(
+                (sum, y) => sum + (y.phase === 'income' ? ((y.guaranteedIncomeGross || 0) - (y.guaranteedIncomeNet || 0)) : 0),
+                0
+              );
             })()}
             strategy={projection.gi_total_conversion_tax || blueConversionTax}
             invertColor
-            tooltip={{
-              title: "LIFETIME TAXES PAID",
-              calculations: [
-                { label: "Strategy: Conversion Tax", value: toUSD(projection.gi_total_conversion_tax || blueConversionTax), highlight: "red" as const },
-                { label: "Strategy: Tax on Income", value: "$0 (tax-free)", highlight: "green" as const },
-                { isSeparator: true, label: "", value: "" },
-                { label: `Baseline: Tax on Income (${client.tax_rate}%)`, value: toUSD(Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100)) * (client.end_age - (incomeStartAge || 70) + 1)), highlight: "red" as const },
-                { isSeparator: true, label: "", value: "" },
-                { label: "Tax Savings", value: toUSD(Math.round((baselineAnnualIncomeGross || 0) * (client.tax_rate / 100)) * (client.end_age - (incomeStartAge || 70) + 1) - (projection.gi_total_conversion_tax || blueConversionTax)), highlight: "green" as const, isResult: true },
-              ],
-              explanation: "Strategy pays conversion tax once upfront, then $0 tax on income forever. Baseline pays tax on every GI payment for life.",
-            }}
+            tooltip={(() => {
+              // Compute lifetime baseline tax and effective rate from the
+              // engine's own per-year output so the tooltip stays consistent
+              // with the dashboard card and the projection record.
+              const yearly = projection.gi_baseline_yearly_data || [];
+              const baselineLifetimeTax = yearly.reduce(
+                (sum, y) => sum + (y.phase === 'income' ? ((y.guaranteedIncomeGross || 0) - (y.guaranteedIncomeNet || 0)) : 0),
+                0
+              );
+              const baselineLifetimeGross = yearly.reduce(
+                (sum, y) => sum + (y.phase === 'income' ? (y.guaranteedIncomeGross || 0) : 0),
+                0
+              );
+              const effectiveRatePct = baselineLifetimeGross > 0
+                ? Math.round((baselineLifetimeTax / baselineLifetimeGross) * 1000) / 10
+                : 0;
+              const strategyConvTax = projection.gi_total_conversion_tax || blueConversionTax;
+              return {
+                title: "LIFETIME TAXES PAID",
+                calculations: [
+                  { label: "Strategy: Conversion Tax", value: toUSD(strategyConvTax), highlight: "red" as const },
+                  { label: "Strategy: Tax on Income", value: "$0 (tax-free)", highlight: "green" as const },
+                  { isSeparator: true, label: "", value: "" },
+                  { label: `Baseline: Tax on Income (~${effectiveRatePct}% effective)`, value: toUSD(baselineLifetimeTax), highlight: "red" as const },
+                  { isSeparator: true, label: "", value: "" },
+                  { label: "Tax Savings", value: toUSD(baselineLifetimeTax - strategyConvTax), highlight: "green" as const, isResult: true },
+                ],
+                explanation: "Strategy pays conversion tax once upfront, then $0 tax on income forever. Baseline tax is the bracket-aware federal + state amount the engine computes for each income year.",
+              };
+            })()}
           />
           <ComparisonCard
             label="Break-Even"
@@ -570,8 +594,17 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                 <p className="text-xl font-mono font-medium text-green">{toUSD(blueFinalRoth)}</p>
               </div>
               <div>
-                <p className="text-xs text-text-muted mb-1">Tax Bracket Used</p>
-                <p className="text-xl font-mono font-medium text-text-dim">{client.tax_rate}%</p>
+                <p className="text-xs text-text-muted mb-1">Baseline Effective Tax Rate</p>
+                <p className="text-xl font-mono font-medium text-text-dim">
+                  {(() => {
+                    // Derived from the engine's bracket-aware baseline tax /
+                    // baseline gross — same calculation as the Taxes Paid card.
+                    const yearly = projection.gi_baseline_yearly_data || [];
+                    const lifetimeTax = yearly.reduce((s, y) => s + (y.phase === 'income' ? ((y.guaranteedIncomeGross || 0) - (y.guaranteedIncomeNet || 0)) : 0), 0);
+                    const lifetimeGross = yearly.reduce((s, y) => s + (y.phase === 'income' ? (y.guaranteedIncomeGross || 0) : 0), 0);
+                    return lifetimeGross > 0 ? `${(Math.round((lifetimeTax / lifetimeGross) * 1000) / 10).toFixed(1)}%` : "N/A";
+                  })()}
+                </p>
               </div>
             </div>
           </div>

@@ -138,28 +138,15 @@ export function TaxDataSection() {
         }}
       />
 
-      {/* Tax Rate */}
-      <Controller
-        name="tax_rate"
-        control={form.control}
-        render={({ field: { ref, ...field }, fieldState }) => (
-          <Field data-invalid={fieldState.invalid}>
-            <FieldLabel htmlFor="tax_rate" className="flex items-center gap-1.5">
-              Current Bracket (informational)
-              <FieldHelp {...FIELD_HELP.tax_rate} />
-            </FieldLabel>
-            <PercentInput
-              {...field}
-              aria-invalid={fieldState.invalid}
-            />
-            <FieldDescription>
-              Client&apos;s current marginal federal bracket. For reference only — not used in
-              the projection math. The Max Tax Rate below is what drives conversion decisions.
-            </FieldDescription>
-            <FieldError errors={[fieldState.error]} />
-          </Field>
-        )}
-      />
+      {/* "Current Bracket (informational)" tax_rate field was removed
+          2026-06-05. It was load-bearing only for GI projections (used as a
+          flat baseline tax rate) but labeled as informational, which was
+          misleading. The GI engine now derives baseline tax from year-by-year
+          bracket-aware math (federal + state + IRMAA via the same modules
+          the Growth FIA engine uses), so this input is no longer needed
+          anywhere. The DB column stays for backward compatibility with
+          historical projections; the Zod schema treats it as optional with
+          default 0. */}
 
       {/* Max Tax Rate - Dropdown with valid brackets only */}
       <Controller

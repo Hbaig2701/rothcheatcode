@@ -111,13 +111,11 @@ export function runGuaranteedIncomeSimulation(
     customProduct
   );
 
-  // Calculate comparison metrics using client's flat tax rate for baseline
-  const clientTaxRate = (client.tax_rate ?? 24) / 100;
-  const clientStateTaxRate = client.state_tax_rate !== undefined && client.state_tax_rate !== null
-    ? client.state_tax_rate / 100
-    : 0;
+  // Comparison metrics use the engine's actual year-by-year bracket-aware
+  // baseline figures (already computed in runGIBaselineScenario via
+  // calculateFederalTax + calculateStateTax + IRMAA). No flat-rate override.
   const endAge = client.end_age ?? 100;
-  const comparison = calculateComparisonMetrics(strategyMetrics, baselineMetrics, clientTaxRate + clientStateTaxRate, endAge);
+  const comparison = calculateComparisonMetrics(strategyMetrics, baselineMetrics, endAge);
 
   // Build GIMetrics object
   const giMetrics: GIMetrics = {
@@ -1804,25 +1802,30 @@ function runGIBaselineScenario(
 function calculateComparisonMetrics(
   strategy: GIStrategyMetrics & { incomeBaseAtStart: number },
   baseline: GIBaselineMetrics,
-  flatTaxRate: number = 0.24,
-  endAge: number = 100
+  // Previously took a flatTaxRate parameter sourced from client.tax_rate and
+  // used it to OVERRIDE the bracket-aware baseline figures the engine had
+  // just computed year-by-year (federal + state + IRMAA via calculateFederalTax
+  // and calculateStateTax in runGIBaselineScenario). That override was the only
+  // reason the "Current Bracket (informational)" form field existed — labeled
+  // as informational but actually load-bearing for GI projections. Removed
+  // 2026-06-05 in favor of the real numbers the engine already produces.
+  _endAge: number = 100
 ): GIComparisonMetrics {
-  // For comparison display, use flat tax rate (user-entered) on baseline income
-  // This makes the comparison clearer and matches user expectations
+  // Baseline figures here come straight from the per-year simulation in
+  // runGIBaselineScenario — they include real federal brackets, state tax,
+  // and IRMAA, and they reflect the actual income mix (GI + SS + non-SSI)
+  // rather than a flat-rate approximation.
   const baselineGross = baseline.annualIncomeGross;
-  const baselineAnnualTaxFlat = Math.round(baselineGross * flatTaxRate);
-  const baselineNetFlat = baselineGross - baselineAnnualTaxFlat;
+  const baselineAnnualTax = baseline.annualTax;
+  const baselineAnnualNet = baseline.annualIncomeNet;
+  const baselineLifetimeNet = baseline.lifetimeIncomeNet;
 
-  // Annual advantage: Strategy (tax-free) vs Baseline (taxed at flat rate)
-  const annualAdvantage = strategy.annualIncomeNet - baselineNetFlat;
+  // Annual advantage: Strategy (tax-free) vs Baseline (bracket-aware net)
+  const annualAdvantage = strategy.annualIncomeNet - baselineAnnualNet;
 
-  // Lifetime calculations - use actual simulated totals for accuracy
-  // (handles increasing payouts where income grows each year)
-  const incomeYears = endAge - baseline.incomeStartAge + 1;
-  // Baseline lifetime net using flat tax rate on actual gross totals
-  const baselineLifetimeNetFlat = Math.round(baseline.lifetimeIncomeGross * (1 - flatTaxRate));
-  // Lifetime advantage = strategy net (tax-free) minus baseline net (flat-taxed)
-  const lifetimeAdvantage = strategy.lifetimeIncomeNet - baselineLifetimeNetFlat;
+  // Lifetime advantage uses simulated totals on both sides — handles
+  // increasing-payout GI products correctly.
+  const lifetimeAdvantage = strategy.lifetimeIncomeNet - baselineLifetimeNet;
 
   // Break-even years = Conversion Tax / Annual Advantage
   const breakEvenYears = annualAdvantage > 0
@@ -1834,8 +1837,8 @@ function calculateComparisonMetrics(
     : null;
 
   // Percentage improvement
-  const percentImprovement = baselineLifetimeNetFlat > 0
-    ? (lifetimeAdvantage / baselineLifetimeNetFlat) * 100
+  const percentImprovement = baselineLifetimeNet > 0
+    ? (lifetimeAdvantage / baselineLifetimeNet) * 100
     : 0;
 
   return {
@@ -1847,12 +1850,12 @@ function calculateComparisonMetrics(
     strategyTotalConversionTax: strategy.totalConversionTax,
     strategyIncomeBase: strategy.incomeBaseAtIncomeAge,
 
-    // Baseline (Traditional GI) - using flat tax rate for comparison display
+    // Baseline (Traditional GI) — bracket-aware values from the year-by-year sim
     baselineAnnualIncomeGross: baselineGross,
-    baselineAnnualIncomeNet: baselineNetFlat,
+    baselineAnnualIncomeNet: baselineAnnualNet,
     baselineLifetimeIncomeGross: baseline.lifetimeIncomeGross,
-    baselineLifetimeIncomeNet: baselineLifetimeNetFlat,
-    baselineAnnualTax: baselineAnnualTaxFlat,
+    baselineLifetimeIncomeNet: baselineLifetimeNet,
+    baselineAnnualTax: baselineAnnualTax,
     baselineIncomeBase: baseline.incomeBaseAtIncomeAge,
 
     // Comparison

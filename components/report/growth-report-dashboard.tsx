@@ -361,12 +361,11 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
     );
     if (maxReached > 0) return `${maxReached}%`;
     // Fall back to the configured ceiling if the engine didn't surface a
-    // marginal bracket on any conversion year (older projections). The
-    // CEILING is max_tax_rate — tax_rate is the "Current Bracket" reference
-    // field which has no bearing on what the strategy targeted. v1 had the
-    // order reversed and would render "24%" when the advisor configured
-    // max_tax_rate=32.
-    const rate = client.max_tax_rate ?? client.tax_rate ?? 24;
+    // marginal bracket on any conversion year (older projections). v1 had
+    // a secondary fallback to client.tax_rate — removed 2026-06-05 when
+    // the "Current Bracket" form field was retired in favor of bracket-aware
+    // math everywhere.
+    const rate = client.max_tax_rate ?? 24;
     return `${rate}%`;
   };
 
