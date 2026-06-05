@@ -110,7 +110,7 @@ const CLIENT_NAME = "Roger Helou (test mirror)";
     carrier_name: product.carrier_name ?? "American National Insurance Company",
     product_name: product.carrier_product_name ?? PRODUCT_NAME,
     bonus_percent: 1,
-    rate_of_return: 8,
+    rate_of_return: 7.5, // Matches the illustration's terminal compound rate (7.51%)
     anniversary_bonus_percent: null,
     anniversary_bonus_years: null,
 
@@ -153,10 +153,10 @@ const CLIENT_NAME = "Roger Helou (test mirror)";
     surrender_years: 10,
     surrender_schedule: [10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
     penalty_free_percent: 10,
-    baseline_comparison_rate: 8, // MUST match rate_of_return for fair comparison
-    post_contract_rate: 8,
+    baseline_comparison_rate: 7.5, // MUST match rate_of_return for fair comparison
+    post_contract_rate: 7.5,
     years_to_defer_conversion: 0,
-    end_age: 95, // Project to age 95 for legacy view
+    end_age: 100, // Match the carrier illustration's 30-year horizon (age 70 + 30 = 100)
     heir_tax_rate: 32, // Conservative heir bracket
     widow_analysis: true, // Wife is 4 yrs younger — surviving-spouse single-filer impact matters
     widow_death_age: null, // Let engine use heuristic
@@ -193,7 +193,7 @@ const CLIENT_NAME = "Roger Helou (test mirror)";
     growth_rate: 0,
     inflation_rate: 0,
     heir_bracket: "32",
-    projection_years: 25, // 95 - 70
+    projection_years: 30, // 100 - 70, matches illustration horizon
     sensitivity: false,
   };
 

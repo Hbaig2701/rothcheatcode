@@ -5,10 +5,15 @@ import { scanAssistantTextForHallucinations } from "../lib/chat/hallucination-gu
 
 const cases: Array<{ name: string; text: string; expectFlags: boolean }> = [
   // ===== Real bug captures (must flag) =====
+  // Removed 2026-06-05: "Section 2 has Roth balance field" used to be a
+  // hallucination because Section 2 only had Qualified Account Value. Now
+  // Section 2 also has Roth IRA Balance + Taxable Account Balance inputs,
+  // so the formerly-flagged claim is true. See NONEXISTENT_FORM_FIELDS
+  // comment in hallucination-guard.ts for the rationale.
   {
-    name: "BUG: Section 2 has Roth balance field",
+    name: "OK: Section 2 Roth claim (NOW TRUE after 2026-06-05 form update)",
     text: "Section \"2. Current Account Data\" of the client form has a Roth balance field. That's where you enter the $600K.",
-    expectFlags: true,
+    expectFlags: false,
   },
   {
     name: "BUG: SSI max 70 (with SSI keyword in same message)",

@@ -65,8 +65,25 @@ export function runGrowthFormulaScenario(
   const initialPremium = Math.round(initialValue * (1 + bonusPercent / 100));
   let cumulativeWithdrawn = 0; // conversions + RMDs + taxes taken from IRA
   let iraBalance = Math.round(initialValue * (1 + bonusPercent / 100));
-  let rothBalance = 0;
-  let taxableBalance = 0; // Track taxes paid externally
+  // Read client's EXISTING Roth + Taxable balances so the Growth FIA engine
+  // matches the symmetry already present in baseline.ts / formula.ts / GI
+  // engine. Without this, advisors with clients who have pre-existing Roth
+  // or brokerage balances saw the strategy side under-count those buckets
+  // (rothBalance ignored compound growth on their existing Roth, and the
+  // taxable account was treated as "phantom external" funds for conversion
+  // taxes instead of the real money sitting on the client's balance sheet).
+  // Roth balance compounds via rothInterest (~line 588), so starting it at
+  // the client's value lets the existing Roth grow tax-free alongside any
+  // conversions. Taxable balance does NOT yet have interest applied in this
+  // engine (unlike baseline.ts) — it's a tax-flow tracker that drains by
+  // conversion tax + grows by RMD reinvestment. Starting it at the client's
+  // real value lets the engine honestly model conversion taxes draining the
+  // brokerage, instead of pretending those dollars came from nowhere.
+  // TODO: add taxableInterest to this engine to fully mirror baseline.ts's
+  // taxable-bucket semantics. Left out of this change to keep blast radius
+  // scoped and predictable.
+  let rothBalance = client.roth_ira ?? 0;
+  let taxableBalance = client.taxable_accounts ?? 0;
 
   // Look up the product preset early so we can fall back to preset defaults
   // when the client record is missing fields. This guards against legacy

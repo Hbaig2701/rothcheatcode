@@ -18,6 +18,8 @@ Source: \`components/clients/sections/client-data.tsx\`
 ## 2. Current Account Data
 Source: \`components/clients/sections/current-account.tsx\`
 - **Qualified Account Value** (\`qualified_account_value\`) — number, range: 0 to +∞
+- **Roth IRA Balance** (\`roth_ira\`) — number, range: 0 to +∞
+- **Taxable Account Balance** (\`taxable_accounts\`) — number, range: 0 to +∞
 
 ## 3. New Account Data
 Source: \`components/clients/sections/new-account.tsx\`

@@ -33,19 +33,16 @@ const VALID_SECTION_NUMBERS = new Set([1, 2, 3, 4, 5, 6, 7, 8, 9]);
 // Field-existence assertion patterns. Each entry catches the bot claiming
 // a non-existent form field actually exists. The label is what shows up in
 // chat_assistant_flags for human review.
+//
+// NOTE: As of 2026-06-05, Section 2 of the client form DOES include Roth IRA
+// Balance and Taxable Account Balance inputs. The historical Roth/Taxable
+// hallucination patterns (which used to trip on bot claims that those fields
+// existed) have been REMOVED because those claims are now true. Only patterns
+// for fields that genuinely don't exist should live here.
 const NONEXISTENT_FORM_FIELDS: Array<{ pattern: RegExp; label: string }> = [
-  {
-    pattern: /\broth(?:\s+ira)?(?:\s+balance)?\s+(?:field|input|box)\b/i,
-    label: "Claimed a 'Roth balance/IRA field' in the form — no such input exists in the main client form today (Section 2 has only Qualified Account Value).",
-  },
-  {
-    pattern: /\bsection\s+(?:2|two)\b[\s\S]{0,200}?\b(?:roth|taxable account)\b/i,
-    label: "Claimed Section 2 contains Roth or Taxable Account inputs — Section 2 has only Qualified Account Value.",
-  },
-  {
-    pattern: /\btaxable\s+accounts?\s+(?:field|input|box)\b/i,
-    label: "Claimed a 'Taxable Account field' in the form — no such input exists in the main client form today.",
-  },
+  // (intentionally empty for now — the Roth/Taxable patterns shipped before
+  // those inputs were added to Section 2. If new "claimed non-existent field"
+  // hallucinations surface, add them here.)
 ];
 
 // Numeric range claims on SSI payout age. The real range is 62-100. Any

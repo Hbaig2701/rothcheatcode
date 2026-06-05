@@ -98,7 +98,11 @@ const product = {
       confidence: "verified" as const,
     },
     form_defaults: {
-      rate_of_return: 8.0,
+      // Calibrated to match the illustration's terminal value at year 30.
+      // Illustration: $2,276,000 → $19,904,866 over 30 years = 7.51% compound.
+      // Mid-year drift is unavoidable (illustration uses lumpy historical
+      // S&P returns, engine uses smooth compounding) but terminal lines up.
+      rate_of_return: 7.5,
     },
   },
 };

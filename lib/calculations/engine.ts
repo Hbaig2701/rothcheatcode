@@ -305,10 +305,15 @@ export function createSimulationInput(
     projectionYears = client.projection_years ?? 30;
   }
 
+  // endYear is INCLUSIVE in the engine convention: all three engines compute
+  // (endYear - startYear + 1) to get the number of years to project. Without
+  // the -1 here, a client with age=70 + end_age=100 would produce 31 rows
+  // (ages 71-101) instead of the intended 30 (ages 71-100), pushing the
+  // final-year numbers one year past the requested horizon.
   return {
     client,
     startYear: currentYear,
-    endYear: currentYear + projectionYears,
+    endYear: currentYear + projectionYears - 1,
     customProduct: customProduct ?? null,
   };
 }
