@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { MessageBubble } from "./message-bubble";
@@ -8,6 +9,19 @@ import { ChatInput } from "./chat-input";
 import { useConversation, chatKeys } from "@/lib/queries/chat";
 import { streamChat } from "@/lib/chat/stream-client";
 import { useTypewriter } from "@/lib/chat/typewriter";
+
+// UUID v4 regex. We use this to extract a client_id from /clients/[id]
+// URLs so the bot can answer "why is X so high?" without making the
+// advisor restate the client name every time.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function parseClientIdFromPath(pathname: string | null): string | null {
+  if (!pathname) return null;
+  // Matches /clients/<uuid> with optional trailing /edit, /results, etc.
+  const m = pathname.match(/^\/clients\/([^/?#]+)(?:\/|$)/);
+  if (!m) return null;
+  return UUID_RE.test(m[1]) ? m[1] : null;
+}
 
 interface MessageThreadProps {
   conversationId: string | null;
@@ -32,6 +46,12 @@ interface ToolStatus {
 export function MessageThread({ conversationId, onConversationCreated }: MessageThreadProps) {
   const qc = useQueryClient();
   const { data, isLoading } = useConversation(conversationId);
+  // Capture the page the advisor is viewing when they send each message,
+  // so the chat API can prepend a "Page context" block to the system
+  // prompt (e.g., current client name + id when they're on /clients/[id]).
+  // Without this the bot constantly asks "which client?" — see audit
+  // of June 2026 chats where this was the #1 friction point.
+  const pathname = usePathname();
 
   const [input, setInput] = useState("");
   // Smoothed reveal of the streaming assistant text. SSE chunks land in
@@ -105,6 +125,10 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
         conversationId,
         message,
         attachments,
+        pageContext: {
+          pathname,
+          clientId: parseClientIdFromPath(pathname),
+        },
         signal: controller.signal,
         handlers: {
           onMeta: ({ conversation_id }) => {

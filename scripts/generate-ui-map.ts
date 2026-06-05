@@ -210,6 +210,56 @@ function extractZodRanges(schemaSrc: string): Map<string, { min?: number; max?: 
   return out;
 }
 
+// Pull the canonical advisor-facing definition of every form field from
+// lib/copy/field-help-content.ts. The bot has hallucinated competing
+// explanations of settings like "Protect Initial Premium" (gave two
+// different wrong answers to the same advisor in two different sessions).
+// Embedding the same text the in-app tooltips render fixes that drift.
+//
+// Format we extract per entry: { key, title, body }. We deliberately drop
+// the `example` field — it's the longest part of each entry and the bot
+// already has worked examples elsewhere in the KB; cutting examples keeps
+// the prompt budget reasonable (~8K → ~4K tokens for this block).
+interface FieldHelpExtract {
+  key: string;
+  title: string;
+  body: string;
+}
+function extractFieldHelp(): FieldHelpExtract[] {
+  const src = readSrc("lib/copy/field-help-content.ts");
+  const out: FieldHelpExtract[] = [];
+  // Each entry: `  field_key: {\n    title: "X",\n    body: "Y",\n    example: "Z",\n  },`
+  // We walk for entry openers and pull the matching title + body literals.
+  // body strings can contain escaped quotes ("\"") and span a single line
+  // (the source file uses single-line strings even for long bodies).
+  const entryRegex = /\n  ([a-z_][a-z0-9_]*)\s*:\s*\{/g;
+  for (const m of src.matchAll(entryRegex)) {
+    const key = m[1];
+    const startIdx = (m.index ?? 0) + m[0].length;
+    // Find matching closing `},` at the same indent depth.
+    let depth = 1;
+    let i = startIdx;
+    while (i < src.length && depth > 0) {
+      const c = src[i];
+      if (c === "{") depth++;
+      else if (c === "}") depth--;
+      i++;
+    }
+    const body = src.slice(startIdx, i - 1);
+    const titleMatch = body.match(/title:\s*"((?:[^"\\]|\\.)*)"/);
+    const bodyMatch = body.match(/body:\s*"((?:[^"\\]|\\.)*)"/);
+    if (!titleMatch || !bodyMatch) continue;
+    const decode = (s: string) =>
+      s.replace(/\\"/g, '"').replace(/\\n/g, " ").replace(/\\\\/g, "\\");
+    out.push({
+      key,
+      title: decode(titleMatch[1]),
+      body: decode(bodyMatch[1]),
+    });
+  }
+  return out;
+}
+
 // Read the product registry. ALL_PRODUCTS is a spread of two const records,
 // GROWTH_PRODUCTS and GUARANTEED_INCOME_PRODUCTS — so we parse each of those
 // separately and tag the kind.
@@ -288,6 +338,18 @@ function generate(): string {
     lines.push(`- \`${f}\` (orphan title: "${title}")`);
   }
   lines.push("");
+
+  const fieldHelp = extractFieldHelp();
+  if (fieldHelp.length > 0) {
+    lines.push("## Field definitions (GENERATED FROM lib/copy/field-help-content.ts)");
+    lines.push("");
+    lines.push("Authoritative one-paragraph explanation of every named form field, taken verbatim from the in-app tooltip copy. This is the source of truth for what each setting MEANS. When an advisor asks 'what does X do' / 'what does X mean' / 'explain X', the answer is here. Do NOT improvise a different definition — if two of your past answers contradicted each other, this block is the tiebreaker.");
+    lines.push("");
+    for (const f of fieldHelp) {
+      lines.push(`- **${f.title}** (\`${f.key}\`): ${f.body}`);
+    }
+    lines.push("");
+  }
 
   const products = extractProducts();
   if (products.length > 0) {

@@ -26,10 +26,24 @@ export interface ChatStreamHandlers {
   onError?: (data: { message: string }) => void;
 }
 
+// Snapshot of what the advisor is looking at when they sent the message.
+// The server uses this to inject a "Page context" block into the system
+// prompt so the bot doesn't ask "which client?" when the answer is in
+// the URL bar. Pass `null` (the default) for off-app or context-less
+// surfaces — the server treats absence as "no context available."
+export interface ChatPageContext {
+  pathname?: string | null;
+  // If the page is a client-scoped one, the resolved client_id from the
+  // URL. The server validates this against RLS (the advisor must own the
+  // client) before injecting anything into the prompt.
+  clientId?: string | null;
+}
+
 export interface ChatStreamArgs {
   conversationId?: string | null;
   message: string;
   attachments?: string[];
+  pageContext?: ChatPageContext | null;
   signal?: AbortSignal;
   handlers: ChatStreamHandlers;
 }
@@ -38,6 +52,7 @@ export async function streamChat({
   conversationId,
   message,
   attachments,
+  pageContext,
   signal,
   handlers,
 }: ChatStreamArgs): Promise<void> {
@@ -48,6 +63,7 @@ export async function streamChat({
       conversation_id: conversationId ?? null,
       message,
       attachments,
+      page_context: pageContext ?? null,
     }),
     signal,
   });

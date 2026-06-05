@@ -32,19 +32,46 @@ const cases: Array<{ name: string; text: string; expectFlags: boolean }> = [
     text: "Section 2 does NOT have a Roth balance field. It only contains the Qualified Account Value input.",
     expectFlags: false,
   },
+  // Policy change (after Chat 1 incident, 2026-06-04): the bot must NEVER
+  // cite tax-code sections by number — it has fabricated nonexistent
+  // citations that would have led to client penalties. Even legitimate
+  // section names (401(k), 199A, 1031) are flagged for human review, since
+  // the cost of a fabricated cite slipping through is higher than the cost
+  // of reviewing a real one.
   {
-    name: "OK: IRC Section 401(k) reference",
+    name: "FLAG: IRC Section 401(k) reference (policy: no tax-code cites at all)",
     text: "Under Section 401(k) of the tax code, qualified retirement accounts grow tax-deferred.",
-    expectFlags: false,
+    expectFlags: true,
   },
   {
-    name: "OK: IRC Section 199A reference",
-    text: "The QBI deduction in Section 199A applies to pass-through entities.",
-    expectFlags: false,
+    name: "FLAG: IRC Section 199A reference (policy: no tax-code cites at all)",
+    text: "The QBI deduction in Section 199A of the tax code applies to pass-through entities.",
+    expectFlags: true,
   },
   {
-    name: "OK: IRC Section 1031 with IRC keyword",
+    name: "FLAG: IRC Section 1031 with IRC keyword (policy: no tax-code cites)",
     text: "A like-kind exchange under IRC Section 1031 lets you defer the capital gain.",
+    expectFlags: true,
+  },
+  // The specific fabrication that triggered the policy change.
+  {
+    name: "FLAG: fabricated IRC 72(t)(2)(A)(v) for conversion tax payment",
+    text: "Dollars pulled from the IRA to PAY the conversion tax are treated as a payment of taxes owed, which is also exempt from the 10% penalty under IRC 72(t)(2)(A)(v) - qualified distributions for taxes.",
+    expectFlags: true,
+  },
+  {
+    name: "FLAG: 26 U.S.C. style citation",
+    text: "This is governed by 26 U.S.C. § 408(d), which covers IRA distributions.",
+    expectFlags: true,
+  },
+  {
+    name: "FLAG: 'between 62 and 85' SSI range fabrication",
+    text: "The spouse's Social Security payout age must be between 62 and 85.",
+    expectFlags: true,
+  },
+  {
+    name: "OK: SSI claim age range correctly stated as 62 to 100",
+    text: "The platform allows SS payout ages between 62 and 100, inclusive.",
     expectFlags: false,
   },
   {

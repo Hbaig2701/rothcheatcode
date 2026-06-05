@@ -5,6 +5,8 @@
  *   - "Section 2 has a Roth balance field" (it doesn't)
  *   - "SSI payout age max is 70" (real range: 62-100)
  *   - "scroll past Qualified Account Value to find Roth" (no Roth field exists)
+ *   - "IRC 72(t)(2)(A)(v) exempts conversion-tax withdrawals" (FABRICATED — no
+ *     such exception exists; advisor would have given client wrong advice)
  *
  * After each assistant message is persisted, we run this against the final
  * text. Each known bad pattern returns a short label string describing the
@@ -50,6 +52,41 @@ const NONEXISTENT_FORM_FIELDS: Array<{ pattern: RegExp; label: string }> = [
 // other "max is N" / "min is N" / "limit is N" / "between A and B" claim
 // near "SSI" / "Social Security payout" / "payout age" is suspect.
 const SSI_RANGE_CLAIM = /\b(?:ssi|ss(?:\s+payout)?|social\s+security|payout\s+age)[\s\S]{0,80}?\b(?:max(?:imum)?|min(?:imum)?|between|range|limit|cap)[\s\S]{0,40}?\b(\d{2,3})\b/gi;
+
+// "between A and B" framing for SSI age — catches "the platform allows
+// payout ages between 62 and 85" style fabrications. Real range is 62-100.
+// Flag any pair where the upper bound is not 100 (or the lower not 62).
+const SSI_BETWEEN_CLAIM = /\b(?:ssi|ss\s+payout|social\s+security|payout\s+age)[\s\S]{0,80}?\bbetween\s+(\d{2})\s+and\s+(\d{2,3})\b/gi;
+
+// Tax-code citation patterns. The bot has fabricated IRC sections that
+// gave advisors penalty-triggering wrong advice. We flag ANY parenthetical-
+// number IRC citation so a human can verify. Common shapes:
+//   IRC 72(t)(2)(A)(v)
+//   Section 72(t)
+//   26 U.S.C. § 408
+//   Treas. Reg. 1.401-1
+//   IRC §401(k)
+//   "under IRC 72(t)(2)(A)(v)" etc.
+const IRC_CITATION_PATTERNS: RegExp[] = [
+  // "IRC 72(t)" / "IRC § 72(t)" / "IRC Section 72(t)"
+  /\bIRC\s*(?:Section\s*|§\s*)?\d{1,4}\s*\(/gi,
+  // "26 U.S.C. 408" / "26 USC §72" / "26 U.S.C. § 408(d)"
+  /\b26\s+U\.?S\.?C\.?\s*§?\s*\d{1,4}/gi,
+  // "Treas. Reg. 1.401-1" / "Treasury Regulation 1.401"
+  /\bTreas(?:ury)?\.?\s*Reg(?:ulation)?\.?\s*\d/gi,
+  // "Section 72(t)(2)(A)(v)" — parenthetical letter/digit chain is the
+  // strong tell. "Section 6" alone is form-section reference; "Section
+  // 72(t)" is IRC.
+  /\bSection\s+\d{2,4}\s*\([a-z0-9]\)/gi,
+  // "§72(t)" / "§ 401(k)" — bare paragraph symbol with section number
+  /§\s*\d{1,4}\s*\(/g,
+  // "Section 199A" / "Section 1031" — bare IRC section number with optional
+  // trailing letter, when IRC/tax-code context appears nearby. Without the
+  // context check this would over-fire on every "Section 6" form reference.
+  // We accept 2-4 digit section numbers (IRC sections range 1-9999) with an
+  // optional single trailing letter. Validation is done in the scanner.
+  /\bSection\s+(\d{2,4}[A-Z]?)\b/g,
+];
 
 // Negation tokens that, when within ~40 chars BEFORE a claim pattern,
 // indicate the bot is correctly explaining the field's absence rather than
@@ -129,6 +166,58 @@ export function scanAssistantTextForHallucinations(text: string): string[] {
     const end = idx + m[0].length;
     if (hasNegationNear(text, idx, end)) continue;
     flags.push(`Stated SSI/SS payout age limit of ${num} — the real range is 62-100.`);
+  }
+
+  // Pattern C2: "between A and B" framing for SSI age. Same backstop as
+  // Pattern C but catches the framing where the bot says "between 62 and 85"
+  // and the upper number isn't 100.
+  for (const m of text.matchAll(SSI_BETWEEN_CLAIM)) {
+    const lo = Number(m[1]);
+    const hi = Number(m[2]);
+    if (lo === 62 && hi === 100) continue;
+    const idx = m.index ?? 0;
+    const end = idx + m[0].length;
+    if (hasNegationNear(text, idx, end)) continue;
+    flags.push(`Stated SSI/SS payout age range of ${lo}-${hi} — the real range is 62-100.`);
+  }
+
+  // Pattern D: tax-code citations. The bot should NEVER emit these — the
+  // system prompt explicitly forbids citing IRC/USC/CFR section numbers
+  // because it has fabricated nonexistent ones in the past (cost an advisor
+  // wrong advice that would have triggered IRS penalties on a real client).
+  // Any match here is worth flagging for human review.
+  //
+  // Special case for the last pattern (`Section N` with optional letter, no
+  // parens): only flag when an IRC/tax-code context word is nearby AND the
+  // section number isn't a form-section number (1-9). Without these checks
+  // we'd over-fire on every "Section 6. Conversion" form reference.
+  const seenCitationLabels = new Set<string>();
+  for (let p = 0; p < IRC_CITATION_PATTERNS.length; p++) {
+    const pat = IRC_CITATION_PATTERNS[p];
+    const isBareSectionPattern = p === IRC_CITATION_PATTERNS.length - 1;
+    for (const m of text.matchAll(pat)) {
+      const idx = m.index ?? 0;
+      const end = idx + m[0].length;
+      if (isBareSectionPattern) {
+        // m[1] is the captured section number+letter (e.g., "199A", "1031").
+        // Form sections are 1-9 single digits; only flag 2-4 digit numbers.
+        const sectionNum = m[1];
+        const numericOnly = sectionNum.replace(/[A-Z]+$/, "");
+        if (numericOnly.length < 2) continue;
+        // Form sections are 1-9. A 2-digit number could still be a form
+        // section in error, but the pattern already requires ≥2 digits, so
+        // anything ≥10 is suspicious. The IRC context check is the gate.
+        const around = text.slice(Math.max(0, idx - 100), Math.min(text.length, end + 100));
+        if (!IRC_CONTEXT.test(around)) continue;
+      }
+      // Trim the matched snippet for the flag label so reviewers see exactly
+      // what the bot wrote without having to open the full transcript.
+      const snippet = m[0].slice(0, 60).trim();
+      const label = `Cited a tax-code section ("${snippet}") — system prompt forbids citing IRC/USC/CFR sections by number; verify this isn't fabricated.`;
+      if (seenCitationLabels.has(label)) continue;
+      seenCitationLabels.add(label);
+      flags.push(label);
+    }
   }
 
   // De-dupe within the same response.

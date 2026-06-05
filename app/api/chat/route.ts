@@ -37,6 +37,34 @@ interface PostBody {
   conversation_id?: string | null;
   message: string;
   attachments?: string[];
+  // Snapshot of where in the app the advisor was when they sent the
+  // message. Lets the assistant skip "which client?" pings when the
+  // answer is in the URL bar. Always re-validated server-side against
+  // RLS before being injected into the system prompt.
+  page_context?: {
+    pathname?: string | null;
+    clientId?: string | null;
+  } | null;
+}
+
+// UUID v4 validator. Used to verify a client_id from the page-context
+// payload looks like a UUID before we hit the database with it.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Friendly label for whichever client surface the advisor is on. Used in
+// the "Page context" prompt block so the model knows whether the advisor
+// is editing the form, looking at results, etc.
+function describePageSurface(pathname: string | null): string {
+  if (!pathname) return "";
+  if (/^\/clients\/[^/]+\/edit$/.test(pathname)) return "client edit form";
+  if (/^\/clients\/[^/]+\/results/.test(pathname)) return "client results / scenario page";
+  if (/^\/clients\/[^/]+$/.test(pathname)) return "client detail page";
+  if (pathname === "/clients") return "Clients list page";
+  if (pathname === "/clients/new") return "new-client form";
+  if (pathname.startsWith("/settings")) return "Settings page";
+  if (pathname.startsWith("/support")) return "Support page";
+  if (pathname.startsWith("/dashboard")) return "Dashboard";
+  return pathname;
 }
 
 function sseEvent(controller: ReadableStreamDefaultController, name: string, data: unknown) {
@@ -235,9 +263,47 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Resolve the page-context payload (if provided) into a short prompt
+  // block. We validate the client_id against the advisor's own clients via
+  // RLS — if the payload was tampered with or stale, the lookup just
+  // returns null and we fall back to a path-only context. Never trust the
+  // client-supplied clientId without this check.
+  let pageContextBlock: string | null = null;
+  const pc = body.page_context ?? null;
+  if (pc && typeof pc.pathname === "string" && pc.pathname.length < 200) {
+    const surface = describePageSurface(pc.pathname);
+    const lines: string[] = [
+      "## Page context (what the advisor is currently looking at)",
+      "",
+      `- Path: \`${pc.pathname}\``,
+    ];
+    if (surface) lines.push(`- Surface: ${surface}`);
+    if (typeof pc.clientId === "string" && UUID_RE.test(pc.clientId)) {
+      const { data: clientRow } = await supabase
+        .from("clients")
+        .select("id, name, age, filing_status, blueprint_type, conversion_type")
+        .eq("id", pc.clientId)
+        .single();
+      if (clientRow) {
+        lines.push("");
+        lines.push(`The advisor is viewing client \`${clientRow.name}\` (id: \`${clientRow.id}\`, age ${clientRow.age}, ${clientRow.filing_status}, ${clientRow.blueprint_type ?? "n/a"} product, ${clientRow.conversion_type ?? "n/a"} conversion). When the advisor asks "why is X so high" or any other question without naming a client, assume they mean THIS client and call tools with this client_id directly. Do NOT ask "which client?" — the answer is in the URL.`);
+      }
+    } else {
+      lines.push("");
+      lines.push("The advisor is NOT on a specific client's page. If their question requires a client lookup, ask which client by name (or call get_my_clients to enumerate).");
+    }
+    pageContextBlock = lines.join("\n");
+  }
+
   const anthropic = getAnthropic();
   const model = CHAT_MODEL_DEFAULT;
-  const systemBlocks = buildSystemPrompt();
+  const baseSystemBlocks = buildSystemPrompt();
+  // Page context is volatile (changes every message), so it must NOT be
+  // marked cache_control. Append it AFTER the cached base blocks so the
+  // prompt cache still hits on the stable identity/tone/KB chunks.
+  const systemBlocks = pageContextBlock
+    ? [...baseSystemBlocks, { type: "text" as const, text: pageContextBlock }]
+    : baseSystemBlocks;
 
   const stream = new ReadableStream({
     async start(controller) {
