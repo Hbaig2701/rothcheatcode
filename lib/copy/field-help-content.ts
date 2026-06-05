@@ -292,8 +292,8 @@ export const FIELD_HELP = {
   // ============================================================
   withdrawals_table: {
     title: "IRA / Roth Withdrawals",
-    body: "Voluntary withdrawals on TOP of RMDs and conversions. Use this to model spending pulls — e.g., 'client wants $50K/yr from the Roth for travel'. Source 'IRA' adds to taxable income (with 10% penalty if under 59½), 'Roth' is tax-free, 'Auto' lets the baseline draw from IRA while the strategy draws from Roth.",
-    example: "Client wants $40K/yr for travel from age 67 through 80 → add a row with Start Age 67, Amount $40,000, Source 'Roth', click Repeat → fills 14 yearly rows.",
+    body: "Voluntary distributions the client wants to take each year. Enter the TOTAL amount the client wants pulled — for IRA withdrawals, this satisfies the RMD up to its amount (matches IRS rules: a voluntary distribution counts toward that year's RMD; no extra RMD is forced on top). Only the shortfall (if voluntary < RMD) is added as a forced RMD. Source 'IRA' adds to taxable income (10% penalty if under 59½), 'Roth' is tax-free, 'Auto' lets the baseline draw from IRA while the strategy draws from Roth.",
+    example: "Client age 75 wants $60K/yr from the IRA, RMD is $40K → enter $60,000 Source IRA. The engine pulls $60K total ($40K satisfies the RMD, $20K is extra), not $100K.",
   },
 
   // ============================================================

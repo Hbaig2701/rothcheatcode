@@ -6,13 +6,16 @@ import type { Client, WithdrawalEntry } from "@/lib/types/client";
  *
  * Inputs:
  *   - client.withdrawals: per-year schedule (optional, default [])
- *   - availableIRA: IRA balance after RMD has already been deducted
- *     (RMDs come off first conceptually — voluntary withdrawals are *additional*)
+ *   - availableIRA: IRA balance at the moment of withdrawal — callers should
+ *     pass the FULL beginning-of-year IRA. Voluntary IRA pulls satisfy the
+ *     RMD up to their amount (IRS rule), so the caller nets the result
+ *     against the RMD requirement; voluntary is NOT layered on top.
  *   - availableRoth: Roth balance at the moment of withdrawal
  *
  * Returns the actual amounts pulled from each bucket. The caller is
- * responsible for applying these (subtracting from balances, adding the
- * IRA portion to taxable income, applying any 10% early-withdrawal penalty).
+ * responsible for applying these (subtracting from balances, netting against
+ * the RMD requirement to derive the taxable IRA distribution, applying any
+ * 10% early-withdrawal penalty).
  *
  * Source semantics:
  *   - 'ira'  — pull from IRA only. Capped at availableIRA.

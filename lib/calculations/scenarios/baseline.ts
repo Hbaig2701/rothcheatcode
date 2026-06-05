@@ -96,24 +96,41 @@ export function runBaselineScenario(
     const boyRoth = rothBalance;
     const boyTaxable = taxableBalance;
 
-    // Calculate RMD based on prior year-end balance (which is current BOY).
+    // Calculate the RMD requirement based on prior year-end balance.
     // SHORT-CIRCUIT: when rmds_handled_externally is true, the advisor is
     // modeling only part of the client's IRA and RMDs are being taken from
     // a bucket NOT modeled here — so we skip RMD entirely. All downstream
     // math (taxable income, treatment, balances) sees 0 and behaves as if
     // RMDs don't exist on this bucket. Baseline AND strategy gate the same
     // way so the comparison stays apples-to-apples.
-    const rmdAmount = client.rmds_handled_externally
+    const rmdRequired = client.rmds_handled_externally
       ? 0
       : calculateRMD({ age, traditionalBalance: boyIRA, birthYear }).rmdAmount;
 
-    // Voluntary withdrawals on top of RMDs. RMD comes off conceptually first,
-    // so the available IRA for voluntary draw is (boyIRA - RMD). Roth is whole
-    // boyRoth (no forced distributions). The IRA portion adds to taxable
-    // income below; the Roth portion is tax-free (assumed qualified).
-    const wd = resolveWithdrawalsForYear(client, year, boyIRA - rmdAmount, boyRoth);
+    // Voluntary withdrawals are resolved against the FULL IRA balance because
+    // they SATISFY the RMD up to their amount (IRS rule: any qualifying
+    // distribution counts toward that year's RMD; you don't take an RMD on
+    // top of a larger voluntary distribution).
+    const wd = resolveWithdrawalsForYear(client, year, boyIRA, boyRoth);
     const iraWithdrawal = wd.iraPulled;
     const rothWithdrawal = wd.rothPulled;
+
+    // Net the voluntary against the RMD requirement:
+    //   forcedRmdShortfall = how much extra forced distribution is needed
+    //                        beyond what the voluntary already pulled
+    //   effectiveIraDistribution = total taxable IRA distribution this year
+    //                              = max(rmdRequired, iraWithdrawal)
+    // Display field rmdAmount remains the LEGAL requirement (informative —
+    // the "what the IRS demanded this year" column), unchanged by whether
+    // voluntary covered it. The actual forced shortfall and total are
+    // tracked internally for the math.
+    const forcedRmdShortfall = Math.max(0, rmdRequired - iraWithdrawal);
+    const rmdAmount = rmdRequired;
+    const effectiveIraDistribution = iraWithdrawal + forcedRmdShortfall;
+
+    // 10% early-withdrawal penalty applies only to voluntary IRA pulls under
+    // 59.5 — at any age where an RMD requirement exists (73+), 59.5 is long
+    // past, so there's no penalty interaction.
     const earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
 
     // Primary SSI income (with COLA)
@@ -139,10 +156,11 @@ export function runBaselineScenario(
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
     // Gross non-SSI income (drives provisional income for SS taxation).
-    // Voluntary IRA withdrawals add to ordinary income alongside RMDs.
-    // Voluntary Roth withdrawals are tax-free (assumed qualified) and
-    // therefore excluded from this total.
-    const grossTaxableIncome = rmdAmount + iraWithdrawal + otherIncome;
+    // Voluntary IRA withdrawals satisfy the RMD up to their amount, so the
+    // taxable IRA distribution is max(rmdRequired, iraWithdrawal) =
+    // effectiveIraDistribution — never the sum. Roth withdrawals are tax-free
+    // (assumed qualified) and excluded.
+    const grossTaxableIncome = effectiveIraDistribution + otherIncome;
 
     // Standard deduction (age-adjusted)
     const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
@@ -192,10 +210,11 @@ export function runBaselineScenario(
     // penalty (RMD start age is well above 59.5).
     const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge + earlyPenalty;
 
-    // Calculate interest AFTER distribution
-    // Interest = (B.O.Y. Balance - Distribution) × Rate
-    // Voluntary withdrawals also leave the bucket before the year's growth.
-    const iraAfterDistribution = boyIRA - rmdAmount - iraWithdrawal;
+    // Calculate interest AFTER distribution.
+    // Interest = (B.O.Y. Balance - Distribution) × Rate.
+    // Distribution = max(rmdRequired, iraWithdrawal); see note above on the
+    // RMD-satisfaction rule.
+    const iraAfterDistribution = boyIRA - effectiveIraDistribution;
     const iraInterest = Math.round(iraAfterDistribution * growthRate);
     const rothAfterWithdrawal = boyRoth - rothWithdrawal;
     const rothInterest = Math.round(rothAfterWithdrawal * growthRate);
@@ -214,25 +233,31 @@ export function runBaselineScenario(
 
     // Taxable balance handling depends on RMD treatment option.
     //
-    // After-tax RMD must use ONLY the tax attributable to the RMD itself,
-    // not the year's full totalTax — totalTax includes tax on wages, SS,
-    // and other income, which the client pays out of THOSE income streams,
-    // not out of the RMD. Pro-rata allocation by share of taxable income
-    // is approximate (a true marginal calc would re-run the tax engine
-    // without the RMD), but it correctly stops the previous behavior where
-    // a working retiree with $50K RMD and $75K total tax saw afterTaxRmd
-    // clamp to 0 and "After taxes (what reaches the client)" undershoot
-    // by the wage-attributable tax portion.
-    const rmdShareOfTaxable = grossTaxableIncome > 0
-      ? rmdAmount / grossTaxableIncome
+    // The "forced RMD portion" is the shortfall the IRS forced out beyond
+    // whatever the advisor scheduled as a voluntary withdrawal. Only this
+    // forced portion is what rmd_treatment governs — the voluntary portion
+    // is presumed spent regardless (matches the voluntary-withdrawal
+    // semantics elsewhere in the engine).
+    //
+    // After-tax forced-RMD must use ONLY the tax attributable to that
+    // portion, not the year's full totalTax — totalTax includes tax on
+    // wages, SS, voluntary IRA pulls, and other income, which the client
+    // pays out of THOSE income streams, not out of the forced RMD. Pro-rata
+    // allocation by share of taxable income is approximate (a true marginal
+    // calc would re-run the tax engine without the RMD), but it correctly
+    // stops the previous behavior where a working retiree with $50K RMD
+    // and $75K total tax saw afterTaxRmd clamp to 0.
+    const forcedRmdShareOfTaxable = grossTaxableIncome > 0
+      ? forcedRmdShortfall / grossTaxableIncome
       : 0;
-    const rmdAttributableTax = Math.round(totalTax * rmdShareOfTaxable);
-    const afterTaxRmd = rmdAmount - rmdAttributableTax;
-    // Non-RMD share of tax is paid from the taxable account in modes that
-    // track it ('cash'/'reinvested'). 'spent' mode keeps taxable flat as
-    // before — non-RMD tax in that mode is assumed funded externally
-    // (matches the "wages cover their own withholding" intuition).
-    const nonRmdTax = totalTax - rmdAttributableTax;
+    const forcedRmdAttributableTax = Math.round(totalTax * forcedRmdShareOfTaxable);
+    const afterTaxForcedRmd = forcedRmdShortfall - forcedRmdAttributableTax;
+    // Tax not attributable to the forced RMD is paid from the taxable
+    // account in modes that track it ('cash'/'reinvested'). 'spent' mode
+    // keeps taxable flat as before — non-RMD tax in that mode is assumed
+    // funded externally (matches the "wages cover their own withholding"
+    // intuition).
+    const nonForcedRmdTax = totalTax - forcedRmdAttributableTax;
 
     // CLAMP AT $0 (Jorge V., ticket 809a5774): once the IRA depletes (e.g.,
     // the client's RMDs + voluntary withdrawals have drained it) the
@@ -246,19 +271,20 @@ export function runBaselineScenario(
     // edge case.
     let desiredTaxableBalance: number;
     if (rmdTreatment === 'spent') {
-      // RMDs are spent on living expenses - don't accumulate in taxable.
+      // Forced RMD is spent on living expenses - don't accumulate in taxable.
       // Track as distributions received (for Lifetime Wealth calculation).
-      cumulativeAfterTaxDistributions += Math.max(0, afterTaxRmd);
+      cumulativeAfterTaxDistributions += Math.max(0, afterTaxForcedRmd);
       // Taxable balance stays flat — same as before this fix.
       desiredTaxableBalance = boyTaxable;
     } else if (rmdTreatment === 'cash') {
-      // RMDs accumulate in cash but don't earn interest. Non-RMD tax still
-      // comes out of the account.
-      desiredTaxableBalance = boyTaxable + rmdAmount - rmdAttributableTax - nonRmdTax;
+      // Forced RMD accumulates in cash but doesn't earn interest. Non-RMD
+      // tax still comes out of the account.
+      desiredTaxableBalance = boyTaxable + forcedRmdShortfall - forcedRmdAttributableTax - nonForcedRmdTax;
     } else {
-      // 'reinvested' (default): RMDs go to taxable account and earn interest.
-      // Non-RMD tax (wage tax, etc.) deducts from the taxable account.
-      desiredTaxableBalance = boyTaxable + rmdAmount + taxableInterest - rmdAttributableTax - nonRmdTax;
+      // 'reinvested' (default): forced RMD goes to taxable account and
+      // earns interest. Non-RMD tax (wage tax, etc.) deducts from the
+      // taxable account.
+      desiredTaxableBalance = boyTaxable + forcedRmdShortfall + taxableInterest - forcedRmdAttributableTax - nonForcedRmdTax;
     }
     taxableBalance = Math.max(0, desiredTaxableBalance);
 
@@ -331,7 +357,10 @@ export function runBaselineScenario(
       stateTaxOnSS,
       stateTaxOnConversions: 0, // No conversions in baseline
       stateTaxOnOrdinaryIncome,
-      totalIRAWithdrawal: rmdAmount + iraWithdrawal, // RMD + voluntary IRA pull
+      // Actual taxable IRA distribution = forced RMD shortfall + voluntary.
+      // Voluntary already satisfies the RMD up to its amount, so this is
+      // max(rmdRequired, iraWithdrawal) — never the additive sum.
+      totalIRAWithdrawal: effectiveIraDistribution,
       iraWithdrawal,
       rothWithdrawal,
       earlyWithdrawalPenalty: earlyPenalty || undefined,

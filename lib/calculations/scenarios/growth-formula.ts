@@ -212,33 +212,43 @@ export function runGrowthFormulaScenario(
     const currentSpouseAgeForDeduction = initialSpouseAge !== null ? initialSpouseAge + yearOffset : undefined;
     const deductions = getStandardDeduction(client.filing_status, age, currentSpouseAgeForDeduction, year);
 
-    // Step 0: Calculate RMD if client is old enough and still has a traditional IRA balance
-    // This handles the case where conversions don't fully deplete the IRA before RMD age.
+    // Step 0: Calculate the RMD requirement if the client is old enough and
+    // still has a traditional IRA balance. This handles the case where
+    // conversions don't fully deplete the IRA before RMD age.
     // SHORT-CIRCUIT: when rmds_handled_externally is true, the modeled bucket
     // is only part of the client's total IRA and RMDs are taken from a separate
     // bucket not modeled here. Skip entirely so RMDs don't eat into the
     // conversion target (e.g., Greg Stopp's Policar case: $1.3M target was
     // landing at $1.17M because RMDs were drawing from the same bucket).
-    const rmdAmount = client.rmds_handled_externally
+    const rmdRequired = client.rmds_handled_externally
       ? 0
       : Math.min(calculateRMD({ age, traditionalBalance: boyIRA, birthYear }).rmdAmount, boyIRA);
-    const iraAfterRmd = boyIRA - rmdAmount;
 
-    // Step 0b: Voluntary withdrawals on top of RMDs (advisor-scheduled).
-    // Available IRA = balance after RMD; available Roth = full boyRoth.
-    // The IRA portion adds to taxable income alongside the RMD; the Roth
-    // portion is tax-free (assumed qualified). Withdrawals happen BEFORE the
-    // conversion math so the optimizer sees the right post-withdrawal IRA
-    // and the right starting taxable income.
-    const wd = resolveWithdrawalsForYear(client, year, iraAfterRmd, boyRoth);
+    // Step 0b: Voluntary withdrawals satisfy the RMD up to their amount (IRS
+    // rule: any qualifying distribution counts toward that year's RMD; the
+    // client doesn't take an RMD on top of a larger voluntary distribution).
+    // Resolve voluntary against the FULL IRA balance, then net it against the
+    // RMD requirement to derive the actual taxable IRA distribution this year.
+    const wd = resolveWithdrawalsForYear(client, year, boyIRA, boyRoth);
     const iraWithdrawal = wd.iraPulled;
     const rothWithdrawal = wd.rothPulled;
-    const iraAfterRmdAndWithdrawal = iraAfterRmd - iraWithdrawal;
+
+    // forcedRmdShortfall: the extra forced distribution needed beyond what
+    //   the voluntary already pulled (0 when voluntary covers the RMD).
+    // effectiveIraDistribution: total taxable IRA distribution this year,
+    //   = max(rmdRequired, iraWithdrawal). NEVER the additive sum.
+    // rmdAmount (display field): keeps the legal-requirement meaning — what
+    //   the IRS demanded this year — so the year-by-year RMD column stays
+    //   informative regardless of whether voluntary covered it.
+    const forcedRmdShortfall = Math.max(0, rmdRequired - iraWithdrawal);
+    const rmdAmount = rmdRequired;
+    const effectiveIraDistribution = iraWithdrawal + forcedRmdShortfall;
+    const iraAfterDistribution = boyIRA - effectiveIraDistribution;
     const rothAfterWithdrawal = boyRoth - rothWithdrawal;
 
-    // Existing taxable income (RMD + voluntary IRA withdrawal + other + taxable SS) —
-    // used to seed marginal tax calculations and the SS-aware optimizer.
-    const existingNonSSIncome = rmdAmount + iraWithdrawal + otherIncome;
+    // Existing taxable income (effective IRA distribution + other + taxable
+    // SS) — used to seed marginal tax calculations and the SS-aware optimizer.
+    const existingNonSSIncome = effectiveIraDistribution + otherIncome;
     const existingTaxInfo = computeTaxableIncomeWithSS({
       otherIncome: existingNonSSIncome,
       ssBenefits: ssIncome,
@@ -283,7 +293,7 @@ export function runGrowthFormulaScenario(
     // The cap therefore restricts taxesPaidFromIRA, not the conversion
     // ceiling. Any tax overflow above the cap is modeled as paid from external
     // funds (taxesPaidExternally on the YearlyResult). The conversion sizing
-    // branches below run against the FULL physical IRA (iraAfterRmdAndWithdrawal)
+    // branches below run against the FULL physical IRA (iraAfterDistribution)
     // — the split happens after the conversion is sized.
     const inSurrenderPeriod = yearOffset < surrenderYears;
     // Tax cap (used in 'tax_only' scope): only the tax dollars from the IRA
@@ -292,15 +302,14 @@ export function runGrowthFormulaScenario(
     const taxCap = (respectPenaltyFreeLimit && inSurrenderPeriod && payTaxFromIRA)
       ? Math.round(boyIRA * penaltyFreePercent / 100)
       : Number.POSITIVE_INFINITY;
-    // Outflow cap (used in 'all_distributions' scope): conversion + RMD +
-    // voluntary withdrawal + tax-from-IRA must all fit under the allowance.
-    // RMDs are mandatory (IRS forces them) and voluntary withdrawals were
-    // already pulled above (they're advisor-scheduled dollars that leave
-    // the contract), so both come off the cap first. Whatever's left is
-    // the room available for the conversion (and any tax-from-IRA on it).
-    // We apply the cap even when tax is paid externally — the conversion
-    // itself still physically leaves the qualified IRA under the strict
-    // reading.
+    // Outflow cap (used in 'all_distributions' scope): conversion +
+    // effective IRA distribution + tax-from-IRA must all fit under the
+    // allowance. The effective IRA distribution (= max(rmdRequired,
+    // iraWithdrawal)) has already left the IRA before we got here, so it
+    // comes off the cap first. Whatever's left is the room available for
+    // the conversion (and any tax-from-IRA on it). We apply the cap even
+    // when tax is paid externally — the conversion itself still physically
+    // leaves the qualified IRA under the strict reading.
     const useOutflowCap =
       respectPenaltyFreeLimit &&
       inSurrenderPeriod &&
@@ -308,15 +317,15 @@ export function runGrowthFormulaScenario(
     const outflowCap = useOutflowCap
       ? Math.round(boyIRA * penaltyFreePercent / 100)
       : Number.POSITIVE_INFINITY;
-    // Conversion ceiling under the strict interpretation. Subtracts both
-    // the forced RMD and the advisor's voluntary IRA withdrawal — both
-    // already left the IRA before we got here. Can be negative if those
-    // distributions alone exceed the cap; in that case conversion = 0.
+    // Conversion ceiling under the strict interpretation. Subtracts the
+    // effective IRA distribution (whichever of forced RMD or voluntary is
+    // larger) that already left the IRA. Can be negative if the distribution
+    // alone exceeds the cap; in that case conversion = 0.
     const conversionRoomUnderOutflowCap = useOutflowCap
-      ? Math.max(0, outflowCap - rmdAmount - iraWithdrawal)
+      ? Math.max(0, outflowCap - effectiveIraDistribution)
       : Number.POSITIVE_INFINITY;
     const effectiveIraForConversion = Math.min(
-      iraAfterRmdAndWithdrawal,
+      iraAfterDistribution,
       conversionRoomUnderOutflowCap,
     );
 
@@ -337,21 +346,23 @@ export function runGrowthFormulaScenario(
           // Special case: "empty the IRA" when taxes are paid from the IRA.
           // Two regimes depending on whether the carrier tax-cap binds:
           //   - Regime A (cap not binding, or cap = ∞): conv + tax(conv) =
-          //     iraAfterRmd. Today's iterative solver. Tax is fully internal.
-          //   - Regime B (cap binding): conv = iraAfterRmd - taxCap. The IRA
-          //     distributes exactly (conv + taxCap) = iraAfterRmd (still
-          //     "empties" the IRA in carrier terms), and the tax overflow
-          //     (tax(conv) − taxCap) is funded externally. Conversion stays
-          //     as large as physically possible; only the tax dollars trip
-          //     the cap.
-          // Detection: try Regime B first. If tax(iraAfterRmd − taxCap) > taxCap,
-          // we're genuinely cap-bound. Otherwise fall through to Regime A.
+          //     iraAfterDistribution. Iterative solver. Tax is fully internal.
+          //   - Regime B (cap binding): conv = iraAfterDistribution - taxCap.
+          //     The IRA distributes exactly (conv + taxCap) =
+          //     iraAfterDistribution (still "empties" the IRA in carrier
+          //     terms), and the tax overflow (tax(conv) − taxCap) is funded
+          //     externally. Conversion stays as large as physically possible;
+          //     only the tax dollars trip the cap.
+          // Detection: try Regime B first. If tax(iraAfterDistribution −
+          // taxCap) > taxCap, we're genuinely cap-bound. Otherwise fall
+          // through to Regime A.
           let useRegimeB = false;
           // Regime B (tax overflow → external) only applies in the legacy
           // 'tax_only' scope. In 'all_distributions' mode there is no
           // overflow concept — the conversion itself has already been
-          // bounded above (effectiveIraForConversion = min(iraAfterRmd,
-          // outflowCap - rmd)), so Regime A's solver handles it cleanly.
+          // bounded above (effectiveIraForConversion = min(iraAfterDistribution,
+          // outflowCap - effectiveIraDistribution)), so Regime A's solver
+          // handles it cleanly.
           if (taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap) {
             const tryConv = Math.max(0, effectiveIraForConversion - taxCap);
             const tryTaxes = convTaxAt(tryConv);
@@ -470,8 +481,10 @@ export function runGrowthFormulaScenario(
       // matter. Before 63, no IRMAA constraint.
       if (client.constraint_type === 'irmaa_threshold' && age >= 63 && conversionAmount > 0) {
         // All values here are in CENTS (engine operates in cents throughout).
-        // Pre-conversion MAGI = baseline taxable + tax-exempt + SSI (no conversion yet)
-        const preConversionGrossTaxable = rmdAmount + otherIncome;
+        // Pre-conversion MAGI = baseline taxable + tax-exempt + SSI (no conversion yet).
+        // Effective IRA distribution covers both forced RMD and voluntary
+        // (whichever is larger) without double-counting them.
+        const preConversionGrossTaxable = effectiveIraDistribution + otherIncome;
         const preConversionMagi =
           calculateMAGI(preConversionGrossTaxable, taxExemptNonSSI) +
           primarySsIncome + spouseSsIncome;
@@ -576,12 +589,14 @@ export function runGrowthFormulaScenario(
     const conversionTaxExternal = payTaxFromIRA
       ? Math.max(0, conversionTaxBeforeSplit - conversionTaxFromIRA)
       : 0;
-    const iraAfterConversion = iraAfterRmdAndWithdrawal - conversionAmount - conversionTaxFromIRA;
+    const iraAfterConversion = iraAfterDistribution - conversionAmount - conversionTaxFromIRA;
     const rothAfterConversion = rothAfterWithdrawal + conversionAmount;
 
     // Track cumulative withdrawals for the principal protection floor.
-    // Voluntary IRA pulls reduce the floor base just like RMDs/conversions do.
-    cumulativeWithdrawn += rmdAmount + iraWithdrawal + conversionAmount + conversionTaxFromIRA;
+    // Effective IRA distribution already represents the total IRA pull
+    // (max of RMD and voluntary, never the sum); the conversion + tax also
+    // leave the contract.
+    cumulativeWithdrawn += effectiveIraDistribution + conversionAmount + conversionTaxFromIRA;
     // Track cumulative converted (used by 'partial_amount' to enforce the total cap)
     cumulativeConverted += conversionAmount;
 
@@ -651,7 +666,7 @@ export function runGrowthFormulaScenario(
     // bracket display would all be understated by the tax-on-tax amount. With
     // the planner-driven bracket fill above, this addition exactly squares
     // the books: the displayed taxable income matches what the IRS computes.
-    const grossNonSSIncome = conversionAmount + conversionTaxFromIRA + rmdAmount + otherIncome;
+    const grossNonSSIncome = conversionAmount + conversionTaxFromIRA + effectiveIraDistribution + otherIncome;
     const finalTaxInfo = computeTaxableIncomeWithSS({
       otherIncome: grossNonSSIncome,
       ssBenefits: ssIncome,
@@ -702,7 +717,7 @@ export function runGrowthFormulaScenario(
     // client the real tax-cost number for pulling X dollars out of the
     // IRA, without summing two display columns. (Robert R. ticket a1639792.)
     let federalTaxOnIRAWithdrawal = 0;
-    const hasIraDistribution = conversionAmount + conversionTaxFromIRA + rmdAmount + iraWithdrawal > 0;
+    const hasIraDistribution = conversionAmount + conversionTaxFromIRA + effectiveIraDistribution > 0;
     if (hasIraDistribution) {
       const noIraTaxInfo = computeTaxableIncomeWithSS({
         otherIncome, // wages / non-SSI ordinary income only — no IRA $
@@ -784,9 +799,14 @@ export function runGrowthFormulaScenario(
     // bills BEFORE deducting from taxable, which is more accurate but a
     // bigger rewrite. Revisit if the simpler clamp ever produces a misleading
     // case.
+    // In 'reinvested'/'cash' modes, only the FORCED RMD shortfall flows into
+    // the taxable account — the voluntary portion of the IRA distribution is
+    // presumed spent, matching the voluntary-withdrawal semantics elsewhere
+    // in the engine. (Pre-fix, the full legal RMD was reinvested even when
+    // voluntary had already pulled the same dollars and spent them.)
     const desiredTaxableBalance = rmdTreatment === 'spent'
       ? boyTaxable - taxFromTaxableAccount
-      : boyTaxable + rmdAmount - taxFromTaxableAccount;
+      : boyTaxable + forcedRmdShortfall - taxFromTaxableAccount;
     taxableBalance = Math.max(0, desiredTaxableBalance);
 
     // Product bonus applied this year. Two sources:
@@ -823,7 +843,7 @@ export function runGrowthFormulaScenario(
     const stateTaxOnConversions = conversionStateTax;
     const residualFederalTax = Math.max(0, federalTax - federalTaxOnConversions);
     const residualStateTax = Math.max(0, stateTax - stateTaxOnConversions);
-    const ordinaryBaseline = rmdAmount + otherIncome;
+    const ordinaryBaseline = effectiveIraDistribution + otherIncome;
     const ssTaxableBaseline = finalTaxInfo.taxableSS;
     const residualDenominator = ordinaryBaseline + ssTaxableBaseline;
     const federalTaxOnSS = residualDenominator > 0 && ssTaxableBaseline > 0
@@ -879,7 +899,10 @@ export function runGrowthFormulaScenario(
       stateTaxOnSS,
       stateTaxOnConversions,
       stateTaxOnOrdinaryIncome,
-      totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + rmdAmount + iraWithdrawal,
+      // Total dollars that physically left the IRA this year: conversion +
+      // any conversion tax withheld from the IRA + the effective IRA
+      // distribution (max of RMD and voluntary, never the additive sum).
+      totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + effectiveIraDistribution,
       federalTaxOnIRAWithdrawal,
       taxesPaidFromIRA: conversionTaxFromIRA,
       taxesPaidExternally: conversionTaxExternal,

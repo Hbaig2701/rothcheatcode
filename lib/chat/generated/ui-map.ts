@@ -75,7 +75,7 @@ Source: \`components/clients/sections/aum-allocation.tsx\`
 
 ## 8. IRA / Roth Withdrawals
 Source: \`components/clients/sections/roth-withdrawals.tsx\`
-_Schedule voluntary withdrawals from the qualified buckets, in addition to RMDs and any Roth conversions._
+_Schedule voluntary distributions from the qualified buckets. Voluntary IRA pulls satisfy the RMD up to their amount (matches IRS rules); only the shortfall, if any, is forced as additional RMD._
 - (no individual field inputs detected — this section is rendered as a table or composite control; see the description above for what it does)
 
 ## 9. Advanced Data
@@ -151,7 +151,7 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **Dividend Yield (%/yr)** (\`aum_dividend_yield\`): Annual dividend yield on the AUM portfolio. Taxed yearly at the LTCG rate below — creates a small drag on after-tax returns.
 - **Annual Turnover (%)** (\`aum_turnover_percent\`): Share of unrealized capital gains realized each year due to portfolio rebalancing. Realized gains pay LTCG tax annually — higher turnover = more tax drag.
 - **LTCG Rate (%)** (\`ltcg_rate\`): Long-term capital gains rate applied to dividends + realized turnover. Federal LTCG is 0/15/20% depending on income; add state if your state taxes LTCG as ordinary income.
-- **IRA / Roth Withdrawals** (\`withdrawals_table\`): Voluntary withdrawals on TOP of RMDs and conversions. Use this to model spending pulls — e.g., 'client wants $50K/yr from the Roth for travel'. Source 'IRA' adds to taxable income (with 10% penalty if under 59½), 'Roth' is tax-free, 'Auto' lets the baseline draw from IRA while the strategy draws from Roth.
+- **IRA / Roth Withdrawals** (\`withdrawals_table\`): Voluntary distributions the client wants to take each year. Enter the TOTAL the client wants pulled — for IRA, this satisfies the RMD up to its amount (matches IRS rules: a voluntary distribution counts toward that year's RMD; no extra RMD is forced on top). Only the shortfall (if voluntary < RMD) is added as a forced RMD. Source 'IRA' adds to taxable income (10% penalty if under 59½), 'Roth' is tax-free, 'Auto' lets the baseline draw from IRA while the strategy draws from Roth.
 - **Surrender Years** (\`surrender_years\`): Number of years the annuity carries surrender charges (the period during which early withdrawals incur a penalty). Locked when a system preset is selected — click 'Override preset' if a state-specific version of the same product has a different schedule.
 - **Penalty Free %** (\`penalty_free_percent\`): The percentage of the prior anniversary value the client can withdraw each year during the surrender period without a surrender charge. Typically 10%. Combined with the 'Respect Penalty-Free Limit' toggle in Section 4 to constrain conversions.
 - **Baseline Comparison Rate** (\`baseline_comparison_rate\`): Annual return rate used for the 'do nothing' baseline IRA projection. Auto-synced with the strategy's Rate of Return so the comparison stays fair — adjust only if you have a specific reason (e.g., comparing the strategy to a 60/40 portfolio at a different assumption). HEADS UP: any manual override here gets reset the moment you touch Rate of Return again, so set this LAST.

@@ -487,15 +487,23 @@ const sprengel = makeClient({
 const sprengelResults = runFixture('FIXTURE 3 — Sprengel shape', sprengel);
 
 const SPRENGEL_EXPECTED = {
+  // Sprengel is the only fixture with a voluntary IRA withdrawal schedule
+  // ($100K/yr from age 67), so it's the only one affected by the RMD-
+  // satisfaction fix: voluntary IRA pulls now satisfy the RMD up to their
+  // amount (matches IRS rule) instead of stacking on top of it. Result: less
+  // IRA pulled per year → more Traditional balance preserved → less
+  // reinvested into Taxable → less taxable income → less tax. Forced RMD
+  // requirements themselves grow because the IRA depletes slower (BOY
+  // balance is higher each year, so the calculated RMD is higher).
   base: {
-    finalNetWorth:        442_501_339,
-    finalTraditional:     242_864_196,
+    finalNetWorth:        504_383_300,
+    finalTraditional:     401_190_516,
     finalRoth:                      0,
-    finalTaxable:         199_637_143,
-    lifetimeWealth:       345_355_661,
-    forcedDistributions:  313_867_977,
-    totalFedStateTax:     216_698_655,
-    taxOnRMDs:            134_915_288,
+    finalTaxable:         103_192_784,
+    lifetimeWealth:       343_907_094,
+    forcedDistributions:  396_578_978,
+    totalFedStateTax:     193_414_004,
+    taxOnRMDs:            111_630_637,
   },
   blue: {
     finalNetWorth:        954_643_104,
