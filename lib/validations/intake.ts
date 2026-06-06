@@ -95,7 +95,10 @@ export function intakeToClientData(intake: IntakeFormData) {
     // Default tax settings
     tax_rate: 22,
     max_tax_rate: 24,
-    constraint_type: "none",
+    // 'none' was retired 2026-06-05 — collapsed to 'bracket_ceiling' since
+    // the engine ignored 'none' anyway. New intake submissions default to
+    // the active value.
+    constraint_type: "bracket_ceiling",
     tax_payment_source: "from_taxable",
 
     // Default conversion settings

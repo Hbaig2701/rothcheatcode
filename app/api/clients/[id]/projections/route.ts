@@ -38,6 +38,11 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     anniversary_bonus_percent: client.anniversary_bonus_percent,
     anniversary_bonus_years: client.anniversary_bonus_years,
     constraint_type: client.constraint_type,
+    // CRITICAL: include target_irmaa_tier so the advisor changing the IRMAA
+    // ceiling tier invalidates the cached projection. Without this, the cache
+    // hits on a stale projection and the advisor sees no change after picking
+    // a different target tier. Same staleness class of bug as penalty_free_scope.
+    target_irmaa_tier: client.target_irmaa_tier,
     tax_rate: client.tax_rate,
     max_tax_rate: client.max_tax_rate,
     ssi_payout_age: client.ssi_payout_age,

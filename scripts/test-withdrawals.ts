@@ -39,7 +39,7 @@ function makeClient(overrides: Partial<Client>): Client {
     qualified_account_value: 1_000_000_00,
     carrier_name: "T", product_name: "T",
     bonus_percent: 0, rate_of_return: 5,
-    state: "TX", constraint_type: "none",
+    state: "TX", constraint_type: "bracket_ceiling",
     tax_rate: 22, max_tax_rate: 22, tax_payment_source: "from_taxable",
     state_tax_rate: 0, gross_taxable_non_ssi: 0, tax_exempt_non_ssi: 0,
     ssi_payout_age: 67, ssi_annual_amount: 0,

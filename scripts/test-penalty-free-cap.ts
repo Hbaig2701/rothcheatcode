@@ -42,7 +42,7 @@ function makeClient(overrides: Partial<Client>): Client {
     anniversary_bonus_percent: null,
     anniversary_bonus_years: null,
     state: "TX", // No state tax
-    constraint_type: "none",
+    constraint_type: "bracket_ceiling",
     tax_rate: 22,
     max_tax_rate: 22,
     tax_payment_source: "from_taxable", // External tax — simpler to verify

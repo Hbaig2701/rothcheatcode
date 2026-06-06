@@ -3,6 +3,7 @@ import {
   getIRMAATier,
   getIRMAASurcharge,
   calculateIRMAAHeadroom as getHeadroom,
+  calculateIRMAAHeadroomToTarget as getHeadroomToTarget,
   isNearIRMAACliff
 } from '@/lib/data/irmaa-brackets';
 
@@ -59,6 +60,30 @@ export function calculateIRMAA(input: IRMAAInput): IRMAAResult {
 export function calculateIRMAAHeadroom(magi: number, filingStatus: string, year: number = 2026): number {
   const isJoint = filingStatus === 'married_filing_jointly';
   return getHeadroom(magi, isJoint, year);
+}
+
+/**
+ * Calculate headroom against a specific target tier the advisor selected
+ * (0 = Standard, 5 = Tier 5 = no cap). Returns:
+ *   - Positive: room remaining before crossing into a higher tier than
+ *     the target.
+ *   - Negative: target is below client's current MAGI (infeasible) —
+ *     callers should auto-clamp.
+ *   - Infinity: target is Tier 5 (no upper bound).
+ *
+ * See lib/data/irmaa-brackets.ts:calculateIRMAAHeadroomToTarget for the
+ * underlying tier math. This wrapper just translates filing status string
+ * to the boolean isJoint flag, matching the convention used by
+ * calculateIRMAAHeadroom above.
+ */
+export function calculateIRMAAHeadroomToTarget(
+  magi: number,
+  filingStatus: string,
+  targetTier: number,
+  year: number = 2026,
+): number {
+  const isJoint = filingStatus === 'married_filing_jointly';
+  return getHeadroomToTarget(magi, isJoint, targetTier, year);
 }
 
 /**

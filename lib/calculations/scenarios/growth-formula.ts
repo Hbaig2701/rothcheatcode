@@ -6,7 +6,7 @@ import { calculateStateTax } from '../modules/state-tax';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
-import { calculateIRMAAWithLookback, calculateIRMAAHeadroom } from '../modules/irmaa';
+import { calculateIRMAAWithLookback, calculateIRMAAHeadroom, calculateIRMAAHeadroomToTarget } from '../modules/irmaa';
 import {
   calculateMAGI,
   getMarginalBracket,
@@ -489,14 +489,60 @@ export function runGrowthFormulaScenario(
           calculateMAGI(preConversionGrossTaxable, taxExemptNonSSI) +
           primarySsIncome + spouseSsIncome;
 
-        const irmaaHeadroom = calculateIRMAAHeadroom(
+        // Two-stage headroom calculation:
+        //
+        //   1. Try the advisor's selected target tier (0 = Standard, 5 = Tier 5).
+        //      Returns positive headroom when achievable, Infinity for Tier 5
+        //      (no cap), or negative when MAGI is already past the target tier.
+        //
+        //   2. If the target is infeasible (negative headroom), auto-clamp to
+        //      "current tier" semantics — fall back to calculateIRMAAHeadroom
+        //      which returns the distance to the next tier from current MAGI.
+        //      This is the "don't make it worse" interpretation: the advisor
+        //      asked the impossible, so the engine still constrains conversions
+        //      from pushing MAGI even higher than they already are. A dashboard
+        //      warning surfaces this auto-clamp so the advisor knows it happened.
+        //
+        // Pre-2026-06-05 behavior used calculateIRMAAHeadroom only — the same
+        // "stay in your current tier" fallback applied in every case, with no
+        // way for the advisor to pick a higher target. The new target-tier
+        // selector + this two-stage logic preserves the old behavior whenever
+        // the target is infeasible AND gives the advisor agency when it isn't.
+        // target_irmaa_tier is a string enum ("standard" | "tier_1" | ... |
+        // "tier_5") that maps to the numeric tier index 0-5. Default to
+        // "standard" (the most conservative — matches old engine behavior for
+        // clients who were sitting in Standard, which was the vast majority).
+        const targetTierStr = client.target_irmaa_tier ?? 'standard';
+        const targetTier = (
+          { standard: 0, tier_1: 1, tier_2: 2, tier_3: 3, tier_4: 4, tier_5: 5 } as const
+        )[targetTierStr] ?? 0;
+        const targetHeadroom = calculateIRMAAHeadroomToTarget(
           preConversionMagi,
           client.filing_status,
-          year
+          targetTier,
+          year,
         );
+        let irmaaHeadroom: number;
+        if (!Number.isFinite(targetHeadroom)) {
+          // Target Tier 5 — no IRMAA cap.
+          irmaaHeadroom = Infinity;
+        } else if (targetHeadroom > 0) {
+          // Target is achievable this year.
+          irmaaHeadroom = targetHeadroom;
+        } else {
+          // Target is infeasible — auto-clamp to client's actual current
+          // tier so conversions don't push MAGI higher than necessary.
+          irmaaHeadroom = calculateIRMAAHeadroom(
+            preConversionMagi,
+            client.filing_status,
+            year,
+          );
+        }
 
-        // If headroom is Infinity, client is past the top IRMAA tier —
-        // further conversions don't increase IRMAA, so don't cap.
+        // If headroom is Infinity (target Tier 5 or client past top tier),
+        // further conversions don't increase IRMAA — skip cap. If headroom
+        // is zero or negative even after auto-clamp (which can happen when
+        // current MAGI is exactly on a tier boundary), also skip cap.
         if (Number.isFinite(irmaaHeadroom) && irmaaHeadroom > 0) {
           // Leave 1-cent buffer since IRMAA uses cliff thresholds.
           const irmaaCap = Math.max(0, irmaaHeadroom - 1);

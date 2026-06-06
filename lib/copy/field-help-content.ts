@@ -145,9 +145,14 @@ export const FIELD_HELP = {
   // SECTION 4: TAX DATA
   // ============================================================
   constraint_type: {
-    title: "Conversion Constraint",
-    body: "The rule that caps annual conversions. 'Bracket Ceiling' fills up to the Max Tax Rate each year (most common). 'IRMAA Threshold' caps at the Medicare premium tier the client wants to stay under. 'Fixed Amount' converts the same dollar amount yearly. 'None' lets the engine run unconstrained.",
-    example: "Most clients → Bracket Ceiling. Client on Medicare worried about premium spike → IRMAA Threshold. Client who's said 'just convert $100K/yr' → Fixed Amount.",
+    title: "Additional Constraint",
+    body: "Bracket Ceiling — via the Max Tax Rate field below — is ALWAYS the primary cap on each year's conversion. This dropdown decides whether to layer an additional IRMAA cap on top. 'Bracket Ceiling only' = fill to Max Tax Rate every year, ignore IRMAA. 'Bracket Ceiling + IRMAA Tier cap' = same as before, but also stay under the IRMAA tier you pick. The tighter of the two caps wins each year.",
+    example: "Most clients on Medicare → Bracket Ceiling + IRMAA Tier cap. Pre-Medicare clients (under 63) → Bracket Ceiling only (IRMAA hasn't kicked in yet).",
+  },
+  target_irmaa_tier: {
+    title: "Target IRMAA Tier",
+    body: "Which IRMAA premium tier you want the client's MAGI to stay under each year. Standard = no surcharge at all (most conservative). Each higher tier allows larger conversions but adds Medicare Part B + D premium surcharges. Tier 5 means no IRMAA cap — convert as aggressively as the bracket ceiling allows. Only applied at age 63+ (IRMAA uses a 2-year lookback for age-65 Medicare eligibility).",
+    example: "Client wants zero Medicare premium hit → Standard. Client is willing to pay ~$2,100/yr in surcharges to convert faster → Tier 2. Client wants the biggest conversions possible and accepts whatever IRMAA hits → Tier 5.",
   },
   // tax_rate ("Current Bracket") was retired from the form on 2026-06-05.
   // It was originally used by the GI engine as a flat baseline tax rate, but

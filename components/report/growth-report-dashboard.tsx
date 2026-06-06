@@ -265,10 +265,30 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // their decimal/raw forms for the surrender-violation calculation; we read
   // the raw client values directly here to keep tooltip props readable.)
   const yearsToDefer = client.years_to_defer_conversion ?? 0;
-  const constraintType = client.constraint_type ?? 'none';
+  const constraintType = client.constraint_type ?? 'bracket_ceiling';
   const respectPenaltyFreeLimit = client.respect_penalty_free_limit ?? false;
   const penaltyFreePercentForTooltip = client.penalty_free_percent ?? 10;
   const surrenderYearsForTooltip = client.surrender_years ?? 0;
+
+  // IRMAA target tier warning: when constraint = irmaa_threshold AND the
+  // advisor's selected target is BELOW the client's actual MAGI in any
+  // conversion year, the engine auto-clamped to "don't make it worse"
+  // semantics (apply current-tier headroom instead of target-tier). Surface
+  // this in the dashboard so the advisor knows the displayed strategy isn't
+  // strictly honoring their selection.
+  //
+  // Detection: target tier index N. If any conversion year in the strategy
+  // has irmaaTier > N, the auto-clamp fired in that year.
+  const targetIrmaaTierStr = client.target_irmaa_tier ?? 'standard';
+  const targetIrmaaTierIndex = (
+    { standard: 0, tier_1: 1, tier_2: 2, tier_3: 3, tier_4: 4, tier_5: 5 } as const
+  )[targetIrmaaTierStr] ?? 0;
+  const irmaaTargetUnreachableYears = constraintType === 'irmaa_threshold' && targetIrmaaTierIndex < 5
+    ? (projection.blueprint_years ?? []).filter(
+        (y) => (y.conversionAmount ?? 0) > 0 && (y.age ?? 0) >= 63 && (y.irmaaTier ?? 0) > targetIrmaaTierIndex
+      )
+    : [];
+  const irmaaTargetUnreachable = irmaaTargetUnreachableYears.length > 0;
 
   // ===== Widow analysis =====
   // When enabled, the projection switches the surviving spouse to single
@@ -380,6 +400,20 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   return (
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
       <div className="p-9 space-y-6">
+        {/* IRMAA target unreachable warning — surfaces when the advisor
+            picked a target IRMAA tier the client's baseline income is
+            already above. Engine auto-clamped to "don't make it worse"
+            (current-tier headroom) for those years. */}
+        {irmaaTargetUnreachable && (
+          <div className="bg-amber-500/10 border border-amber-500/40 rounded-[14px] px-6 py-4">
+            <p className="text-sm font-medium text-amber-200">
+              IRMAA target was below this client&apos;s actual income in {irmaaTargetUnreachableYears.length} year{irmaaTargetUnreachableYears.length === 1 ? "" : "s"}
+            </p>
+            <p className="text-xs text-amber-300/80 mt-1.5 leading-relaxed">
+              You selected {targetIrmaaTierStr === 'standard' ? 'Standard (no surcharge)' : `Tier ${targetIrmaaTierIndex}`} as the IRMAA ceiling, but the client&apos;s baseline MAGI (from RMDs, Social Security, and other income) was already in a higher tier in those years. The engine fell back to capping at the client&apos;s actual current tier — conversions didn&apos;t push them HIGHER, but the IRMAA surcharge above the target was incurred regardless. To remove this warning, raise the target tier in the inputs to match what&apos;s actually achievable.
+            </p>
+          </div>
+        )}
         {/* Section 1: Strategy Summary (Hero) */}
         <div className="bg-bg-card border border-border-default rounded-[16px] py-8 px-10">
           <p className="text-sm uppercase tracking-[3px] text-text-dim mb-6 font-medium">

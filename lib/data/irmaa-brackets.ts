@@ -131,24 +131,28 @@ export function getIRMAASurcharge(magi: number, isJoint: boolean, year: number =
 }
 
 /**
+ * Internal helper: return the inflation-adjusted tier list for a given year.
+ * Shared by every threshold lookup so the inflation logic only lives in one
+ * place.
+ */
+function getAdjustedTiers(year: number): IRMAATier[] {
+  if (year <= 2026) return IRMAA_TIERS_2026;
+  const inflationFactor = Math.pow(1 + IRMAA_INFLATION_RATE, year - 2026);
+  return IRMAA_TIERS_2026.map(tier => ({
+    ...tier,
+    singleLower: Math.round(tier.singleLower * inflationFactor / 100) * 100,
+    singleUpper: tier.singleUpper === Infinity ? Infinity : Math.round(tier.singleUpper * inflationFactor / 100) * 100,
+    jointLower: Math.round(tier.jointLower * inflationFactor / 100) * 100,
+    jointUpper: tier.jointUpper === Infinity ? Infinity : Math.round(tier.jointUpper * inflationFactor / 100) * 100,
+  }));
+}
+
+/**
  * Calculate headroom to next IRMAA tier
  * Returns how much more MAGI can increase before hitting next tier
  */
 export function calculateIRMAAHeadroom(magi: number, isJoint: boolean, year: number = 2026): number {
-  // Adjust thresholds for inflation if year > 2026
-  let adjustedTiers = IRMAA_TIERS_2026;
-  if (year > 2026) {
-    const yearsFromBase = year - 2026;
-    const inflationFactor = Math.pow(1 + IRMAA_INFLATION_RATE, yearsFromBase);
-    adjustedTiers = IRMAA_TIERS_2026.map(tier => ({
-      ...tier,
-      singleLower: Math.round(tier.singleLower * inflationFactor / 100) * 100,
-      singleUpper: tier.singleUpper === Infinity ? Infinity : Math.round(tier.singleUpper * inflationFactor / 100) * 100,
-      jointLower: Math.round(tier.jointLower * inflationFactor / 100) * 100,
-      jointUpper: tier.jointUpper === Infinity ? Infinity : Math.round(tier.jointUpper * inflationFactor / 100) * 100
-    }));
-  }
-
+  const adjustedTiers = getAdjustedTiers(year);
   for (const tier of adjustedTiers) {
     const threshold = isJoint ? tier.jointLower : tier.singleLower;
     if (threshold > magi) {
@@ -156,6 +160,49 @@ export function calculateIRMAAHeadroom(magi: number, isJoint: boolean, year: num
     }
   }
   return Infinity;
+}
+
+/**
+ * Calculate headroom from current MAGI to the TOP of a specific target tier
+ * (i.e., to the threshold where the next tier starts).
+ *
+ * Tier indices:
+ *   0 = Standard (no surcharge)
+ *   1 = Tier 1
+ *   2 = Tier 2
+ *   3 = Tier 3
+ *   4 = Tier 4
+ *   5 = Tier 5 (highest, no upper bound — returns Infinity)
+ *
+ * Return value semantics:
+ *   - Positive: headroom remaining; conversion can fill up to that much
+ *     without crossing into a higher tier than the advisor's selection.
+ *   - Negative: MAGI is already past the top of the target tier — the
+ *     advisor's selection is infeasible for this year. Callers should
+ *     auto-clamp (fall back to current-tier headroom) so the constraint
+ *     becomes "don't make it worse" rather than "convert nothing" or
+ *     "ignore the constraint entirely."
+ *   - Infinity: target is Tier 5 (no upper bound). Effectively "no IRMAA
+ *     cap" for this advisor selection.
+ *
+ * Inflation: thresholds are 2.5% inflation-indexed past 2026, same logic
+ * as calculateIRMAAHeadroom.
+ */
+export function calculateIRMAAHeadroomToTarget(
+  magi: number,
+  isJoint: boolean,
+  targetTier: number,
+  year: number = 2026,
+): number {
+  // Clamp the target so a bad input value (or a stale DB row from before
+  // the field existed) can never index out of bounds. 0 (Standard) is the
+  // safest default — most conservative IRMAA position.
+  const clampedTarget = Math.max(0, Math.min(IRMAA_TIERS_2026.length - 1, Math.round(targetTier)));
+  const adjustedTiers = getAdjustedTiers(year);
+  const tier = adjustedTiers[clampedTarget];
+  const targetUpper = isJoint ? tier.jointUpper : tier.singleUpper;
+  if (targetUpper === Infinity) return Infinity;
+  return targetUpper - magi;
 }
 
 /**

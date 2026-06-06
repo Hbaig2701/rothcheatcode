@@ -39,7 +39,7 @@ _Insurance product details_
 
 ## 4. Tax Data
 Source: \`components/clients/sections/tax-data.tsx\`
-- **Constraint** (\`constraint_type\`)
+- **Additional Constraint** (\`constraint_type\`)
 - **Max Tax Rate** (\`max_tax_rate\`) — number, range: 0 to 100
 - \`penalty_free_scope\`
 - \`respect_penalty_free_limit\`
@@ -47,6 +47,7 @@ Source: \`components/clients/sections/tax-data.tsx\`
 - \`rmds_handled_externally\`
 - **State** (\`state\`)
 - **State Tax** (\`state_tax_rate\`) — number, range: 0 to 100
+- **Target IRMAA Tier** (\`target_irmaa_tier\`)
 - **Tax Payment Source** (\`tax_payment_source\`)
 
 ## 5. Taxable Income Calculation
@@ -124,7 +125,8 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **Income Start Age** (\`income_start_age\`): Age the client begins receiving guaranteed income payments. The years between today and this age are the 'deferral' or 'roll-up' window where the Income Base grows. Many products require minimum 1-year deferral and have payout factors that increase the longer you wait.
 - **Years to Convert Before GI Purchase** (\`gi_conversion_years\`): On a Guaranteed Income strategy you can convert some of the Traditional IRA to Roth BEFORE buying the annuity. This sets the conversion window in years. IMPORTANT: the engine spreads the conversion EVENLY across the window (starting IRA ÷ years) — it doesn't bracket-fill year by year. Whatever's left at the end of the window funds the annuity.
 - **Conversion Tax Bracket** (\`gi_conversion_bracket\`): The FLAT federal rate the engine applies to each year's GI conversion. Unlike the Growth FIA strategy, GI conversions are pre-sized to evenly distribute the IRA across the conversion window — this field doesn't change how MUCH is converted, only the tax rate assumed on the converted dollars. Pick whichever bracket you expect the client to land in across the conversion years.
-- **Conversion Constraint** (\`constraint_type\`): The rule that caps annual conversions. 'Bracket Ceiling' fills up to the Max Tax Rate each year (most common). 'IRMAA Threshold' caps at the Medicare premium tier the client wants to stay under. 'Fixed Amount' converts the same dollar amount yearly. 'None' lets the engine run unconstrained.
+- **Additional Constraint** (\`constraint_type\`): Bracket Ceiling — via the Max Tax Rate field below — is ALWAYS the primary cap on each year's conversion. This dropdown decides whether to layer an additional IRMAA cap on top. 'Bracket Ceiling only' = fill to Max Tax Rate every year, ignore IRMAA. 'Bracket Ceiling + IRMAA Tier cap' = same as before, but also stay under the IRMAA tier you pick. The tighter of the two caps wins each year.
+- **Target IRMAA Tier** (\`target_irmaa_tier\`): Which IRMAA premium tier you want the client's MAGI to stay under each year. Standard = no surcharge at all (most conservative). Each higher tier allows larger conversions but adds Medicare Part B + D premium surcharges. Tier 5 means no IRMAA cap — convert as aggressively as the bracket ceiling allows. Only applied at age 63+ (IRMAA uses a 2-year lookback for age-65 Medicare eligibility).
 - **Max Tax Rate** (\`max_tax_rate\`): The bracket ceiling the engine will fill conversions up to each year. The single most important field for sizing the strategy. Pick the highest bracket you're willing to convert into — the engine fills to the top of that bracket every year. '0%' means convert only up to the standard deduction (no federal tax).
 - **Tax Payment Source** (\`tax_payment_source\`): Where the conversion tax dollars come from. 'External (from taxable)' is the better outcome — taxes paid from outside savings, so 100% of the converted amount lands in Roth. 'Internal (from IRA)' grosses up the conversion to cover taxes — easier for clients without outside cash but less efficient.
 - **Respect Carrier Penalty-Free Limit** (\`respect_penalty_free_limit\`): Many FIAs cap penalty-free withdrawals at ~10%/yr of prior anniversary value during the surrender period. Turn this ON to make the engine size conversions so the carrier cap isn't exceeded. Turn OFF if the client is willing to pay surrender charges or the contract isn't restrictive.

@@ -26,11 +26,25 @@ import { cn } from "@/lib/utils";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
+// Only two active values now. 'none' and 'fixed_amount' were dead code
+// (engine never read them — collapsed identically to 'bracket_ceiling'),
+// retired 2026-06-05. Existing rows with those values were migrated to
+// 'bracket_ceiling' in the same change.
 const CONSTRAINT_OPTIONS = [
-  { value: "none", label: "None" },
-  { value: "bracket_ceiling", label: "Bracket Ceiling" },
-  { value: "irmaa_threshold", label: "IRMAA Threshold" },
-  { value: "fixed_amount", label: "Fixed Amount" },
+  { value: "bracket_ceiling", label: "Bracket Ceiling only" },
+  { value: "irmaa_threshold", label: "Bracket Ceiling + IRMAA Tier cap" },
+] as const;
+
+// IRMAA target tier dropdown, only rendered when the advisor picks the
+// IRMAA option. Labels show the actual annual surcharge so the advisor can
+// pick deliberately, not just "tier 2" abstractly.
+const IRMAA_TARGET_TIER_OPTIONS = [
+  { value: "standard", label: "Standard (no surcharge)" },
+  { value: "tier_1", label: "Tier 1 (~$840/yr single, $1,680 couple)" },
+  { value: "tier_2", label: "Tier 2 (~$2,100/yr single, $4,200 couple)" },
+  { value: "tier_3", label: "Tier 3 (~$3,360/yr single, $6,720 couple)" },
+  { value: "tier_4", label: "Tier 4 (~$4,620/yr single, $9,240 couple)" },
+  { value: "tier_5", label: "Tier 5 (no IRMAA cap — convert freely)" },
 ] as const;
 
 const TAX_SOURCE_OPTIONS = [
@@ -99,21 +113,37 @@ export function TaxDataSection() {
     }
   };
 
+  // Watch constraint_type so the IRMAA target dropdown can show/hide.
+  // Watch as a known union so old DB rows with legacy values ('none' |
+  // 'fixed_amount') don't trip the conditional render — those would have
+  // been migrated to 'bracket_ceiling' but defensive narrowing still helps.
+  const constraintType = form.watch("constraint_type");
+  const showIrmaaTargetPicker = constraintType === "irmaa_threshold";
+
   return (
     <FormSection title="4. Tax Data">
-      {/* Constraint */}
+      {/* Additional Constraint — formerly labeled "Constraint." Renamed
+          2026-06-05 to make the relationship to Max Tax Rate explicit:
+          bracket ceiling is ALWAYS active (via max_tax_rate), and this
+          dropdown picks whether an *additional* IRMAA cap layers on top. */}
       <Controller
         name="constraint_type"
         control={form.control}
         render={({ field, fieldState }) => {
-          const selectedOption = CONSTRAINT_OPTIONS.find(opt => opt.value === field.value);
+          // Show "Bracket Ceiling only" if the stored value is a legacy
+          // dead-code value ('none' / 'fixed_amount') — those collapsed to
+          // bracket_ceiling at the engine, so the display should match.
+          const effectiveValue = (field.value === "none" || field.value === "fixed_amount")
+            ? "bracket_ceiling"
+            : field.value;
+          const selectedOption = CONSTRAINT_OPTIONS.find(opt => opt.value === effectiveValue);
           return (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="constraint_type" className="flex items-center gap-1.5">
-                Constraint
+                Additional Constraint
                 <FieldHelp {...FIELD_HELP.constraint_type} />
               </FieldLabel>
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select value={effectiveValue} onValueChange={field.onChange}>
                 <SelectTrigger
                   id="constraint_type"
                   className="w-full"
@@ -131,12 +161,58 @@ export function TaxDataSection() {
                   ))}
                 </SelectContent>
               </Select>
-              <FieldDescription>Optimization constraint for conversions</FieldDescription>
+              <FieldDescription>
+                Bracket Ceiling (via Max Tax Rate below) is always applied. Pick whether to ALSO cap conversions to keep MAGI under a chosen IRMAA tier.
+              </FieldDescription>
               <FieldError errors={[fieldState.error]} />
             </Field>
           );
         }}
       />
+
+      {/* IRMAA target tier picker — only visible when the advisor chose
+          IRMAA. When constraint_type is bracket_ceiling, the engine ignores
+          this value, so hiding it removes a redundant input. */}
+      {showIrmaaTargetPicker && (
+        <Controller
+          name="target_irmaa_tier"
+          control={form.control}
+          render={({ field, fieldState }) => {
+            const currentValue = field.value ?? "standard";
+            const selectedOption = IRMAA_TARGET_TIER_OPTIONS.find(opt => opt.value === currentValue);
+            return (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="target_irmaa_tier" className="flex items-center gap-1.5">
+                  Target IRMAA Tier
+                  <FieldHelp {...FIELD_HELP.target_irmaa_tier} />
+                </FieldLabel>
+                <Select value={currentValue} onValueChange={field.onChange}>
+                  <SelectTrigger
+                    id="target_irmaa_tier"
+                    className="w-full"
+                    aria-invalid={fieldState.invalid}
+                  >
+                    <SelectValue placeholder="Select tier">
+                      {selectedOption?.label ?? "Select tier"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {IRMAA_TARGET_TIER_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>
+                  Engine caps each year&apos;s conversion so MAGI stays under this tier&apos;s ceiling. If the client&apos;s baseline income is already above the chosen tier, the engine falls back to the client&apos;s actual current tier (won&apos;t convert into a higher tier than they&apos;re already in) and the dashboard flags it.
+                </FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            );
+          }}
+        />
+      )}
 
       {/* "Current Bracket (informational)" tax_rate field was removed
           2026-06-05. It was load-bearing only for GI projections (used as a

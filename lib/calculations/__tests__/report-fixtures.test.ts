@@ -162,7 +162,9 @@ function makeClient(overrides: Partial<Client> = {}): Client {
     anniversary_bonus_percent: null,
     anniversary_bonus_years: null,
     state: 'TX',
-    constraint_type: 'none',
+    // Legacy 'none' migrated to 'bracket_ceiling' 2026-06-05 — behavior
+    // identical (engine only ever read 'irmaa_threshold' for this field).
+    constraint_type: 'bracket_ceiling',
     tax_rate: 22,
     max_tax_rate: 24,
     tax_payment_source: 'from_taxable',

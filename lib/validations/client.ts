@@ -11,12 +11,34 @@ export const filingStatusEnum = z.enum([
   "head_of_household",
 ]);
 
+// Constraint type values 'none' and 'fixed_amount' were retired 2026-06-05.
+// Neither was ever read by the engine — both behaved identically to
+// 'bracket_ceiling' (the implicit default: fill to max_tax_rate each year).
+// Existing DB rows with those values were migrated to 'bracket_ceiling' in
+// the same change. The enum still accepts them on read for back-compat with
+// any old client snapshot or projection input that might still carry them,
+// but they're silently treated as 'bracket_ceiling' at runtime.
 export const constraintTypeEnum = z.enum([
   "bracket_ceiling",
   "irmaa_threshold",
+  // Legacy values — accepted on read, never emitted by the form.
   "fixed_amount",
   "none",
 ]);
+
+// IRMAA target tier (advisor's choice when constraint_type = irmaa_threshold).
+// Stored as a string for form serialization safety; the engine clamps + Number()s
+// it. 0 = Standard (no surcharge), 5 = Tier 5 (no upper bound, effectively no
+// IRMAA cap).
+export const targetIrmaaTierEnum = z.enum([
+  "standard", "tier_1", "tier_2", "tier_3", "tier_4", "tier_5",
+]);
+
+// Helper for the engine — translate the string enum to the numeric tier index
+// used by calculateIRMAAHeadroomToTarget.
+export const TARGET_IRMAA_TIER_TO_INDEX: Record<z.infer<typeof targetIrmaaTierEnum>, number> = {
+  standard: 0, tier_1: 1, tier_2: 2, tier_3: 3, tier_4: 4, tier_5: 5,
+};
 
 export const conversionTypeEnum = z.enum([
   "optimized_amount",
@@ -130,7 +152,14 @@ export const clientFormulaBaseSchema = z.object({
 
   // Section 4: Tax Data
   state: z.string().length(2, "Use 2-letter state code"),
-  constraint_type: constraintTypeEnum.default("none"),
+  // Default 'bracket_ceiling' (the implicit always-active behavior). Old DB
+  // rows with 'none' / 'fixed_amount' were migrated in the same change.
+  constraint_type: constraintTypeEnum.default("bracket_ceiling"),
+  // Advisor-selected ceiling tier when constraint_type === 'irmaa_threshold'.
+  // Optional + default 'standard' so existing clients that don't have the
+  // column populated default to the most conservative target. Ignored entirely
+  // when constraint_type is anything other than irmaa_threshold.
+  target_irmaa_tier: targetIrmaaTierEnum.default("standard").optional(),
   // tax_rate: retired from the form 2026-06-05. Kept optional with a 0 default
   // so existing API consumers (POST/PUT bodies that still include it) don't
   // fail validation. Nothing in the engine reads it anymore — bracket-aware
@@ -371,7 +400,14 @@ export const clientFullBaseSchema = z.object({
   state_tax_rate: z.number().min(0).max(100).optional().nullable(),
   include_niit: z.boolean().default(true),
   include_aca: z.boolean().default(false),
-  constraint_type: constraintTypeEnum.default("none"),
+  // Default 'bracket_ceiling' (the implicit always-active behavior). Old DB
+  // rows with 'none' / 'fixed_amount' were migrated in the same change.
+  constraint_type: constraintTypeEnum.default("bracket_ceiling"),
+  // Advisor-selected ceiling tier when constraint_type === 'irmaa_threshold'.
+  // Optional + default 'standard' so existing clients that don't have the
+  // column populated default to the most conservative target. Ignored entirely
+  // when constraint_type is anything other than irmaa_threshold.
+  target_irmaa_tier: targetIrmaaTierEnum.default("standard").optional(),
   // tax_rate: retired from the form 2026-06-05. Kept optional with a 0 default
   // so existing API consumers (POST/PUT bodies that still include it) don't
   // fail validation. Nothing in the engine reads it anymore — bracket-aware
@@ -498,7 +534,14 @@ export type ClientFormData = {
 
   // Section 4: Tax Data
   state: string;
+  // 'fixed_amount' and 'none' are legacy values still accepted on read but
+  // never emitted by the form after 2026-06-05. New records use the active
+  // pair only ('bracket_ceiling' | 'irmaa_threshold').
   constraint_type: "bracket_ceiling" | "irmaa_threshold" | "fixed_amount" | "none";
+  // Advisor's IRMAA ceiling pick — only meaningful when
+  // constraint_type === 'irmaa_threshold'. Optional/undefined for back-compat
+  // with rows that predate the field.
+  target_irmaa_tier?: "standard" | "tier_1" | "tier_2" | "tier_3" | "tier_4" | "tier_5";
   // tax_rate retired from form 2026-06-05 — see Zod schema notes above.
   // Optional so callers (including DB rows that still have it populated) stay
   // type-compatible.

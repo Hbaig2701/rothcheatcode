@@ -61,7 +61,7 @@ ${GENERATED_UI_MAP}
 1. "1. Client Data" - scenario name, name, age, filing status, state, spouse
 2. "2. Current Account Data" — three inputs: **Qualified Account Value** (Traditional IRA / 401(k) / pre-tax), **Roth IRA Balance** (already-taxed Roth accounts that grow tax-free), and **Taxable Account Balance** (non-retirement brokerage / savings — also used as the source of conversion taxes when Tax Payment Source is "External"). All three flow into the engine and into every projection. If an advisor searches for "Traditional IRA balance" they won't find a field by that name — point them at "Qualified Account Value". Roth IRA Balance and Taxable Account Balance default to $0 if left blank, so existing manually-created clients retain their previous behavior unless an advisor populates them.
 3. "3. New Account Data" - insurance product details (carrier, product, bonus, surrender) and Rate of Return
-4. "4. Tax Data" - current bracket, state tax, the **Tax Payment Source** dropdown (labels: "External (from taxable accounts)" / "Internal (from IRA)"), the **Constraint** dropdown (None / Bracket Ceiling / IRMAA Threshold / Fixed Amount — this is what controls IRMAA-aware sizing, NOT section 6), and the **RMD Treatment (Baseline)** dropdown for Growth products (Spent on Living Expenses / Reinvested (Taxable Brokerage) / Sits in Cash (No Growth))
+4. "4. Tax Data" - state tax, the **Tax Payment Source** dropdown (labels: "External (from taxable accounts)" / "Internal (from IRA)"), the **Additional Constraint** dropdown (two options: "Bracket Ceiling only" or "Bracket Ceiling + IRMAA Tier cap" — bracket ceiling via Max Tax Rate is ALWAYS active; this dropdown only controls whether an additional IRMAA cap layers on top), the **Target IRMAA Tier** dropdown (only shown when constraint = IRMAA: Standard, Tier 1, Tier 2, Tier 3, Tier 4, Tier 5), the **Max Tax Rate** dropdown (0% / 10% / 12% / 22% / 24% / 32% / 35% / 37% — this is the bracket ceiling the engine fills to each year), and the **RMD Treatment (Baseline)** dropdown for Growth products (Spent on Living Expenses / Reinvested (Taxable Brokerage) / Sits in Cash (No Growth))
 5. "5. Taxable Income Calculation" - Social Security, pension, other taxable + tax-exempt income; custom income line items can be added/removed
 6. "6. Conversion" - conversion type and target amount (where applicable), plus "Protect Initial Premium" checkbox. For GI products this section shows GI-specific controls (years to convert, conversion bracket) instead of the standard conversion picker.
 7. "7. AUM Allocation (Optional)" - toggle and configure the managed-portfolio split
@@ -190,16 +190,20 @@ Set in section "6. Conversion" of the client form. The option labels in the drop
 
 **Important:** The conversion type applies to the ENTIRE projection. There is NO way to mix types within a single scenario (e.g., "Fixed Amount in year 1 then Optimized in year 2+"). If an advisor asks for that, tell them honestly it isn't supported, and suggest running two separate scenarios (one all-Fixed, one all-Optimized) and comparing them side by side. Do NOT suggest Partial Amount as a workaround for "first year fixed, rest optimized" - Partial Amount runs the same Optimized logic every year, it just caps the cumulative total.
 
-## Constraint type (separate from conversion type)
+## Additional Constraint (renamed from "Constraint" on 2026-06-05)
 
-The **Constraint dropdown** in section "4. Tax Data" controls how aggressively the engine sizes each year's conversion. It's a separate setting from Conversion Type. Options:
+The **Additional Constraint dropdown** in section "4. Tax Data" controls whether an IRMAA cap layers on top of the bracket ceiling. Critical to understand: the bracket ceiling (via Max Tax Rate) is ALWAYS active; this dropdown does NOT replace it. The dropdown only has two options now:
 
-- **Bracket Ceiling** (\`bracket_ceiling\`) - default. Each year's conversion fills up to (but not past) the marginal bracket the advisor sets (e.g., 22%, 24%). Stops at the bracket line.
-- **IRMAA Threshold** (\`irmaa_threshold\`) - each year's conversion is sized to keep MAGI below the next IRMAA tier, from age 63+ (since age-65 IRMAA is set by age-63 MAGI). More conservative than Bracket Ceiling for older clients who care about Medicare premiums.
-- **Fixed Amount** (\`fixed_amount\`) - works only when Conversion Type is also Fixed Amount; sizes to the dollar value the advisor entered.
-- **None** (\`none\`) - no ceiling. Optimized Amount conversions can fill into higher brackets.
+- **"Bracket Ceiling only"** (\`bracket_ceiling\`) — default. Each year's conversion fills up to Max Tax Rate. No IRMAA cap layered on top.
+- **"Bracket Ceiling + IRMAA Tier cap"** (\`irmaa_threshold\`) — Each year's conversion fills up to Max Tax Rate AND is additionally capped so MAGI stays under the **Target IRMAA Tier** the advisor picks. **The tighter of the two caps wins each year.** Only enforced from age 63+ (IRMAA uses a 2-year lookback for Medicare at 65).
 
-If an advisor asks "how do I keep my client out of IRMAA Tier 2" or "I want conversions but not into the next Medicare bracket", the answer is **section 4 Constraint dropdown → IRMAA Threshold** — NOT something in section 6.
+When the advisor picks "IRMAA Tier cap," a second dropdown appears: **Target IRMAA Tier**. Options: Standard (no surcharge), Tier 1, Tier 2, Tier 3, Tier 4, Tier 5 (no cap). The engine sizes conversions to stay under the **TOP** of the selected tier each year.
+
+**Auto-clamp behavior when the target is infeasible:** If the client's baseline MAGI is already in a higher tier than the advisor selected (e.g., advisor picks Standard but the client's RMDs + SS push them into Tier 3), the engine falls back to "don't make it worse" semantics — it caps conversions at the client's actual current tier ceiling instead of doing zero conversions or ignoring the constraint. The dashboard surfaces a yellow warning when this auto-clamp fires.
+
+Legacy values \`fixed_amount\` and \`none\` were retired (they were dead code, engine never read them — collapsed identically to bracket_ceiling). DB migration applied 2026-06-05. Old rows still validate on read for compatibility.
+
+If an advisor asks "how do I keep my client out of IRMAA Tier 2", the answer is: **Section 4 → Additional Constraint → "Bracket Ceiling + IRMAA Tier cap" → Target IRMAA Tier → Tier 1**. (Picking Tier 1 keeps them at or below the Tier 1 ceiling, which is BELOW Tier 2.) Naming convention: target Tier N means "stay AT OR BELOW the top of Tier N" — not "stay below Tier N".
 
 ## Product bonus mechanics (where the bonus is actually applied)
 
@@ -239,7 +243,7 @@ In the report UI:
 - IRMAA is a Medicare Part B / D surcharge based on MAGI from 2 years prior (2-year lookback).
 - 2026 single-filer tiers: standard premium up to $103K MAGI; +$840/yr at $103K; +$2,100/yr at $129K; +$3,360/yr at $161K; +$4,620/yr at $193K; +$5,040/yr at $500K+.
 - Joint-filer thresholds are 2x single for tiers 1-4. Tier 5 (highest) is $750K joint, NOT $1M — that's 1.5x single, not 2x. Surcharges are 2x single (per couple) at every tier.
-- To make the engine respect IRMAA tiers, set the **Constraint dropdown** in section "4. Tax Data" to "IRMAA Threshold". Each year's conversion will then size to keep MAGI under the next tier from age 63+ (since age-65 IRMAA is set by age-63 MAGI). This control is in section 4, NOT section 6.
+- To make the engine respect IRMAA tiers, set the **Additional Constraint dropdown** in section "4. Tax Data" to "Bracket Ceiling + IRMAA Tier cap", then pick the **Target IRMAA Tier** the client should stay at or below. From age 63+, the engine then sizes each year's conversion to keep MAGI under that tier's ceiling (age 65 IRMAA is set by age-63 MAGI). This control is in section 4, NOT section 6.
 - IRMAA tiers are inflated 2.5% annually for years past 2026.
 
 ## Widow's penalty
@@ -324,7 +328,7 @@ No. The engine runs a single deterministic projection at a fixed rate of return 
 There's no built-in side-by-side view yet. Workarounds: (1) open the scenarios in two browser tabs and flip between them, or (2) export each as a PDF (Actions > Export as PDF) and lay them next to each other for a client meeting.
 
 **"Where do I keep the client out of IRMAA Tier X?"**
-Section "4. Tax Data" → **Constraint** dropdown → "IRMAA Threshold". Not in section 6. The engine then sizes each year's conversion to stop before the next IRMAA cliff from age 63+.
+Section "4. Tax Data" → **Additional Constraint** → "Bracket Ceiling + IRMAA Tier cap" → then **Target IRMAA Tier** = the tier the client should stay at or below. Not in section 6. From age 63+, the engine sizes each year's conversion to keep MAGI under the chosen tier's ceiling.
 
 **"Where do I set how my client takes RMDs in the baseline?"**
 Section "4. Tax Data" → **RMD Treatment (Baseline)** dropdown. Three options: Spent on Living Expenses, Reinvested (Taxable Brokerage), Sits in Cash (No Growth). Default is Spent. This only affects the baseline projection (the strategy may have zero RMDs anyway). Only shown for Growth products.

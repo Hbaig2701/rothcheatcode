@@ -76,8 +76,15 @@ export interface Client {
 
   // ===== Section 4: Tax Data =====
   state: string; // 2-letter state code
+  // 'fixed_amount' and 'none' are legacy values still accepted on read
+  // (existed pre-2026-06-05). The form now only emits 'bracket_ceiling' or
+  // 'irmaa_threshold'.
   constraint_type: "bracket_ceiling" | "irmaa_threshold" | "fixed_amount" | "none";
-  tax_rate: number;          // Current tax rate percentage
+  // Advisor's chosen ceiling tier — only consulted by the engine when
+  // constraint_type === 'irmaa_threshold'. Optional for back-compat with
+  // rows from before the field existed.
+  target_irmaa_tier?: "standard" | "tier_1" | "tier_2" | "tier_3" | "tier_4" | "tier_5";
+  tax_rate: number;          // Current tax rate percentage (deprecated; see notes)
   max_tax_rate: number;      // Maximum tax rate ceiling
   tax_payment_source: "from_ira" | "from_taxable";
   state_tax_rate: number | null;
