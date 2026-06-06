@@ -37,24 +37,31 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
 
   // CRITICAL: every row in the `clients` table is technically a SCENARIO —
   // when the advisor clicks "New Scenario" it duplicates the current row.
-  // Multiple scenarios for the same client share the same `name`, `age`,
-  // and `filing_status`. Counting raw rows triple-counts a client with 3
-  // scenarios in every aggregate metric: "Total Clients" inflates, AUM
-  // triple-sums their IRA balance, avg-wealth-increase weighs that client
-  // 3x in the average, etc. (Reported by Daven Sharma, 2026-06-06: had
-  // 2 actual clients with 4 total scenario rows, dashboard showed
-  // "4 clients" and ~$X * scenario-count AUM.)
+  // Multiple scenarios for the same client share the same `name`. Counting
+  // raw rows triple-counts a client with 3 scenarios in every aggregate
+  // metric: "Total Clients" inflates, AUM triple-sums their IRA balance,
+  // avg-wealth-increase weighs that client 3x in the average, etc.
+  // (Reported by Daven Sharma, 2026-06-06: had 2 actual clients with 4
+  // total scenario rows, dashboard showed "4 clients" and AUM × scenarios.)
   //
-  // Build the canonical-client set: group by (name, age, filing_status),
-  // pick the most recently updated row from each group as the representative.
-  // Per-advisor scoping already happened in the API; collisions across
-  // advisors aren't possible here. Two genuinely different clients with the
-  // exact same (name, age, filing_status) for the same advisor get conflated
-  // — accepted edge case, since the current behavior is also wrong (and the
-  // advisor can rename one to disambiguate).
+  // Build the canonical-client set: group by NAME (within this advisor's
+  // scope, which is already enforced upstream by the API), pick the most
+  // recently updated row from each group as the representative. We dedup on
+  // name only — NOT on (name, age, filing_status) — because advisors edit
+  // those fields routinely (a client ages a year, changes filing status
+  // after a divorce, etc.) and an edit would split one client into two
+  // canonical rows under the stricter key. Hamza's account caught this:
+  // "Test Hamza" had 3 scenarios at age 52 plus 1 row where age was edited
+  // to 62 — under (name, age, filing_status) that one client became two.
+  //
+  // Trade-off: two ACTUALLY different clients with the exact same name
+  // collapse to one in the count. Accepted — the previous behavior was
+  // also wrong for them (counted them as 2N scenarios instead of 2 clients),
+  // and the advisor can rename one to disambiguate. A real fix requires
+  // splitting clients and scenarios into two tables — out of scope here.
   const canonicalByKey = new Map<string, Client>();
   for (const c of clients) {
-    const key = `${c.name}|${c.age}|${c.filing_status}`;
+    const key = c.name;
     const existing = canonicalByKey.get(key);
     const cTime = new Date(c.updated_at).getTime();
     const eTime = existing ? new Date(existing.updated_at).getTime() : -Infinity;
