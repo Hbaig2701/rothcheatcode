@@ -10,29 +10,43 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Check, Copy, Link2, Loader2 } from "lucide-react";
+import { Check, Copy, Link2, Loader2, Globe, User } from "lucide-react";
 
 interface IntakeLinkModalProps {
   open: boolean;
   onClose: () => void;
 }
 
+type LinkMode = "single" | "permanent";
+
 export function IntakeLinkModal({ open, onClose }: IntakeLinkModalProps) {
+  const [mode, setMode] = useState<LinkMode>("single");
   const [url, setUrl] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [isPermanent, setIsPermanent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // Tracks whether the user has actively chosen a mode this session so the
+  // auto-generate effect doesn't re-fire and overwrite their pick.
+  const [hasGenerated, setHasGenerated] = useState(false);
 
-  const generateLink = async () => {
+  const generateLink = async (forMode: LinkMode) => {
     setLoading(true);
     setError(null);
+    setUrl(null);
     try {
-      const res = await fetch("/api/intake", { method: "POST" });
+      const res = await fetch("/api/intake", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permanent: forMode === "permanent" }),
+      });
       const data = await res.json();
       if (res.ok) {
         setUrl(data.url);
         setExpiresAt(data.expires_at);
+        setIsPermanent(data.is_permanent === true);
+        setHasGenerated(true);
       } else {
         setError(data.message || data.error || "Failed to generate link");
       }
@@ -55,24 +69,27 @@ export function IntakeLinkModal({ open, onClose }: IntakeLinkModalProps) {
       onClose();
       // Reset state after close animation
       setTimeout(() => {
+        setMode("single");
         setUrl(null);
         setExpiresAt(null);
+        setIsPermanent(false);
         setError(null);
         setCopied(false);
+        setHasGenerated(false);
       }, 200);
     }
   };
 
-  // Generate link on open
-  const handleOpen = () => {
-    if (open && !url && !loading) {
-      generateLink();
-    }
+  const handleModeChange = (newMode: LinkMode) => {
+    if (newMode === mode && hasGenerated) return;
+    setMode(newMode);
+    void generateLink(newMode);
   };
 
-  // Trigger generation when modal opens
-  if (open && !url && !loading && !error) {
-    handleOpen();
+  // Auto-generate the default single-use link on first open so the common
+  // case stays one-click. Mode switches re-generate against the API.
+  if (open && !url && !loading && !error && !hasGenerated) {
+    void generateLink(mode);
   }
 
   return (
@@ -88,6 +105,46 @@ export function IntakeLinkModal({ open, onClose }: IntakeLinkModalProps) {
           </DialogDescription>
         </DialogHeader>
 
+        {/* Mode selector — single-use vs permanent. Single-use is the
+            historical default for one-off invites; permanent is for
+            advisors pasting the link on a public website. */}
+        <div className="grid grid-cols-2 gap-2 pt-2">
+          <button
+            type="button"
+            onClick={() => handleModeChange("single")}
+            className={`flex flex-col gap-1.5 rounded-lg border p-3 text-left transition-colors ${
+              mode === "single"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:bg-accent/30"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">For one client</span>
+            </div>
+            <span className="text-xs text-muted-foreground leading-snug">
+              One-time link, expires in 7 days. Email it to a specific client.
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleModeChange("permanent")}
+            className={`flex flex-col gap-1.5 rounded-lg border p-3 text-left transition-colors ${
+              mode === "permanent"
+                ? "border-primary bg-primary/5"
+                : "border-border hover:bg-accent/30"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-primary" />
+              <span className="text-sm font-semibold">For my website</span>
+            </div>
+            <span className="text-xs text-muted-foreground leading-snug">
+              Reusable forever. Anyone who submits becomes a new client.
+            </span>
+          </button>
+        </div>
+
         <div className="space-y-4 pt-2">
           {loading && (
             <div className="flex items-center justify-center py-8">
@@ -101,7 +158,7 @@ export function IntakeLinkModal({ open, onClose }: IntakeLinkModalProps) {
             </div>
           )}
 
-          {url && (
+          {url && !loading && (
             <>
               <div className="flex gap-2">
                 <Input
@@ -129,7 +186,13 @@ export function IntakeLinkModal({ open, onClose }: IntakeLinkModalProps) {
                 </Button>
               </div>
 
-              {expiresAt && (
+              {isPermanent ? (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Permanent link — paste it on your website, in your email signature, or anywhere else.
+                  Every submission creates a new client under your account.
+                  Each submission still counts toward your client limit.
+                </p>
+              ) : expiresAt ? (
                 <p className="text-xs text-muted-foreground">
                   This link expires on{" "}
                   {new Date(expiresAt).toLocaleDateString("en-US", {
@@ -139,7 +202,7 @@ export function IntakeLinkModal({ open, onClose }: IntakeLinkModalProps) {
                   })}
                   . Generate a new one if it expires.
                 </p>
-              )}
+              ) : null}
             </>
           )}
         </div>

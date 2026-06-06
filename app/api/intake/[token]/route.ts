@@ -15,7 +15,7 @@ export async function GET(
 
   const { data: link, error } = await admin
     .from("intake_links")
-    .select("status, expires_at, user_id")
+    .select("status, expires_at, user_id, is_permanent")
     .eq("token", token)
     .single();
 
@@ -26,18 +26,25 @@ export async function GET(
     );
   }
 
-  if (link.status === "completed") {
-    return NextResponse.json(
-      { error: "This questionnaire has already been submitted" },
-      { status: 410 }
-    );
-  }
+  // Permanent links bypass the single-use completion check — they're
+  // designed for advisor websites where every visitor should be able to
+  // submit. Expiry check is also skipped (we set expires_at to a
+  // far-future sentinel for these, but be explicit so any future tinkering
+  // with the sentinel doesn't accidentally kill live links).
+  if (!link.is_permanent) {
+    if (link.status === "completed") {
+      return NextResponse.json(
+        { error: "This questionnaire has already been submitted" },
+        { status: 410 }
+      );
+    }
 
-  if (new Date(link.expires_at) < new Date()) {
-    return NextResponse.json(
-      { error: "This questionnaire link has expired" },
-      { status: 410 }
-    );
+    if (new Date(link.expires_at) < new Date()) {
+      return NextResponse.json(
+        { error: "This questionnaire link has expired" },
+        { status: 410 }
+      );
+    }
   }
 
   // Fetch advisor branding for white-labeling
@@ -67,7 +74,7 @@ export async function POST(
   // Look up and validate the intake link
   const { data: link, error: linkError } = await admin
     .from("intake_links")
-    .select("id, user_id, status, expires_at")
+    .select("id, user_id, status, expires_at, is_permanent")
     .eq("token", token)
     .single();
 
@@ -78,18 +85,24 @@ export async function POST(
     );
   }
 
-  if (link.status === "completed") {
-    return NextResponse.json(
-      { error: "This questionnaire has already been submitted" },
-      { status: 410 }
-    );
-  }
+  // Permanent links can be submitted any number of times — each submission
+  // creates a fresh client under the advisor. Single-use links still get
+  // the "already submitted" / "expired" guards (the legacy behavior used
+  // for one-off client invitations).
+  if (!link.is_permanent) {
+    if (link.status === "completed") {
+      return NextResponse.json(
+        { error: "This questionnaire has already been submitted" },
+        { status: 410 }
+      );
+    }
 
-  if (new Date(link.expires_at) < new Date()) {
-    return NextResponse.json(
-      { error: "This questionnaire link has expired" },
-      { status: 410 }
-    );
+    if (new Date(link.expires_at) < new Date()) {
+      return NextResponse.json(
+        { error: "This questionnaire link has expired" },
+        { status: 410 }
+      );
+    }
   }
 
   // Re-check the advisor's client limit
@@ -138,11 +151,17 @@ export async function POST(
     );
   }
 
-  // Mark intake link as completed
-  await admin
-    .from("intake_links")
-    .update({ status: "completed", client_id: client.id })
-    .eq("id", link.id);
+  // Single-use links flip to 'completed' so the same token can't submit
+  // twice. Permanent links stay in 'pending' forever — the whole point is
+  // that the next visitor can also submit. client_id is therefore left
+  // null on permanent links (it's a 1:1 field; doesn't model the 1:many
+  // submissions a website link receives).
+  if (!link.is_permanent) {
+    await admin
+      .from("intake_links")
+      .update({ status: "completed", client_id: client.id })
+      .eq("id", link.id);
+  }
 
   // Notify the advisor that their client finished the questionnaire and is
   // now in their account. Best-effort — never block the submission response.
