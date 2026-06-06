@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -87,10 +87,18 @@ export function IntakeLinkModal({ open, onClose }: IntakeLinkModalProps) {
   };
 
   // Auto-generate the default single-use link on first open so the common
-  // case stays one-click. Mode switches re-generate against the API.
-  if (open && !url && !loading && !error && !hasGenerated) {
-    void generateLink(mode);
-  }
+  // case stays one-click. Mode switches re-generate against the API. Must
+  // be in an effect — calling generateLink inline during render triggered
+  // setState-in-render warnings and, under React StrictMode, fired the
+  // request twice (creating two intake_links rows per open).
+  useEffect(() => {
+    if (open && !url && !loading && !error && !hasGenerated) {
+      void generateLink(mode);
+    }
+    // generateLink + mode intentionally omitted — we only want to fire on
+    // open, not when mode changes (handleModeChange does that explicitly).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, url, loading, error, hasGenerated]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
