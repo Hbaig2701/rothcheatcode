@@ -35,13 +35,42 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
     projMap.set(p.client_id, p);
   }
 
-  // --- Top Metrics ---
-  const totalClients = clients.length;
+  // CRITICAL: every row in the `clients` table is technically a SCENARIO —
+  // when the advisor clicks "New Scenario" it duplicates the current row.
+  // Multiple scenarios for the same client share the same `name`, `age`,
+  // and `filing_status`. Counting raw rows triple-counts a client with 3
+  // scenarios in every aggregate metric: "Total Clients" inflates, AUM
+  // triple-sums their IRA balance, avg-wealth-increase weighs that client
+  // 3x in the average, etc. (Reported by Daven Sharma, 2026-06-06: had
+  // 2 actual clients with 4 total scenario rows, dashboard showed
+  // "4 clients" and ~$X * scenario-count AUM.)
+  //
+  // Build the canonical-client set: group by (name, age, filing_status),
+  // pick the most recently updated row from each group as the representative.
+  // Per-advisor scoping already happened in the API; collisions across
+  // advisors aren't possible here. Two genuinely different clients with the
+  // exact same (name, age, filing_status) for the same advisor get conflated
+  // — accepted edge case, since the current behavior is also wrong (and the
+  // advisor can rename one to disambiguate).
+  const canonicalByKey = new Map<string, Client>();
+  for (const c of clients) {
+    const key = `${c.name}|${c.age}|${c.filing_status}`;
+    const existing = canonicalByKey.get(key);
+    const cTime = new Date(c.updated_at).getTime();
+    const eTime = existing ? new Date(existing.updated_at).getTime() : -Infinity;
+    if (!existing || cTime > eTime) {
+      canonicalByKey.set(key, c);
+    }
+  }
+  const canonicalClients = Array.from(canonicalByKey.values());
 
-  const thisMonthClients = clients.filter((c) => isThisMonth(c.created_at));
+  // --- Top Metrics --- (use canonical set so each unique client counts once)
+  const totalClients = canonicalClients.length;
+
+  const thisMonthClients = canonicalClients.filter((c) => isThisMonth(c.created_at));
   const newClientsThisMonth = thisMonthClients.length;
 
-  const totalAUM = clients.reduce((sum, c) => sum + (c.qualified_account_value || 0), 0);
+  const totalAUM = canonicalClients.reduce((sum, c) => sum + (c.qualified_account_value || 0), 0);
   const aumChangeThisMonth = thisMonthClients.reduce(
     (sum, c) => sum + (c.qualified_account_value || 0),
     0
@@ -50,8 +79,9 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
   // Average wealth increase: % advantage for clients with projections
   // GI products: use gi_tax_free_wealth_created (lifetime income advantage)
   // Growth products: use blueprint - baseline net worth difference
+  // Uses canonicalClients so a client with 5 scenarios isn't weighted 5x.
   const wealthChanges: number[] = [];
-  for (const c of clients) {
+  for (const c of canonicalClients) {
     const p = projMap.get(c.id);
     if (!p || p.baseline_final_net_worth <= 0) continue;
 
@@ -74,19 +104,28 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
       : 0;
 
   // --- Value Delivered ---
-  const totalLifetimeWealth = projections.reduce(
+  // Roll up projection numbers per canonical client (not per scenario row)
+  // so a client with 3 scenarios doesn't triple-count their lifetime wealth /
+  // tax savings / legacy. The canonical client's projection is the one that
+  // matches its id; the other scenario rows' projections are excluded from
+  // the headline.
+  const canonicalProjections = canonicalClients
+    .map((c) => projMap.get(c.id))
+    .filter((p): p is ProjectionSummary => p != null);
+  const totalLifetimeWealth = canonicalProjections.reduce(
     (sum, p) => sum + p.blueprint_final_net_worth,
     0
   );
-  const totalTaxSavings = Math.abs(projections.reduce((sum, p) => sum + p.total_tax_savings, 0));
-  const totalLegacyProtected = projections.reduce(
+  const totalTaxSavings = Math.abs(canonicalProjections.reduce((sum, p) => sum + p.total_tax_savings, 0));
+  const totalLegacyProtected = canonicalProjections.reduce(
     (sum, p) => sum + Math.round(p.blueprint_final_roth * 0.4),
     0
   );
 
   // --- Product Mix ---
+  // One entry per distinct client (canonical), not per scenario.
   const productCounts = new Map<string, number>();
-  for (const c of clients) {
+  for (const c of canonicalClients) {
     const config = ALL_PRODUCTS[c.blueprint_type as FormulaType];
     const label = config?.label ?? c.blueprint_type;
     productCounts.set(label, (productCounts.get(label) ?? 0) + 1);
@@ -126,21 +165,22 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
     };
   });
 
-  // --- Client Insights ---
+  // --- Client Insights --- (canonical so demographic stats describe distinct
+  // PEOPLE, not how many scenarios each has been run)
   const avgClientAge =
-    clients.length > 0
-      ? Math.round(clients.reduce((sum, c) => sum + c.age, 0) / clients.length)
+    canonicalClients.length > 0
+      ? Math.round(canonicalClients.reduce((sum, c) => sum + c.age, 0) / canonicalClients.length)
       : 0;
   const avgDeposit =
-    clients.length > 0
+    canonicalClients.length > 0
       ? Math.round(
-          clients.reduce((sum, c) => sum + (c.qualified_account_value || 0), 0) /
-            clients.length
+          canonicalClients.reduce((sum, c) => sum + (c.qualified_account_value || 0), 0) /
+            canonicalClients.length
         )
       : 0;
 
   const filingStatusBreakdown = { single: 0, mfj: 0, mfs: 0, hoh: 0 };
-  for (const c of clients) {
+  for (const c of canonicalClients) {
     switch (c.filing_status) {
       case "single":
         filingStatusBreakdown.single++;
@@ -157,8 +197,10 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
     }
   }
 
-  // Approaching RMD: age 72-75 (within 3 years of 75)
-  const approachingRMDClients = clients
+  // Approaching RMD: age 72-75 (within 3 years of 75). Canonical so a single
+  // pre-RMD client doesn't show up multiple times because they have multiple
+  // scenarios.
+  const approachingRMDClients = canonicalClients
     .filter((c) => {
       const yearsToRMD = 75 - c.age;
       return yearsToRMD > 0 && yearsToRMD <= 3;
