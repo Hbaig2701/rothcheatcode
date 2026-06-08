@@ -331,7 +331,7 @@ There's no built-in side-by-side view yet. Workarounds: (1) open the scenarios i
 Section "4. Tax Data" → **Additional Constraint** → "Bracket Ceiling + IRMAA Tier cap" → then **Target IRMAA Tier** = the tier the client should stay at or below. Not in section 6. From age 63+, the engine sizes each year's conversion to keep MAGI under the chosen tier's ceiling.
 
 **"Where do I set how my client takes RMDs in the baseline?"**
-Section "4. Tax Data" → **RMD Treatment (Baseline)** dropdown. Three options: Spent on Living Expenses, Reinvested (Taxable Brokerage), Sits in Cash (No Growth). Default is Spent. This only affects the baseline projection (the strategy may have zero RMDs anyway). Only shown for Growth products.
+Section "4. Tax Data" → **RMD Treatment (Baseline)** dropdown. Three options: Spent on Living Expenses, Reinvested (Taxable Brokerage), Sits in Cash (No Growth). Default is **Reinvested (Taxable Brokerage)** — the engine treats a missing rmd_treatment value as "reinvested" in every scenario. (Earlier KB drafts said the default was "Spent"; that was wrong.) This only affects the baseline projection (the strategy may have zero RMDs anyway). Only shown for Growth products.
 
 **"RMD Treatment is set to Reinvested but the baseline Taxable Account stays at $0 / barely grows."**
 This is NOT necessarily a bug — it's how the baseline pays its taxes. In the baseline scenario, ALL of the year's federal + state tax (including tax on other income, Social Security, and the RMD itself) is deducted from the taxable account each year. The formula is roughly:

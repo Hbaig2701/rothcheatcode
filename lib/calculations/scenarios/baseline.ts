@@ -210,6 +210,31 @@ export function runBaselineScenario(
     // penalty (RMD start age is well above 59.5).
     const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge + earlyPenalty;
 
+    // Marginal federal tax attributable to the year's IRA distribution
+    // (= the "Total Fed Tax on IRA W/D" display column). Mirrors the
+    // calculation in growth-formula.ts so the column populates on the
+    // baseline side too — previously baseline omitted this field entirely
+    // and the column rendered blank, producing repeated support-chat
+    // confusion (Marc Kraus, ticket 0e37beae). Computed as Tax(year with
+    // IRA distribution) − Tax(year without). Skipped when there's no
+    // distribution.
+    let federalTaxOnIRAWithdrawal = 0;
+    if (effectiveIraDistribution > 0) {
+      const noIraTaxInfo = computeTaxableIncomeWithSS({
+        otherIncome, // wages / non-SSI ordinary income only — no IRA $
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        filingStatus: client.filing_status,
+      });
+      const noIraFederalTax = calculateFederalTax({
+        taxableIncome: noIraTaxInfo.taxableIncome,
+        filingStatus: client.filing_status,
+        taxYear: year,
+      }).totalTax;
+      federalTaxOnIRAWithdrawal = Math.max(0, federalResult.totalTax - noIraFederalTax);
+    }
+
     // Calculate interest AFTER distribution.
     // Interest = (B.O.Y. Balance - Distribution) × Rate.
     // Distribution = max(rmdRequired, iraWithdrawal); see note above on the
@@ -361,6 +386,7 @@ export function runBaselineScenario(
       // Voluntary already satisfies the RMD up to its amount, so this is
       // max(rmdRequired, iraWithdrawal) — never the additive sum.
       totalIRAWithdrawal: effectiveIraDistribution,
+      federalTaxOnIRAWithdrawal,
       iraWithdrawal,
       rothWithdrawal,
       earlyWithdrawalPenalty: earlyPenalty || undefined,

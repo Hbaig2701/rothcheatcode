@@ -89,6 +89,26 @@ const cases: Array<{ name: string; text: string; expectFlags: boolean }> = [
     text: "Social Security has a minimum claim age of 62 set by SSA rules.",
     expectFlags: false,
   },
+
+  // ===== Added 2026-06-07 from chat audit (Natalie Zi failure mode) =====
+  // The bot fabricated an IRC citation claiming dollars-from-IRA-to-pay-
+  // conversion-tax are exempt from the 10% penalty. The IRC pattern catches
+  // the citation; verify each phrasing the bot has actually used.
+  {
+    name: "FLAG: 'IRC 72(t)(2)(A)(v)' bare citation (Natalie Zi)",
+    text: "Here's the IRS rule: IRC 72(t)(2)(A)(v) exempts withdrawals used to pay income taxes owed on the conversion itself.",
+    expectFlags: true,
+  },
+  {
+    name: "FLAG: 'under IRC §72(t)' paragraph-symbol variant",
+    text: "The dollars pulled from the IRA to pay tax are exempt under IRC §72(t)(2)(A)(v).",
+    expectFlags: true,
+  },
+  {
+    name: "FLAG: 'Section 72(t)' bare framing",
+    text: "Section 72(t)(2)(A)(v) of the Internal Revenue Code covers this exception.",
+    expectFlags: true,
+  },
 ];
 
 let pass = 0;
