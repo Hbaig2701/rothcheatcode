@@ -62,6 +62,12 @@ export interface Client {
   age: number;
   spouse_name: string | null;   // Spouse name (MFJ only)
   spouse_age: number | null;    // Spouse age (MFJ only)
+  // Contact info — added 2026-06-08 to support permanent intake links where
+  // the advisor has no prior contact with the prospect. Nullable so manually-
+  // created clients in the advisor's form can leave them blank. Intake form
+  // requires email; phone is optional.
+  client_email: string | null;
+  client_phone: string | null;
 
   // ===== Section 2: Current Account Data =====
   qualified_account_value: number; // In cents
@@ -209,6 +215,8 @@ export interface FormulaFormData {
   age: number;
   spouse_name: string | null;
   spouse_age: number | null;
+  client_email: string | null;
+  client_phone: string | null;
 
   // Section 2: Current Account
   qualified_account_value: number;

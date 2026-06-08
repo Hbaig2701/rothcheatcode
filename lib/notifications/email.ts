@@ -427,16 +427,40 @@ interface IntakeCompletedEmailInput {
   firstName?: string | null;
   clientId: string;
   clientName?: string | null;
+  // Captured from the intake form — surfaced in the email so the advisor
+  // can follow up with the prospect immediately (most relevant for
+  // submissions via permanent public links, where the advisor had no prior
+  // contact with the prospect).
+  clientEmail?: string | null;
+  clientPhone?: string | null;
 }
 
 export async function sendIntakeCompletedEmail(input: IntakeCompletedEmailInput): Promise<void> {
-  const { to, firstName, clientId, clientName } = input;
+  const { to, firstName, clientId, clientName, clientEmail, clientPhone } = input;
   const greeting = firstName ? `Hi ${firstName},` : "Hi,";
   const link = `${APP_BASE_URL}/clients/${clientId}/results`;
   const clientLabel = clientName ? escapeHtml(clientName) : "Your client";
   const headline = clientName
     ? `${escapeHtml(clientName)} just finished their intake`
     : "A new client just finished their intake";
+
+  // Contact block — only rendered when at least one channel was captured.
+  // Email/phone links are mailto:/tel: so the advisor can one-click to follow
+  // up directly from their inbox.
+  const phoneHref = clientPhone ? clientPhone.replace(/[^\d+]/g, "") : "";
+  const contactHtml = (clientEmail || clientPhone)
+    ? `
+            <tr>
+              <td style="padding:0 28px 8px 28px;">
+                <p style="margin:0 0 6px 0;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;color:#6b7280;">Contact info</p>
+                ${clientEmail ? `<p style="margin:0 0 4px 0;font-size:14px;color:#374151;">Email: <a href="mailto:${escapeHtml(clientEmail)}" style="color:#1f2937;text-decoration:underline;">${escapeHtml(clientEmail)}</a></p>` : ""}
+                ${clientPhone ? `<p style="margin:0 0 12px 0;font-size:14px;color:#374151;">Phone: <a href="tel:${escapeHtml(phoneHref)}" style="color:#1f2937;text-decoration:underline;">${escapeHtml(clientPhone)}</a></p>` : ""}
+              </td>
+            </tr>`
+    : "";
+  const contactText = (clientEmail || clientPhone)
+    ? `\nContact info:\n${clientEmail ? `  Email: ${clientEmail}\n` : ""}${clientPhone ? `  Phone: ${clientPhone}\n` : ""}`
+    : "";
 
   const html = `<!doctype html>
 <html>
@@ -457,7 +481,7 @@ export async function sendIntakeCompletedEmail(input: IntakeCompletedEmailInput)
                 <p style="margin:0 0 16px 0;font-size:14px;color:#374151;">${escapeHtml(greeting)}</p>
                 <p style="margin:0 0 18px 0;font-size:14px;color:#374151;line-height:1.6;">${clientLabel} submitted the questionnaire — open their record to review the details and run the first scenario.</p>
               </td>
-            </tr>
+            </tr>${contactHtml}
             <tr>
               <td style="padding:4px 28px 28px 28px;" align="left">
                 <a href="${link}" style="display:inline-block;padding:11px 22px;background:#d4af37;color:#1a1a1a;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;">Open client</a>
@@ -475,7 +499,7 @@ export async function sendIntakeCompletedEmail(input: IntakeCompletedEmailInput)
 
 ${clientName ? `${clientName} just finished their intake` : "A new client just finished their intake"}.
 Their information is in your account, ready for analysis.
-
+${contactText}
 Open client: ${link}
 
 Tip: run a baseline scenario first, then layer the Roth conversion strategy on top.

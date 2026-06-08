@@ -15,6 +15,7 @@ const client: Client = {
   blueprint_type: "fia",
   scenario_name: null, filing_status: "single", name: "RMD Test",
   age: 63, spouse_name: null, spouse_age: null,
+  client_email: null, client_phone: null,
   qualified_account_value: 1_000_000_00,
   carrier_name: "T", product_name: "T",
   bonus_percent: 0, rate_of_return: 7,

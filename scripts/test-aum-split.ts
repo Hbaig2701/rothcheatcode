@@ -41,6 +41,8 @@ function makeClient(overrides: Partial<Client> = {}): Client {
     age: 60,
     spouse_name: 'Test Spouse',
     spouse_age: 58,
+    client_email: null,
+    client_phone: null,
     qualified_account_value: 100_000_000, // $1M
     carrier_name: 'Generic Carrier',
     product_name: 'Generic Product',

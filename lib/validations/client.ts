@@ -138,6 +138,24 @@ export const clientFormulaBaseSchema = z.object({
     (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
     z.number().int().min(18).max(100).optional()
   ),
+  // Contact info (optional on the manual-add form — advisors can fill it
+  // when they have it; required on the public intake form). Empty strings
+  // are normalized to null at submit time so the DB column stays clean.
+  client_email: z
+    .string()
+    .trim()
+    .max(254)
+    .email("Please enter a valid email address")
+    .optional()
+    .nullable()
+    .or(z.literal("")),
+  client_phone: z
+    .string()
+    .trim()
+    .max(40)
+    .optional()
+    .nullable()
+    .or(z.literal("")),
 
   // Section 2: Current Account Data
   qualified_account_value: z.number().int().min(0, "Amount must be positive"),

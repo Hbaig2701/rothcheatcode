@@ -115,6 +115,8 @@ const BOB: Client = {
   age: 62,
   spouse_name: null,
   spouse_age: null,
+  client_email: null,
+  client_phone: null,
   qualified_account_value: 50_000_000, // $500,000
   state: 'TX', // no state tax - keeps the math clean for first-time learners
   gross_taxable_non_ssi: 0,
@@ -138,6 +140,8 @@ const MARY: Client = {
   age: 70,
   spouse_name: 'George',
   spouse_age: 70,
+  client_email: null,
+  client_phone: null,
   qualified_account_value: 75_000_000, // $750K
   state: 'FL',
   gross_taxable_non_ssi: 0,
@@ -165,6 +169,8 @@ const JONESES: Client = {
   age: 65,
   spouse_name: 'Linda',
   spouse_age: 65,
+  client_email: null,
+  client_phone: null,
   qualified_account_value: 120_000_000, // $1.2M combined IRA
   state: 'NY', // state tax matters for this couple
   state_tax_rate: 6.85,

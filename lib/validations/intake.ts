@@ -4,6 +4,18 @@ import { getStateByCode } from "@/lib/data/states";
 export const intakeFormSchema = z
   .object({
     name: z.string().min(1, "Name is required").max(100),
+    // Email is required on the intake form so the advisor can reach a
+    // prospect who submitted via a public/permanent link. Phone is optional
+    // (prospects skip it more often, and email is the higher-signal channel
+    // for follow-up). Both flow into the clients table for the advisor to
+    // see on the client detail page.
+    client_email: z.string().trim().email("Please enter a valid email address").max(254),
+    client_phone: z
+      .string()
+      .trim()
+      .max(40)
+      .optional()
+      .or(z.literal("")),
     age: z.number().int().min(18).max(100),
     filing_status: z.enum(["single", "married_filing_jointly"]),
     spouse_name: z.string().max(100).optional(),
@@ -68,6 +80,12 @@ export function intakeToClientData(intake: IntakeFormData) {
   return {
     // Client-provided fields
     name: intake.name,
+    // Normalize the contact fields: trim, lowercase email, treat empty
+    // phone string as null so the DB column stays clean.
+    client_email: intake.client_email.trim().toLowerCase(),
+    client_phone: intake.client_phone && intake.client_phone.trim().length > 0
+      ? intake.client_phone.trim()
+      : null,
     age: intake.age,
     filing_status: intake.filing_status,
     spouse_name: intake.spouse_name || null,

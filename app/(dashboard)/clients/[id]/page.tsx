@@ -169,6 +169,30 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
           <p className="text-sm text-text-dim mt-1">
             Client since {formatDate(client.created_at)}
           </p>
+          {/* Contact info — surfaced when the client submitted via an intake
+              link (where these are required). Links use mailto:/tel: so the
+              advisor can one-click to follow up. Hidden when both are null
+              (typical for advisor-built clients with no contact info). */}
+          {(client.client_email || client.client_phone) && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              {client.client_email && (
+                <a
+                  href={`mailto:${client.client_email}`}
+                  className="text-text-muted hover:text-foreground underline-offset-2 hover:underline"
+                >
+                  {client.client_email}
+                </a>
+              )}
+              {client.client_phone && (
+                <a
+                  href={`tel:${client.client_phone.replace(/[^\d+]/g, "")}`}
+                  className="text-text-muted hover:text-foreground underline-offset-2 hover:underline"
+                >
+                  {client.client_phone}
+                </a>
+              )}
+            </div>
+          )}
         </div>
         <SupportTicketModal clientId={client.id} triggerLabel="Get Support" />
       </div>
@@ -187,6 +211,15 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
               { label: "State", value: client.state },
               { label: "Filing Status", value: formatFilingStatus(client.filing_status) },
               { label: "Qualified Balance", value: formatCurrency(client.qualified_account_value) },
+              // Contact fields appear in the basic-info table only when
+              // present. Email is the higher-signal channel, so it's listed
+              // first when both exist.
+              ...(client.client_email
+                ? [{ label: "Email", value: client.client_email }]
+                : []),
+              ...(client.client_phone
+                ? [{ label: "Phone", value: client.client_phone }]
+                : []),
             ].map((item) => (
               <div
                 key={item.label}

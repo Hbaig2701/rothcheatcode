@@ -19,6 +19,8 @@ type IncomeEntry = {
 
 type FormData = {
   name: string;
+  client_email: string;
+  client_phone: string;
   age: string;
   filing_status: "single" | "married_filing_jointly";
   spouse_name: string;
@@ -37,6 +39,8 @@ type FormData = {
 
 const initialForm: FormData = {
   name: "",
+  client_email: "",
+  client_phone: "",
   age: "",
   filing_status: "single",
   spouse_name: "",
@@ -114,6 +118,13 @@ export default function IntakeFormPage() {
     // instead of cryptic Zod range errors when a field is empty.
     const requiredErrors: Record<string, string> = {};
     if (!form.name.trim()) requiredErrors.name = "Name is required";
+    if (!form.client_email.trim()) {
+      requiredErrors.client_email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.client_email.trim())) {
+      // Lightweight client-side email format check. The server runs the full
+      // Zod email validator — this is just a friendlier error before submit.
+      requiredErrors.client_email = "Please enter a valid email address";
+    }
     if (!form.age) requiredErrors.age = "Age is required";
     if (!form.state) requiredErrors.state = "State is required";
     if (!form.qualified_account_value) requiredErrors.qualified_account_value = "Account value is required";
@@ -177,6 +188,10 @@ export default function IntakeFormPage() {
 
     const payload = {
       name: form.name.trim(),
+      client_email: form.client_email.trim(),
+      // Empty string and undefined are both fine — server treats either as
+      // "no phone provided" and stores null in the DB.
+      client_phone: form.client_phone.trim() || undefined,
       age: parseInt(form.age) || 0,
       filing_status: form.filing_status,
       spouse_name: isMarried ? form.spouse_name.trim() : undefined,
@@ -317,6 +332,33 @@ export default function IntakeFormPage() {
                     updateField("age", v);
                   }}
                   placeholder="Enter age"
+                />
+              </FieldGroup>
+            </div>
+
+            {/* Contact info — required for email, optional for phone. The
+                advisor needs at least one way to follow up after a public
+                intake submission. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FieldGroup label="Email" error={fieldErrors.client_email} required>
+                <Input
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={form.client_email}
+                  onChange={(e) => updateField("client_email", e.target.value)}
+                  placeholder="you@example.com"
+                />
+              </FieldGroup>
+
+              <FieldGroup label="Phone" error={fieldErrors.client_phone}>
+                <Input
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={form.client_phone}
+                  onChange={(e) => updateField("client_phone", e.target.value)}
+                  placeholder="(555) 555-1234"
                 />
               </FieldGroup>
             </div>

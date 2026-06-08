@@ -190,6 +190,8 @@ export async function POST(
         firstName: (settingsRes.data?.first_name as string | undefined) ?? null,
         clientId: client.id,
         clientName: clientData.name ?? null,
+        clientEmail: clientData.client_email ?? null,
+        clientPhone: clientData.client_phone ?? null,
       });
     } else {
       console.warn("[intake] No email on file for advisor — skipped intake email", { advisor_id: link.user_id });
