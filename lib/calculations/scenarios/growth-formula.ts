@@ -10,7 +10,6 @@ import { calculateIRMAAWithLookback, calculateIRMAAHeadroom, calculateIRMAAHeadr
 import {
   calculateMAGI,
   getMarginalBracket,
-  getIRMAATier,
   computeTaxableIncomeWithSS,
   calculateSSAwareOptimalConversion,
   calculateSSAwareIRAWithdrawalPlan,
@@ -783,13 +782,20 @@ export function runGrowthFormulaScenario(
     // Store MAGI for IRMAA 2-year lookback
     incomeHistory.set(year, magi);
 
-    // IRMAA (Medicare surcharge, age 65+ only, uses 2-year lookback)
+    // IRMAA (Medicare surcharge, age 65+ only, uses 2-year lookback).
+    // Tier is captured from the SAME lookback as the surcharge so the
+    // year-by-year "IRMAA Tier" column matches the "IRMAA Amount" column
+    // on the same row. Previously the tier was recomputed from current-
+    // year MAGI, producing rows like "Tier 4 / $0" in early projection
+    // years or "Standard / $9,240" when a conversion year aged out of
+    // the lookback window.
     let irmaaSurcharge = 0;
+    let irmaaTier = 0;
     if (age >= 65) {
       const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
       irmaaSurcharge = irmaaResult.annualSurcharge;
+      irmaaTier = irmaaResult.tier;
     }
-    const irmaaTier = getIRMAATier(magi, client.filing_status);
 
     // 10% early withdrawal penalty. Two distinct triggers, each on its own:
     //   1. tax paid from the IRA when under 59.5 — the conversion itself is

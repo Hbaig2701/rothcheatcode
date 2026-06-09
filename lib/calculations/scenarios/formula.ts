@@ -13,7 +13,6 @@ import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import {
   getMarginalBracket,
-  getIRMAATier,
   computeTaxableIncomeWithSS,
   calculateSSAwareOptimalConversion,
   calculateSSAwareIRAWithdrawalPlan,
@@ -517,10 +516,15 @@ export function runFormulaScenario(
     const magi = grossIncomeWithWithdrawal + taxExemptNonSSI + ssIncome;
     incomeHistory.set(year, magi);
 
+    // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
+    // so the display column "IRMAA Tier" matches the "IRMAA Amount" cents
+    // on the same row. See baseline.ts for the longer rationale.
     let irmaaSurcharge = 0;
+    let irmaaTierFromLookback = 0;
     if (age >= 65) {
       const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
       irmaaSurcharge = irmaaResult.annualSurcharge;
+      irmaaTierFromLookback = irmaaResult.tier;
     }
 
     // 10% early withdrawal penalty on tax paid from IRA when under 59.5
@@ -573,7 +577,7 @@ export function runFormulaScenario(
 
     const bracket = determineTaxBracket(taxInfoFinal.taxableIncome, client.filing_status, year);
     const totalIncome = grossIncomeWithWithdrawal + ssIncome;
-    const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+    const irmaaTier = irmaaTierFromLookback;
     const federalTaxBracket = getMarginalBracket(taxInfoFinal.taxableIncome, client.filing_status, year);
 
     results.push({

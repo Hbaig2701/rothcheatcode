@@ -8,7 +8,7 @@ import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
-import { getMarginalBracket, getIRMAATier, computeTaxableIncomeWithSS } from '../tax-helpers';
+import { getMarginalBracket, computeTaxableIncomeWithSS } from '../tax-helpers';
 
 /**
  * Run Baseline scenario: no Roth conversions, just RMDs
@@ -198,11 +198,20 @@ export function runBaselineScenario(
     // Store for IRMAA lookback
     incomeHistory.set(year, magi);
 
-    // IRMAA (Medicare surcharge, age 65+ only, uses 2-year lookback)
+    // IRMAA (Medicare surcharge, age 65+ only, uses 2-year lookback).
+    // Tier is captured from the SAME lookback as the surcharge so the
+    // year-by-year "IRMAA Tier" and "IRMAA Amount" columns stay in sync —
+    // previously the tier displayed the current-year MAGI's tier while the
+    // dollar amount came from 2-year-old MAGI, producing confusing rows like
+    // "Tier 4 / $0" in the first 2 projection years (no lookback data yet)
+    // or "Standard / $9,240" after a conversion year aged out of the
+    // lookback window.
     let irmaaSurcharge = 0;
+    let irmaaTierFromLookback = 0;
     if (age >= 65) {
       const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
       irmaaSurcharge = irmaaResult.annualSurcharge;
+      irmaaTierFromLookback = irmaaResult.tier;
     }
 
     // Total tax — federal + state + IRMAA + 10% early-withdrawal penalty for
@@ -316,9 +325,11 @@ export function runBaselineScenario(
     // Determine tax bracket
     const bracket = determineTaxBracket(taxableIncome, client.filing_status, year);
 
-    // Calculate extended fields for adjustable columns
+    // Calculate extended fields for adjustable columns. irmaaTier mirrors
+    // irmaaTierFromLookback above so the display column matches the
+    // surcharge dollars on the same row.
     const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
-    const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+    const irmaaTier = irmaaTierFromLookback;
 
     // Calculate growth/interest for each account
     const traditionalGrowth = iraInterest;

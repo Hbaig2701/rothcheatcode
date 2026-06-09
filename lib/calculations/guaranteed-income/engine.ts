@@ -48,7 +48,7 @@ import {
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import type { CustomProductRow } from '@/lib/products/types';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
-import { calculateMAGI, calculateAGI, getMarginalBracket, getIRMAATier, computeTaxableIncomeWithSS } from '../tax-helpers';
+import { calculateMAGI, calculateAGI, getMarginalBracket, computeTaxableIncomeWithSS } from '../tax-helpers';
 
 // ---------------------------------------------------------------------------
 // Helper Functions
@@ -437,10 +437,15 @@ function runGIStrategyScenario(
       const magi = grossIncomeWithConversion + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
+      // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
+      // so the displayed tier matches the dollar surcharge on the same row.
+      // See baseline.ts for the longer rationale.
       let irmaaSurcharge = 0;
+      let irmaaTierFromLookback = 0;
       if (age >= 65) {
         const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
         irmaaSurcharge = irmaaResult.annualSurcharge;
+        irmaaTierFromLookback = irmaaResult.tier;
       }
 
       // 10% early withdrawal penalty applies to (a) IRA-funded conversion tax
@@ -480,7 +485,7 @@ function runGIStrategyScenario(
       const agi = convPhaseTaxInfo.agi;
       const taxableIncome = convPhaseTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
-      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+      const irmaaTier = irmaaTierFromLookback;
 
       // Account growth this year
       const traditionalGrowth = traditionalInterest;
@@ -625,10 +630,15 @@ function runGIStrategyScenario(
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
+      // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
+      // so the displayed tier matches the dollar surcharge on the same row.
+      // See baseline.ts for the longer rationale.
       let irmaaSurcharge = 0;
+      let irmaaTierFromLookback = 0;
       if (age >= 65) {
         const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
         irmaaSurcharge = irmaaResult.annualSurcharge;
+        irmaaTierFromLookback = irmaaResult.tier;
       }
 
       // Calculate tax details (with SS taxation awareness for display)
@@ -643,7 +653,7 @@ function runGIStrategyScenario(
       const agi = purchaseTaxInfo.agi;
       const taxableIncome = purchaseTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
-      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+      const irmaaTier = irmaaTierFromLookback;
 
       // Account growth this year
       const traditionalGrowth = 0; // No growth (purchased this year, balance moved to GI)
@@ -774,10 +784,15 @@ function runGIStrategyScenario(
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
+      // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
+      // so the displayed tier matches the dollar surcharge on the same row.
+      // See baseline.ts for the longer rationale.
       let irmaaSurcharge = 0;
+      let irmaaTierFromLookback = 0;
       if (age >= 65) {
         const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
         irmaaSurcharge = irmaaResult.annualSurcharge;
+        irmaaTierFromLookback = irmaaResult.tier;
       }
 
       // Calculate tax details (with SS taxation awareness)
@@ -792,7 +807,7 @@ function runGIStrategyScenario(
       const agi = strategyDeferralTaxInfo.agi;
       const taxableIncome = strategyDeferralTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
-      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+      const irmaaTier = irmaaTierFromLookback;
 
       // Account growth this year (interest before rider fee)
       const traditionalGrowth = accountInterest;
@@ -927,10 +942,15 @@ function runGIStrategyScenario(
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
+      // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
+      // so the displayed tier matches the dollar surcharge on the same row.
+      // See baseline.ts for the longer rationale.
       let irmaaSurcharge = 0;
+      let irmaaTierFromLookback = 0;
       if (age >= 65) {
         const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
         irmaaSurcharge = irmaaResult.annualSurcharge;
+        irmaaTierFromLookback = irmaaResult.tier;
       }
 
       // Calculate tax details. GI income itself is tax-free (Roth), but any
@@ -946,7 +966,7 @@ function runGIStrategyScenario(
       const agi = strategyIncomeTaxInfo.agi;
       const taxableIncome = strategyIncomeTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
-      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+      const irmaaTier = irmaaTierFromLookback;
 
       // Account growth this year (interest after payout, before rider fee)
       const traditionalGrowth = accountInterest;
@@ -1206,10 +1226,15 @@ function runGIBaselineScenario(
       const magi = otherIncome + iraWithdrawalW + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
+      // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
+      // so the displayed tier matches the dollar surcharge on the same row.
+      // See baseline.ts for the longer rationale.
       let irmaaSurcharge = 0;
+      let irmaaTierFromLookback = 0;
       if (age >= 65) {
         const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
         irmaaSurcharge = irmaaResult.annualSurcharge;
+        irmaaTierFromLookback = irmaaResult.tier;
       }
 
       // Calculate tax details (with SS taxation awareness)
@@ -1224,7 +1249,7 @@ function runGIBaselineScenario(
       const agi = waitingTaxInfo.agi;
       const taxableIncome = waitingTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
-      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+      const irmaaTier = irmaaTierFromLookback;
 
       // Account growth this year
       const traditionalGrowth = iraGrowth;
@@ -1359,10 +1384,15 @@ function runGIBaselineScenario(
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
+      // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
+      // so the displayed tier matches the dollar surcharge on the same row.
+      // See baseline.ts for the longer rationale.
       let irmaaSurcharge = 0;
+      let irmaaTierFromLookback = 0;
       if (age >= 65) {
         const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
         irmaaSurcharge = irmaaResult.annualSurcharge;
+        irmaaTierFromLookback = irmaaResult.tier;
       }
 
       // Calculate tax details (with SS taxation awareness)
@@ -1377,7 +1407,7 @@ function runGIBaselineScenario(
       const agi = baselinePurchaseTaxInfo.agi;
       const taxableIncome = baselinePurchaseTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
-      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+      const irmaaTier = irmaaTierFromLookback;
 
       // Account growth this year
       const traditionalGrowth = 0; // Purchased this year
@@ -1506,10 +1536,15 @@ function runGIBaselineScenario(
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
+      // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
+      // so the displayed tier matches the dollar surcharge on the same row.
+      // See baseline.ts for the longer rationale.
       let irmaaSurcharge = 0;
+      let irmaaTierFromLookback = 0;
       if (age >= 65) {
         const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
         irmaaSurcharge = irmaaResult.annualSurcharge;
+        irmaaTierFromLookback = irmaaResult.tier;
       }
 
       // Calculate tax details (with SS taxation awareness)
@@ -1524,7 +1559,7 @@ function runGIBaselineScenario(
       const agi = baselineDeferralTaxInfo.agi;
       const taxableIncome = baselineDeferralTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
-      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+      const irmaaTier = irmaaTierFromLookback;
 
       // Account growth this year (interest before rider fee)
       const traditionalGrowth = accountInterest;
@@ -1650,10 +1685,15 @@ function runGIBaselineScenario(
       const magi = grossTaxableIncome + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
+      // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
+      // so the displayed tier matches the dollar surcharge on the same row.
+      // See baseline.ts for the longer rationale.
       let irmaaSurcharge = 0;
+      let irmaaTierFromLookback = 0;
       if (age >= 65) {
         const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
         irmaaSurcharge = irmaaResult.annualSurcharge;
+        irmaaTierFromLookback = irmaaResult.tier;
       }
 
       const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge;
@@ -1696,7 +1736,7 @@ function runGIBaselineScenario(
       const totalIncome = grossTaxableIncome + ssIncome;
       const agi = baselineIncomeTaxInfo.agi;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
-      const irmaaTier = getIRMAATier(magi, client.filing_status, year);
+      const irmaaTier = irmaaTierFromLookback;
 
       // Split federal/state tax between "on ordinary/GI" and "on taxable SS".
       const ssPart = baselineIncomeTaxInfo.taxableSS;
