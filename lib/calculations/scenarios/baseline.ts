@@ -89,7 +89,17 @@ export function runBaselineScenario(
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
     const age = useAgeBased ? getAgeAtYearOffset(clientAge, yearOffset) : calculateAge(client.date_of_birth!, year);
-    const spouseAge = isMarriedFiler && client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
+    // Effective current spouse age — prefer the age-based value (the app's
+    // primary input, and what SS COLA tracking below + the strategy engines
+    // already use), falling back to spouse_dob only when no spouse_age was
+    // entered. Previously this read spouse_dob ONLY, so age-based married
+    // clients (the common case — most are entered by age, not DOB) silently
+    // lost the spouse's age-65 senior standard-deduction bump, making baseline
+    // tax higher than the strategy engines for identical income and skewing
+    // the baseline-vs-strategy comparison.
+    const spouseAge = initialSpouseAge !== null
+      ? initialSpouseAge + yearOffset
+      : (isMarriedFiler && client.spouse_dob ? calculateAge(client.spouse_dob, year) : null);
 
     // Beginning of Year balances
     const boyIRA = iraBalance;
@@ -286,23 +296,22 @@ export function runBaselineScenario(
       : 0;
     const forcedRmdAttributableTax = Math.round(totalTax * forcedRmdShareOfTaxable);
     const afterTaxForcedRmd = forcedRmdShortfall - forcedRmdAttributableTax;
-    // Tax not attributable to the forced RMD is paid from the taxable
-    // account in modes that track it ('cash'/'reinvested'). 'spent' mode
-    // keeps taxable flat as before — non-RMD tax in that mode is assumed
-    // funded externally (matches the "wages cover their own withholding"
-    // intuition).
-    const nonForcedRmdTax = totalTax - forcedRmdAttributableTax;
-
-    // CLAMP AT $0 (Jorge V., ticket 809a5774): once the IRA depletes (e.g.,
-    // the client's RMDs + voluntary withdrawals have drained it) the
-    // tax-on-SS / tax-on-non_ssi_income that this engine deducts from
-    // taxableBalance has nothing to come from — pre-fix it was driving
-    // taxableBalance into the negatives every year (driving the chart's
-    // baseline line deep into negative legacy territory). Clamping at 0
-    // says "the client paid that residual tax from external income, the
-    // portfolio just stays at zero." TODO: replace with proper external-
-    // income credit (option B) when the simpler clamp produces a confusing
-    // edge case.
+    // Tax on income OTHER than the forced RMD (SS, wages, non-SSI income) is
+    // funded by those income streams themselves — NOT drawn from the taxable
+    // brokerage. An income source can always cover the tax on its own dollars
+    // (marginal rate < 100%), so the outside income pays its own tax and the
+    // leftover is spent on living expenses. Only the forced RMD's OWN
+    // attributable tax reduces what reaches the brokerage (already netted out
+    // in afterTaxForcedRmd above).
+    //
+    // This is the "option B" external-income credit. Previously the full
+    // non-RMD tax was subtracted from the taxable account, which wiped out the
+    // reinvested RMD and pinned taxableBalance at $0 every year for clients
+    // with meaningful outside income — the reinvested RMDs never accumulated
+    // (Marc Kraus, ticket 2a95f2e9: "RMDs not going to side account from the
+    // first RMD year"). The earlier $0-clamp (Jorge V., ticket 809a5774) was
+    // a band-aid over this same root cause; it now only acts as a defensive
+    // floor and should virtually never bind.
     let desiredTaxableBalance: number;
     if (rmdTreatment === 'spent') {
       // Forced RMD is spent on living expenses - don't accumulate in taxable.
@@ -311,14 +320,13 @@ export function runBaselineScenario(
       // Taxable balance stays flat — same as before this fix.
       desiredTaxableBalance = boyTaxable;
     } else if (rmdTreatment === 'cash') {
-      // Forced RMD accumulates in cash but doesn't earn interest. Non-RMD
-      // tax still comes out of the account.
-      desiredTaxableBalance = boyTaxable + forcedRmdShortfall - forcedRmdAttributableTax - nonForcedRmdTax;
+      // Forced RMD (net of its own attributable tax) accumulates in cash but
+      // doesn't earn interest.
+      desiredTaxableBalance = boyTaxable + afterTaxForcedRmd;
     } else {
-      // 'reinvested' (default): forced RMD goes to taxable account and
-      // earns interest. Non-RMD tax (wage tax, etc.) deducts from the
-      // taxable account.
-      desiredTaxableBalance = boyTaxable + forcedRmdShortfall + taxableInterest - forcedRmdAttributableTax - nonForcedRmdTax;
+      // 'reinvested' (default): forced RMD (net of its own attributable tax)
+      // flows into the taxable account and earns interest going forward.
+      desiredTaxableBalance = boyTaxable + afterTaxForcedRmd + taxableInterest;
     }
     taxableBalance = Math.max(0, desiredTaxableBalance);
 

@@ -130,7 +130,13 @@ export function runFormulaScenario(
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
     const age = useAgeBased ? getAgeAtYearOffset(clientAge, yearOffset) : calculateAge(client.date_of_birth!, year);
-    const spouseAge = isMarriedFiler && client.spouse_dob ? calculateAge(client.spouse_dob, year) : null;
+    // Effective current spouse age — age-based primary (the app's main input,
+    // matching baseline.ts + growth-formula.ts), dob fallback. Reading spouse_dob
+    // only made age-based married clients lose the spouse's age-65 senior
+    // deduction here, diverging from baseline for identical income.
+    const spouseAge = initialSpouseAge !== null
+      ? initialSpouseAge + yearOffset
+      : (isMarriedFiler && client.spouse_dob ? calculateAge(client.spouse_dob, year) : null);
 
     // Beginning of Year balances
     const boyIRA = iraBalance;
@@ -542,31 +548,43 @@ export function runFormulaScenario(
     iraBalance = iraAfterConversion + iraInterest;
     rothBalance = rothAfterConversion + rothInterest;
 
-    // ---- Symmetric tax accounting between baseline and strategy ----
-    // The taxable account previously absorbed every tax line in the strategy
-    // (wage tax, SS tax, RMD tax) but the BASELINE engine only does that in
-    // 'cash'/'reinvested' modes — in 'spent' mode the baseline keeps taxable
-    // flat (baseline.ts:217). That asymmetry punished any 'spent'-mode client
-    // who had real wages or other taxable income before/during their
-    // conversion phase. Fix: in 'spent' mode only deduct conversion-related
-    // tax that's genuinely paid from external/taxable funds. Non-conversion
-    // tax (wages, SS, RMD) is paid from the income that generated it and
-    // exists identically in both scenarios. In 'cash'/'reinvested' modes,
-    // baseline also deducts the full totalTax (lines 220/223 of baseline.ts)
-    // so we keep the legacy behavior there to stay symmetric.
+    // ---- Symmetric tax accounting between baseline and strategy (option B) ----
+    // Only tax genuinely funded FROM the taxable brokerage reduces it:
+    //   • conversion tax paid from external/taxable funds (when !payTaxFromIRA);
+    //     conversion tax paid from the IRA never touches the brokerage.
+    //   • the forced RMD's OWN attributable tax — netted out of the RMD before
+    //     it lands in the account (afterTaxForcedRmd below).
+    // Tax on every OTHER income line (SS, wages, non-SSI) is funded by that
+    // income itself, NOT the brokerage — an income source always covers the
+    // tax on its own dollars. This matches the baseline engine's option-B fix
+    // (baseline.ts) so reinvested RMDs accumulate identically on both sides;
+    // previously this branch deducted the FULL totalTax, which understated the
+    // strategy's taxable account vs the baseline for partial-conversion clients
+    // in reinvested mode (ticket 2a95f2e9 follow-up).
     const conversionFedStateTax = federalConversionTax + stateConversionTax;
-    const taxFromTaxableAccount = rmdTreatment === 'spent'
-      ? (payTaxFromIRA ? 0 : conversionFedStateTax)
-      : (payTaxFromIRA ? Math.max(0, totalTax - conversionTaxFromIRA) : totalTax);
-    // RMD proceeds either get spent (don't accumulate) or go to taxable
-    // account ('reinvested'/'cash'). Mirrors growth-formula.ts. Clamp at $0
-    // (Jorge V., ticket 809a5774) so that residual tax bills, once the
-    // qualified buckets are drained, are assumed paid from external income
-    // (SS / non_ssi_income) rather than driving taxableBalance into the
-    // negatives. TODO: replace with proper external-income credit (option B).
+    const externalConversionTax = payTaxFromIRA ? 0 : conversionFedStateTax;
+    // Forced-RMD attributable tax — identical method AND basis to baseline.ts
+    // so a zero/partial-conversion strategy accumulates reinvested RMDs exactly
+    // like the baseline. Baseline pro-rates its full no-conversion totalTax
+    // (fed + state + IRMAA) by the RMD's share of (RMD + other income). We
+    // mirror that: fedNoConv/stateNoConv are the no-conversion fed/state tax,
+    // and irmaaSurcharge equals the no-conversion IRMAA when no conversion is
+    // happening (and is the realistic with-conversion IRMAA otherwise). The
+    // early-withdrawal penalty is always $0 in RMD years (age ≥ 73 ≫ 59½), so
+    // it's correctly omitted. Including IRMAA here is what makes the strategy's
+    // reinvested-RMD accumulation match baseline to the dollar in the no-
+    // conversion case (verified via the symmetry harness).
+    const grossOrdinaryIncome = rmdAmount + otherIncome;
+    const rmdShareOfOrdinary = grossOrdinaryIncome > 0 ? rmdAmount / grossOrdinaryIncome : 0;
+    const rmdAttributableTax = Math.round((fedNoConv + stateNoConv + irmaaSurcharge) * rmdShareOfOrdinary);
+    const afterTaxForcedRmd = rmdAmount - rmdAttributableTax;
+    // Reinvested mode earns interest on the prior-year taxable balance; cash
+    // mode accumulates without growth. Clamp at $0 (Jorge V., ticket 809a5774)
+    // remains only as a defensive floor and should virtually never bind now.
+    const taxableInterest = rmdTreatment === 'reinvested' ? Math.round(boyTaxable * growthRate) : 0;
     const desiredTaxableBalance = rmdTreatment === 'spent'
-      ? boyTaxable - taxFromTaxableAccount
-      : boyTaxable + rmdAmount - taxFromTaxableAccount;
+      ? boyTaxable - externalConversionTax
+      : boyTaxable + afterTaxForcedRmd + taxableInterest - externalConversionTax;
     taxableBalance = Math.max(0, desiredTaxableBalance);
 
     // Split federal/state tax between "on conversion" and "on ordinary/SS income"
@@ -606,7 +624,7 @@ export function runFormulaScenario(
       taxableBOY: boyTaxable,
       traditionalGrowth: iraInterest,
       rothGrowth: rothInterest,
-      taxableGrowth: 0, // No growth on taxable (just pays taxes)
+      taxableGrowth: taxableInterest, // interest earned on the reinvested-RMD taxable account ('reinvested' mode); 0 for cash/spent
       productBonusApplied: 0, // Bonus applied at year 0 only (in initial balance)
       magi,
       agi: taxInfoFinal.agi,

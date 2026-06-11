@@ -830,35 +830,43 @@ export function runGrowthFormulaScenario(
     // it on one side only is wrong. In 'cash'/'reinvested' modes, baseline
     // also deducts the full totalTax (lines 220/223 of baseline.ts) so we
     // keep the legacy behavior there to stay symmetric on both sides.
+    // Only tax genuinely funded FROM the taxable brokerage reduces it:
+    //   • conversion tax paid from external/taxable funds (payTaxFromIRA=false);
+    //     conversion tax paid from the IRA never touches the brokerage.
+    //   • the forced RMD's OWN attributable tax — netted out before it lands.
+    // Tax on every OTHER income line (SS, wages, non-SSI) is funded by that
+    // income itself, NOT the brokerage. This matches baseline.ts's option-B
+    // fix so reinvested RMDs accumulate identically on both sides. Previously
+    // this branch deducted the FULL totalTax (incl. SS/other-income tax),
+    // understating the strategy's taxable account vs the baseline for
+    // partial-conversion clients in reinvested mode (ticket 2a95f2e9 follow-up).
     const conversionFedStateTax = conversionFederalTax + conversionStateTax;
-    const taxFromTaxableAccount = rmdTreatment === 'spent'
-      ? (payTaxFromIRA ? 0 : conversionFedStateTax)
-      : (payTaxFromIRA ? Math.max(0, totalTax - conversionTaxFromIRA) : totalTax);
-
-    // Cash flow: RMD proceeds flow INTO taxable account (per rmd_treatment)
-    // Conversion taxes flow OUT (paid from external funds, reducing taxable balance).
-    //
-    // CLAMP AT $0 (Jorge V., ticket 809a5774): once both qualified buckets
-    // and the taxable account are drained, the engine was previously letting
-    // taxableBalance drift negative each year by the year's tax bill — which
-    // misrepresents the report (chart goes deep into negative territory,
-    // "$0 to heirs" headlines, etc.) for clients with real external income
-    // (SS, non_ssi_income) that would actually fund the tax. We clamp at 0
-    // here as the simplest honest representation: "the portfolio has nothing
-    // left to fund this tax — the client paid it from their living-expense
-    // income, the portfolio just stays at 0." TODO: a proper fix (option B,
-    // tracked in audit notes) would credit external income against tax
-    // bills BEFORE deducting from taxable, which is more accurate but a
-    // bigger rewrite. Revisit if the simpler clamp ever produces a misleading
-    // case.
-    // In 'reinvested'/'cash' modes, only the FORCED RMD shortfall flows into
-    // the taxable account — the voluntary portion of the IRA distribution is
-    // presumed spent, matching the voluntary-withdrawal semantics elsewhere
-    // in the engine. (Pre-fix, the full legal RMD was reinvested even when
-    // voluntary had already pulled the same dollars and spent them.)
+    const externalConversionTax = payTaxFromIRA ? 0 : conversionFedStateTax;
+    // Forced-RMD attributable tax — identical method/basis to baseline.ts: the
+    // forced RMD's share of the NO-conversion ordinary tax. fed/state are
+    // computed on existingTaxableIncome (RMD + voluntary + SS + other, NO
+    // conversion dollars), plus IRMAA — exactly what baseline pro-rates. The
+    // early-withdrawal penalty is omitted (always $0 in RMD years, age ≥ 73).
+    const noConvFedStateTax = forcedRmdShortfall > 0
+      ? calculateFederalTax({ taxableIncome: existingTaxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax
+        + calculateStateTax({ taxableIncome: existingTaxableIncome, state: client.state ?? 'CA', filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax
+      : 0;
+    const grossOrdinaryIncome = effectiveIraDistribution + otherIncome;
+    const rmdShareOfOrdinary = grossOrdinaryIncome > 0 ? forcedRmdShortfall / grossOrdinaryIncome : 0;
+    const rmdAttributableTax = Math.round((noConvFedStateTax + irmaaSurcharge) * rmdShareOfOrdinary);
+    const afterTaxForcedRmd = forcedRmdShortfall - rmdAttributableTax;
+    // The reinvested-RMD brokerage is a SIDE taxable account (not the FIA), so
+    // it grows at the same market/comparison rate the baseline uses for its
+    // taxable account — never the FIA contract rate. Cash mode: no growth.
+    // Clamp at $0 (Jorge V., ticket 809a5774) remains only as a defensive
+    // floor and should virtually never bind now. Only the FORCED RMD shortfall
+    // flows in — the voluntary IRA portion is presumed spent, matching the
+    // voluntary-withdrawal semantics elsewhere in the engine.
+    const taxableBrokerageRate = (client.baseline_comparison_rate ?? client.growth_rate ?? 7) / 100;
+    const taxableInterest = rmdTreatment === 'reinvested' ? Math.round(boyTaxable * taxableBrokerageRate) : 0;
     const desiredTaxableBalance = rmdTreatment === 'spent'
-      ? boyTaxable - taxFromTaxableAccount
-      : boyTaxable + forcedRmdShortfall - taxFromTaxableAccount;
+      ? boyTaxable - externalConversionTax
+      : boyTaxable + afterTaxForcedRmd + taxableInterest - externalConversionTax;
     taxableBalance = Math.max(0, desiredTaxableBalance);
 
     // Product bonus applied this year. Two sources:
@@ -886,7 +894,7 @@ export function runGrowthFormulaScenario(
     // bonus column. Only anniversary bonuses count as in-year growth credits.
     const traditionalGrowth = iraInterest + anniversaryBonusThisYear;
     const rothGrowth = rothInterest;
-    const taxableGrowth = 0; // No growth on taxable (just pays taxes)
+    const taxableGrowth = taxableInterest; // interest on the reinvested-RMD side brokerage ('reinvested' mode); 0 for cash/spent
 
     // Tax component breakdown. Marginal conversion tax was computed above
     // (conversionFederalTax / conversionStateTax). The remainder is split
