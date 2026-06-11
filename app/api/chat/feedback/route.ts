@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifySlackNewTicket } from "@/lib/notifications/slack";
 
 interface FeedbackBody {
   message_id: string;
@@ -129,6 +130,38 @@ export async function POST(request: NextRequest) {
   if (ticketError || !ticket) {
     console.error("[chat-feedback] ticket insert failed", ticketError?.message);
     return NextResponse.json({ error: "Failed to file feedback ticket" }, { status: 500 });
+  }
+
+  // Slack notification — mirrors the manual-submit path so thumbs-down
+  // feedback tickets surface in the support channel too (previously these
+  // were filed silently). Best-effort: the ticket already exists, so a
+  // Slack/lookup failure must never fail the request. The description's
+  // "[Advisor flagged a chat response…]" marker rides along so the Slack
+  // card flags these as chat-feedback tickets.
+  try {
+    const { data: advisorSettings } = await supabase
+      .from("user_settings")
+      .select("first_name, last_name")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const advisorName =
+      [advisorSettings?.first_name, advisorSettings?.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || user.email || "Advisor";
+
+    await notifySlackNewTicket({
+      ticketId: ticket.id,
+      subject,
+      description,
+      severity: "medium",
+      category: "bug",
+      advisorName,
+      advisorEmail: user.email ?? null,
+      clientName: null,
+    });
+  } catch (err) {
+    console.error("[chat-feedback] Slack notify failed", err);
   }
 
   // Stamp the message with the ticket id so the chat bubble can render the

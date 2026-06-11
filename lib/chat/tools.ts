@@ -14,6 +14,8 @@
  * advisors know something is happening during multi-second lookups.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { notifySlackNewTicket } from "@/lib/notifications/slack";
+import type { SupportSeverity, SupportCategory } from "@/lib/types/support";
 
 export interface ChatTool {
   name: string;
@@ -480,6 +482,10 @@ async function runCreateSupportTicket(
   if (!subject) throw new Error("subject required");
   if (!description) throw new Error("description required");
 
+  // Prepend a marker so admins can spot AI-escalated tickets at a glance —
+  // reused for both the DB row and the Slack notification body.
+  const markedDescription = `[AI-escalated from chat]\n\n${description}`;
+
   // Use the user-scoped client — RLS insert policy requires auth.uid() ===
   // user_id, so this fails fast if anything is off.
   const { data, error } = await ctx.supabase
@@ -488,8 +494,7 @@ async function runCreateSupportTicket(
       user_id: ctx.userId,
       client_id: clientId,
       subject,
-      // Prepend a marker so admins can spot AI-escalated tickets at a glance.
-      description: `[AI-escalated from chat]\n\n${description}`,
+      description: markedDescription,
       severity,
       category,
     })
@@ -500,6 +505,46 @@ async function runCreateSupportTicket(
   if (!data) throw new Error("Failed to create ticket");
 
   ctx.sideEffects.ticketId = data.id;
+
+  // Slack notification — mirrors the manual-submit path in
+  // app/api/support-tickets/route.ts so AI-escalated tickets surface in the
+  // support channel too (previously they were created silently and only
+  // manual/advisor-submitted tickets pinged Slack). Best-effort: the ticket
+  // already exists, so a Slack/lookup failure must never fail the tool. The
+  // "[AI-escalated from chat]" marker rides along in the description so the
+  // Slack card visibly flags these as AI-created.
+  try {
+    const [advisorSettingsRes, clientRes, userRes] = await Promise.all([
+      ctx.supabase
+        .from("user_settings")
+        .select("first_name, last_name")
+        .eq("user_id", ctx.userId)
+        .maybeSingle(),
+      clientId
+        ? ctx.supabase.from("clients").select("name").eq("id", clientId).maybeSingle()
+        : Promise.resolve({ data: null as { name: string } | null }),
+      ctx.supabase.auth.getUser(),
+    ]);
+    const advisorEmail = userRes.data?.user?.email ?? null;
+    const advisorName =
+      [advisorSettingsRes.data?.first_name, advisorSettingsRes.data?.last_name]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || advisorEmail || "Advisor";
+
+    await notifySlackNewTicket({
+      ticketId: data.id,
+      subject,
+      description: markedDescription,
+      severity: severity as SupportSeverity,
+      category: category as SupportCategory,
+      advisorName,
+      advisorEmail,
+      clientName: (clientRes.data?.name as string | undefined) ?? null,
+    });
+  } catch (err) {
+    console.error("[chat] Slack notify for AI-escalated ticket failed", err);
+  }
 
   return JSON.stringify({
     ticket_id: data.id,
