@@ -626,7 +626,7 @@ function formatAxisLabel(cents: number): string {
  * Uses same calculation as lib/calculations/transforms.ts
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function generateLegacyChartSVG(projection: any, heirTaxRate: number): string {
+function generateLegacyChartSVG(projection: any, heirTaxRate: number, isNoConversion: boolean = false): string {
   const baselineYears = projection.baseline_years || [];
   const formulaYears = projection.blueprint_years || [];
 
@@ -721,7 +721,7 @@ function generateLegacyChartSVG(projection: any, heirTaxRate: number): string {
   const legend = `
     <rect x="${legendX}" y="${legendY}" width="200" height="36" rx="4" fill="white" stroke="#e5e7eb" stroke-width="0.5"/>
     <line x1="${legendX + 10}" y1="${legendY + 12}" x2="${legendX + 30}" y2="${legendY + 12}" stroke="#D4AF37" stroke-width="2.5"/>
-    <text x="${legendX + 35}" y="${legendY + 15}" font-size="8" fill="#333">Strategy (Roth Conversion)</text>
+    <text x="${legendX + 35}" y="${legendY + 15}" font-size="8" fill="#333">${isNoConversion ? 'Strategy (No Conversion)' : 'Strategy (Roth Conversion)'}</text>
     <line x1="${legendX + 10}" y1="${legendY + 26}" x2="${legendX + 30}" y2="${legendY + 26}" stroke="#ef4444" stroke-width="2" stroke-dasharray="4,3"/>
     <text x="${legendX + 35}" y="${legendY + 29}" font-size="8" fill="#333">Baseline (Traditional IRA)</text>
   `;
@@ -989,7 +989,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       month: 'long',
       day: 'numeric',
     }),
-    legacyChartSVG: generateLegacyChartSVG(projection, heirTaxRate),
+    legacyChartSVG: generateLegacyChartSVG(projection, heirTaxRate, client.conversion_type === 'no_conversion'),
     // Wealth section: keep the identity Lifetime Wealth = Total Dist + Legacy
     // − Total Costs honest on both sides. Defining totalDist as
     // (lifetimeWealth + totalCosts) makes that math close to the dollar.

@@ -224,6 +224,10 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
   // ===== Conversion-type description for tooltips =====
   const conversionType = client.conversion_type ?? 'optimized_amount';
+  // When the advisor explicitly picks "No Conversion" the strategy IS the
+  // baseline. Several copy blocks below switch to baseline-focused framing
+  // on this flag — search for `isNoConversion` to find them all.
+  const isNoConversion = conversionType === 'no_conversion';
   const partialTarget = client.target_partial_amount ?? 0;
   const fixedAmount = client.fixed_conversion_amount ?? 0;
   const conversionTypeDescription = (() => {
@@ -1314,6 +1318,7 @@ function LifetimeWealthInfo({
   const wealthDiff = blueLifetimeWealth - baseLifetimeWealth;
   const conversionStartAge = (client.age ?? 62) + yearsToDefer;
   const isUnder59Half = (client.age ?? 62) < 60;
+  const isNoConversion = conversionType === 'no_conversion';
   // blueTax sums Roth-side and AUM-side federal+state taxes across the entire
   // strategy. Split it into the actual conversion tax (from blueConversionTax,
   // which only includes federal+state on the conversion amount) vs. the rest
@@ -1539,10 +1544,16 @@ function LifetimeWealthInfo({
           {hasAnniversaryBonus && <>, plus {client.anniversary_bonus_percent}% anniversary bonus at end of years 1–{client.anniversary_bonus_years}</>}
           {aumActive
             ? <>. Roth-conversion side runs on {toUSD(rothSidePortion)} ({100 - (client.aum_allocation_percent ?? 0)}%); the remaining {toUSD(aumStartingPortion)} ({client.aum_allocation_percent}%) is pulled from the IRA into a managed brokerage account.</>
-            : <>, converted to Roth over time.</>}
+            : isNoConversion
+              ? <>. No Roth conversion configured — the IRA stays Traditional through the projection.</>
+              : <>, converted to Roth over time.</>}
         </p>
-        <TipRow label="Total converted to Roth" value={toUSD(blueConversions)} />
-        <TipRow label="Tax paid on conversions" value={toUSD(blueConversionTax)} variant="negative" />
+        {!isNoConversion && (
+          <TipRow label="Total converted to Roth" value={toUSD(blueConversions)} />
+        )}
+        {!isNoConversion && (
+          <TipRow label="Tax paid on conversions" value={toUSD(blueConversionTax)} variant="negative" />
+        )}
         {otherStrategyTaxLW > 0 && (
           <TipRow
             label="Other strategy taxes (SS, RMDs, ordinary, state)"
@@ -1623,13 +1634,15 @@ function LifetimeWealthInfo({
           </p>
         </div>
         <p className="text-sm text-foreground/85 leading-relaxed">
-          {wealthDiff > 0 ? (
+          {isNoConversion ? (
+            <>No Roth conversion is configured for this scenario. The &ldquo;strategy&rdquo; column above mirrors the baseline — there&apos;s no delta to compare.</>
+          ) : wealthDiff > 0 ? (
             <>The Roth conversion strategy creates <strong className="text-foreground">{toUSD(wealthDiff)} more</strong> in total family wealth. This comes from:</>
           ) : (
             <>The baseline scenario results in {toUSD(Math.abs(wealthDiff))} more lifetime wealth in this case.</>
           )}
         </p>
-        {wealthDiff > 0 && (
+        {wealthDiff > 0 && !isNoConversion && (
           <ul className="list-disc pl-5 space-y-1.5 mt-3 text-sm text-foreground/85 leading-relaxed">
             <li><strong className="text-foreground">{client.bonus_percent}% premium bonus</strong> adding {toUSD(bonusAmount)} upfront{hasAnniversaryBonus && <> + <strong className="text-foreground">{client.anniversary_bonus_percent}% anniversary bonus</strong> for {client.anniversary_bonus_years} years</>}</li>
             <li><strong className="text-foreground">Tax-free Roth growth</strong> at {client.rate_of_return}% for {projectionYears} years</li>

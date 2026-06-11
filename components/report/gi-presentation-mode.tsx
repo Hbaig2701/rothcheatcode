@@ -489,7 +489,9 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
 
         {/* 8. Disclaimer */}
         <p className="text-sm text-text-dim italic text-center max-w-[800px] mx-auto py-8">
-          This optimized plan is for educational purposes only. Before making a Roth conversion or purchasing an annuity, discuss your final plan with a tax professional and licensed insurance agent.
+          {client.conversion_type === 'no_conversion'
+            ? 'This baseline projection is for educational purposes only. Discuss your retirement plan with a tax professional and licensed insurance agent before making decisions.'
+            : 'This optimized plan is for educational purposes only. Before making a Roth conversion or purchasing an annuity, discuss your final plan with a tax professional and licensed insurance agent.'}
         </p>
       </div>
     </div>

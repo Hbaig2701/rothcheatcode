@@ -130,6 +130,11 @@ export function generateStory(
   // These drive the conditional cards below. Computed once and reused so the
   // story narrative reflects every dimension the engine actually modeled.
   const conversionType = client.conversion_type ?? 'optimized_amount';
+  // When the advisor explicitly picked "No Conversion," Story Mode should
+  // narrate the BASELINE pain (RMDs, taxes, heir-tax bite) instead of the
+  // Roth conversion arc. Several entries below switch copy on this flag —
+  // search for `isNoConversion` to find them all.
+  const isNoConversion = conversionType === 'no_conversion';
   const partialTarget = client.target_partial_amount ?? 0;
   const fixedAmount = client.fixed_conversion_amount ?? 0;
   const yearsToDefer = client.years_to_defer_conversion ?? 0;
@@ -255,8 +260,10 @@ export function generateStory(
     year: years[0]?.year ?? new Date().getFullYear(),
     age: client.age ?? years[0]?.age ?? 62,
     trigger: 'strategy_setup',
-    headline: 'How This Strategy Is Built',
-    body: setupBody,
+    headline: isNoConversion ? 'Baseline: Do-Nothing Scenario' : 'How This Strategy Is Built',
+    body: isNoConversion
+      ? "Here's what happens if your client does nothing — leaves the Traditional IRA alone. The timeline below walks through the RMDs, the lifetime tax bill, and what the heirs ultimately receive."
+      : setupBody,
     details: setupDetails,
     metrics: [
       { label: 'Starting IRA', value: formatCurrency(originalIRA) },
@@ -720,15 +727,20 @@ export function generateStory(
     // happening on a different IRA bucket the engine isn't modeling).
     if (year.age === 73 && !client.rmds_handled_externally) {
       const baselineRMD = baselineYear?.rmdAmount ?? 0;
+      const strategyRMD = year.rmdAmount ?? 0;
       storyEntries.push({
         year: year.year,
         age: year.age,
         trigger: 'rmd_age',
-        headline: 'RMDs Would Start Now',
-        body: `At age ${year.age}, the IRS would force you to withdraw from a Traditional IRA — whether you need it or not. But because you converted to Roth, you have no RMDs. Your money stays invested and growing tax-free.`,
-        comparison: baselineRMD > 0
-          ? `Baseline scenario: You would be forced to withdraw ${formatCurrency(baselineRMD)}/year and pay taxes on every dollar.`
-          : `Baseline scenario: You would be required to start taking mandatory distributions.`,
+        headline: isNoConversion ? 'RMDs Start Now' : 'RMDs Would Start Now',
+        body: isNoConversion
+          ? `At age ${year.age}, the IRS forces you to start withdrawing from your Traditional IRA — whether you need the income or not. This year's RMD is ${formatCurrency(strategyRMD)}, and it grows every year as the IRS divisor shrinks. Every dollar is taxed at your bracket and counts toward your IRMAA tier.`
+          : `At age ${year.age}, the IRS would force you to withdraw from a Traditional IRA — whether you need it or not. But because you converted to Roth, you have no RMDs. Your money stays invested and growing tax-free.`,
+        comparison: isNoConversion
+          ? undefined
+          : baselineRMD > 0
+            ? `Baseline scenario: You would be forced to withdraw ${formatCurrency(baselineRMD)}/year and pay taxes on every dollar.`
+            : `Baseline scenario: You would be required to start taking mandatory distributions.`,
         runningTotals: {
           totalConverted: formatCurrency(totalConverted),
           totalTaxPaid: formatCurrency(totalTaxPaid),
@@ -736,33 +748,58 @@ export function generateStory(
           iraBalance: formatCurrency(year.traditionalBalance),
         },
         icon: 'milestone',
-        sentiment: 'positive',
+        sentiment: isNoConversion ? 'caution' : 'positive',
       });
     }
 
     // DECADE SNAPSHOTS (70, 80, 90)
     if ([70, 80, 90].includes(year.age)) {
-      // Calculate tax-free growth
-      const taxFreeGrowth = year.rothBalance - totalConverted;
-      storyEntries.push({
-        year: year.year,
-        age: year.age,
-        trigger: 'decade_snapshot',
-        headline: `Age ${year.age} Snapshot`,
-        body: `At age ${year.age}, your Roth balance has grown to ${formatCurrency(year.rothBalance)}. If something happened today, your heirs would receive this amount completely tax-free.`,
-        metrics: [
-          { label: 'Roth Balance', value: formatCurrency(year.rothBalance) },
-          { label: 'Tax-Free Growth', value: formatCurrency(Math.max(0, taxFreeGrowth)) },
-        ],
-        runningTotals: {
-          totalConverted: formatCurrency(totalConverted),
-          totalTaxPaid: formatCurrency(totalTaxPaid),
-          rothBalance: formatCurrency(year.rothBalance),
-          iraBalance: formatCurrency(year.traditionalBalance),
-        },
-        icon: 'milestone',
-        sentiment: 'neutral',
-      });
+      if (isNoConversion) {
+        // BASELINE pain framing: snapshot the Traditional bucket and the
+        // tax bite the heirs would face on it. No Roth involved.
+        const heirTaxBite = Math.round(year.traditionalBalance * heirTaxRate);
+        storyEntries.push({
+          year: year.year,
+          age: year.age,
+          trigger: 'decade_snapshot',
+          headline: `Age ${year.age} Snapshot`,
+          body: `At age ${year.age}, your Traditional IRA sits at ${formatCurrency(year.traditionalBalance)}. If something happened today, your heirs would inherit it and pay roughly ${formatCurrency(heirTaxBite)} in income tax (at the ${Math.round(heirTaxRate * 100)}% rate) as they drain it over 10 years.`,
+          metrics: [
+            { label: 'Traditional IRA Balance', value: formatCurrency(year.traditionalBalance) },
+            { label: 'Heir Tax Bite (est.)', value: formatCurrency(heirTaxBite) },
+            { label: 'Net to Heirs', value: formatCurrency(year.traditionalBalance - heirTaxBite) },
+          ],
+          runningTotals: {
+            totalConverted: formatCurrency(totalConverted),
+            totalTaxPaid: formatCurrency(totalTaxPaid),
+            rothBalance: formatCurrency(year.rothBalance),
+            iraBalance: formatCurrency(year.traditionalBalance),
+          },
+          icon: 'milestone',
+          sentiment: 'caution',
+        });
+      } else {
+        const taxFreeGrowth = year.rothBalance - totalConverted;
+        storyEntries.push({
+          year: year.year,
+          age: year.age,
+          trigger: 'decade_snapshot',
+          headline: `Age ${year.age} Snapshot`,
+          body: `At age ${year.age}, your Roth balance has grown to ${formatCurrency(year.rothBalance)}. If something happened today, your heirs would receive this amount completely tax-free.`,
+          metrics: [
+            { label: 'Roth Balance', value: formatCurrency(year.rothBalance) },
+            { label: 'Tax-Free Growth', value: formatCurrency(Math.max(0, taxFreeGrowth)) },
+          ],
+          runningTotals: {
+            totalConverted: formatCurrency(totalConverted),
+            totalTaxPaid: formatCurrency(totalTaxPaid),
+            rothBalance: formatCurrency(year.rothBalance),
+            iraBalance: formatCurrency(year.traditionalBalance),
+          },
+          icon: 'milestone',
+          sentiment: 'neutral',
+        });
+      }
     }
   });
 
@@ -784,23 +821,37 @@ export function generateStory(
   const difference = strategyLegacy - baselineNetLegacy;
 
   // Tailor the body so the legacy story reflects what's actually in the
-  // estate: Roth alone if no split, or Roth + AUM brokerage when AUM is on.
-  const legacyBody = aumActive
-    ? `When you pass, your heirs receive ${formatCurrency(strategyLegacy)}. The Roth IRA (${formatCurrency(finalYear.rothBalance)}) passes completely tax-free, and the AUM brokerage (${formatCurrency(aumFinalBalance)}) gets a step-up in basis at death — heirs owe nothing on the unrealized gains accumulated during life.`
-    : `When you pass, your heirs receive ${formatCurrency(strategyLegacy)} — your Roth IRA passes completely tax-free, with no income tax, no waiting, no complications.`;
+  // estate: Roth alone if no split, Roth + AUM when AUM is on, or — for
+  // no_conversion — a Traditional inheritance with income tax due as heirs
+  // drain it under SECURE Act's 10-year window.
+  const legacyBody = isNoConversion
+    ? `When you pass, your heirs inherit a Traditional IRA of ${formatCurrency(finalYear.traditionalBalance)}. Under SECURE Act, non-spouse heirs must drain it within 10 years and pay ordinary income tax on every dollar. At the ${Math.round(heirTaxRate * 100)}% rate assumed here, that's ${formatCurrency(strategyHeirTax)} of income tax — leaving ${formatCurrency(strategyLegacy)} net.`
+    : aumActive
+      ? `When you pass, your heirs receive ${formatCurrency(strategyLegacy)}. The Roth IRA (${formatCurrency(finalYear.rothBalance)}) passes completely tax-free, and the AUM brokerage (${formatCurrency(aumFinalBalance)}) gets a step-up in basis at death — heirs owe nothing on the unrealized gains accumulated during life.`
+      : `When you pass, your heirs receive ${formatCurrency(strategyLegacy)} — your Roth IRA passes completely tax-free, with no income tax, no waiting, no complications.`;
 
   storyEntries.push({
     year: finalYear.year,
     age: finalYear.age,
     trigger: 'death_legacy',
-    headline: 'What Your Heirs Receive',
+    headline: isNoConversion ? 'What Your Heirs Inherit' : 'What Your Heirs Receive',
     body: legacyBody,
-    comparison: `Without this strategy, heirs would receive approximately ${formatCurrency(baselineNetLegacy)} after paying ${formatCurrency(baseHeirTax)} in taxes on the inherited Traditional IRA.`,
-    metrics: [
-      { label: 'Strategy: To Heirs', value: formatCurrency(strategyLegacy) },
-      { label: 'Baseline: To Heirs', value: formatCurrency(baselineNetLegacy) },
-      { label: 'Extra Wealth Created', value: formatCurrency(difference) },
-    ],
+    // Suppress the "Without this strategy" comparison line when no_conversion
+    // is the strategy — there's nothing to compare against.
+    comparison: isNoConversion
+      ? undefined
+      : `Without this strategy, heirs would receive approximately ${formatCurrency(baselineNetLegacy)} after paying ${formatCurrency(baseHeirTax)} in taxes on the inherited Traditional IRA.`,
+    metrics: isNoConversion
+      ? [
+          { label: 'Traditional Inherited', value: formatCurrency(finalYear.traditionalBalance) },
+          { label: 'Heir Income Tax', value: formatCurrency(strategyHeirTax) },
+          { label: 'Net to Heirs', value: formatCurrency(strategyLegacy) },
+        ]
+      : [
+          { label: 'Strategy: To Heirs', value: formatCurrency(strategyLegacy) },
+          { label: 'Baseline: To Heirs', value: formatCurrency(baselineNetLegacy) },
+          { label: 'Extra Wealth Created', value: formatCurrency(difference) },
+        ],
     runningTotals: {
       totalConverted: formatCurrency(totalConverted),
       totalTaxPaid: formatCurrency(totalTaxPaid),
@@ -808,7 +859,7 @@ export function generateStory(
       iraBalance: formatCurrency(finalYear.traditionalBalance),
     },
     icon: 'end',
-    sentiment: 'positive',
+    sentiment: isNoConversion ? 'caution' : 'positive',
   });
 
   // Sort by year to ensure correct order

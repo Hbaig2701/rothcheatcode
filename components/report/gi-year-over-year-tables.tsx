@@ -172,9 +172,13 @@ export function GIYearOverYearTables({
     return getBracketCeiling(client.filing_status, maxRate, new Date().getFullYear());
   }, [client]);
 
+  const isNoConversion = client.conversion_type === 'no_conversion';
   const getSubtitleText = () => {
     if (scenario === "baseline") {
       return "Annual projections assuming current trajectory with systematic withdrawals matching guaranteed income amount.";
+    }
+    if (isNoConversion) {
+      return "Annual projections — no Roth conversion configured. Guaranteed income payments shown without a conversion overlay.";
     }
     return "Annual projections with Roth conversion strategy and guaranteed income payments.";
   };

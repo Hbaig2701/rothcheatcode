@@ -296,8 +296,9 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
 
         {/* Disclaimer */}
         <p className="text-center text-sm text-text-dim italic py-8">
-          This optimized plan is for educational purposes only. Before making a Roth conversion,
-          discuss your final plan with a tax professional.
+          {client.conversion_type === 'no_conversion'
+            ? 'This baseline projection is for educational purposes only. Discuss your retirement plan with a tax professional before making decisions.'
+            : 'This optimized plan is for educational purposes only. Before making a Roth conversion, discuss your final plan with a tax professional.'}
         </p>
       </div>
     </div>

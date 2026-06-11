@@ -218,10 +218,16 @@ export function YearOverYearTables({
     return getBracketCeiling(client.filing_status, maxRate, new Date().getFullYear());
   }, [client]);
 
-  // Get subtitle text based on scenario
+  // Get subtitle text based on scenario. When the advisor picked "No
+  // Conversion" as the strategy, the "strategy" column IS the baseline —
+  // don't claim a Roth conversion is applied when it isn't.
+  const isNoConversion = client.conversion_type === 'no_conversion';
   const getSubtitleText = () => {
     if (scenario === "baseline") {
       return "Annual projections assuming current trajectory and no Roth conversion.";
+    }
+    if (isNoConversion) {
+      return "Annual projections — no Roth conversion configured. This view mirrors the baseline by design.";
     }
     return "Annual projections assuming current trajectory with Roth conversion strategy applied.";
   };
