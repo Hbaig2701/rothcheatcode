@@ -319,10 +319,12 @@ export const clientFormulaSchema = clientFormulaBaseSchema.superRefine((data, ct
     }
   }
 
-  // SSI payout age should be >= current age (unless already receiving)
-  if (data.ssi_payout_age < data.age && data.ssi_annual_amount > 0) {
-    // Allow if already past payout age - they're receiving SSI
-  }
+  // A SS start age BELOW the client's current age is valid and expected for
+  // anyone already collecting (they claimed years ago). The engine starts the
+  // income stream at `currentAge >= ssStartAge`, so an earlier start age is
+  // already handled — and it's required for Story Mode to NOT announce
+  // "Social Security Begins" for a client who's been collecting for years.
+  // Intentionally no validation issue here; the only bounds are 62..100.
 });
 
 // Partial schema for updates

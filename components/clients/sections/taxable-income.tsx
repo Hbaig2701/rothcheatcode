@@ -41,7 +41,7 @@ export function TaxableIncomeSection() {
         <div className="grid grid-cols-2 gap-3">
           <Field data-invalid={!!form.formState.errors.ssi_payout_age}>
             <FieldLabel htmlFor="ssi_payout_age" className="flex items-center gap-1.5">
-              Next Payout Age
+              Social Security Start Age
               <FieldHelp {...FIELD_HELP.ssi_payout_age} />
             </FieldLabel>
             <Input
@@ -82,7 +82,7 @@ export function TaxableIncomeSection() {
           <div className="grid grid-cols-2 gap-3">
             <Field data-invalid={!!form.formState.errors.spouse_ssi_payout_age}>
               <FieldLabel htmlFor="spouse_ssi_payout_age" className="flex items-center gap-1.5">
-                Next Payout Age
+                Social Security Start Age
                 <FieldHelp {...FIELD_HELP.spouse_ssi_payout_age} />
               </FieldLabel>
               <Input

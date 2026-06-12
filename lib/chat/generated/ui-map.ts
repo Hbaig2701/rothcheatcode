@@ -53,9 +53,9 @@ Source: \`components/clients/sections/tax-data.tsx\`
 ## 5. Taxable Income Calculation
 Source: \`components/clients/sections/taxable-income.tsx\`
 - **Annual Amount** (\`spouse_ssi_annual_amount\`) — number, range: 0 to +∞
-- **Next Payout Age** (\`spouse_ssi_payout_age\`) — number, range: 62 to 100
+- **Social Security Start Age** (\`spouse_ssi_payout_age\`) — number, range: 62 to 100
 - **Annual Amount** (\`ssi_annual_amount\`) — number, range: 0 to +∞
-- **Next Payout Age** (\`ssi_payout_age\`) — number, range: 62 to 100
+- **Social Security Start Age** (\`ssi_payout_age\`) — number, range: 62 to 100
 
 ## 6. Conversion
 Source: \`components/clients/sections/conversion.tsx\`
@@ -135,9 +135,9 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **RMDs Handled Externally** (\`rmds_handled_externally\`): Turn ON when you're modeling only PART of the client's total IRA in this software and RMDs are being taken from a separate bucket (e.g., a different custodian) that's not modeled here. The engine will skip RMD calculation entirely on this bucket for both the strategy AND the baseline — keeping the comparison fair. If you want the full tax picture, manually add the external RMD amount as an entry in Section 5 (Taxable Income).
 - **State of Residence** (\`state\`): The state the client lives in for tax purposes. Drives the State Tax rate (auto-filled when you select a state) and triggers any state-specific product availability or bonus overrides.
 - **State Tax Rate** (\`state_tax_rate\`): The state income tax rate applied to conversions and IRA distributions. Auto-loaded from a preset when you pick a state — click 'Manually Edit' to override (e.g., for clients in special tax situations like a CA AMT add-back).
-- **Client SS Start Age** (\`ssi_payout_age\`): The age the client will start collecting Social Security. If they're ALREADY collecting, enter the age they're currently at OR the age they started — the engine treats SS as 'on' for any year the projection age is at or past this number. Must be 62 or older.
+- **Client SS Start Age** (\`ssi_payout_age\`): The age the client started — or will start — collecting Social Security. Must be 62 or older. If they're ALREADY collecting, enter the age they actually claimed (which is below their current age) — NOT their current age. The engine treats SS as 'on' for any projection year at or past this age, so the income is identical either way, but entering their current age makes the report announce 'Social Security Begins' this year, which is wrong for someone who's been collecting for years.
 - **Client SS Annual Amount** (\`ssi_annual_amount\`): Annual Social Security benefit in today's dollars (the gross before any Medicare premium deductions). The engine includes this in taxable income from the start age onward, applies provisional-income rules, and uses it for IRMAA tier checks.
-- **Spouse SS Start Age** (\`spouse_ssi_payout_age\`): Age the spouse will start (or did start) collecting Social Security. Same rules as the client — must be 62 or older. Leave the default (67) if the spouse hasn't decided yet; you can revise.
+- **Spouse SS Start Age** (\`spouse_ssi_payout_age\`): The age the spouse started — or will start — collecting Social Security. Same rule as the client: if they're already collecting, enter the age they actually claimed (below their current age), NOT their current age. Must be 62 or older. Leave the default (67) if the spouse hasn't decided yet; you can revise.
 - **Spouse SS Annual Amount** (\`spouse_ssi_annual_amount\`): Annual SS benefit for the spouse in today's dollars. Combined with the client's SS for provisional income and IRMAA calculations once both are collecting.
 - **Other Taxable Income Schedule** (\`non_ssi_income_table\`): Year-by-year non-Social-Security income — pensions, rental income, RMDs from a non-modeled IRA, part-time wages, etc. Use 'Repeat' to fill a recurring amount across an age range. Only enter income that hasn't already been captured elsewhere in the form.
 - **Conversion Type** (\`conversion_type\`): The strategy the engine uses to size annual Roth conversions. Optimized = fill the Max Tax Rate bracket each year (most common). Partial = same as Optimized but stop once cumulative conversions hit a target dollar amount. Fixed = convert the same dollar amount yearly. Full = convert everything in year 1. No Conversion = baseline only.
@@ -170,9 +170,9 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **Qualified Account Value (IRA, 401k, etc.)** (\`intake_qualified_account_value\`): Combined balance of your pre-tax retirement accounts — Traditional IRA, 401(k), 403(b), TSP. Don't include Roth balances here (those go below).
 - **Roth IRA Balance** (\`intake_roth_ira\`): The total balance in any Roth IRA accounts you have. Leave at 0 if you don't have one.
 - **Taxable Account Balance** (\`intake_taxable_accounts\`): Non-retirement savings: brokerage accounts, savings accounts, CDs. Money that isn't in an IRA or 401(k). Leave at 0 if none.
-- **Expected SS Start Age** (\`intake_ssi_payout_age\`): The age you plan to start collecting Social Security — or, if you've already started, the age you began. Most people start between 62 and 70; if you've been collecting longer than that you can also enter your current age.
+- **Expected SS Start Age** (\`intake_ssi_payout_age\`): The age you plan to start collecting Social Security — or, if you've already started, the age you actually began (which is below your current age). Most people start between 62 and 70. If you're already collecting, enter the age you claimed, not your current age.
 - **Expected Annual SS Amount** (\`intake_ssi_annual_amount\`): Your annual Social Security benefit in today's dollars — the gross amount BEFORE Medicare premiums are deducted. You can find your estimated benefit on your Social Security statement at ssa.gov.
-- **Spouse SS Start Age** (\`intake_spouse_ssi_payout_age\`): The age your spouse plans to start (or did start) collecting Social Security. Most people start between 62 and 70; if your spouse has been collecting longer than that you can enter their current age.
+- **Spouse SS Start Age** (\`intake_spouse_ssi_payout_age\`): The age your spouse plans to start (or did start) collecting Social Security — if they're already collecting, the age they actually claimed, not their current age. Most people start between 62 and 70.
 - **Spouse Annual SS Amount** (\`intake_spouse_ssi_annual_amount\`): Your spouse's annual Social Security benefit in today's dollars — gross, before Medicare deductions.
 - **Other Income Sources** (\`intake_income_entries\`): Any non-Social-Security income you'll receive — pension, rental property, part-time work, dividends from non-retirement accounts. Add one row per source. For each, enter the annual amount and the age range over which you expect to receive it.
 

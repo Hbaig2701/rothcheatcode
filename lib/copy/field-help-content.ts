@@ -207,8 +207,8 @@ export const FIELD_HELP = {
   // ============================================================
   ssi_payout_age: {
     title: "Client SS Start Age",
-    body: "The age the client will start collecting Social Security. If they're ALREADY collecting, enter the age they're currently at OR the age they started — the engine treats SS as 'on' for any year the projection age is at or past this number. Must be 62 or older.",
-    example: "Client claimed at 66, is now 72 → enter 66 (or 72; same result). Client plans to delay to 70 → enter 70.",
+    body: "The age the client started — or will start — collecting Social Security. Must be 62 or older. If they're ALREADY collecting, enter the age they actually claimed (which is below their current age) — NOT their current age. The engine treats SS as 'on' for any projection year at or past this age, so the income is identical either way, but entering their current age makes the report announce 'Social Security Begins' this year, which is wrong for someone who's been collecting for years.",
+    example: "Client claimed at 66, is now 72 → enter 66 (not 72). Client plans to delay to 70 → enter 70.",
   },
   ssi_annual_amount: {
     title: "Client SS Annual Amount",
@@ -217,8 +217,8 @@ export const FIELD_HELP = {
   },
   spouse_ssi_payout_age: {
     title: "Spouse SS Start Age",
-    body: "Age the spouse will start (or did start) collecting Social Security. Same rules as the client — must be 62 or older. Leave the default (67) if the spouse hasn't decided yet; you can revise.",
-    example: "Spouse is currently 65 and plans to claim at full retirement age 67 → enter 67. Spouse already started at 62 → enter 62.",
+    body: "The age the spouse started — or will start — collecting Social Security. Same rule as the client: if they're already collecting, enter the age they actually claimed (below their current age), NOT their current age. Must be 62 or older. Leave the default (67) if the spouse hasn't decided yet; you can revise.",
+    example: "Spouse plans to claim at full retirement age 67 → enter 67. Spouse already started at 62 → enter 62.",
   },
   spouse_ssi_annual_amount: {
     title: "Spouse SS Annual Amount",
@@ -402,8 +402,8 @@ export const FIELD_HELP = {
   },
   intake_ssi_payout_age: {
     title: "Expected SS Start Age",
-    body: "The age you plan to start collecting Social Security — or, if you've already started, the age you began. Most people start between 62 and 70; if you've been collecting longer than that you can also enter your current age.",
-    example: "You started collecting at age 66 → enter 66. You haven't started yet and plan to wait until 70 → enter 70. You've been collecting since 67 and are now 78 → enter 67 (or 78 — same result).",
+    body: "The age you plan to start collecting Social Security — or, if you've already started, the age you actually began (which is below your current age). Most people start between 62 and 70. If you're already collecting, enter the age you claimed, not your current age.",
+    example: "You started collecting at age 66 → enter 66. You haven't started yet and plan to wait until 70 → enter 70. You've been collecting since 67 and are now 78 → enter 67.",
   },
   intake_ssi_annual_amount: {
     title: "Expected Annual SS Amount",
@@ -412,8 +412,8 @@ export const FIELD_HELP = {
   },
   intake_spouse_ssi_payout_age: {
     title: "Spouse SS Start Age",
-    body: "The age your spouse plans to start (or did start) collecting Social Security. Most people start between 62 and 70; if your spouse has been collecting longer than that you can enter their current age.",
-    example: "Spouse plans to claim at full retirement age 67 → enter 67. Spouse has been collecting since 65 and is now 74 → enter 65 (or 74 — same result).",
+    body: "The age your spouse plans to start (or did start) collecting Social Security — if they're already collecting, the age they actually claimed, not their current age. Most people start between 62 and 70.",
+    example: "Spouse plans to claim at full retirement age 67 → enter 67. Spouse has been collecting since 65 and is now 74 → enter 65.",
   },
   intake_spouse_ssi_annual_amount: {
     title: "Spouse Annual SS Amount",
