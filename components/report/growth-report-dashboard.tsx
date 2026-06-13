@@ -664,8 +664,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 {" · "}
                 Total Conversion Taxes: <span className="font-mono text-foreground">{toUSD(blueConversionTax)}</span>
                 {" · "}
-                Avg Tax Rate: <span className="font-mono text-foreground">{avgTaxRate.toFixed(1)}%</span>
+                Avg All-In Rate (Fed + State): <span className="font-mono text-foreground">{avgTaxRate.toFixed(1)}%</span>
               </p>
+              {taxPaymentSource === 'from_ira' && (
+                <p className="mt-1 text-xs text-text-dim">
+                  Conversion tax is paid from the IRA, so the tax dollars are themselves a taxable
+                  distribution (gross-up) — this raises the all-in rate above the federal bracket.
+                  Switch Tax Payment Source to external/taxable to pay the tax with after-tax funds.
+                </p>
+              )}
             </div>
           </div>
         )}

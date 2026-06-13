@@ -89,6 +89,11 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       widow_analysis: client?.widow_analysis ?? false,
       widow_death_age: client?.widow_death_age ?? null,
       rmd_treatment: client?.rmd_treatment ?? "reinvested",
+      // Must be initialized here or the TaxDataSection checkbox renders an
+      // undefined value and checking it won't persist through the drawer's
+      // save — same uninitialized-field class as the penalty-free fields above
+      // (Greg Stopp ticket "NEW RMD INPUT BOX BUG").
+      rmds_handled_externally: client?.rmds_handled_externally ?? false,
       fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
       target_partial_amount: client?.target_partial_amount ?? null,
       // AUM split-allocation defaults — 0 means feature off.

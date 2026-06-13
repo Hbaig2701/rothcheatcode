@@ -132,7 +132,21 @@ export function ColumnSelectorModal({
       alert(`Maximum ${MAX_NON_FROZEN} columns can be selected (excluding frozen Year/Age columns)`);
       return;
     }
-    setTempSelection([...tempSelection, id]);
+    // Slot the new column next to its category siblings (e.g. State Tax lands
+    // beside the Federal Tax columns) instead of always appending to the far
+    // right, which left related tax columns far apart (Greg Stopp "Tax Columns
+    // Question"). Falls back to appending when no sibling of the same category
+    // is selected yet. User drag-reordering is preserved everywhere else.
+    setTempSelection((prev) => {
+      let lastSibling = -1;
+      prev.forEach((selId, i) => {
+        if (columnMap.get(selId)?.category === col.category) lastSibling = i;
+      });
+      if (lastSibling === -1) return [...prev, id];
+      const next = [...prev];
+      next.splice(lastSibling + 1, 0, id);
+      return next;
+    });
   };
 
   const handleRemove = (id: string) => {
