@@ -9,10 +9,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Upload, Wrench, ArrowLeft, Loader2, FileText, AlertCircle } from "lucide-react";
+import { Sparkles, Upload, Wrench, ArrowLeft, Loader2, FileText, AlertCircle, Users } from "lucide-react";
 import { useResearchProduct } from "@/lib/queries/products";
 import { ManualBuilder } from "./manual-builder";
 import { ResearchResults, type ResearchResult } from "./research-results";
+import { CommunityProductsBrowser } from "./community-products-dialog";
 import type { CustomProductRow } from "@/lib/products/types";
 
 // AI web-search ("search by product name") path is hidden in the UI for now —
@@ -21,7 +22,7 @@ import type { CustomProductRow } from "@/lib/products/types";
 // the search-result quality is improved. To restore: add "search" back to
 // the Step union, re-introduce SearchStep, and wire onSearch through
 // EntryStep — see git history for the prior implementation.
-type Step = "entry" | "upload" | "manual" | "researching" | "results";
+type Step = "entry" | "community" | "upload" | "manual" | "researching" | "results";
 
 interface AddProductDialogProps {
   open: boolean;
@@ -138,6 +139,12 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
               </Button>
             )}
             {step === "entry" && "Add a Product"}
+            {step === "community" && (
+              <span className="flex items-center gap-2">
+                <Users className="size-5 text-primary" />
+                Community Products
+              </span>
+            )}
             {step === "upload" && "Upload Document"}
             {step === "manual" && "Manual Builder"}
             {step === "researching" && "Analyzing..."}
@@ -145,14 +152,17 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
           </DialogTitle>
           {step === "entry" && (
             <DialogDescription>
-              Upload a brochure and let AI extract the parameters, or build the product manually.
+              Add one from the Community catalog, upload a brochure for AI to extract, or build it manually.
             </DialogDescription>
           )}
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        {step === "community" && <CommunityProductsBrowser />}
+
+        <div className={`flex-1 overflow-y-auto px-6 py-5 ${step === "community" ? "hidden" : ""}`}>
           {step === "entry" && (
             <EntryStep
+              onCommunity={() => setStep("community")}
               onUpload={() => setStep("upload")}
               onManual={() => setStep("manual")}
             />
@@ -191,32 +201,51 @@ export function AddProductDialog({ open, onOpenChange }: AddProductDialogProps) 
 }
 
 function EntryStep({
+  onCommunity,
   onUpload,
   onManual,
 }: {
+  onCommunity: () => void;
   onUpload: () => void;
   onManual: () => void;
 }) {
   return (
     <div className="space-y-3 pt-2">
-      {/* PRIMARY: PDF upload — most accurate path (carrier source of truth) */}
+      {/* PRIMARY: Community Products — zero setup, add an existing product in one click */}
       <button
-        onClick={onUpload}
+        onClick={onCommunity}
         className="w-full flex items-start gap-4 rounded-lg border-2 border-primary/40 bg-primary/5 p-5 text-left hover:bg-primary/10 hover:border-primary/60 transition-all relative"
       >
         <div className="absolute -top-2 left-4 px-2 py-0.5 bg-primary text-primary-foreground text-[10px] font-semibold uppercase rounded">
           Recommended
         </div>
         <div className="size-12 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-          <Upload className="size-6 text-primary" />
+          <Users className="size-6 text-primary" />
         </div>
         <div className="flex-1">
-          <div className="font-semibold text-base flex items-center gap-2">
+          <div className="font-semibold text-base">Choose from Community Products</div>
+          <p className="text-sm text-muted-foreground mt-1">
+            Pick a ready-made product from the shared catalog and add it to your
+            list in one click. No setup — it becomes your own editable copy.
+          </p>
+        </div>
+      </button>
+
+      {/* SECONDARY: PDF upload — most accurate path when the product isn't in the catalog */}
+      <button
+        onClick={onUpload}
+        className="w-full flex items-start gap-4 rounded-lg border border-border bg-card p-4 text-left hover:bg-accent/40 hover:border-foreground/30 transition-all"
+      >
+        <div className="size-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+          <Upload className="size-5 text-muted-foreground" />
+        </div>
+        <div className="flex-1">
+          <div className="font-medium flex items-center gap-2">
             Upload a brochure or spec sheet
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/15 text-primary uppercase font-semibold">AI</span>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
-            PDF from your carrier wholesaler — most accurate source. AI extracts every parameter from the official document.
+          <p className="text-sm text-muted-foreground mt-0.5">
+            PDF from your carrier wholesaler. AI extracts every parameter from the official document.
           </p>
         </div>
       </button>

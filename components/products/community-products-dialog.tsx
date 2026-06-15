@@ -34,6 +34,31 @@ interface CommunityProductsDialogProps {
 type CategoryFilter = "all" | "growth" | "income";
 
 export function CommunityProductsDialog({ open, onOpenChange }: CommunityProductsDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
+          <DialogTitle className="flex items-center gap-2 pr-8">
+            <Users className="size-5 text-primary" />
+            Community Products
+          </DialogTitle>
+          <DialogDescription>
+            Ready-made products you can add to your own My Products list in one click.
+            Each one becomes your own editable copy.
+          </DialogDescription>
+        </DialogHeader>
+        <CommunityProductsBrowser />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * The catalog body (category filter + product list). Rendered both by the
+ * standalone CommunityProductsDialog and as a step inside AddProductDialog,
+ * so it carries no dialog chrome of its own.
+ */
+export function CommunityProductsBrowser() {
   const { data, isLoading, error } = useCommunityProducts();
   const { data: myProducts } = useProducts();
   const [filter, setFilter] = useState<CategoryFilter>("all");
@@ -53,77 +78,62 @@ export function CommunityProductsDialog({ open, onOpenChange }: CommunityProduct
   const filtered = filter === "all" ? products : products.filter((p) => p.category === filter);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-border shrink-0">
-          <DialogTitle className="flex items-center gap-2 pr-8">
-            <Users className="size-5 text-primary" />
-            Community Products
-          </DialogTitle>
-          <DialogDescription>
-            Ready-made products you can add to your own My Products list in one click.
-            Each one becomes your own editable copy.
-          </DialogDescription>
-        </DialogHeader>
-
-        {/* Category filter */}
-        {products.length > 0 && (
-          <div className="flex items-center gap-2 px-6 pt-4 shrink-0">
-            {(["all", "growth", "income"] as const).map((c) => (
-              <button
-                key={c}
-                onClick={() => setFilter(c)}
-                className={`text-xs px-3 py-1.5 rounded-full border capitalize transition-colors ${
-                  filter === c
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border text-muted-foreground hover:bg-accent/40"
-                }`}
-              >
-                {c === "all" ? "All" : c}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {isLoading && (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            </div>
-          )}
-
-          {error && (
-            <div className="rounded-lg border border-red-300/40 bg-red-50/30 p-4 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-400 flex items-start gap-2">
-              <AlertCircle className="size-4 shrink-0 mt-0.5" />
-              <span>Failed to load community products: {error.message}</span>
-            </div>
-          )}
-
-          {!isLoading && !error && products.length === 0 && (
-            <div className="text-center py-16 space-y-3">
-              <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted">
-                <Package className="size-6 text-muted-foreground" />
-              </div>
-              <p className="text-sm text-muted-foreground">
-                No community products are available yet.
-              </p>
-            </div>
-          )}
-
-          {!isLoading && !error && filtered.length > 0 && (
-            <div className="space-y-2">
-              {filtered.map((product) => (
-                <CommunityProductRow
-                  key={product.id}
-                  product={product}
-                  alreadyAdopted={adoptedIds.has(product.id)}
-                />
-              ))}
-            </div>
-          )}
+    <div className="flex-1 overflow-y-auto px-6 py-5">
+      {/* Category filter */}
+      {products.length > 0 && (
+        <div className="flex items-center gap-2 pb-4">
+          {(["all", "growth", "income"] as const).map((c) => (
+            <button
+              key={c}
+              onClick={() => setFilter(c)}
+              className={`text-xs px-3 py-1.5 rounded-full border capitalize transition-colors ${
+                filter === c
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-border text-muted-foreground hover:bg-accent/40"
+              }`}
+            >
+              {c === "all" ? "All" : c}
+            </button>
+          ))}
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+
+      {isLoading && (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-red-300/40 bg-red-50/30 p-4 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-400 flex items-start gap-2">
+          <AlertCircle className="size-4 shrink-0 mt-0.5" />
+          <span>Failed to load community products: {error.message}</span>
+        </div>
+      )}
+
+      {!isLoading && !error && products.length === 0 && (
+        <div className="text-center py-16 space-y-3">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted">
+            <Package className="size-6 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            No community products are available yet.
+          </p>
+        </div>
+      )}
+
+      {!isLoading && !error && filtered.length > 0 && (
+        <div className="space-y-2">
+          {filtered.map((product) => (
+            <CommunityProductRow
+              key={product.id}
+              product={product}
+              alreadyAdopted={adoptedIds.has(product.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
