@@ -32,7 +32,7 @@ export function FieldHelp({ title, body, example, side = "right" }: FieldHelpPro
         <HelpCircle className="size-3.5" />
       </TooltipTrigger>
       <TooltipContent
-        className="max-w-xs p-3.5 text-left bg-bg-card border border-gold-border text-foreground shadow-lg"
+        className="max-w-xs p-3.5 text-left bg-popover border border-gold-border text-foreground shadow-lg"
         side={side}
       >
         {title && (
