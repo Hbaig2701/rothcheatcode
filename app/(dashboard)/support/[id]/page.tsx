@@ -7,6 +7,7 @@ import { StatusBadge, SeverityBadge } from '@/components/support/status-badge'
 import { CommentThread } from '@/components/support/comment-thread'
 import { AttachmentList } from '@/components/support/attachment-list'
 import { ReopenButton } from '@/components/support/reopen-button'
+import { ResolveTicketButton } from '@/components/support/resolve-button'
 import { LinkifiedText } from '@/components/support/linkified-text'
 import { LocalTime } from '@/components/support/local-time'
 import {
@@ -156,6 +157,14 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
   const isClosed = ticket.status === 'closed' || ticket.status === 'resolved'
   const statusEvents = events.filter((e) => e.event_type === 'status_change')
 
+  // Show the "Has your issue been resolved?" prompt only once support has
+  // actually replied (a public comment from an admin) and the ticket is still
+  // open — otherwise there's nothing for the advisor to confirm resolved.
+  const hasSupportReply = enrichedComments.some(
+    (c) => c.author.isAdmin && c.is_internal !== true
+  )
+  const showResolvePrompt = !isClosed && hasSupportReply && ticket.user_id === user.id
+
   return (
     <div className="p-10 max-w-4xl">
       <Link
@@ -259,6 +268,16 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
           currentUserId={user.id}
         />
       </div>
+
+      {showResolvePrompt && (
+        <div className="rounded-[10px] border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 mt-6 flex items-center justify-between gap-4">
+          <p className="text-sm text-foreground">
+            Has your issue been resolved? You can close this ticket — we&apos;ll
+            still be here if you need to re-open it later.
+          </p>
+          <ResolveTicketButton ticketId={ticket.id} />
+        </div>
+      )}
     </div>
   )
 }

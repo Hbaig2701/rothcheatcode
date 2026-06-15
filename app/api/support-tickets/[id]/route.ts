@@ -20,8 +20,10 @@ const adminUpdateSchema = z.object({
 })
 
 const userUpdateSchema = z.object({
-  // advisors can only re-open closed/resolved tickets
-  status: z.enum(['open']).optional(),
+  // advisors can re-open their ticket ('open') or close it out themselves
+  // once their issue is solved ('resolved'). 'closed' stays admin-only —
+  // it's the archival state. 'resolved' is re-openable via ReopenButton.
+  status: z.enum(['open', 'resolved']).optional(),
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -59,7 +61,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: 'Ticket not found' }, { status: 404 })
   }
 
-  // Non-admins must own the ticket and can only set status -> open
+  // Non-admins must own the ticket (schema limits them to open/resolved)
   if (!userIsAdmin && existing.user_id !== user.id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
