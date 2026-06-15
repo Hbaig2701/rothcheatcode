@@ -82,6 +82,9 @@ const incomeSchema = z.object({
   roll_up_rate_years_1_5: z.number().min(0).max(20).nullable().optional(),
   roll_up_rate_years_6_10: z.number().min(0).max(20).nullable().optional(),
   roll_up_max_years: z.number().int().min(0).max(30),
+  // Performance-linked roll-up multiplier (e.g. 1.5 = 150% of credited interest).
+  // When present, supersedes the fixed roll_up_rate. Capped at 5x defensively.
+  roll_up_interest_multiple: z.number().min(0).max(5).nullable().optional(),
   bonus_applies_to: z.enum(["both", "income_base", "account_value"]).nullable().optional(),
   payout_factors: z.object({
     single: payoutByAgeSchema,

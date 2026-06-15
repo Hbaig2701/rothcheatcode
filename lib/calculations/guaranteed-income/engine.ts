@@ -607,7 +607,7 @@ function runGIStrategyScenario(
       // (e.g., 10 years from age 60 to 70 = 10 roll-ups, not 9)
       const incomeBasePrePurchaseRollUp = incomeBase;
       if (productData) {
-        const rollUpInfo = getEffectiveRollUpForYear(productId, 1, rollUpOption, customProduct); // Year 1 roll-up
+        const rollUpInfo = getEffectiveRollUpForYear(productId, 1, rollUpOption, customProduct, rateOfReturn); // Year 1 roll-up
         if (rollUpInfo) {
           if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
@@ -739,7 +739,7 @@ function runGIStrategyScenario(
       // Roll up Income Base using product-specific config
       const incomeBasePreRollUp = incomeBase;
       if (productData) {
-        const rollUpInfo = getEffectiveRollUpForYear(productId, deferralYear, rollUpOption, customProduct);
+        const rollUpInfo = getEffectiveRollUpForYear(productId, deferralYear, rollUpOption, customProduct, rateOfReturn);
         if (rollUpInfo) {
           if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
@@ -1365,7 +1365,7 @@ function runGIBaselineScenario(
       // Apply FIRST year of roll-up during purchase phase (same as strategy)
       const incomeBasePrePurchaseRollUp = incomeBase;
       if (productData) {
-        const rollUpInfo = getEffectiveRollUpForYear(productId, 1, rollUpOption, customProduct);
+        const rollUpInfo = getEffectiveRollUpForYear(productId, 1, rollUpOption, customProduct, rateOfReturn);
         if (rollUpInfo) {
           if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
@@ -1495,7 +1495,7 @@ function runGIBaselineScenario(
       // Roll up Income Base
       const incomeBasePreRollUp = incomeBase;
       if (productData) {
-        const rollUpInfo = getEffectiveRollUpForYear(productId, deferralYear, rollUpOption, customProduct);
+        const rollUpInfo = getEffectiveRollUpForYear(productId, deferralYear, rollUpOption, customProduct, rateOfReturn);
         if (rollUpInfo) {
           if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);

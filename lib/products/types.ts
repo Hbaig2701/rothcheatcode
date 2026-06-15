@@ -114,6 +114,14 @@ export interface IncomeConfig {
   roll_up_rate_years_1_5?: number | null;
   roll_up_rate_years_6_10?: number | null;
   roll_up_max_years: number;
+  /**
+   * Performance-linked roll-up. When set (non-null), the income base grows by
+   * this multiple of the credited interest rate each year — e.g. 1.5 = 150% of
+   * credited interest (Allianz 222+), 2.0 = 200% (Athene Agility 10). Overrides
+   * roll_up_rate / roll_up_split_rate. When null/absent, the fixed simple or
+   * compound roll-up behaves exactly as before.
+   */
+  roll_up_interest_multiple?: number | null;
   bonus_applies_to?: "both" | "income_base" | "account_value" | null;
   payout_factors: {
     single: PayoutFactorsByAge;

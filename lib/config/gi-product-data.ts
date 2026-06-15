@@ -57,6 +57,13 @@ export interface RollUpConfig {
   rates?: RollUpTier[];
   /** Single fixed rate */
   rate?: number;
+  /**
+   * Performance-linked roll-up: the income base grows by `interestMultiple` ×
+   * the credited interest rate each deferral year (e.g. 1.5 = 150% of credited
+   * interest). When set, supersedes rate/rates/options — the effective rate is
+   * computed at lookup time from the year's credited rate.
+   */
+  interestMultiple?: number;
   /** Max deferral period for roll-up */
   maxPeriod: number;
   /** User-selectable options */

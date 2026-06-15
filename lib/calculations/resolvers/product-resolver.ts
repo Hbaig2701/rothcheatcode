@@ -102,7 +102,16 @@ export function getEffectiveGIData(
   // -- rollUp --
   let rollUp: RollUpConfig = base.rollUp;
   if (incomeCfg) {
-    if (incomeCfg.roll_up_split_rate) {
+    if (incomeCfg.roll_up_interest_multiple != null) {
+      // Performance-linked roll-up (e.g. 150% of credited interest). The income
+      // base compounds by `interestMultiple` × the year's credited rate; the
+      // effective rate is resolved at lookup time in getEffectiveRollUpForYear.
+      rollUp = {
+        type: "compound",
+        interestMultiple: incomeCfg.roll_up_interest_multiple,
+        maxPeriod: incomeCfg.roll_up_max_years,
+      };
+    } else if (incomeCfg.roll_up_split_rate) {
       // Tiered: years 1-5 and 6-10. We model this exactly like the system
       // 'compound-rollup-income' preset's tiered config.
       const tier1 = incomeCfg.roll_up_rate_years_1_5 ?? incomeCfg.roll_up_rate;
@@ -161,7 +170,9 @@ export function getEffectiveGIData(
   // -- rollUpDescription (cosmetic but used in metrics) --
   let rollUpDescription = base.rollUpDescription;
   if (incomeCfg) {
-    if (incomeCfg.roll_up_split_rate) {
+    if (incomeCfg.roll_up_interest_multiple != null) {
+      rollUpDescription = `${Math.round(incomeCfg.roll_up_interest_multiple * 100)}% of credited interest (${incomeCfg.roll_up_max_years}yr max)`;
+    } else if (incomeCfg.roll_up_split_rate) {
       rollUpDescription = `${incomeCfg.roll_up_rate_years_1_5 ?? incomeCfg.roll_up_rate}% ${incomeCfg.roll_up_type} (yrs 1-5), ${incomeCfg.roll_up_rate_years_6_10 ?? incomeCfg.roll_up_rate}% ${incomeCfg.roll_up_type} (yrs 6-${incomeCfg.roll_up_max_years})`;
     } else {
       rollUpDescription = `${incomeCfg.roll_up_rate}% ${incomeCfg.roll_up_type === "simple" ? "Simple Interest" : "Compound"} (${incomeCfg.roll_up_max_years}yr max)`;
@@ -189,7 +200,11 @@ export function getEffectiveRollUpForYear(
   productId: GuaranteedIncomeFormulaType,
   deferralYear: number,
   rollUpOption: "simple" | "compound" | null = null,
-  customProduct?: CustomProductRow | null
+  customProduct?: CustomProductRow | null,
+  // Year's credited interest rate as a DECIMAL (e.g. 0.06). Only used by
+  // performance-linked (interestMultiple) roll-ups; ignored by fixed roll-ups,
+  // so existing callers/products are unaffected.
+  creditedRate: number = 0
 ): { rate: number; type: "simple" | "compound"; maxPeriod: number } | null {
   const data = getEffectiveGIData(productId, customProduct);
   if (!data) return null;
@@ -206,6 +221,12 @@ export function getEffectiveRollUpForYear(
   }
 
   if (deferralYear > config.maxPeriod) return null;
+
+  // Performance-linked roll-up: rate = multiplier × this year's credited rate.
+  // Already a decimal (creditedRate is a decimal), so no /100 here. Compounds.
+  if (config.interestMultiple != null) {
+    return { rate: config.interestMultiple * creditedRate, type: "compound", maxPeriod: config.maxPeriod };
+  }
 
   // Tiered rates
   if (config.rates) {
