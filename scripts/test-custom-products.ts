@@ -166,6 +166,7 @@ function makeCustomProduct(
     modifier_flags: [],
     config,
     source: "manual",
+    community_product_id: null,
     ai_research_sources: null,
     ai_warnings: null,
     ai_unsupported_features: null,

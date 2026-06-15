@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type {
+  CommunityProductRow,
   CustomProductRow,
   ProductListItem,
 } from "@/lib/products/types";
@@ -14,6 +15,11 @@ export const productsKeys = {
   all: ["products"] as const,
   list: () => [...productsKeys.all, "list"] as const,
   detail: (id: string) => [...productsKeys.all, "detail", id] as const,
+};
+
+export const communityProductsKeys = {
+  all: ["community-products"] as const,
+  list: () => [...communityProductsKeys.all, "list"] as const,
 };
 
 export interface ProductsListResponse {
@@ -225,6 +231,56 @@ export function useResearchProduct() {
         throw new Error(err.error || "Research failed");
       }
       return res.json();
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Community Products — platform-curated catalog
+// ---------------------------------------------------------------------------
+
+export interface CommunityProductsResponse {
+  products: CommunityProductRow[];
+  growth: CommunityProductRow[];
+  income: CommunityProductRow[];
+}
+
+export function useCommunityProducts() {
+  return useQuery({
+    queryKey: communityProductsKeys.list(),
+    queryFn: async (): Promise<CommunityProductsResponse> => {
+      const res = await fetch("/api/community-products");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Failed to fetch community products" }));
+        throw new Error(err.error || "Failed to fetch community products");
+      }
+      return res.json();
+    },
+  });
+}
+
+/**
+ * Adopt a Community product — copies it into the advisor's My Products.
+ * On success the new product appears in the existing products list, so we
+ * invalidate that cache. A 409 means the advisor already adopted it.
+ */
+export function useAdoptCommunityProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (communityProductId: string): Promise<CustomProductRow> => {
+      const res = await fetch(`/api/community-products/${communityProductId}/adopt`, {
+        method: "POST",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const e = new Error(json.error || "Failed to add product") as Error & { code?: string };
+        if (json.code) e.code = json.code;
+        throw e;
+      }
+      return json;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: productsKeys.all });
     },
   });
 }

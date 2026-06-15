@@ -202,12 +202,36 @@ export interface CustomProductRow {
   engine_preset: FormulaType;
   modifier_flags: ModifierFlag[];
   config: ProductConfigPayload;
-  source: "manual" | "ai_research" | "ai_document" | "duplicated_from_preset";
+  source: "manual" | "ai_research" | "ai_document" | "duplicated_from_preset" | "adopted_from_community";
+  community_product_id: string | null; // set when this copy was adopted from the Community catalog
   ai_research_sources: AISource[] | null;
   ai_warnings: AIWarning[] | null;
   ai_unsupported_features: UnsupportedFeature[] | null;
   is_favorite: boolean;
   is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Community Products — platform-curated catalog (read-only to advisors).
+// Adopting one copies it into the advisor's custom_products.
+// ---------------------------------------------------------------------------
+
+export interface CommunityProductRow {
+  id: string;
+  name: string;
+  description: string | null;
+  carrier_name: string | null;
+  carrier_product_name: string | null;
+  category: "growth" | "income";
+  archetype: ProductArchetype;
+  engine_preset: FormulaType;
+  modifier_flags: ModifierFlag[];
+  config: ProductConfigPayload;
+  source_custom_product_id: string | null;
+  created_by: string | null;
+  is_published: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -225,7 +249,7 @@ export interface CreateCustomProductInput {
   engine_preset?: FormulaType; // optional — defaults from archetype map
   modifier_flags?: ModifierFlag[];
   config: ProductConfigPayload;
-  source?: "manual" | "ai_research" | "ai_document" | "duplicated_from_preset";
+  source?: "manual" | "ai_research" | "ai_document" | "duplicated_from_preset" | "adopted_from_community";
   ai_research_sources?: AISource[] | null;
   ai_warnings?: AIWarning[] | null;
   ai_unsupported_features?: UnsupportedFeature[] | null;

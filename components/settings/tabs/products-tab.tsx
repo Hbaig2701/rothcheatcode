@@ -29,10 +29,12 @@ import {
   Trash2,
   Sparkles,
   Package,
+  Users,
 } from "lucide-react";
 import { ARCHETYPE_LABELS } from "@/lib/products/types";
 import type { CustomProductRow, ProductArchetype } from "@/lib/products/types";
 import { AddProductDialog } from "@/components/products/add-product-dialog";
+import { CommunityProductsDialog } from "@/components/products/community-products-dialog";
 import { EditProductSheet } from "@/components/products/edit-product-sheet";
 
 export function ProductsTab() {
@@ -41,6 +43,7 @@ export function ProductsTab() {
   const deleteMut = useDeleteProduct();
 
   const [addOpen, setAddOpen] = useState(false);
+  const [communityOpen, setCommunityOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string; inUse?: number } | null>(null);
 
@@ -91,10 +94,16 @@ export function ProductsTab() {
               Custom product presets for use in client illustrations. AI-built or manually entered.
             </p>
           </div>
-          <Button onClick={() => setAddOpen(true)}>
-            <Plus className="size-4" />
-            Add Product
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" onClick={() => setCommunityOpen(true)}>
+              <Users className="size-4" />
+              Community Products
+            </Button>
+            <Button onClick={() => setAddOpen(true)}>
+              <Plus className="size-4" />
+              Add Product
+            </Button>
+          </div>
         </div>
 
         {/* Empty state */}
@@ -110,11 +119,18 @@ export function ProductsTab() {
                 and our AI will research and configure it for you.
               </CardDescription>
             </CardHeader>
-            <CardContent className="flex justify-center pb-12">
+            <CardContent className="flex flex-col items-center gap-3 pb-12">
               <Button onClick={() => setAddOpen(true)} size="lg">
                 <Plus className="size-4" />
                 Add your first product
               </Button>
+              <button
+                onClick={() => setCommunityOpen(true)}
+                className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+              >
+                <Users className="size-4" />
+                or browse Community Products
+              </button>
             </CardContent>
           </Card>
         )}
@@ -142,6 +158,7 @@ export function ProductsTab() {
       </div>
 
       <AddProductDialog open={addOpen} onOpenChange={setAddOpen} />
+      <CommunityProductsDialog open={communityOpen} onOpenChange={setCommunityOpen} />
       <EditProductSheet productId={editId} onClose={() => setEditId(null)} />
 
       <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>

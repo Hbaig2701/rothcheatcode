@@ -160,7 +160,7 @@ const customProductBaseObject = z.object({
   engine_preset: enginePresetEnum.optional(),
   modifier_flags: z.array(modifierFlagEnum).optional().default([]),
   config: productConfigSchema,
-  source: z.enum(["manual", "ai_research", "ai_document", "duplicated_from_preset"]).optional().default("manual"),
+  source: z.enum(["manual", "ai_research", "ai_document", "duplicated_from_preset", "adopted_from_community"]).optional().default("manual"),
   ai_research_sources: z.array(aiSourceSchema).nullable().optional(),
   ai_warnings: z.array(aiWarningSchema).nullable().optional(),
   ai_unsupported_features: z.array(unsupportedFeatureSchema).nullable().optional(),
