@@ -89,7 +89,11 @@ export function getEffectiveGIData(
   // Use it whenever the custom product was created with a non-null fee. We don't have a
   // sentinel for "fall back to system" — if the advisor didn't enter a fee, they got 0,
   // and that's their explicit override.
-  const riderFee = cfg.fees.annual_rider_fee;
+  // Guard against a config missing the fees block (older rows / direct seeds /
+  // partial AI extractions) — `cfg.fees.annual_rider_fee` on an undefined
+  // `fees` would throw, and `undefined` would become NaN in the engine
+  // (riderFee/100), silently corrupting every income-base deduction.
+  const riderFee = cfg.fees?.annual_rider_fee ?? base.riderFee;
 
   // -- riderFeeAppliesTo --
   // Custom config doesn't expose this today; keep system preset's choice.
@@ -107,7 +111,12 @@ export function getEffectiveGIData(
         type: incomeCfg.roll_up_type,
         rates: [
           { years: [1, 5], rate: tier1 },
-          { years: [6, Math.min(10, incomeCfg.roll_up_max_years)], rate: tier2 },
+          // Tier 2 runs from year 6 through the product's max roll-up year — NOT
+          // a hard-coded 10. Previously capped at 10, so a split-rate product
+          // with roll_up_max_years > 10 silently stopped rolling up after year
+          // 10 (no tier matched years 11+ → getEffectiveRollUpForYear returned
+          // null → income base froze early).
+          { years: [6, incomeCfg.roll_up_max_years], rate: tier2 },
         ],
         maxPeriod: incomeCfg.roll_up_max_years,
       };
@@ -153,7 +162,7 @@ export function getEffectiveGIData(
   let rollUpDescription = base.rollUpDescription;
   if (incomeCfg) {
     if (incomeCfg.roll_up_split_rate) {
-      rollUpDescription = `${incomeCfg.roll_up_rate_years_1_5 ?? incomeCfg.roll_up_rate}% ${incomeCfg.roll_up_type} (yrs 1-5), ${incomeCfg.roll_up_rate_years_6_10 ?? incomeCfg.roll_up_rate}% ${incomeCfg.roll_up_type} (yrs 6-${Math.min(10, incomeCfg.roll_up_max_years)})`;
+      rollUpDescription = `${incomeCfg.roll_up_rate_years_1_5 ?? incomeCfg.roll_up_rate}% ${incomeCfg.roll_up_type} (yrs 1-5), ${incomeCfg.roll_up_rate_years_6_10 ?? incomeCfg.roll_up_rate}% ${incomeCfg.roll_up_type} (yrs 6-${incomeCfg.roll_up_max_years})`;
     } else {
       rollUpDescription = `${incomeCfg.roll_up_rate}% ${incomeCfg.roll_up_type === "simple" ? "Simple Interest" : "Compound"} (${incomeCfg.roll_up_max_years}yr max)`;
     }
