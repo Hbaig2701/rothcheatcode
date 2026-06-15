@@ -223,6 +223,18 @@ export function NewAccountSection() {
   // Get product-specific GI data for conditional fields
   const giData = isGI ? GI_PRODUCT_DATA[formulaType as GuaranteedIncomeFormulaType] : null;
 
+  // The locked "Annual Rider Fee" display must reflect the SELECTED custom
+  // product's own fee (config.fees.annual_rider_fee), not the system preset
+  // default — otherwise a 0-fee custom product (e.g. Allianz 222) still shows
+  // the preset's 1.15% (David Abreu: "no fees on the rider, currently 1.15%").
+  // The engine already uses the custom fee; this aligns the display with it.
+  // `??` (not `||`) so an explicit 0 fee is preserved.
+  const selectedCustomProduct = customProductId
+    ? customProducts.find((p) => p.id === customProductId)
+    : null;
+  const displayRiderFee =
+    selectedCustomProduct?.config?.fees?.annual_rider_fee ?? giData?.riderFee ?? 0;
+
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
       {/* Product Preset Dropdown */}
@@ -509,7 +521,7 @@ export function NewAccountSection() {
             <Lock className="size-3 text-muted-foreground" />
           </FieldLabel>
           <Input
-            value={`${giData.riderFee.toFixed(2)}%`}
+            value={`${displayRiderFee.toFixed(2)}%`}
             disabled
             className="opacity-60 cursor-not-allowed bg-muted/30"
           />
