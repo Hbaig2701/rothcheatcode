@@ -399,20 +399,37 @@ export async function POST(request: NextRequest) {
           .eq("stripe_customer_id", customerId)
           .single();
 
+        // Two distinct dates, both available on the deleted subscription object:
+        //   canceled_at = when they DECIDED to cancel (immutable decision date)
+        //   ended_at    = when the subscription ACTUALLY ENDED (the churn date)
+        // Previously this handler overwrote canceled_at with the deletion time,
+        // destroying the decision date. Now ended_at goes to churned_at, and we
+        // only refresh canceled_at if Stripe still provides it (else preserve
+        // the value the subscription.updated event already recorded).
+        const delCanceledAtUnix = subscription.canceled_at as number | null | undefined;
+        const delEndedAtUnix = subscription.ended_at as number | null | undefined;
+
+        const deleteUpdate: Record<string, unknown> = {
+          plan: "none",
+          subscription_status: "canceled",
+          stripe_subscription_id: null,
+          billing_cycle: null,
+          current_period_end: null,
+          // Once the sub actually ends, the "pending cancellation" flag is
+          // no longer meaningful — they're in the churned bucket now.
+          cancel_at_period_end: false,
+          churned_at: delEndedAtUnix
+            ? new Date(delEndedAtUnix * 1000).toISOString()
+            : new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        if (delCanceledAtUnix) {
+          deleteUpdate.canceled_at = new Date(delCanceledAtUnix * 1000).toISOString();
+        }
+
         const { error: deleteError, count } = await supabase
           .from("profiles")
-          .update({
-            plan: "none",
-            subscription_status: "canceled",
-            stripe_subscription_id: null,
-            billing_cycle: null,
-            current_period_end: null,
-            // Once the sub actually ends, the "pending cancellation" flag is
-            // no longer meaningful — they're in the churned bucket now.
-            cancel_at_period_end: false,
-            canceled_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
+          .update(deleteUpdate)
           .eq("stripe_customer_id", customerId);
 
         if (deleteError) {

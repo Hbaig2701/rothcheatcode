@@ -39,7 +39,8 @@ interface Advisor {
   discountPercent: number
   discountLabel: string | null
   cancelAtPeriodEnd: boolean
-  canceledAt: string | null
+  canceledAt: string | null   // day they DECIDED to cancel
+  churnedAt: string | null    // day the subscription actually ENDED
 }
 
 interface ActivityPoint {
@@ -47,7 +48,7 @@ interface ActivityPoint {
   count: number
 }
 
-type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status' | 'subscriptionStatus' | 'netMonthly' | 'currentPeriodEnd'
+type SortKey = 'name' | 'email' | 'createdAt' | 'clientCount' | 'scenarioRunCount' | 'exportCount' | 'sessionCount' | 'lastLogin' | 'status' | 'subscriptionStatus' | 'netMonthly' | 'currentPeriodEnd' | 'canceledAt' | 'churnedAt'
 type SortDir = 'asc' | 'desc'
 type DateRange = 'today' | '7d' | '30d' | 'mtd' | 'all' | 'custom'
 type AdvisorView = 'active' | 'cancelling' | 'churned' | 'all'
@@ -213,6 +214,14 @@ export default function AdminDashboard() {
           const aVal = a.currentPeriodEnd ?? ''
           const bVal = b.currentPeriodEnd ?? ''
           cmp = aVal.localeCompare(bVal)
+          break
+        }
+        case 'canceledAt': {
+          cmp = (a.canceledAt ?? '').localeCompare(b.canceledAt ?? '')
+          break
+        }
+        case 'churnedAt': {
+          cmp = (a.churnedAt ?? '').localeCompare(b.churnedAt ?? '')
           break
         }
       }
@@ -519,8 +528,10 @@ export default function AdminDashboard() {
               <SortableHeader label="Subscription" sortKey="subscriptionStatus" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Net Price" sortKey="netMonthly" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               {advisorView === 'churned'
-                ? <SortableHeader label="Churned On" sortKey="currentPeriodEnd" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
-                : <SortableHeader label="Signup" sortKey="createdAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />}
+                ? <SortableHeader label="Churned On" sortKey="churnedAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                : advisorView === 'cancelling'
+                  ? <SortableHeader label="Decided to cancel" sortKey="canceledAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
+                  : <SortableHeader label="Signup" sortKey="createdAt" align="left" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />}
               <SortableHeader label="Clients" sortKey="clientCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Scenarios" sortKey="scenarioRunCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
               <SortableHeader label="Exports" sortKey="exportCount" align="right" currentSort={sortKey} currentDir={sortDir} onSort={handleSort} />
@@ -580,9 +591,23 @@ export default function AdminDashboard() {
                   )}
                 </td>
                 <td className="px-4 py-3 text-sm text-text-muted">
-                  {advisorView === 'churned'
-                    ? (a.currentPeriodEnd ? new Date(a.currentPeriodEnd).toLocaleDateString() : '—')
-                    : new Date(a.createdAt).toLocaleDateString()}
+                  {advisorView === 'churned' ? (
+                    <div className="leading-tight">
+                      <div>{a.churnedAt ? new Date(a.churnedAt).toLocaleDateString() : (a.currentPeriodEnd ? new Date(a.currentPeriodEnd).toLocaleDateString() : '—')}</div>
+                      {a.canceledAt && (
+                        <div className="text-xs text-text-dimmer">Decided {new Date(a.canceledAt).toLocaleDateString()}</div>
+                      )}
+                    </div>
+                  ) : advisorView === 'cancelling' ? (
+                    <div className="leading-tight">
+                      <div>{a.canceledAt ? new Date(a.canceledAt).toLocaleDateString() : '—'}</div>
+                      {a.currentPeriodEnd && (
+                        <div className="text-xs text-text-dimmer">Ends {new Date(a.currentPeriodEnd).toLocaleDateString()}</div>
+                      )}
+                    </div>
+                  ) : (
+                    new Date(a.createdAt).toLocaleDateString()
+                  )}
                 </td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-text-dim">{a.clientCount}</td>
                 <td className="px-4 py-3 text-sm text-right font-mono text-text-dim">{a.scenarioRunCount}</td>

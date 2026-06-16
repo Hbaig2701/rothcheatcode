@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const showChurned = searchParams.get('churned') === 'true';
     let profilesQuery = admin
       .from('profiles')
-      .select('id, email, created_at, role, is_active, plan, subscription_status, billing_cycle, stripe_customer_id, stripe_subscription_id, current_period_end, cancel_at_period_end, canceled_at')
+      .select('id, email, created_at, role, is_active, plan, subscription_status, billing_cycle, stripe_customer_id, stripe_subscription_id, current_period_end, cancel_at_period_end, canceled_at, churned_at')
       .eq('role', 'advisor')
       .not('email', 'in', `(${TEST_EMAILS.join(',')})`)
       .not('stripe_customer_id', 'is', null)
@@ -352,6 +352,9 @@ export async function GET(request: NextRequest) {
         canceledAt: pricing?.canceledAt
           ? new Date(pricing.canceledAt * 1000).toISOString()
           : (p.canceled_at ?? null),
+        // Actual subscription-end date. Only set once the sub is fully deleted
+        // (Stripe sub no longer exists to fetch), so the DB is the source here.
+        churnedAt: p.churned_at ?? null,
         // Pricing — null when no Stripe sub or fetch failed.
         netMonthly: pricing?.netMonthly ?? null,
         netInterval: pricing?.netInterval ?? null,
