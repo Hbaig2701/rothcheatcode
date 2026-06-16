@@ -85,29 +85,31 @@ export default function ClientsPage() {
             {clients?.length || 0} clients total
           </p>
         </div>
-        {hasClients && (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <button className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-primary-foreground bg-gold rounded-[10px] hover:bg-primary/90 transition-colors cursor-pointer">
-                  <Plus className="h-4 w-4" />
-                  Add Client
-                  <ChevronDown className="h-3.5 w-3.5 opacity-70" />
-                </button>
-              }
-            />
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={() => window.location.href = "/clients/new"}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Create client manually
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setIntakeModalOpen(true)}>
-                <Link2 className="h-4 w-4 mr-2" />
-                Generate client questionnaire
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        {/* Always shown — new advisors with zero clients still need the
+            "Generate client questionnaire" option (it's a primary way to
+            create that first client). Previously gated behind hasClients,
+            which hid it from exactly the people onboarding. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button className="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-primary-foreground bg-gold rounded-[10px] hover:bg-primary/90 transition-colors cursor-pointer">
+                <Plus className="h-4 w-4" />
+                Add Client
+                <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+              </button>
+            }
+          />
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={() => window.location.href = "/clients/new"}>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Create client manually
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setIntakeModalOpen(true)}>
+              <Link2 className="h-4 w-4 mr-2" />
+              Generate client questionnaire
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Search + view toggle */}
@@ -178,7 +180,7 @@ export default function ClientsPage() {
           />
         )
       ) : (
-        <ClientsEmptyState />
+        <ClientsEmptyState onGenerateQuestionnaire={() => setIntakeModalOpen(true)} />
       )}
 
       {/* No results message */}
