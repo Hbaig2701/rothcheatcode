@@ -156,11 +156,13 @@ export function getEffectiveGIData(
       const newJoint: PayoutByAge = { ...baseStandard.joint, ...(customJoint ?? {}) };
       const newStandard: StandardPayoutTable = { single: newSingle, joint: newJoint };
       if (base.hasDualPayoutOption) {
-        // Use custom for level; keep system's increasing (no place in config to override)
-        payoutTable = {
-          level: newStandard,
-          increasing: (base.payoutTable as DualPayoutTable).increasing,
-        };
+        // Custom config carries a single payout table — apply it to BOTH level
+        // and increasing. Previously 'increasing' fell back to the SYSTEM
+        // preset's factors, i.e. a DIFFERENT product's numbers (selecting
+        // "increasing" on the Allianz 222 used flat-rate-compound-income's ~8%
+        // table instead of the 222's ~6%). The same custom table on both is far
+        // closer to reality than an unrelated preset's curve.
+        payoutTable = { level: newStandard, increasing: newStandard };
       } else {
         payoutTable = newStandard;
       }
@@ -224,8 +226,11 @@ export function getEffectiveRollUpForYear(
 
   // Performance-linked roll-up: rate = multiplier × this year's credited rate.
   // Already a decimal (creditedRate is a decimal), so no /100 here. Compounds.
+  // Floor the credited rate at 0: a fixed index annuity's index credit can
+  // never be negative (0% floor), so a negative assumed return must not shrink
+  // the guaranteed income base — that year simply earns no roll-up.
   if (config.interestMultiple != null) {
-    return { rate: config.interestMultiple * creditedRate, type: "compound", maxPeriod: config.maxPeriod };
+    return { rate: config.interestMultiple * Math.max(0, creditedRate), type: "compound", maxPeriod: config.maxPeriod };
   }
 
   // Tiered rates
@@ -259,17 +264,24 @@ export function getEffectivePayoutFactor(
 
   const tableKey = payoutType === "individual" ? "single" : "joint";
 
+  // Clamp the lookup age to the actual age range PRESENT in the table — not a
+  // hard-coded 50..80. Custom products (e.g. Allianz 222, factors to age 90)
+  // were silently clamped to age 80, discarding any factor defined past 80.
+  // System presets top out at 80, so their behavior is unchanged.
+  const clampToTable = (t: Record<number, number>): number => {
+    const ages = Object.keys(t).map(Number).filter((n) => !Number.isNaN(n));
+    if (ages.length === 0) return 0.05;
+    const clampedAge = Math.min(Math.max(age, Math.min(...ages)), Math.max(...ages));
+    return (t[clampedAge] ?? 5.0) / 100;
+  };
+
   if (data.hasDualPayoutOption) {
     const dualTable = data.payoutTable as DualPayoutTable;
-    const optionTable = dualTable[payoutOption];
-    const clampedAge = Math.min(Math.max(age, 50), 80);
-    return (optionTable[tableKey][clampedAge] ?? 5.0) / 100;
+    return clampToTable(dualTable[payoutOption][tableKey]);
   }
 
   const standardTable = data.payoutTable as StandardPayoutTable;
-  const minAge = 50 in standardTable.single ? 50 : 55;
-  const clampedAge = Math.min(Math.max(age, minAge), 80);
-  return (standardTable[tableKey][clampedAge] ?? 5.0) / 100;
+  return clampToTable(standardTable[tableKey]);
 }
 
 // ---------------------------------------------------------------------------
