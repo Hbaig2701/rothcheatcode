@@ -39,13 +39,12 @@ export function InputSidebar({ client }: InputSidebarProps) {
         defaultValues: {
             blueprint_type: client?.blueprint_type ?? "fia",
             custom_product_id: client?.custom_product_id ?? null,
-            filing_status: client?.filing_status ?? "married_filing_jointly",
+            // Match the main form: no silent age/filing defaults (see input-drawer).
+            filing_status: client?.filing_status ?? "single",
             name: client?.name ?? "",
-            age: client?.age ?? 62,
+            age: client?.age ?? undefined,
             spouse_name: client?.spouse_name ?? "",
-            spouse_age: client?.spouse_age ?? (
-                (client?.filing_status === "married_filing_jointly" || client?.filing_status === "married_filing_separately") ? 60 : undefined
-            ),
+            spouse_age: client?.spouse_age ?? undefined,
 
             qualified_account_value: client?.qualified_account_value ?? 0,
             carrier_name: client?.carrier_name ?? "Generic Carrier",

@@ -76,6 +76,10 @@ export function AumAllocationSection() {
                   step={1}
                   value={field.value ?? 0}
                   onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                  // Select on focus so typing replaces the value instead of
+                  // fighting the existing number (it can't be blanked — the
+                  // field coerces empty to 0 — so replace-on-type is the fix).
+                  onFocus={(e) => e.currentTarget.select()}
                   aria-invalid={fieldState.invalid}
                 />
                 <FieldDescription>
