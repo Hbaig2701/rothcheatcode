@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateProduct, useUpdateProduct } from "@/lib/queries/products";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock } from "lucide-react";
 
 const GROWTH_ARCHETYPES: ProductArchetype[] = [
   "growth-vesting",
@@ -726,6 +726,28 @@ export function ManualBuilder({
               How the Income Base grows during deferral. The bigger the income base when the client turns income on, the bigger the lifetime payout.
             </p>
           </div>
+          {config.income.roll_up_interest_multiple != null ? (
+            // Performance-linked roll-up (e.g. Allianz 222 = 150% of credited
+            // interest). Shown as a LOCKED display — the multiplier is set by the
+            // platform to match the carrier illustration and isn't advisor-editable
+            // (the engine ignores the fixed rate/type for these products).
+            <Field>
+              <FieldLabel className="flex items-center gap-1.5">
+                Income Base Roll-up
+                <Lock className="size-3 text-muted-foreground" />
+              </FieldLabel>
+              <Input
+                value={`${Math.round(config.income.roll_up_interest_multiple * 100)}% of credited interest · ${config.income.roll_up_max_years}yr max`}
+                disabled
+                className="opacity-60 cursor-not-allowed bg-muted/30"
+              />
+              <FieldDescription className="text-xs">
+                The income base grows by this multiple of the credited interest each
+                year. Calibrated by the platform to the carrier illustration — not
+                advisor-editable.
+              </FieldDescription>
+            </Field>
+          ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field>
               <FieldLabel>Roll-up Type</FieldLabel>
@@ -762,6 +784,7 @@ export function ManualBuilder({
               <FieldDescription>How long the roll-up runs. Most products cap at 10.</FieldDescription>
             </Field>
           </div>
+          )}
           <FieldDescription className="text-xs">
             Custom payout factors (% paid by age) and split-rate roll-ups (e.g., 7% yrs 1-5, 4% yrs 6-10) are extracted automatically when you use AI research. For manual products, the engine uses payout factors from the matched archetype.
           </FieldDescription>
