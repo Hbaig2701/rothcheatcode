@@ -28,17 +28,14 @@ export function ClientDataSection() {
 
   const isMarried = filingStatus === "married_filing_jointly";
 
-  // Clear spouse fields when switching to non-married, re-initialize when switching to married
+  // Clear spouse fields when switching to non-married so a stale value doesn't
+  // linger or trip the "spouse age required" check. When switching TO married
+  // we intentionally leave spouse_age empty — the advisor enters the real age
+  // (placeholder + required validation), no silent 60 default.
   useEffect(() => {
     if (!isMarried) {
       form.setValue("spouse_name", undefined);
       form.setValue("spouse_age", undefined);
-    } else {
-      // Re-initialize spouse_age if it was cleared (undefined/NaN)
-      const currentSpouseAge = form.getValues("spouse_age");
-      if (currentSpouseAge === undefined || currentSpouseAge === null || Number.isNaN(currentSpouseAge)) {
-        form.setValue("spouse_age", 60);
-      }
     }
   }, [isMarried, form]);
 
@@ -120,10 +117,10 @@ export function ClientDataSection() {
           type="number"
           min={18}
           max={100}
+          placeholder="e.g. 62"
           {...form.register("age", { valueAsNumber: true })}
-          // Select the pre-filled default on focus so the first keystroke
-          // replaces it — otherwise advisors type the real age and it appends
-          // to the default (e.g. "62" + "5" → "625") and the number "won't go away".
+          // Empty by default with a ghost-label placeholder; select on focus so
+          // editing an existing value replaces it cleanly.
           onFocus={(e) => e.currentTarget.select()}
           aria-invalid={!!form.formState.errors.age}
         />
@@ -158,9 +155,8 @@ export function ClientDataSection() {
             type="number"
             min={18}
             max={100}
+            placeholder="e.g. 60"
             {...form.register("spouse_age", { valueAsNumber: true })}
-            // Select the pre-filled default (60) on focus so typing the real
-            // age replaces it instead of appending to it.
             onFocus={(e) => e.currentTarget.select()}
             aria-invalid={!!form.formState.errors.spouse_age}
           />

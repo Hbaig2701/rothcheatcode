@@ -131,9 +131,17 @@ export const clientFormulaBaseSchema = z.object({
   scenario_name: z.string().max(100).optional().nullable().default(null),
   filing_status: filingStatusEnum,
   name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
-  age: z.number().int().min(18, "Age must be at least 18").max(100, "Age must be 100 or less"),
+  // NaN-safe: HTML number inputs with valueAsNumber produce NaN when empty.
+  // Age is now a placeholder field (no silent default), so an empty value must
+  // surface a clear "Age is required" rather than a generic type error.
+  age: z.preprocess(
+    (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
+    z.number({ error: "Age is required" })
+      .int("Age must be a whole number").min(18, "Age must be at least 18").max(100, "Age must be 100 or less")
+  ),
   spouse_name: z.string().max(100).optional(),
-  // NaN-safe: HTML number inputs with valueAsNumber produce NaN for empty values
+  // NaN-safe: HTML number inputs with valueAsNumber produce NaN for empty values.
+  // Required only when filing jointly — enforced in the superRefine below.
   spouse_age: z.preprocess(
     (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
     z.number().int().min(18).max(100).optional()
@@ -275,6 +283,16 @@ export const clientFormulaBaseSchema = z.object({
 
 // Add refinements for the full schema
 export const clientFormulaSchema = clientFormulaBaseSchema.superRefine((data, ctx) => {
+  // Spouse age is required when filing jointly (no silent default — the
+  // advisor must enter the real age so the projection isn't run on a guess).
+  if (data.filing_status === "married_filing_jointly" && data.spouse_age == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Spouse age is required",
+      path: ["spouse_age"],
+    });
+  }
+
   // End age must be greater than current age
   if (data.end_age <= data.age) {
     ctx.addIssue({

@@ -62,9 +62,12 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       scenario_name: client?.scenario_name ?? d?.scenario_name ?? null,
       filing_status: client?.filing_status ?? d?.filing_status ?? "single",
       name: client?.name ?? d?.name ?? "",
-      age: client?.age ?? d?.age ?? 62,
+      // No silent age default — empty by default so the advisor consciously
+      // enters the real age (placeholder + required validation). Edit/duplicate
+      // still carry the existing value through client?/d?.
+      age: client?.age ?? d?.age ?? undefined,
       spouse_name: client?.spouse_name ?? d?.spouse_name ?? "",
-      spouse_age: client?.spouse_age ?? d?.spouse_age ?? 60,
+      spouse_age: client?.spouse_age ?? d?.spouse_age ?? undefined,
 
       // Section 2: Current Account
       qualified_account_value: client?.qualified_account_value ?? d?.qualified_account_value ?? 25000000, // $250,000 in cents
