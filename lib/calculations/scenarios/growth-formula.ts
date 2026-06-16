@@ -634,7 +634,15 @@ export function runGrowthFormulaScenario(
     const conversionTaxExternal = payTaxFromIRA
       ? Math.max(0, conversionTaxBeforeSplit - conversionTaxFromIRA)
       : 0;
-    const iraAfterConversion = iraAfterDistribution - conversionAmount - conversionTaxFromIRA;
+    // Floor at 0: a traditional IRA balance can never go negative. In the
+    // depletion year, the fixed_amount/full_conversion tax solvers can size
+    // conversion + tax-from-IRA a few dollars above the remaining balance (an
+    // iterative-solver rounding residual). Without this floor that tiny excess
+    // makes iraAfterConversion negative, then line ~664 grows it by interest and
+    // it compounds into a visibly negative "traditional IRA" in later years.
+    // (Kwanza E. ticket: negative traditional IRA on a fixed-amount, tax-from-IRA
+    // scenario.) Single choke point — covers every conversion type.
+    const iraAfterConversion = Math.max(0, iraAfterDistribution - conversionAmount - conversionTaxFromIRA);
     const rothAfterConversion = rothAfterWithdrawal + conversionAmount;
 
     // Track cumulative withdrawals for the principal protection floor.
