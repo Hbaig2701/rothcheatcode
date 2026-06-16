@@ -121,6 +121,10 @@ export function ClientDataSection() {
           min={18}
           max={100}
           {...form.register("age", { valueAsNumber: true })}
+          // Select the pre-filled default on focus so the first keystroke
+          // replaces it — otherwise advisors type the real age and it appends
+          // to the default (e.g. "62" + "5" → "625") and the number "won't go away".
+          onFocus={(e) => e.currentTarget.select()}
           aria-invalid={!!form.formState.errors.age}
         />
         <FieldError errors={[form.formState.errors.age]} />
@@ -155,6 +159,9 @@ export function ClientDataSection() {
             min={18}
             max={100}
             {...form.register("spouse_age", { valueAsNumber: true })}
+            // Select the pre-filled default (60) on focus so typing the real
+            // age replaces it instead of appending to it.
+            onFocus={(e) => e.currentTarget.select()}
             aria-invalid={!!form.formState.errors.spouse_age}
           />
           <FieldError errors={[form.formState.errors.spouse_age]} />
