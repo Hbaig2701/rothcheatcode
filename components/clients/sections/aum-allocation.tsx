@@ -90,6 +90,33 @@ export function AumAllocationSection() {
             )}
           />
 
+          {/* AUM growth rate — lets the brokerage grow at a different rate than the annuity */}
+          <Controller
+            name="aum_growth_rate"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="aum_growth_rate">AUM growth rate (%/yr)</FieldLabel>
+                <Input
+                  id="aum_growth_rate"
+                  type="number"
+                  min={0}
+                  max={30}
+                  step={0.1}
+                  placeholder={`Defaults to ${form.watch("rate_of_return") ?? 7}% (annuity rate)`}
+                  value={field.value ?? ""}
+                  onChange={(e) => field.onChange(e.target.value === "" ? null : parseFloat(e.target.value))}
+                  onFocus={(e) => e.currentTarget.select()}
+                  aria-invalid={fieldState.invalid}
+                />
+                <FieldDescription>
+                  Growth rate for the managed brokerage. Leave blank to match the annuity rate.
+                </FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+
           {/* Withdrawal years — how to spread the IRA-to-AUM transfer */}
           <Controller
             name="aum_withdrawal_years"

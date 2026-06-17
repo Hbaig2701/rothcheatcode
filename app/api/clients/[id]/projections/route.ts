@@ -120,6 +120,7 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     aum_dividend_yield: client.aum_dividend_yield,
     aum_turnover_percent: client.aum_turnover_percent,
     aum_withdrawal_years: client.aum_withdrawal_years,
+    aum_growth_rate: client.aum_growth_rate,
     ltcg_rate: client.ltcg_rate,
   };
   return crypto.createHash('sha256').update(JSON.stringify(relevantFields)).digest('hex');

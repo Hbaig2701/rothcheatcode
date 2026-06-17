@@ -65,6 +65,11 @@ export function runAumScenario(input: AumScenarioInput): YearlyResult[] {
 
   // Growth + AUM economics ----------------------------------------------------
   const growthRate = (client.rate_of_return ?? client.growth_rate ?? 7) / 100;
+  // AUM brokerage can grow at its own rate (e.g. equities) distinct from the
+  // annuity/IRA rate. Falls back to the shared rate when unset, so existing
+  // clients behave exactly as before. Only the AUM balance uses this — the
+  // pending-IRA portion still grows at the IRA rate (it's still in the IRA).
+  const aumGrowthRate = (client.aum_growth_rate ?? client.rate_of_return ?? client.growth_rate ?? 7) / 100;
   const aumFeeRate = (client.aum_fee_percent ?? 1) / 100;
   const dividendYield = (client.aum_dividend_yield ?? 2) / 100;
   const turnoverRate = (client.aum_turnover_percent ?? 10) / 100;
@@ -143,7 +148,7 @@ export function runAumScenario(input: AumScenarioInput): YearlyResult[] {
     pendingIra += pendingIraGrowth;
 
     // 3) AUM brokerage growth -------------------------------------------------
-    const aumGrowth = Math.round(aumBalance * growthRate);
+    const aumGrowth = Math.round(aumBalance * aumGrowthRate);
     aumBalance += aumGrowth;
 
     // 4) AUM fee --------------------------------------------------------------

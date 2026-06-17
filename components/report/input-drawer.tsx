@@ -103,6 +103,7 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       aum_dividend_yield: client?.aum_dividend_yield ?? 2,
       aum_turnover_percent: client?.aum_turnover_percent ?? 10,
       aum_withdrawal_years: client?.aum_withdrawal_years ?? 5,
+      aum_growth_rate: client?.aum_growth_rate ?? null,
       ltcg_rate: client?.ltcg_rate ?? 15,
       surrender_schedule: client?.surrender_schedule ?? null,
       taxable_accounts: client?.taxable_accounts ?? 0,

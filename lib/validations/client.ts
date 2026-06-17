@@ -274,6 +274,7 @@ export const clientFormulaBaseSchema = z.object({
   aum_dividend_yield: z.number().min(0).max(20).default(2),
   aum_turnover_percent: z.number().min(0).max(100).default(10),
   aum_withdrawal_years: z.number().int().min(1).max(30).default(5),
+  aum_growth_rate: z.number().min(0).max(30).nullable().optional(),
   ltcg_rate: z.number().min(0).max(50).default(15),
 
   // Additional fields needed for calculations
@@ -507,6 +508,7 @@ export const clientFullBaseSchema = z.object({
   aum_dividend_yield: z.number().min(0).max(20).default(2),
   aum_turnover_percent: z.number().min(0).max(100).default(10),
   aum_withdrawal_years: z.number().int().min(1).max(30).default(5),
+  aum_growth_rate: z.number().min(0).max(30).nullable().optional(),
   ltcg_rate: z.number().min(0).max(50).default(15),
 });
 
@@ -647,6 +649,7 @@ export type ClientFormData = {
   aum_dividend_yield: number;
   aum_turnover_percent: number;
   aum_withdrawal_years: number;
+  aum_growth_rate?: number | null;
   ltcg_rate: number;
 
   // Additional

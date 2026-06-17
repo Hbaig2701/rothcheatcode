@@ -170,6 +170,7 @@ export interface Client {
   aum_dividend_yield: number;         // Annual dividend yield % (default 2) — taxed at LTCG
   aum_turnover_percent: number;       // Annual turnover % of unrealized gains (default 10) — taxed at LTCG
   aum_withdrawal_years: number;       // Years to spread the IRA-to-AUM transfer over (default 5)
+  aum_growth_rate?: number | null;    // Annual growth % for the AUM brokerage; null = use rate_of_return
   ltcg_rate: number;                  // Long-term capital gains rate (default 15) — used for AUM tax drag
 
   // ===== Legacy fields (kept for backwards compatibility) =====

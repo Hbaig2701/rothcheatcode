@@ -139,6 +139,7 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       aum_dividend_yield: client?.aum_dividend_yield ?? d?.aum_dividend_yield ?? 2,
       aum_turnover_percent: client?.aum_turnover_percent ?? d?.aum_turnover_percent ?? 10,
       aum_withdrawal_years: client?.aum_withdrawal_years ?? d?.aum_withdrawal_years ?? 5,
+      aum_growth_rate: client?.aum_growth_rate ?? d?.aum_growth_rate ?? null,
       ltcg_rate: client?.ltcg_rate ?? d?.ltcg_rate ?? 15,
 
       // Additional fields needed
