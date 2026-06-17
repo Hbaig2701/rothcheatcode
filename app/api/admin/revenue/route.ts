@@ -43,6 +43,32 @@ async function chunkedAll<T, R>(
   return results;
 }
 
+// Retry Stripe subscription retrieves with a short backoff. Without this, a
+// transient 429 (rate limit) makes a sub silently fall back to its LIST price
+// instead of its real discounted amount — and since which calls get throttled
+// varies per request, MRR/ARR fluctuated between refreshes. Retrying recovers
+// the true net amount so the numbers stay stable.
+async function retrieveSubWithRetry(
+  stripe: ReturnType<typeof getStripe>,
+  subId: string,
+  attempts = 4
+) {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await stripe.subscriptions.retrieve(subId, {
+        expand: ['latest_invoice', 'discounts'],
+      });
+    } catch (err) {
+      lastErr = err;
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, 250 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 export async function GET(request: Request) {
   try {
     const supabase = await createClient();
@@ -151,9 +177,7 @@ export async function GET(request: Request) {
       STRIPE_CONCURRENCY,
       async (p) => {
         try {
-          const sub = await stripe.subscriptions.retrieve(p.stripe_subscription_id!, {
-            expand: ['latest_invoice', 'discounts'],
-          });
+          const sub = await retrieveSubWithRetry(stripe, p.stripe_subscription_id!);
           const item = sub.items?.data?.[0];
           if (!item) return;
           const listPrice = (item.price?.unit_amount ?? 0) / 100;
