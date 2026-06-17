@@ -73,7 +73,7 @@ check("8.5% AUM ends higher than 5% AUM", finalC > finalA, `+${fmt(finalC - fina
 // withdrawal_years=1, so year offset 5 has no transfer and no fees/divs.
 function impliedRate(rows: ReturnType<typeof run>, offset: number) {
   const r = rows[offset];
-  return r.taxableGrowth / r.taxableBOY;
+  return (r.taxableGrowth ?? 0) / (r.taxableBOY ?? 1);
 }
 const rateA = impliedRate(A, 5);
 const rateC = impliedRate(C, 5);
@@ -85,13 +85,14 @@ check("AUM compounds at 8.5% when set to 8.5 (independent of annuity 5%)", Math.
 const D = run({ aum_growth_rate: 8.5, rate_of_return: 5, growth_rate: 5, aum_withdrawal_years: 3 });
 // Year offset 1: still mid-transfer. pending IRA after this year's transfer = traditionalBOY - iraWithdrawal.
 const d1 = D[1];
-const pendingAfterTransfer = d1.traditionalBOY - d1.iraWithdrawal;
+const pendingAfterTransfer = (d1.traditionalBOY ?? 0) - (d1.iraWithdrawal ?? 0);
+const iraGrowth = d1.traditionalGrowth ?? 0;
 const expectedIraGrowth = Math.round(pendingAfterTransfer * 0.05); // IRA rate
 const expectedIfWrong = Math.round(pendingAfterTransfer * 0.085);  // AUM rate (the bug)
 check(
   "pending IRA grows at IRA rate 5%, not AUM rate 8.5%",
-  d1.traditionalGrowth === expectedIraGrowth && d1.traditionalGrowth !== expectedIfWrong,
-  `growth ${fmt(d1.traditionalGrowth)} (5%=${fmt(expectedIraGrowth)}, 8.5%=${fmt(expectedIfWrong)})`
+  iraGrowth === expectedIraGrowth && iraGrowth !== expectedIfWrong,
+  `growth ${fmt(iraGrowth)} (5%=${fmt(expectedIraGrowth)}, 8.5%=${fmt(expectedIfWrong)})`
 );
 
 console.log(`\n${fail === 0 ? "ALL PASS" : fail + " FAILED"} (${pass}/${pass + fail})`);
