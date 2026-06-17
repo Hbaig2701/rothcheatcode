@@ -30,3 +30,25 @@ Internal backlog of ideas we've discussed but aren't actively building. Not a ro
 3. Knowledge-base drift — this is a process problem. Add "update methodology doc" to the definition-of-done.
 
 **Recommended path:** Ship Tier 1 first, measure usage, then layer Tier 2 on top if advisors actually use it.
+
+---
+
+## Partial Annuity Deposit (split IRA: annuity + remaining tax-deferred IRA)
+
+**The pitch:** Advisors want to put only *part* of a client's IRA into the annuity and leave the rest in a **tax-deferred IRA** they keep converting/withdrawing from. Today the annuity strategy assumes the **entire** qualified balance is the annuity premium — there's no field to deposit only, say, $500K and hold the remainder back.
+
+**Why AUM isn't the answer:** the only existing carve-out is the AUM bucket, but by design (`lib/calculations/scenarios/aum.ts`) it pulls that slice *out* of the IRA, taxes it at ordinary rates, and lands it in a **taxable** brokerage. Advisors who want the remainder to stay **tax-deferred** (no immediate tax, still subject to RMDs, still convertible) have no option.
+
+**What it requires (why it's not a quick fix):** a new third bucket — a *remaining tax-deferred IRA* that runs alongside the annuity with its own:
+- growth, RMDs (age 73/75), and ordinary-income tax on distributions,
+- Roth conversions sourced from it,
+- correct baseline-vs-strategy accounting so the comparison stays fair,
+- a "premium / amount into annuity" input distinct from "total IRA balance."
+
+Touches the conversion engine, RMD logic, and the baseline comparator — needs design + careful testing, not a patch.
+
+**Today's workaround:** set the client's IRA balance to just the amount going into the annuity (e.g. $500K) to illustrate the annuity + conversion strategy on that slice; the remaining IRA is shown separately, not blended into the same projection.
+
+**Demand signal:** requested by Daven Sharma (re: Suzanne Marcus, ticket Jun 2026) — also blocks his related "Report data" ticket. Adjacent to other "more flexible deposit/allocation" asks (e.g. Allianz 222 legacy-only / no-income).
+
+**Estimated effort:** **1–2 weeks** (new engine bucket + UI inputs + baseline accounting + tests).
