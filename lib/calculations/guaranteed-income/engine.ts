@@ -221,7 +221,15 @@ function runGIStrategyScenario(
   const stateTaxRateDecimal = client.state_tax_rate !== undefined && client.state_tax_rate !== null
     ? client.state_tax_rate / 100
     : getStateTaxRate(client.state);
-  const payTaxFromIRA = client.tax_payment_source === 'from_ira';
+  // Conversion-tax funding source. 'from_ira' pays from the IRA (with gross-up).
+  // We ALSO fall back to the IRA when the advisor chose 'from_taxable' but the
+  // client has NO taxable account ($0): "pay from taxable" then has no funding
+  // source, so the conversion tax was silently clamped to $0 (the taxableBalance
+  // floor), making conversions look tax-free and the bracket irrelevant to
+  // wealth (~160 clients — mostly the default from_taxable + $0 taxable). The
+  // report shows a banner. Clients WITH a real taxable balance are unchanged.
+  const payTaxFromIRA = client.tax_payment_source === 'from_ira'
+    || (client.taxable_accounts ?? 0) <= 0;
 
   // --- SSI config ---
   const primarySsStartAge = client.ssi_payout_age ?? 67;

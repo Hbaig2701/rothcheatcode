@@ -102,8 +102,16 @@ export function runFormulaScenario(
   const conversionStartAge = clientAge + yearsToDefer;
   const conversionEndAge = client.end_age ?? 100; // Convert until end of projection
 
-  // Tax payment source
-  const payTaxFromIRA = client.tax_payment_source === 'from_ira';
+  // Tax payment source. 'from_ira' pays the conversion tax from the IRA (with
+  // gross-up). We ALSO fall back to the IRA when the advisor chose 'from_taxable'
+  // but the client has NO taxable account ($0): "pay from taxable" then has no
+  // funding source, so the conversion tax was silently clamped to $0 (the
+  // taxableBalance floor), making conversions look tax-free and the tax bracket
+  // irrelevant to wealth (~160 clients — mostly the default from_taxable + $0
+  // taxable). The report shows a banner. Clients WITH a taxable balance are
+  // unchanged.
+  const payTaxFromIRA = client.tax_payment_source === 'from_ira'
+    || (client.taxable_accounts ?? 0) <= 0;
 
   // Conversion strategy controls (must mirror growth-formula.ts so the legacy
   // dispatch path doesn't silently ignore advisor-selected conversion types).

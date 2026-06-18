@@ -136,7 +136,18 @@ export function runGrowthFormulaScenario(
 
   // Tax payment source: 'from_ira' means the IRA pays its own taxes
   // (conversion is grossed down); 'from_taxable' means taxes are paid externally
-  const payTaxFromIRA = client.tax_payment_source === 'from_ira';
+  // Conversion-tax funding source. 'from_ira' pays the conversion tax from the
+  // IRA (with gross-up). We ALSO fall back to the IRA when the advisor chose
+  // 'from_taxable' but the client has NO taxable account ($0) to draw from: for
+  // a $0-taxable client "pay from taxable" has no funding source, so the
+  // conversion tax was being silently clamped to $0 (the taxableBalance floor),
+  // making conversions look tax-free and the tax bracket irrelevant to lifetime
+  // wealth (~160 clients affected — overwhelmingly the default from_taxable +
+  // $0 taxable). Funding from the IRA is what actually happens — you can't pay a
+  // tax bill from a $0 account. The report shows a banner explaining this.
+  // Clients WITH a real taxable balance are unchanged.
+  const payTaxFromIRA = client.tax_payment_source === 'from_ira'
+    || (client.taxable_accounts ?? 0) <= 0;
 
   // Tax rates
   const maxTaxRate = client.max_tax_rate ?? 24;

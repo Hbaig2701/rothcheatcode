@@ -8,6 +8,7 @@ import { GIIncomeChart } from "@/components/results/gi-income-chart";
 import { transformToGIIncomeChartData, transformToChartData } from "@/lib/calculations/transforms";
 import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
 import { WidowSection } from "@/components/report/widow-section";
+import { TaxFundingNotice } from "@/components/report/tax-funding-notice";
 import { YearByYearTable } from "@/components/results/deep-dive/year-by-year-table";
 import { Check, ChevronDown, ChevronUp, ArrowRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -151,6 +152,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
 
   return (
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
+      <TaxFundingNotice client={client} />
       <div className="p-9 space-y-6">
         {/* Section 1: The Guarantee (Hero Card) - Tax-Free Roth GI Income */}
         <div className="bg-accent border border-gold-border rounded-[16px] py-10 px-12 text-center relative">

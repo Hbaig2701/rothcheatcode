@@ -3,6 +3,7 @@
 import { useState, ReactNode } from "react";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
+import { TaxFundingNotice } from "@/components/report/tax-funding-notice";
 import type { YearlyResult } from "@/lib/calculations";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData } from "@/lib/calculations/transforms";
@@ -403,6 +404,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
   return (
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
+      <TaxFundingNotice client={client} />
       <div className="p-9 space-y-6">
         {/* IRMAA target unreachable warning — surfaces when the advisor
             picked a target IRMAA tier the client's baseline income is
