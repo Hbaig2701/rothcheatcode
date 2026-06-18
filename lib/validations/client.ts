@@ -476,7 +476,12 @@ export const clientFullBaseSchema = z.object({
   respect_penalty_free_limit: z.boolean().optional().default(false),
   penalty_free_scope: z.enum(['tax_only', 'all_distributions']).default('tax_only'),
   protect_initial_premium: z.boolean().default(true),
-  start_age: z.number().int().min(50).max(90).default(62),
+  // Legacy/derived field: the form posts start_age = age + years_to_defer_conversion.
+  // The client form allows age >= 18 (and defer up to 30), so the bound must span
+  // 18..130 — a 50 minimum rejected legitimate younger clients (e.g. a 45- or
+  // 23-year-old) with an opaque "Validation failed" on every update. The engine
+  // uses age/end_age directly, so this field is vestigial; widened to match source.
+  start_age: z.number().int().min(18).max(130).default(62),
   end_age: z.number().int().min(55).max(120).default(100),
   tax_payment_source: taxSourceEnum.default("from_taxable"),
 
@@ -484,11 +489,15 @@ export const clientFullBaseSchema = z.object({
   withdrawal_type: withdrawalTypeEnum.default("no_withdrawals"),
 
   // Advanced Options
-  growth_rate: z.number().min(0).max(20).default(6),
+  // Legacy/derived field: posted as rate_of_return, which the form allows up to
+  // 30 — a 20 max would reject high-assumed-rate scenarios. Aligned to the source.
+  growth_rate: z.number().min(0).max(30).default(6),
   inflation_rate: z.number().min(0).max(10).default(2.5),
   heir_bracket: z.string().default("32"),
   heir_tax_rate: z.number().min(0).max(100).default(40),
-  projection_years: z.number().int().min(10).max(60).default(40),
+  // Legacy/derived field: posted as end_age - age. With age as low as 18 and
+  // end_age up to 120, this can reach ~100 — a 60 max rejected younger clients.
+  projection_years: z.number().int().min(1).max(110).default(40),
   widow_analysis: z.boolean().default(false),
   widow_death_age: z.number().int().min(60).max(100).nullable().optional(),
   sensitivity: z.boolean().default(false),
