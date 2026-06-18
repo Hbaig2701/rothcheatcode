@@ -121,6 +121,17 @@ export function useUpdateClient() {
       });
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: "Failed to update client" }));
+        // Surface field-level Zod details so advisors see WHICH field failed
+        // instead of a bare "Validation failed" toast (the details are in the
+        // 400 response body but were previously discarded). e.g. the server
+        // returns { error: "Validation failed", details: { fieldErrors: {...} } }.
+        const fieldErrors = error?.details?.fieldErrors as Record<string, string[]> | undefined;
+        if (fieldErrors && Object.keys(fieldErrors).length > 0) {
+          const detail = Object.entries(fieldErrors)
+            .map(([field, msgs]) => `${field}: ${(msgs ?? []).join(", ")}`)
+            .join(" • ");
+          throw new Error(`${error.error || "Validation failed"} — ${detail}`);
+        }
         throw new Error(error.error || "Failed to update client");
       }
       return res.json();
