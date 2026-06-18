@@ -303,16 +303,16 @@ export const clientFormulaSchema = clientFormulaBaseSchema.superRefine((data, ct
     });
   }
 
-  // Max tax rate sanity check against the legacy "current tax rate" field.
-  // tax_rate is optional now (field retired from form 2026-06-05), so only
-  // validate when a value was actually supplied.
-  if (data.tax_rate !== undefined && data.max_tax_rate < data.tax_rate) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Max tax rate cannot be less than current tax rate",
-      path: ["max_tax_rate"],
-    });
-  }
+  // NOTE: the old "max_tax_rate >= current tax rate" cross-check was removed
+  // 2026-06-17. The "Current Bracket (informational)" tax_rate input was
+  // retired from the form (2026-06-05), but the form still seeds tax_rate from
+  // the client's saved value (client-form.tsx), so `data.tax_rate` is always
+  // defined and the `!== undefined` guard never disabled the check. Result: a
+  // client whose stale saved bracket was above the chosen Max Tax Rate (e.g.
+  // 32% saved, advisor sets ceiling to 24%) got "Max tax rate cannot be less
+  // than current tax rate" with no UI field to lower it — an unfixable trap.
+  // Comparing the bracket ceiling against a retired, uneditable field is
+  // meaningless, so the check is gone entirely.
 
   // partial_amount conversion requires a positive target
   if (data.conversion_type === "partial_amount") {
