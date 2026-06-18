@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
@@ -49,6 +49,11 @@ export function NewAccountSection() {
   const { data: productsData, isLoading: isProductsLoading } = useProducts();
   const customProducts: CustomProductRow[] = productsData?.customDetailed ?? [];
 
+  // A custom product the advisor picked before the products query resolved.
+  // handlePickerChange can't apply it yet (the row isn't loaded), so we stash
+  // the id and apply it via the effect below once the list arrives.
+  const [pendingCustomId, setPendingCustomId] = useState<string | null>(null);
+
   const pickerValue = customProductId
     ? `${CUSTOM}${customProductId}`
     : `${SYSTEM}${formulaType}`;
@@ -58,14 +63,36 @@ export function NewAccountSection() {
     if (encoded.startsWith(SYSTEM)) {
       const sys = encoded.slice(SYSTEM.length) as FormulaType;
       form.setValue("custom_product_id", null);
+      setPendingCustomId(null);
       handleFormulaTypeChange(sys);
     } else if (encoded.startsWith(CUSTOM)) {
       const id = encoded.slice(CUSTOM.length);
       const product = customProducts.find((p) => p.id === id);
-      if (!product) return;
-      applyCustomProduct(product);
+      if (product) {
+        applyCustomProduct(product);
+      } else {
+        // Products query hasn't resolved yet. Record the selection so the form
+        // isn't left on the default preset (which would create the client with
+        // a mismatched blueprint_type → broken projection); the effect below
+        // applies the full product config the moment the list loads.
+        form.setValue("custom_product_id", id);
+        setPendingCustomId(id);
+      }
     }
   };
+
+  // Apply a race-condition custom pick once the products list arrives. Guarded
+  // by pendingCustomId so this ONLY fires for a selection made before load —
+  // it never re-runs on an already-loaded client and clobbers advisor edits.
+  useEffect(() => {
+    if (!pendingCustomId) return;
+    const product = customProducts.find((p) => p.id === pendingCustomId);
+    if (product) {
+      applyCustomProduct(product);
+      setPendingCustomId(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCustomId, customProducts]);
 
   const applyCustomProduct = (product: CustomProductRow, overrideState?: string) => {
     const cfg = product.config;
