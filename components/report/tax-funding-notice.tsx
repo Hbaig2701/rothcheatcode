@@ -22,6 +22,14 @@ export function TaxFundingNotice({ client }: TaxFundingNoticeProps) {
 
   if (!(choseFromTaxable && noTaxableAccount && doesConvert)) return null;
 
+  // The engine applies a 10% early-withdrawal penalty on IRA-funded conversion
+  // tax while the client is under 59½ (age < 60 at conversion time). Surface it
+  // when the conversions begin before 60, so advisors with working-age clients
+  // know the penalty is included — and that it disappears if the tax is paid
+  // from outside funds (e.g. salary) instead.
+  const conversionStartAge = (client.age ?? 99) + (client.years_to_defer_conversion ?? 0);
+  const underPenaltyAge = conversionStartAge < 60;
+
   return (
     <div className="mx-9 mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
       <span className="font-semibold">Conversion taxes funded from the IRA.</span>{" "}
@@ -30,6 +38,17 @@ export function TaxFundingNotice({ client }: TaxFundingNoticeProps) {
       (the realistic source when there&apos;s no outside account). To change
       this, enter the client&apos;s taxable balance, or set Tax Payment Source to
       &ldquo;Internal (from IRA)&rdquo; to make it explicit.
+      {underPenaltyAge && (
+        <>
+          {" "}
+          <span className="font-semibold">
+            Note: this client is under 59½
+          </span>
+          , so the IRA-funded conversion taxes include a 10% early-withdrawal
+          penalty. If they&apos;ll pay the tax from outside funds (e.g. salary),
+          enter a taxable balance to remove the penalty.
+        </>
+      )}
     </div>
   );
 }
