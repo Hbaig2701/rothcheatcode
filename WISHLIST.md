@@ -52,3 +52,22 @@ Touches the conversion engine, RMD logic, and the baseline comparator — needs 
 **Demand signal:** requested by Daven Sharma (re: Suzanne Marcus, ticket Jun 2026) — also blocks his related "Report data" ticket. Adjacent to other "more flexible deposit/allocation" asks (e.g. Allianz 222 legacy-only / no-income).
 
 **Estimated effort:** **1–2 weeks** (new engine bucket + UI inputs + baseline accounting + tests).
+
+---
+
+## SS-taxation & IRMAA cost breakout on the report/PDF
+
+**The pitch:** Advisors want to show the client the *cost* of (a) Social Security being taxed and (b) IRMAA Medicare surcharges as their own line items. Today neither is itemized: IRMAA is only rolled into the **"Total Costs (Taxes + IRMAA)"** line on the Legacy/Wealth page and folded into the **"Net (After-Tax)"** income columns; SS taxation isn't separated at all (the income tables show **"Taxable SS"** — the *amount* of SS subject to tax — but never the tax *dollars* attributable to it, which are blended into total federal tax).
+
+**What it requires (mostly display, data already exists):** the engine already tracks `irmaaSurcharge` and `taxableSS` per year (`YearlyResult`), so this is largely a reporting/template change in `app/api/generate-pdf/route.ts` + `templates/pdf-template.html` (and mirror in the dashboard):
+- a standalone **IRMAA** line/column (shows $0 when MAGI is under the threshold, real surcharges when not),
+- an **"estimated tax attributable to SS"** figure per year (marginal: tax with vs without the taxable-SS portion — same pattern as `marginal-conversion-tax.ts` / `marginal-rmd-tax.ts`),
+- optionally a **Baseline vs Strategy** comparison of both, to show the conversion reduces future SS taxation / IRMAA.
+
+**Scope to confirm with requester:** which of the three above they actually want — they read differently and build differently.
+
+**Note:** for low-income clients IRMAA is genuinely $0 (MAGI never crosses ~$106K single / ~$212K MFJ), so a standalone IRMAA line will legitimately show zeros for many clients — that's correct, not a gap.
+
+**Demand signal:** requested by Jorge L. Tola (re: Dale Williams, ticket Jun 19 2026 — "SS & IRMMA"). Dale's own IRMAA is $0 (single, FL, 10–12% bracket), so his report has nothing to show; the ask is really about higher-income clients and clearer itemization.
+
+**Estimated effort:** **2–4 days** (reporting/template + a marginal-SS-tax helper + tests; no engine-math changes).
