@@ -3,7 +3,7 @@ import type { YearlyResult } from '../types';
 import { getAgeAtYearOffset } from '../utils/age';
 import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
-import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { calculateIRMAAWithLookback, calculateIRMAAHeadroom, calculateIRMAAHeadroomToTarget } from '../modules/irmaa';
@@ -220,7 +220,7 @@ export function runGrowthFormulaScenario(
 
     // Standard deduction (age-adjusted)
     const currentSpouseAgeForDeduction = initialSpouseAge !== null ? initialSpouseAge + yearOffset : undefined;
-    const deductions = getStandardDeduction(client.filing_status, age, currentSpouseAgeForDeduction, year);
+    const deductions = getEffectiveDeduction(client.filing_status, age, currentSpouseAgeForDeduction, year, client.additional_deductions);
 
     // Step 0: Calculate the RMD requirement if the client is old enough and
     // still has a traditional IRA balance. This handles the case where

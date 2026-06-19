@@ -35,7 +35,7 @@ import {
 } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAAWithLookback } from '../modules/irmaa';
-import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { type GIProductData } from '@/lib/config/gi-product-data';
 import type { GuaranteedIncomeFormulaType } from '@/lib/config/products';
@@ -317,7 +317,7 @@ function runGIStrategyScenario(
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
     // --- Standard deduction ---
-    const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
+    const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, client.additional_deductions);
 
     // Determine current phase
     let currentPhase: 'conversion' | 'purchase' | 'deferral' | 'income';
@@ -1194,7 +1194,7 @@ function runGIBaselineScenario(
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
     // --- Standard deduction ---
-    const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
+    const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, client.additional_deductions);
     const boyTraditional = traditionalBalance;
 
     // Determine phase - baseline has: waiting, purchase, deferral, income

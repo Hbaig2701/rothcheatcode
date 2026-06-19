@@ -2,7 +2,7 @@ import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
 import { getAgeAtYearOffset } from '../utils/age';
 import { computeTaxableIncomeWithSS } from '../tax-helpers';
-import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 
 /**
  * Run Growth FIA Baseline scenario: simple compound growth, no conversions, no RMDs
@@ -80,7 +80,7 @@ export function runGrowthBaselineScenario(
     // still be partially taxable if the client has other income eventually.
     // Here otherIncome is always 0 (Growth FIA baseline has no income events),
     // so provisional = 0.5 × SS; taxable SS follows from the torpedo formula.
-    const growthBaselineDeductions = getStandardDeduction(client.filing_status, age, currentSpouseAge ?? undefined, year);
+    const growthBaselineDeductions = getEffectiveDeduction(client.filing_status, age, currentSpouseAge ?? undefined, year, client.additional_deductions);
     const growthBaselineTaxInfo = computeTaxableIncomeWithSS({
       otherIncome: 0,
       ssBenefits: ssIncome,

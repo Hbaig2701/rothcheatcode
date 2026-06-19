@@ -454,6 +454,9 @@ export const clientFullBaseSchema = z.object({
   // projections that referenced it.
   tax_rate: z.number().min(0).max(100).default(0).optional(),
   max_tax_rate: z.number().min(0).max(100).default(24),
+  // Deductions beyond the standard deduction (charitable/itemized, NOLs,
+  // leveraged-deduction programs), in cents. Lowers tax on shielded conversions.
+  additional_deductions: z.number().int().min(0).optional().nullable().default(null),
 
   // Income Sources (legacy)
   ss_self: z.number().int().min(0).default(0),
@@ -596,6 +599,7 @@ export type ClientFormData = {
   // type-compatible.
   tax_rate?: number;
   max_tax_rate: number;
+  additional_deductions?: number | null;
   tax_payment_source: "from_ira" | "from_taxable";
   state_tax_rate: number | null;
 

@@ -89,6 +89,7 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       target_irmaa_tier: client?.target_irmaa_tier ?? "standard",
       tax_rate: client?.tax_rate ?? d?.tax_rate ?? (ud.tax_rate as number) ?? 24,
       max_tax_rate: client?.max_tax_rate ?? d?.max_tax_rate ?? (ud.max_tax_rate as number) ?? 24,
+      additional_deductions: client?.additional_deductions ?? d?.additional_deductions ?? null,
       tax_payment_source: client?.tax_payment_source ?? d?.tax_payment_source ?? (ud.tax_payment_source as ClientFormData["tax_payment_source"]) ?? "from_taxable",
       state_tax_rate: client?.state_tax_rate ?? d?.state_tax_rate ?? null,
 

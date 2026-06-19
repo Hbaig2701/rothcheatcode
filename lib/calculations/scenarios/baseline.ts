@@ -5,7 +5,7 @@ import { calculateRMD } from '../modules/rmd';
 import { calculateFederalTax, determineTaxBracket } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
-import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import { getMarginalBracket, computeTaxableIncomeWithSS } from '../tax-helpers';
@@ -172,8 +172,8 @@ export function runBaselineScenario(
     // (assumed qualified) and excluded.
     const grossTaxableIncome = effectiveIraDistribution + otherIncome;
 
-    // Standard deduction (age-adjusted)
-    const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
+    // Standard deduction (age-adjusted) + any advisor-entered additional deductions
+    const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, client.additional_deductions);
 
     // Compute taxable income with proper SS taxation (tax torpedo).
     const taxInfo = computeTaxableIncomeWithSS({

@@ -8,7 +8,7 @@ import { calculateSSTaxableAmount } from '../modules/social-security';
 import { calculateNIIT } from '../modules/niit';
 import { calculateIRMAA } from '../modules/irmaa';
 import { adjustForInflation } from '../modules/inflation';
-import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { getMarginalBracket, getIRMAATier } from '../tax-helpers';
 
 export interface WidowScenarioInput {
@@ -115,8 +115,8 @@ export function runWidowScenario(
     // Gross income
     const grossIncome = rmdAmount + ssResult.taxableAmount + pensionIncome + otherIncome;
 
-    // Deductions - SINGLE FILER (smaller deduction)
-    const deductions = getStandardDeduction('single', age, undefined);
+    // Deductions - SINGLE FILER (smaller deduction) + advisor-entered additional deductions
+    const deductions = getEffectiveDeduction('single', age, undefined, undefined, client.additional_deductions);
     const taxableIncome = calculateTaxableIncome(grossIncome, deductions);
 
     // Federal tax - SINGLE BRACKETS (compressed)

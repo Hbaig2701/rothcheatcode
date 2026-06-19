@@ -68,3 +68,28 @@ export function getStandardDeduction(
 
   return baseDeduction + seniorBonus;
 }
+
+/**
+ * Total deduction used to compute taxable income: the age-adjusted standard
+ * deduction PLUS any advisor-entered additional deductions (charitable,
+ * itemized above the standard, business losses/NOLs, leveraged-deduction
+ * programs, etc.). Added on top of the standard deduction — the field is
+ * labeled "additional deductions" so this is the advisor's mental model.
+ *
+ * Every tax-computing scenario must use THIS, not getStandardDeduction
+ * directly, so the additional deduction is applied consistently across all
+ * engines (the standardDeduction stored on each YearlyResult is the effective
+ * value, which the marginal-conversion-tax and PDF paths read back).
+ */
+export function getEffectiveDeduction(
+  status: string,
+  age: number,
+  spouseAge: number | undefined,
+  year: number | undefined,
+  additionalDeductions?: number | null
+): number {
+  return (
+    getStandardDeduction(status, age, spouseAge, year) +
+    Math.max(0, additionalDeductions ?? 0)
+  );
+}

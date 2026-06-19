@@ -98,6 +98,12 @@ export interface Client {
   // ===== Section 5: Taxable Income Calculation =====
   gross_taxable_non_ssi: number;  // Annual taxable income (non-SSI) in cents
   tax_exempt_non_ssi: number;     // Annual tax-exempt income in cents
+  // Annual deductions beyond the standard deduction (charitable/itemized,
+  // business losses/NOLs, leveraged-deduction programs). In cents. Added on
+  // top of the standard deduction when computing taxable income, which lowers
+  // the tax on Roth conversions shielded by the deduction. Optional — most
+  // clients have none; null/undefined is treated as $0 by getEffectiveDeduction.
+  additional_deductions?: number | null;
   ssi_payout_age: number;         // Age to start SSI (primary)
   ssi_annual_amount: number;      // Annual SSI (primary) in cents
   spouse_ssi_payout_age: number | null;  // Spouse SSI start age (MFJ only)
@@ -241,6 +247,7 @@ export interface FormulaFormData {
   // Section 5: Taxable Income
   gross_taxable_non_ssi: number;
   tax_exempt_non_ssi: number;
+  additional_deductions: number | null;
   ssi_payout_age: number;
   ssi_annual_amount: number;
   spouse_ssi_payout_age: number | null;

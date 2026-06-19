@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PercentInput } from "@/components/ui/percent-input";
+import { CurrencyInput } from "@/components/ui/currency-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { US_STATES, getDefaultStateTaxRate } from "@/lib/data/states";
 import { Lock, Pencil } from "lucide-react";
@@ -264,6 +265,33 @@ export function TaxDataSection() {
             </Field>
           );
         }}
+      />
+
+      {/* Additional Deductions — offsets conversion income beyond the standard
+          deduction (charitable/itemized, business losses/NOLs, leveraged-
+          deduction programs). Added on top of the standard deduction, so a
+          conversion shielded by these shows lower (or zero) tax. */}
+      <Controller
+        name="additional_deductions"
+        control={form.control}
+        render={({ field: { ref, ...field }, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor="additional_deductions">
+              Additional Deductions
+            </FieldLabel>
+            <CurrencyInput
+              {...field}
+              value={field.value ?? undefined}
+              aria-invalid={fieldState.invalid}
+            />
+            <FieldDescription>
+              Annual deductions beyond the standard deduction (charitable/itemized,
+              business losses, leveraged-deduction programs). Applied on top of the
+              standard deduction each year to lower the tax on conversions.
+            </FieldDescription>
+            <FieldError errors={[fieldState.error]} />
+          </Field>
+        )}
       />
 
       {/* Tax Payment Source */}

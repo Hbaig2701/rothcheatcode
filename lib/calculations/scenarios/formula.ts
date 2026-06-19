@@ -8,7 +8,7 @@ import {
 } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAAWithLookback, calculateIRMAAHeadroom } from '../modules/irmaa';
-import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import {
@@ -188,8 +188,8 @@ export function runFormulaScenario(
     const otherIncome = getNonSSIIncomeForYear(client, year);
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
 
-    // Standard deduction (age-adjusted)
-    const deductions = getStandardDeduction(client.filing_status, age, spouseAge ?? undefined, year);
+    // Standard deduction (age-adjusted) + any advisor-entered additional deductions
+    const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, client.additional_deductions);
 
     // Tax picture WITHOUT any conversion this year — used as the baseline for
     // marginal-conversion-tax math AND for tax owed in years we don't convert.
