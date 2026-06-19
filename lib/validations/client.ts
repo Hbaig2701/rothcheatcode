@@ -195,6 +195,12 @@ export const clientFormulaBaseSchema = z.object({
   max_tax_rate: z.number().min(0).max(100).default(24),
   tax_payment_source: taxSourceEnum.default("from_taxable"),
   state_tax_rate: z.number().min(0).max(100).optional().nullable(),
+  // Additional deductions (charitable/itemized, NOLs, etc.), in cents. MUST be
+  // here in the form-resolver schema — Zod strips unknown keys on parse, so
+  // without it the form input is silently discarded on every save (the field
+  // exists in clientFullBaseSchema/the server schema, but the form's onSubmit
+  // data comes from THIS schema's parse output).
+  additional_deductions: z.number().int().min(0).optional().nullable().default(null),
 
   // Section 5: Taxable Income Calculation
   // Upper cap is 100, not 70: clients who delayed claiming past 70 (no

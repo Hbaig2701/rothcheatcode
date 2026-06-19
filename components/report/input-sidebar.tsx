@@ -58,6 +58,9 @@ export function InputSidebar({ client }: InputSidebarProps) {
             max_tax_rate: client?.max_tax_rate ?? 24,
             tax_payment_source: client?.tax_payment_source ?? "from_taxable",
             state_tax_rate: client?.state_tax_rate ?? null,
+            // Load the saved value — without this the editor shows it empty and
+            // OVERWRITES the saved deduction with null on every scenario save.
+            additional_deductions: client?.additional_deductions ?? null,
 
             ssi_payout_age: client?.ssi_payout_age ?? 67,
             ssi_annual_amount: client?.ssi_annual_amount ?? 2400000,
