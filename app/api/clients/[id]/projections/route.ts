@@ -405,6 +405,43 @@ function buildRothSideClient(client: Client): Client {
   return { ...client, qualified_account_value: reduced };
 }
 
+/**
+ * Conversion-tax funding fallback for the PARTIAL-taxable case.
+ *
+ * The engines already fund conversion tax from the IRA when the taxable account
+ * is exactly $0. But when the account is POSITIVE yet smaller than the
+ * conversion tax, a 'from_taxable' client drains it and the engine silently
+ * clamps the excess to $0 — making conversions look tax-free and inflating
+ * wealth (the "$0 → $1 cliff": a client with a tiny taxable balance jumps back
+ * to the inflated number). A per-year clamp-site patch can't fix this because
+ * the conversion SIZE must also shrink (the optimizer grosses the conversion
+ * down only when paying from the IRA), so we re-run the STRATEGY funding from
+ * the IRA — reusing the fully-tested gross-down path — and keep the original
+ * baseline (do-nothing, no conversions) so the comparison stays fair.
+ *
+ * No-op when the engine already handles it (from_ira / $0 taxable), when the
+ * taxable account covers the conversion tax, or when there's no conversion.
+ */
+function fundConvTaxFromIraIfShort<T extends SimulationResult>(
+  client: Client,
+  rothSideClient: Client,
+  customProduct: CustomProductRow | null,
+  run: (input: ReturnType<typeof createSimulationInput>) => T,
+  firstPass: T,
+): T {
+  const taxable = client.taxable_accounts ?? 0;
+  if (client.tax_payment_source === 'from_ira' || taxable <= 0) return firstPass;
+  const convTax = firstPass.formula.reduce(
+    (sum, y) => sum + (y.federalTaxOnConversions ?? 0) + (y.stateTaxOnConversions ?? 0),
+    0,
+  );
+  if (convTax <= 0 || taxable >= convTax) return firstPass;
+  const reRun = run(
+    createSimulationInput({ ...rothSideClient, tax_payment_source: 'from_ira' }, customProduct),
+  );
+  return { ...reRun, baseline: firstPass.baseline };
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -499,7 +536,8 @@ export async function GET(
       // to run against the reduced Roth-side balance. The baseline-side of
       // the GI result is replaced with a full-balance baseline below so the
       // "do nothing" comparison stays honest.
-      const giSplitResult = runGuaranteedIncomeSimulation(rothSimInput);
+      let giSplitResult = runGuaranteedIncomeSimulation(rothSimInput);
+      giSplitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runGuaranteedIncomeSimulation, giSplitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runGuaranteedIncomeSimulation(baselineSimInput).baseline
         : giSplitResult.baseline;
@@ -508,7 +546,8 @@ export async function GET(
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giSplitResult.giMetrics, aumYears);
     } else if (isGrowthProduct(formulaType)) {
-      const splitResult = runGrowthSimulation(rothSimInput);
+      let splitResult = runGrowthSimulation(rothSimInput);
+      splitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runGrowthSimulation, splitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runGrowthSimulation(baselineSimInput).baseline
         : splitResult.baseline;
@@ -517,7 +556,8 @@ export async function GET(
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     } else {
-      const splitResult = runSimulation(rothSimInput);
+      let splitResult = runSimulation(rothSimInput);
+      splitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runSimulation, splitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runSimulation(baselineSimInput).baseline
         : splitResult.baseline;
@@ -609,7 +649,8 @@ export async function POST(
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {
-      const giSplitResult = runGuaranteedIncomeSimulation(rothSimInput);
+      let giSplitResult = runGuaranteedIncomeSimulation(rothSimInput);
+      giSplitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runGuaranteedIncomeSimulation, giSplitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runGuaranteedIncomeSimulation(baselineSimInput).baseline
         : giSplitResult.baseline;
@@ -618,7 +659,8 @@ export async function POST(
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giSplitResult.giMetrics, aumYears);
     } else if (isGrowthProduct(formulaType)) {
-      const splitResult = runGrowthSimulation(rothSimInput);
+      let splitResult = runGrowthSimulation(rothSimInput);
+      splitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runGrowthSimulation, splitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runGrowthSimulation(baselineSimInput).baseline
         : splitResult.baseline;
@@ -627,7 +669,8 @@ export async function POST(
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     } else {
-      const splitResult = runSimulation(rothSimInput);
+      let splitResult = runSimulation(rothSimInput);
+      splitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runSimulation, splitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runSimulation(baselineSimInput).baseline
         : splitResult.baseline;
