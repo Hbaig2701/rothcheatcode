@@ -38,7 +38,7 @@ export function TaxFundingNotice({ client, taxFundedFromIra }: TaxFundingNoticeP
   const underPenaltyAge = conversionStartAge < 60;
 
   return (
-    <div className="mx-9 mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+    <div className="mx-9 mt-6 rounded-lg border border-amber-400 bg-amber-100 px-4 py-3 text-sm text-amber-900">
       <span className="font-semibold">Conversion taxes funded from the IRA.</span>{" "}
       This client is set to pay taxes from a taxable account, but it can&apos;t
       cover the conversion taxes — so the shortfall is being funded from the IRA
