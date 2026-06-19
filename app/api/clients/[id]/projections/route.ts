@@ -85,6 +85,9 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     state_tax_rate: client.state_tax_rate,
     gross_taxable_non_ssi: client.gross_taxable_non_ssi,
     tax_exempt_non_ssi: client.tax_exempt_non_ssi,
+    // Must be in the hash or editing the deduction won't recompute the cached
+    // projection (it feeds every engine's taxable-income calc).
+    additional_deductions: client.additional_deductions,
     // Legacy fields (kept for backwards compatibility)
     traditional_ira: client.traditional_ira,
     roth_ira: client.roth_ira,

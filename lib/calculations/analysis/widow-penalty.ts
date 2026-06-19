@@ -3,7 +3,7 @@ import type { YearlyResult } from '../types';
 import type { WidowTaxImpact, WidowAnalysisResult } from './types';
 import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
 import { computeTaxableIncomeWithSS } from '../tax-helpers';
-import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { calculateIRMAA } from '../modules/irmaa';
 import { runWidowScenario } from '../scenarios/widow';
 import { runBaselineScenario } from '../scenarios/baseline';
@@ -19,16 +19,22 @@ export function calculateWidowTaxImpact(input: {
   year: number;
   marriedAge: number;
   spouseAge?: number;
+  additionalDeductions?: number | null;
 }): WidowTaxImpact {
-  const { marriedIncome, widowIncome, year, marriedAge, spouseAge } = input;
+  const { marriedIncome, widowIncome, year, marriedAge, spouseAge, additionalDeductions } = input;
 
-  // Get deductions for each status
-  const marriedDeduction = getStandardDeduction(
+  // Get deductions for each status, including any advisor-entered additional
+  // deductions (applied to both filings) so the widow penalty stays consistent
+  // with the projection, which already applies them. `undefined` year preserves
+  // the prior default-year behavior when additionalDeductions is null.
+  const marriedDeduction = getEffectiveDeduction(
     'married_filing_jointly',
     marriedAge,
-    spouseAge
+    spouseAge,
+    undefined,
+    additionalDeductions
   );
-  const singleDeduction = getStandardDeduction('single', marriedAge, undefined);
+  const singleDeduction = getEffectiveDeduction('single', marriedAge, undefined, undefined, additionalDeductions);
 
   // Calculate taxable income after deductions
   const marriedTaxableIncome = calculateTaxableIncome(marriedIncome, marriedDeduction);
@@ -177,6 +183,7 @@ export function analyzeWidowPenalty(
       widowIncome: widowYear.totalIncome,
       year: widowYear.year,
       marriedAge: widowYear.age,
+      additionalDeductions: client.additional_deductions,
     });
 
     taxImpactByYear.push(impact);
@@ -286,11 +293,12 @@ export function analyzeWidowPenaltyFromProjection(
     const marriedBracket = yearData.federalTaxBracket ?? 0;
 
     // === Single (widow) re-price for the same year's economic activity ===
-    const widowDeduction = getStandardDeduction(
+    const widowDeduction = getEffectiveDeduction(
       'single',
       yearData.age,
       undefined,
-      yearData.year
+      yearData.year,
+      client.additional_deductions
     );
     const widowTaxInfo = computeTaxableIncomeWithSS({
       otherIncome,
