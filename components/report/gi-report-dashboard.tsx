@@ -152,7 +152,10 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
 
   return (
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
-      <TaxFundingNotice client={client} />
+      <TaxFundingNotice
+        client={client}
+        taxFundedFromIra={(projection.blueprint_years ?? []).some((y) => (y.taxesPaidFromIRA ?? 0) > 0)}
+      />
       <div className="p-9 space-y-6">
         {/* Section 1: The Guarantee (Hero Card) - Tax-Free Roth GI Income */}
         <div className="bg-accent border border-gold-border rounded-[16px] py-10 px-12 text-center relative">

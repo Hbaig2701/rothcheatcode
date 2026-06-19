@@ -4,23 +4,30 @@ import type { Client } from "@/lib/types/client";
 
 interface TaxFundingNoticeProps {
   client: Client;
+  /**
+   * Did the projection actually fund conversion tax from the IRA? Derived by the
+   * report dashboard from `blueprint_years[].taxesPaidFromIRA`. This is the real
+   * signal — it covers BOTH a $0 taxable account AND a positive-but-insufficient
+   * one (the latter is corrected by the projection route's two-pass), where a
+   * naive `taxable <= 0` client-side check would miss the partial case and leave
+   * those advisors with a silently lower wealth number and no explanation.
+   */
+  taxFundedFromIra: boolean;
 }
 
 /**
  * Shown when the advisor chose "pay taxes from the taxable account" but the
- * client has NO taxable account ($0) to draw from. In that case the conversion
- * tax has no external funding source, so the engine funds it from the IRA
- * instead (you can't pay a tax bill from a $0 account). Without this notice the
- * change would be invisible; with it, the advisor understands why the wealth
- * number reflects the tax — and how to change it. Renders nothing when it
- * doesn't apply (real taxable balance, explicit from-IRA, or no conversion).
+ * account couldn't cover the conversion tax, so the engine funded it from the
+ * IRA instead (you can't pay a tax bill from an account that's empty or too
+ * small). Without this notice the change would be invisible; with it, the
+ * advisor understands why the wealth number reflects the tax — and how to change
+ * it. Renders nothing when it doesn't apply (taxable covered the tax, explicit
+ * from-IRA, or no conversion).
  */
-export function TaxFundingNotice({ client }: TaxFundingNoticeProps) {
+export function TaxFundingNotice({ client, taxFundedFromIra }: TaxFundingNoticeProps) {
   const choseFromTaxable = client.tax_payment_source !== "from_ira";
-  const noTaxableAccount = (client.taxable_accounts ?? 0) <= 0;
-  const doesConvert = (client.conversion_type ?? "optimized_amount") !== "no_conversion";
 
-  if (!(choseFromTaxable && noTaxableAccount && doesConvert)) return null;
+  if (!(choseFromTaxable && taxFundedFromIra)) return null;
 
   // The engine applies a 10% early-withdrawal penalty on IRA-funded conversion
   // tax while the client is under 59½ (age < 60 at conversion time). Surface it
@@ -33,11 +40,11 @@ export function TaxFundingNotice({ client }: TaxFundingNoticeProps) {
   return (
     <div className="mx-9 mt-6 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
       <span className="font-semibold">Conversion taxes funded from the IRA.</span>{" "}
-      This client is set to pay taxes from a taxable account, but no taxable
-      balance is entered — so the conversion taxes are being funded from the IRA
-      (the realistic source when there&apos;s no outside account). To change
-      this, enter the client&apos;s taxable balance, or set Tax Payment Source to
-      &ldquo;Internal (from IRA)&rdquo; to make it explicit.
+      This client is set to pay taxes from a taxable account, but it can&apos;t
+      cover the conversion taxes — so the shortfall is being funded from the IRA
+      (the realistic source). To change this, increase the client&apos;s taxable
+      balance, or set Tax Payment Source to &ldquo;Internal (from IRA)&rdquo; to
+      make it explicit.
       {underPenaltyAge && (
         <>
           {" "}

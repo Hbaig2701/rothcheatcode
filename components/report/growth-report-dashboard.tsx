@@ -404,7 +404,10 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
   return (
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
-      <TaxFundingNotice client={client} />
+      <TaxFundingNotice
+        client={client}
+        taxFundedFromIra={(projection.blueprint_years ?? []).some((y) => (y.taxesPaidFromIRA ?? 0) > 0)}
+      />
       <div className="p-9 space-y-6">
         {/* IRMAA target unreachable warning — surfaces when the advisor
             picked a target IRMAA tier the client's baseline income is
