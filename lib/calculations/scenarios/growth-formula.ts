@@ -650,6 +650,31 @@ export function runGrowthFormulaScenario(
         stateTax = bestState;
       }
 
+      // Same penalty-free TAX cap for the non-planner conversion types
+      // (fixed_amount, full_conversion). When the cap binds and tax is paid
+      // from the IRA, size the conversion DOWN so its IRA tax fits the
+      // allowance — rather than keeping the user-pinned / full conversion and
+      // routing the tax overflow to external funds a from_ira client doesn't
+      // have. The respect_penalty_free_limit checkbox is a hard "limit the
+      // conversion" constraint that applies to EVERY conversion type. Tax here
+      // is recomputed below via convTaxAt (planAlreadySetTax is false for these
+      // types), so we only need to shrink conversionAmount. (Joshua Williamson
+      // follow-up — full_conversion now spreads across years when the cap binds
+      // instead of emptying the IRA in one over-cap year.)
+      if (payTaxFromIRA && conversionAmount > 0 && taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
+          && (conversionType === 'fixed_amount' || conversionType === 'full_conversion')) {
+        const capTax0 = convTaxAt(conversionAmount);
+        if (capTax0.federalTax + capTax0.stateTax > taxCap) {
+          let lo = 0, hi = conversionAmount;
+          for (let i = 0; i < 40; i++) {
+            const mid = (lo + hi) / 2;
+            const t = convTaxAt(mid);
+            if (t.federalTax + t.stateTax <= taxCap) lo = mid; else hi = mid;
+          }
+          conversionAmount = Math.floor(lo);
+        }
+      }
+
       // Handle tax payment from IRA (gross-down)
       // When taxes are paid from IRA, the total IRA withdrawal is (conversion + tax).
       // To keep the total withdrawal within the target amount, reduce the portion

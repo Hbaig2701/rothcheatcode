@@ -407,7 +407,7 @@ const PAUL_EXPECTED = {
   },
   blue: {
     finalNetWorth:        171_415_618,
-    finalTraditional:          -1_472,
+    finalTraditional:               0, // floored from -$14.72 (negative-IRA residual; see formula.ts iraAfterConversion floor)
     finalRoth:            157_144_531,
     finalTaxable:          14_272_559,
     lifetimeWealth:       171_416_207,
@@ -508,11 +508,17 @@ const SPRENGEL_EXPECTED = {
     taxOnRMDs:            111_630_637,
   },
   blue: {
-    finalNetWorth:        954_643_104,
-    finalTraditional:        -2_297_113,
+    // finalTraditional was -$22,971 (a NEGATIVE IRA balance) before the
+    // formula.ts `iraAfterConversion` floor was added — a residual-compounding
+    // bug (Kwanza-class) that growth-formula.ts already guarded against but
+    // formula.ts did not. Floored to $0; finalNetWorth and lifetimeWealth rise
+    // by that $22,971 accordingly. (Found via self-audit during the Joshua
+    // Williamson penalty-free-cap fix.)
+    finalNetWorth:        956_940_217,
+    finalTraditional:               0,
     finalRoth:            956_940_217,
     finalTaxable:                   0,
-    lifetimeWealth:       955_561_949,
+    lifetimeWealth:       956_940_217,
     taxOnConversions:      43_273_237,
     totalFedStateTax:     122_754_332,
     // Full conversion drains the Traditional IRA before age 73, so there are
