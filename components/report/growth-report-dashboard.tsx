@@ -4,6 +4,7 @@ import { useState, ReactNode } from "react";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
 import { TaxFundingNotice } from "@/components/report/tax-funding-notice";
+import { StrategyLosingNotice } from "@/components/report/strategy-losing-notice";
 import type { YearlyResult } from "@/lib/calculations";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData } from "@/lib/calculations/transforms";
@@ -408,6 +409,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
         client={client}
         taxFundedFromIra={(projection.blueprint_years ?? []).some((y) => (y.taxesPaidFromIRA ?? 0) > 0)}
       />
+      <StrategyLosingNotice isLosing={lifetimeWealthDiff < 0} client={client} />
       <div className="p-9 space-y-6">
         {/* IRMAA target unreachable warning — surfaces when the advisor
             picked a target IRMAA tier the client's baseline income is

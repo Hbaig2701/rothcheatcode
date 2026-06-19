@@ -9,6 +9,7 @@ import { transformToGIIncomeChartData, transformToChartData } from "@/lib/calcul
 import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
 import { WidowSection } from "@/components/report/widow-section";
 import { TaxFundingNotice } from "@/components/report/tax-funding-notice";
+import { StrategyLosingNotice } from "@/components/report/strategy-losing-notice";
 import { YearByYearTable } from "@/components/results/deep-dive/year-by-year-table";
 import { Check, ChevronDown, ChevronUp, ArrowRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -156,6 +157,7 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
         client={client}
         taxFundedFromIra={(projection.blueprint_years ?? []).some((y) => (y.taxesPaidFromIRA ?? 0) > 0)}
       />
+      <StrategyLosingNotice isLosing={lifetimeWealthDiff < 0} client={client} />
       <div className="p-9 space-y-6">
         {/* Section 1: The Guarantee (Hero Card) - Tax-Free Roth GI Income */}
         <div className="bg-accent border border-gold-border rounded-[16px] py-10 px-12 text-center relative">
