@@ -599,6 +599,57 @@ export function runGrowthFormulaScenario(
         }
       }
 
+      // Carrier penalty-free TAX cap (tax_only scope, tax paid from the IRA).
+      // The tax dollars pulled from the IRA must fit within the penalty-free
+      // allowance (taxCap = penalty_free_percent × BOY IRA). The legacy behavior
+      // kept the full bracket-filling conversion and routed the tax overflow to
+      // EXTERNAL funds — but a `from_ira` client has no external funds, so that
+      // silently broke the "limit conversion so tax ≤ 10%" intent and showed a
+      // huge external tax payment the client never makes (Joshua Williamson,
+      // re: Jim Nelson). Fix: size the conversion DOWN until its IRA tax fits the
+      // cap, keeping everything inside the IRA (no external overflow). Mirrors the
+      // IRMAA re-plan above — re-plan with a reduced balance so the (conversion,
+      // tax) split stays self-consistent (gross-up preserved). Only the
+      // optimized/partial planner path needs this; full/fixed already solve the
+      // conversion-vs-tax split against the cap above.
+      const usesPlanForTaxCap = payTaxFromIRA && skipGrossDown &&
+        (conversionType === 'optimized_amount' || conversionType === 'partial_amount');
+      if (usesPlanForTaxCap && taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
+          && conversionAmount > 0 && federalTax + stateTax > taxCap) {
+        // Binary-search the largest input balance whose planned IRA tax ≤ taxCap.
+        // Upper bound = current total withdrawal (conv + tax), which produced a
+        // tax above the cap; lower bound 0. ~40 iterations → sub-dollar precision.
+        let lo = 0;
+        let hi = conversionAmount + federalTax + stateTax;
+        let bestConv = 0, bestFed = 0, bestState = 0;
+        for (let i = 0; i < 40; i++) {
+          const mid = (lo + hi) / 2;
+          const p = calculateSSAwareIRAWithdrawalPlan({
+            iraBalance: mid,
+            otherIncome: existingNonSSIncome,
+            ssBenefits: ssIncome,
+            taxExemptInterest: taxExemptNonSSI,
+            deductions,
+            maxBracketRate: maxTaxRate,
+            filingStatus: client.filing_status,
+            taxYear: year,
+            state: client.state ?? 'CA',
+            stateTaxRateDecimal,
+          });
+          if (p.federalTaxFromIRA + p.stateTaxFromIRA <= taxCap) {
+            bestConv = p.conversion;
+            bestFed = p.federalTaxFromIRA;
+            bestState = p.stateTaxFromIRA;
+            lo = mid;
+          } else {
+            hi = mid;
+          }
+        }
+        conversionAmount = bestConv;
+        federalTax = bestFed;
+        stateTax = bestState;
+      }
+
       // Handle tax payment from IRA (gross-down)
       // When taxes are paid from IRA, the total IRA withdrawal is (conversion + tax).
       // To keep the total withdrawal within the target amount, reduce the portion
