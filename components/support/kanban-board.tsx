@@ -3,13 +3,14 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Flag, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { SeverityBadge, PriorityBadge } from '@/components/support/status-badge'
 import {
   SUPPORT_STATUSES,
   STATUS_LABELS,
   type SupportStatus,
+  type SupportPriority,
   type SupportTicket,
 } from '@/lib/types/support'
 
@@ -36,6 +37,23 @@ function formatRelative(iso: string) {
   return `${Math.floor(days / 30)}mo`
 }
 
+// Flag-to-prioritize: clicking the flag cycles the ticket's priority so the
+// admin can mark what they need to work on. high -> orange card, urgent -> red.
+// A third click clears it back to the default (medium).
+function nextPriority(p: SupportPriority): SupportPriority {
+  if (p === 'high') return 'urgent'
+  if (p === 'urgent') return 'medium'
+  return 'high'
+}
+
+// Orange for high, red for urgent — applied to the card border + a light fill so
+// flagged tickets jump out of the board.
+function priorityHighlight(p: SupportPriority): string | null {
+  if (p === 'urgent') return 'border-red-500 bg-red-500/[0.06] dark:bg-red-500/10'
+  if (p === 'high') return 'border-orange-500 bg-orange-500/[0.07] dark:bg-orange-500/10'
+  return null
+}
+
 export function KanbanBoard({ tickets }: { tickets: KanbanTicket[] }) {
   const router = useRouter()
   const [pendingId, setPendingId] = useState<string | null>(null)
@@ -50,6 +68,17 @@ export function KanbanBoard({ tickets }: { tickets: KanbanTicket[] }) {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
+    })
+    setPendingId(null)
+    if (res.ok) router.refresh()
+  }
+
+  async function changePriority(id: string, priority: SupportPriority) {
+    setPendingId(id)
+    const res = await fetch(`/api/support-tickets/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ priority }),
     })
     setPendingId(null)
     if (res.ok) router.refresh()
@@ -79,23 +108,45 @@ export function KanbanBoard({ tickets }: { tickets: KanbanTicket[] }) {
                   key={t.id}
                   className={cn(
                     'rounded-[10px] border bg-bg-card p-3 hover:border-gold-border transition-colors',
-                    t.hasUnread ? 'border-gold/60 bg-gold/[0.04]' : 'border-border-default'
+                    // Priority flag (orange/red) wins over the unread highlight so
+                    // the tickets the admin flagged to work on stand out most.
+                    priorityHighlight(t.priority) ?? (t.hasUnread ? 'border-gold/60 bg-gold/[0.04]' : 'border-border-default')
                   )}
                 >
-                  <Link href={`/support-centre/${t.id}`} className="block mb-2">
-                    <div className="flex items-start gap-2">
-                      {t.hasUnread && (
-                        <span
-                          className="mt-1.5 size-2 shrink-0 rounded-full bg-gold"
-                          aria-label="Unread reply"
-                        />
+                  <div className="flex items-start gap-2 mb-2">
+                    <Link href={`/support-centre/${t.id}`} className="block flex-1 min-w-0">
+                      <div className="flex items-start gap-2">
+                        {t.hasUnread && (
+                          <span
+                            className="mt-1.5 size-2 shrink-0 rounded-full bg-gold"
+                            aria-label="Unread reply"
+                          />
+                        )}
+                        <p className={cn(
+                          'text-sm line-clamp-2',
+                          t.hasUnread ? 'font-semibold text-foreground' : 'font-medium text-foreground'
+                        )}>{t.subject}</p>
+                      </div>
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => changePriority(t.id, nextPriority(t.priority))}
+                      disabled={pendingId === t.id}
+                      title="Flag priority — click to cycle High (orange) → Urgent (red) → clear"
+                      aria-label="Flag priority"
+                      className={cn(
+                        'shrink-0 rounded p-1 -mt-0.5 -mr-1 transition-colors',
+                        t.priority === 'urgent' ? 'text-red-500' :
+                        t.priority === 'high' ? 'text-orange-500' :
+                        'text-text-dimmer hover:text-foreground'
                       )}
-                      <p className={cn(
-                        'text-sm line-clamp-2',
-                        t.hasUnread ? 'font-semibold text-foreground' : 'font-medium text-foreground'
-                      )}>{t.subject}</p>
-                    </div>
-                  </Link>
+                    >
+                      <Flag
+                        className="size-3.5"
+                        fill={t.priority === 'high' || t.priority === 'urgent' ? 'currentColor' : 'none'}
+                      />
+                    </button>
+                  </div>
                   <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                     <PriorityBadge priority={t.priority} />
                     <SeverityBadge severity={t.severity} />
