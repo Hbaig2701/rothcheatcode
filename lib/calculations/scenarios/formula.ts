@@ -412,6 +412,47 @@ export function runFormulaScenario(
           federalConversionTax = plan.federalTaxFromIRA;
           stateConversionTax = plan.stateTaxFromIRA;
           taxAlreadyComputed = true;
+
+          // Penalty-free TAX cap (tax_only scope, tax paid from the IRA): the
+          // tax pulled from the IRA must fit the penalty-free allowance. Rather
+          // than keep the bracket-filling conversion and route the tax overflow
+          // to EXTERNAL funds a from-IRA client doesn't have, size the conversion
+          // DOWN until its IRA tax fits the cap — everything stays in the IRA.
+          // Mirror of the growth-formula.ts fix (Joshua Williamson / Jim Nelson).
+          if (taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
+              && federalConversionTax + stateConversionTax > taxCap) {
+            let lo = 0;
+            let hi = conversionAmount + federalConversionTax + stateConversionTax;
+            let bestConv = 0, bestFed = 0, bestState = 0, bestTotal = 0;
+            for (let i = 0; i < 40; i++) {
+              const mid = (lo + hi) / 2;
+              const p = calculateSSAwareIRAWithdrawalPlan({
+                iraBalance: mid,
+                otherIncome,
+                ssBenefits: ssIncome,
+                taxExemptInterest: taxExemptNonSSI,
+                deductions,
+                maxBracketRate: maxTaxRate,
+                filingStatus: client.filing_status,
+                taxYear: year,
+                state: client.state,
+                stateTaxRateDecimal,
+              });
+              if (p.federalTaxFromIRA + p.stateTaxFromIRA <= taxCap) {
+                bestConv = p.conversion;
+                bestFed = p.federalTaxFromIRA;
+                bestState = p.stateTaxFromIRA;
+                bestTotal = p.totalIRAWithdrawal;
+                lo = mid;
+              } else {
+                hi = mid;
+              }
+            }
+            conversionAmount = bestConv;
+            totalIRAWithdrawal = bestTotal;
+            federalConversionTax = bestFed;
+            stateConversionTax = bestState;
+          }
         } else {
           conversionAmount = calculateSSAwareOptimalConversion({
             iraBalance: cappedIra,
@@ -424,6 +465,47 @@ export function runFormulaScenario(
             taxYear: year,
           });
           totalIRAWithdrawal = conversionAmount;
+        }
+      }
+
+      // Penalty-free TAX cap for fixed_amount / full_conversion (the optimized/
+      // partial planner path is handled in its branch above). When the cap binds
+      // and tax is paid from the IRA, size the conversion DOWN so its IRA tax
+      // fits the allowance — instead of keeping the user-pinned / full conversion
+      // and routing the tax overflow to external funds a from_ira client doesn't
+      // have. Recomputes tax + totalIRAWithdrawal inline since these branches set
+      // taxAlreadyComputed. Mirrors growth-formula.ts (Joshua Williamson follow-up).
+      if (payTaxFromIRA && conversionAmount > 0 && taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
+          && (conversionType === 'fixed_amount' || conversionType === 'full_conversion')) {
+        const capTax0 = calculateConversionTaxWithSS({
+          conversionAmount, otherIncome, ssBenefits: ssIncome,
+          taxExemptInterest: taxExemptNonSSI, deductions,
+          filingStatus: client.filing_status, taxYear: year,
+          state: client.state ?? 'CA', stateTaxRateDecimal,
+        });
+        if (capTax0.federalTax + capTax0.stateTax > taxCap) {
+          let lo = 0, hi = conversionAmount;
+          for (let i = 0; i < 40; i++) {
+            const mid = (lo + hi) / 2;
+            const t = calculateConversionTaxWithSS({
+              conversionAmount: mid, otherIncome, ssBenefits: ssIncome,
+              taxExemptInterest: taxExemptNonSSI, deductions,
+              filingStatus: client.filing_status, taxYear: year,
+              state: client.state ?? 'CA', stateTaxRateDecimal,
+            });
+            if (t.federalTax + t.stateTax <= taxCap) lo = mid; else hi = mid;
+          }
+          conversionAmount = Math.floor(lo);
+          const finalTax = calculateConversionTaxWithSS({
+            conversionAmount, otherIncome, ssBenefits: ssIncome,
+            taxExemptInterest: taxExemptNonSSI, deductions,
+            filingStatus: client.filing_status, taxYear: year,
+            state: client.state ?? 'CA', stateTaxRateDecimal,
+          });
+          federalConversionTax = finalTax.federalTax;
+          stateConversionTax = finalTax.stateTax;
+          totalIRAWithdrawal = conversionAmount + finalTax.federalTax + finalTax.stateTax;
+          taxAlreadyComputed = true;
         }
       }
 
@@ -483,8 +565,13 @@ export function runFormulaScenario(
       ? Math.max(0, conversionTaxBeforeSplit - conversionTaxFromIRA)
       : 0;
     // RMD has already been mentally pulled off the IRA above (iraAfterRmd).
-    // Now the conversion + tax-from-IRA (capped) come off too.
-    const iraAfterConversion = iraAfterRmd - conversionAmount - conversionTaxFromIRA;
+    // Now the conversion + tax-from-IRA (capped) come off too. Floor at 0: a
+    // traditional IRA can never go negative. In a depletion year the iterative
+    // tax solvers (full/fixed, and the penalty-free cap-down) can size
+    // conversion + tax a few cents above the remaining balance — without this
+    // floor that residual compounds via interest into a small negative balance
+    // in later years. Mirrors the same floor in growth-formula.ts (Kwanza E.).
+    const iraAfterConversion = Math.max(0, iraAfterRmd - conversionAmount - conversionTaxFromIRA);
     // Override the per-branch totalIRAWithdrawal so the IRS-visible 1099-R
     // amount matches what was actually distributed (conv + capped tax). The
     // recomputed federal/state tax below uses this value, so without this
