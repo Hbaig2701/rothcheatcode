@@ -110,11 +110,19 @@ export function ResizableTable({
       setNeedsHScroll(el.scrollWidth - el.clientWidth > 1);
     };
     measure();
+    // Re-measure after layout/paint settles — column widths and fonts can land
+    // a frame later, leaving the first synchronous read showing no overflow.
+    const raf = requestAnimationFrame(measure);
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     const table = el.querySelector('table');
     if (table) ro.observe(table);
-    return () => ro.disconnect();
+    window.addEventListener('resize', measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, [columns, columnWidths, data.length]);
 
   // Mirror scroll position between the top bar and the table body. Comparing
@@ -247,7 +255,8 @@ export function ResizableTable({
         <div
           ref={topScrollRef}
           onScroll={() => mirrorScroll(topScrollRef.current, scrollRef.current)}
-          className="top-scrollbar overflow-x-auto overflow-y-hidden border-b border-border-default"
+          className="top-scrollbar overflow-x-scroll overflow-y-hidden border-b border-border-default bg-bg-input"
+          style={{ height: 14 }}
           aria-hidden="true"
         >
           <div style={{ width: `${contentWidth}px`, height: 1 }} />

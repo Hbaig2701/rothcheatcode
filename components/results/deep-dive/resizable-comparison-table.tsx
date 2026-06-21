@@ -92,11 +92,18 @@ export function ResizableComparisonTable({
       setNeedsHScroll(el.scrollWidth - el.clientWidth > 1);
     };
     measure();
+    // Re-measure after layout/paint settles (column widths/fonts can land late).
+    const raf = requestAnimationFrame(measure);
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     const table = el.querySelector('table');
     if (table) ro.observe(table);
-    return () => ro.disconnect();
+    window.addEventListener('resize', measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
   }, [columns, columnWidths, baselineData.length]);
 
   const mirrorScroll = (from: HTMLDivElement | null, to: HTMLDivElement | null) => {
@@ -389,7 +396,8 @@ export function ResizableComparisonTable({
         <div
           ref={topScrollRef}
           onScroll={() => mirrorScroll(topScrollRef.current, scrollRef.current)}
-          className="top-scrollbar overflow-x-auto overflow-y-hidden border-b border-border-default"
+          className="top-scrollbar overflow-x-scroll overflow-y-hidden border-b border-border-default bg-bg-input"
+          style={{ height: 14 }}
           aria-hidden="true"
         >
           <div style={{ width: `${contentWidth}px`, height: 1 }} />
