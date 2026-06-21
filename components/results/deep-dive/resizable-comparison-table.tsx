@@ -76,6 +76,33 @@ export function ResizableComparisonTable({
   const [tooltip, setTooltip] = useState<{ columnId: string; x: number; y: number } | null>(null);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Synced top horizontal scrollbar — see ResizableTable for the full rationale.
+  // The comparison view is even wider (3 sub-columns per metric), so reaching
+  // the bottom scrollbar is harder still. (Greg Stopp / Dr. Policar ticket.)
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const [contentWidth, setContentWidth] = useState(0);
+  const [needsHScroll, setNeedsHScroll] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => {
+      setContentWidth(el.scrollWidth);
+      setNeedsHScroll(el.scrollWidth - el.clientWidth > 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    const table = el.querySelector('table');
+    if (table) ro.observe(table);
+    return () => ro.disconnect();
+  }, [columns, columnWidths, baselineData.length]);
+
+  const mirrorScroll = (from: HTMLDivElement | null, to: HTMLDivElement | null) => {
+    if (from && to && to.scrollLeft !== from.scrollLeft) to.scrollLeft = from.scrollLeft;
+  };
+
   const showTooltip = useCallback((columnId: string, e: React.MouseEvent) => {
     if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -357,7 +384,22 @@ export function ResizableComparisonTable({
         </div>,
         document.body
       )}
-      <div className="max-h-[600px] overflow-auto w-full">
+      {/* Synced top scrollbar — always reachable without scrolling to the bottom. */}
+      {needsHScroll && (
+        <div
+          ref={topScrollRef}
+          onScroll={() => mirrorScroll(topScrollRef.current, scrollRef.current)}
+          className="top-scrollbar overflow-x-auto overflow-y-hidden border-b border-border-default"
+          aria-hidden="true"
+        >
+          <div style={{ width: `${contentWidth}px`, height: 1 }} />
+        </div>
+      )}
+      <div
+        ref={scrollRef}
+        onScroll={() => mirrorScroll(scrollRef.current, topScrollRef.current)}
+        className="max-h-[600px] overflow-auto w-full"
+      >
         <table className="w-max min-w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             {/* Group header row */}

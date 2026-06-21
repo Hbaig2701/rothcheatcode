@@ -37,6 +37,16 @@ export function ResizableTable({
   const [tooltip, setTooltip] = useState<{ columnId: string; x: number; y: number } | null>(null);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Synced top horizontal scrollbar. The body scroll container's native
+  // horizontal scrollbar lives at the BOTTOM of a 600px-tall box, so a
+  // mouse/Windows user (no trackpad swipe) has to scroll down past every row to
+  // reach it. This mirrors a scrollbar to the TOP of the table, right under the
+  // header where the user is looking. (Greg Stopp / Dr. Policar ticket.)
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const [contentWidth, setContentWidth] = useState(0);
+  const [needsHScroll, setNeedsHScroll] = useState(false);
+
   const showTooltip = useCallback((columnId: string, e: React.MouseEvent) => {
     if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
     // Capture rect immediately — e.currentTarget is null after the event completes
@@ -88,6 +98,31 @@ export function ResizableTable({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [resizing, startX, startWidth, onColumnWidthChange]);
+
+  // Measure how wide the table actually is so the top scrollbar's spacer matches
+  // and we only show it when columns overflow. Re-runs when columns/widths/rows
+  // change (a resize or scenario switch changes the total width).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const measure = () => {
+      setContentWidth(el.scrollWidth);
+      setNeedsHScroll(el.scrollWidth - el.clientWidth > 1);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    const table = el.querySelector('table');
+    if (table) ro.observe(table);
+    return () => ro.disconnect();
+  }, [columns, columnWidths, data.length]);
+
+  // Mirror scroll position between the top bar and the table body. Comparing
+  // before writing breaks the echo loop: setting scrollLeft fires the other
+  // element's onScroll, which sees the values already equal and no-ops.
+  const mirrorScroll = (from: HTMLDivElement | null, to: HTMLDivElement | null) => {
+    if (from && to && to.scrollLeft !== from.scrollLeft) to.scrollLeft = from.scrollLeft;
+  };
 
   const getColumnWidth = (col: ColumnDefinition): number => {
     return columnWidths[col.id] || col.defaultWidth || 120;
@@ -206,8 +241,25 @@ export function ResizableTable({
         </div>,
         document.body
       )}
+      {/* Synced top scrollbar — always reachable without scrolling to the bottom
+          of the table. Only rendered when the columns actually overflow. */}
+      {needsHScroll && (
+        <div
+          ref={topScrollRef}
+          onScroll={() => mirrorScroll(topScrollRef.current, scrollRef.current)}
+          className="top-scrollbar overflow-x-auto overflow-y-hidden border-b border-border-default"
+          aria-hidden="true"
+        >
+          <div style={{ width: `${contentWidth}px`, height: 1 }} />
+        </div>
+      )}
+
       {/* Single scrollable container */}
-      <div className="max-h-[600px] overflow-auto w-full">
+      <div
+        ref={scrollRef}
+        onScroll={() => mirrorScroll(scrollRef.current, topScrollRef.current)}
+        className="max-h-[600px] overflow-auto w-full"
+      >
         <table className="w-max min-w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
