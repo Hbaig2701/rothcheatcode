@@ -3,20 +3,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { LifeBuoy, Plus, MessageSquare } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { StatusBadge, SeverityBadge } from '@/components/support/status-badge'
-import { CATEGORY_LABELS, type SupportTicket, type SupportCategory } from '@/lib/types/support'
-
-function formatRelative(iso: string) {
-  const d = new Date(iso)
-  const diffMs = Date.now() - d.getTime()
-  const days = Math.floor(diffMs / 86_400_000)
-  if (days < 1) return 'today'
-  if (days === 1) return '1 day ago'
-  if (days < 30) return `${days} days ago`
-  const months = Math.floor(days / 30)
-  if (months === 1) return '1 month ago'
-  return `${months} months ago`
-}
+import { type SupportTicket } from '@/lib/types/support'
+import { AdvisorTicketList, type AdvisorTicket } from '@/components/support/advisor-ticket-list'
 
 export default async function SupportPage() {
   const supabase = await createClient()
@@ -32,22 +20,25 @@ export default async function SupportPage() {
   const list = (tickets ?? []) as SupportTicket[]
   const openCount = list.filter((t) => t.status !== 'closed' && t.status !== 'resolved').length
 
-  // Clear the sidebar "Support" badge — the advisor is on the list page,
-  // they've seen there's activity. Per-ticket detail clearing still happens
-  // on the ticket detail page for the bell dropdown's row-level state.
-  // Must `await`: the Supabase query builder is lazy and `void` on the chain
-  // never triggers .then(). Wrapped in try/catch so a DB hiccup never
-  // blocks rendering.
-  try {
-    await supabase
+  // Per-ticket "new reply" alert: tickets with an unread support-reply
+  // notification for this advisor. We deliberately do NOT bulk-clear here any
+  // more — the alert should persist on the list until the advisor opens the
+  // specific ticket (the detail page clears that ticket's notification).
+  const unreadTicketIds = new Set<string>()
+  const ticketIds = list.map((t) => t.id)
+  if (ticketIds.length > 0) {
+    const { data: unreadRows } = await supabase
       .from('notifications')
-      .update({ is_read: true, read_at: new Date().toISOString() })
+      .select('related_id')
       .eq('user_id', user.id)
+      .eq('type', 'support_ticket_reply')
       .eq('is_read', false)
-      .in('type', ['support_ticket_reply', 'support_ticket_status_change'])
-  } catch {
-    // best-effort
+      .in('related_id', ticketIds)
+    for (const r of (unreadRows ?? []) as Array<{ related_id: string | null }>) {
+      if (r.related_id) unreadTicketIds.add(r.related_id)
+    }
   }
+  const enriched: AdvisorTicket[] = list.map((t) => ({ ...t, hasUnread: unreadTicketIds.has(t.id) }))
 
   return (
     <div className="p-10 max-w-6xl">
@@ -82,33 +73,7 @@ export default async function SupportPage() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-2.5">
-          {list.map((t) => (
-            <Link
-              key={t.id}
-              href={`/support/${t.id}`}
-              className="block rounded-[12px] bg-bg-card border border-border-default px-5 py-4 transition-colors hover:border-gold-border"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className="text-xs uppercase tracking-wider text-text-dimmer font-semibold">
-                      {CATEGORY_LABELS[t.category as SupportCategory]}
-                    </span>
-                    <span className="text-xs text-text-dimmer">·</span>
-                    <span className="text-xs text-text-dimmer">{formatRelative(t.created_at)}</span>
-                  </div>
-                  <p className="text-base font-medium text-foreground truncate">{t.subject}</p>
-                  <p className="text-sm text-text-dim mt-1 line-clamp-2">{t.description}</p>
-                </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
-                  <StatusBadge status={t.status} />
-                  <SeverityBadge severity={t.severity} />
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        <AdvisorTicketList tickets={enriched} />
       )}
     </div>
   )

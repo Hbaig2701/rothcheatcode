@@ -132,7 +132,10 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
   const userIds = new Set<string>([ticket.user_id])
   for (const c of comments) userIds.add(c.user_id)
   for (const e of events) userIds.add(e.user_id)
-  const profiles = await fetchProfilesByIds(supabase, Array.from(userIds))
+  // Resolve author profiles with the ADMIN client: RLS blocks an advisor from
+  // reading admin (support-team) profiles, so support replies were resolving to
+  // a null profile and showing as "Unknown" instead of "Support Team".
+  const profiles = await fetchProfilesByIds(createAdminClient(), Array.from(userIds))
 
   // Optional: client name
   let clientName: string | null = null
@@ -147,8 +150,9 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
       ...c,
       author: {
         id: c.user_id,
-        name: profileDisplayName(p),
-        initial: profileInitial(p),
+        // Advisors see all support staff as a single "Support Team" identity.
+        name: p?.role === 'admin' ? 'Support Team' : profileDisplayName(p),
+        initial: p?.role === 'admin' ? 'S' : profileInitial(p),
         isAdmin: p?.role === 'admin',
       },
     }
