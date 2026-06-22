@@ -37,7 +37,13 @@ import { AddProductDialog } from "@/components/products/add-product-dialog";
 import { CommunityProductsDialog } from "@/components/products/community-products-dialog";
 import { EditProductSheet } from "@/components/products/edit-product-sheet";
 
-export function ProductsTab() {
+/**
+ * @param embedded When true, hides the internal "My Products" title/description
+ *   so the component can be dropped inside another titled container (e.g. the
+ *   Manage-products dialog in the client builder) without a duplicate heading.
+ *   The action buttons stay. Defaults to false — Settings renders unchanged.
+ */
+export function ProductsTab({ embedded = false }: { embedded?: boolean } = {}) {
   const { data, isLoading, error } = useProducts();
   const toggleFav = useToggleFavorite();
   const deleteMut = useDeleteProduct();
@@ -87,13 +93,15 @@ export function ProductsTab() {
     <>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-medium">My Products</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Custom product presets for use in client illustrations. AI-built or manually entered.
-            </p>
-          </div>
+        <div className={`flex items-start gap-4 ${embedded ? "justify-end" : "justify-between"}`}>
+          {!embedded && (
+            <div>
+              <h2 className="text-xl font-medium">My Products</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Custom product presets for use in client illustrations. AI-built or manually entered.
+              </p>
+            </div>
+          )}
           <div className="flex items-center gap-2 shrink-0">
             <Button variant="outline" onClick={() => setCommunityOpen(true)}>
               <Users className="size-4" />

@@ -61,11 +61,12 @@ export function NewAccountSection() {
   // handlePickerChange can't apply it yet (the row isn't loaded), so we stash
   // the id and apply it via the effect below once the list arrives.
   const [pendingCustomId, setPendingCustomId] = useState<string | null>(null);
-  // Opens the product-management Sheet directly over the client builder, so
+  // Opens the product-management Dialog centered over the client builder, so
   // the advisor can add/edit/adopt products without navigating away (which
-  // would discard their in-progress client). The Sheet reuses the exact same
+  // would discard their in-progress client). The Dialog reuses the exact same
   // <ProductsTab/> from Settings; product mutations invalidate the shared
-  // React Query cache, so the picker below repopulates live on close.
+  // React Query cache, so the picker below repopulates live the moment a
+  // product is created/edited/deleted — no refresh, no close required.
   const [manageOpen, setManageOpen] = useState(false);
 
   const pickerValue = customProductId
@@ -107,6 +108,27 @@ export function NewAccountSection() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingCustomId, customProducts]);
+
+  // If the selected custom product disappears from the list AFTER the products
+  // query has settled — e.g. the advisor just deleted it from the Manage-
+  // products dialog — clear the now-dangling custom_product_id. Otherwise the
+  // form keeps a reference to a product that no longer exists: the picker shows
+  // a stale name and a save could persist a broken link. Guarded on a settled,
+  // present query and on no pending pre-load pick, so it never fires during the
+  // edit/duplicate load race (where custom_product_id is set before the list
+  // resolves — see the picker fallback below). blueprint_type still holds the
+  // deleted product's engine_preset, so nulling the link leaves a coherent
+  // system-preset selection behind.
+  useEffect(() => {
+    if (!customProductId) return;
+    if (isProductsLoading || !productsData) return;
+    if (pendingCustomId) return;
+    const stillExists = customProducts.some((p) => p.id === customProductId);
+    if (!stillExists) {
+      form.setValue("custom_product_id", null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customProductId, productsData, isProductsLoading, pendingCustomId]);
 
   const applyCustomProduct = (product: CustomProductRow, overrideState?: string) => {
     const cfg = product.config;
@@ -165,13 +187,28 @@ export function NewAccountSection() {
     if (!customProductId) return;
     const product = customProducts.find((p) => p.id === customProductId);
     if (!product) return;
-    const sa = product.config.state_availability;
+    const cfg = product.config;
+    const sa = cfg.state_availability;
     if (!sa) return;
     const clientState = (watchedState ?? "").toUpperCase();
-    const stateBonus = sa.bonus_overrides?.[clientState];
-    const stateSurrender = sa.surrender_overrides?.[clientState];
-    if (stateBonus != null) form.setValue("bonus_percent", stateBonus);
-    if (stateSurrender) form.setValue("surrender_schedule", stateSurrender);
+    // Only manage a field if THIS product actually defines overrides for it.
+    // Otherwise leave it alone — bonus is editable for custom products, and
+    // clobbering on every state change would wipe a manual edit.
+    const bonusOverrides = sa.bonus_overrides ?? {};
+    if (Object.keys(bonusOverrides).length > 0) {
+      // Apply the override for the new state if one exists, else RESTORE the
+      // product's base bonus. Without the restore, switching from an override
+      // state back to a plain state left the previous state's bonus stuck on
+      // the form — a silently wrong projection. (Same for surrender below.)
+      const stateBonus = bonusOverrides[clientState] as number | undefined;
+      form.setValue("bonus_percent", stateBonus != null ? stateBonus : cfg.bonus.percentage);
+    }
+    const surrenderOverrides = sa.surrender_overrides ?? {};
+    if (Object.keys(surrenderOverrides).length > 0) {
+      const stateSurrender = surrenderOverrides[clientState] as number[] | undefined;
+      const schedule = stateSurrender ?? cfg.surrender.schedule;
+      form.setValue("surrender_schedule", schedule && schedule.length ? schedule : null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchedState, customProductId]);
 
@@ -292,7 +329,7 @@ export function NewAccountSection() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-6">
-            <ProductsTab />
+            <ProductsTab embedded />
           </div>
         </DialogContent>
       </Dialog>
