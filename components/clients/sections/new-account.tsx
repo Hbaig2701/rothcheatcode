@@ -33,6 +33,14 @@ import { ARCHETYPE_LABELS } from "@/lib/products/types";
 import type { CustomProductRow, ProductArchetype } from "@/lib/products/types";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import { ProductsTab } from "@/components/settings/tabs/products-tab";
 
 // Encoded picker value: "system:<formula>" or "custom:<uuid>"
 const SYSTEM = "system:";
@@ -53,6 +61,12 @@ export function NewAccountSection() {
   // handlePickerChange can't apply it yet (the row isn't loaded), so we stash
   // the id and apply it via the effect below once the list arrives.
   const [pendingCustomId, setPendingCustomId] = useState<string | null>(null);
+  // Opens the product-management Sheet directly over the client builder, so
+  // the advisor can add/edit/adopt products without navigating away (which
+  // would discard their in-progress client). The Sheet reuses the exact same
+  // <ProductsTab/> from Settings; product mutations invalidate the shared
+  // React Query cache, so the picker below repopulates live on close.
+  const [manageOpen, setManageOpen] = useState(false);
 
   const pickerValue = customProductId
     ? `${CUSTOM}${customProductId}`
@@ -264,6 +278,23 @@ export function NewAccountSection() {
 
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
+      {/* Manage-products Sheet — opens over the builder so the advisor never
+          loses their in-progress client. Reuses the Settings ProductsTab. */}
+      <Sheet open={manageOpen} onOpenChange={setManageOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-2xl">
+          <SheetHeader className="border-b pr-12">
+            <SheetTitle>Manage your products</SheetTitle>
+            <SheetDescription>
+              Add, edit, or adopt products without leaving this client. New
+              products appear in the picker as soon as you&apos;re done.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 pb-6">
+            <ProductsTab />
+          </div>
+        </SheetContent>
+      </Sheet>
+
       {/* Product Preset Dropdown */}
       <Controller
         name="blueprint_type"
@@ -296,12 +327,13 @@ export function NewAccountSection() {
                 >
                   See our Preset List
                 </a>
-                <a
-                  href="/settings#products"
+                <button
+                  type="button"
+                  onClick={() => setManageOpen(true)}
                   className="ml-auto text-xs text-primary hover:underline"
                 >
                   + Manage your products
-                </a>
+                </button>
               </div>
               <Select value={pickerValue} onValueChange={handlePickerChange} disabled={!!customProductId && isProductsLoading && !selectedCustom}>
                 <SelectTrigger className="w-full">
