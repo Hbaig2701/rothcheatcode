@@ -23,6 +23,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { ColumnDefinition } from '@/lib/table-columns/column-definitions';
 import type { YearlyResult } from '@/lib/calculations/types';
+import { TopScrollbar } from './top-scrollbar';
 
 interface ResizableComparisonTableProps {
   columns: ColumnDefinition[];
@@ -76,39 +77,10 @@ export function ResizableComparisonTable({
   const [tooltip, setTooltip] = useState<{ columnId: string; x: number; y: number } | null>(null);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Synced top horizontal scrollbar — see ResizableTable for the full rationale.
-  // The comparison view is even wider (3 sub-columns per metric), so reaching
-  // the bottom scrollbar is harder still. (Greg Stopp / Dr. Policar ticket.)
+  // Body scroll container, driven by an always-visible custom scrollbar
+  // (TopScrollbar). The comparison view is even wider (3 sub-columns per
+  // metric), so the auto-hiding native bar is especially painful here.
   const scrollRef = useRef<HTMLDivElement>(null);
-  const topScrollRef = useRef<HTMLDivElement>(null);
-  const [contentWidth, setContentWidth] = useState(0);
-  const [needsHScroll, setNeedsHScroll] = useState(false);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const measure = () => {
-      setContentWidth(el.scrollWidth);
-      setNeedsHScroll(el.scrollWidth - el.clientWidth > 1);
-    };
-    measure();
-    // Re-measure after layout/paint settles (column widths/fonts can land late).
-    const raf = requestAnimationFrame(measure);
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    const table = el.querySelector('table');
-    if (table) ro.observe(table);
-    window.addEventListener('resize', measure);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, [columns, columnWidths, baselineData.length]);
-
-  const mirrorScroll = (from: HTMLDivElement | null, to: HTMLDivElement | null) => {
-    if (from && to && to.scrollLeft !== from.scrollLeft) to.scrollLeft = from.scrollLeft;
-  };
 
   const showTooltip = useCallback((columnId: string, e: React.MouseEvent) => {
     if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
@@ -391,23 +363,9 @@ export function ResizableComparisonTable({
         </div>,
         document.body
       )}
-      {/* Synced top scrollbar — always reachable without scrolling to the bottom. */}
-      {needsHScroll && (
-        <div
-          ref={topScrollRef}
-          onScroll={() => mirrorScroll(topScrollRef.current, scrollRef.current)}
-          className="top-scrollbar overflow-x-scroll overflow-y-hidden border-b border-border-default bg-bg-input"
-          style={{ height: 14 }}
-          aria-hidden="true"
-        >
-          <div style={{ width: `${contentWidth}px`, height: 1 }} />
-        </div>
-      )}
-      <div
-        ref={scrollRef}
-        onScroll={() => mirrorScroll(scrollRef.current, topScrollRef.current)}
-        className="max-h-[600px] overflow-auto w-full"
-      >
+      {/* Always-visible draggable horizontal scrollbar, pinned above the table. */}
+      <TopScrollbar targetRef={scrollRef} />
+      <div ref={scrollRef} className="max-h-[600px] overflow-auto w-full">
         <table className="w-max min-w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             {/* Group header row */}

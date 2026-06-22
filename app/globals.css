@@ -208,29 +208,6 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-dimmer);
 }
-
-/* Always-visible horizontal "slider" pinned above wide year-by-year tables.
-   Explicitly styling the scrollbar forces a classic (non-overlay) bar, so it
-   stays visible on macOS too — letting mouse / Windows users drag through the
-   columns without hunting for the scrollbar at the bottom of a tall table. */
-.top-scrollbar {
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: var(--border-default) transparent;
-}
-.top-scrollbar::-webkit-scrollbar {
-  height: 10px;
-}
-.top-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.top-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--border-default);
-  border-radius: 5px;
-}
-.top-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--text-dimmer);
-}
-
 /* Utility classes for the new design system */
 .font-display {
   font-family: var(--font-display), serif;

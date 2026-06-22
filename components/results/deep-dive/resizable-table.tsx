@@ -15,6 +15,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { ColumnDefinition } from '@/lib/table-columns/column-definitions';
 import type { YearlyResult } from '@/lib/calculations/types';
+import { TopScrollbar } from './top-scrollbar';
 
 interface ResizableTableProps {
   columns: ColumnDefinition[];
@@ -37,15 +38,10 @@ export function ResizableTable({
   const [tooltip, setTooltip] = useState<{ columnId: string; x: number; y: number } | null>(null);
   const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Synced top horizontal scrollbar. The body scroll container's native
-  // horizontal scrollbar lives at the BOTTOM of a 600px-tall box, so a
-  // mouse/Windows user (no trackpad swipe) has to scroll down past every row to
-  // reach it. This mirrors a scrollbar to the TOP of the table, right under the
-  // header where the user is looking. (Greg Stopp / Dr. Policar ticket.)
+  // Body scroll container, driven by an always-visible custom scrollbar
+  // (TopScrollbar) pinned above the table. Native scrollbars on macOS auto-hide,
+  // useless for a mouse user. (Greg Stopp / Dr. Policar ticket.)
   const scrollRef = useRef<HTMLDivElement>(null);
-  const topScrollRef = useRef<HTMLDivElement>(null);
-  const [contentWidth, setContentWidth] = useState(0);
-  const [needsHScroll, setNeedsHScroll] = useState(false);
 
   const showTooltip = useCallback((columnId: string, e: React.MouseEvent) => {
     if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current);
@@ -98,39 +94,6 @@ export function ResizableTable({
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [resizing, startX, startWidth, onColumnWidthChange]);
-
-  // Measure how wide the table actually is so the top scrollbar's spacer matches
-  // and we only show it when columns overflow. Re-runs when columns/widths/rows
-  // change (a resize or scenario switch changes the total width).
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const measure = () => {
-      setContentWidth(el.scrollWidth);
-      setNeedsHScroll(el.scrollWidth - el.clientWidth > 1);
-    };
-    measure();
-    // Re-measure after layout/paint settles — column widths and fonts can land
-    // a frame later, leaving the first synchronous read showing no overflow.
-    const raf = requestAnimationFrame(measure);
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    const table = el.querySelector('table');
-    if (table) ro.observe(table);
-    window.addEventListener('resize', measure);
-    return () => {
-      cancelAnimationFrame(raf);
-      ro.disconnect();
-      window.removeEventListener('resize', measure);
-    };
-  }, [columns, columnWidths, data.length]);
-
-  // Mirror scroll position between the top bar and the table body. Comparing
-  // before writing breaks the echo loop: setting scrollLeft fires the other
-  // element's onScroll, which sees the values already equal and no-ops.
-  const mirrorScroll = (from: HTMLDivElement | null, to: HTMLDivElement | null) => {
-    if (from && to && to.scrollLeft !== from.scrollLeft) to.scrollLeft = from.scrollLeft;
-  };
 
   const getColumnWidth = (col: ColumnDefinition): number => {
     return columnWidths[col.id] || col.defaultWidth || 120;
@@ -251,24 +214,11 @@ export function ResizableTable({
       )}
       {/* Synced top scrollbar — always reachable without scrolling to the bottom
           of the table. Only rendered when the columns actually overflow. */}
-      {needsHScroll && (
-        <div
-          ref={topScrollRef}
-          onScroll={() => mirrorScroll(topScrollRef.current, scrollRef.current)}
-          className="top-scrollbar overflow-x-scroll overflow-y-hidden border-b border-border-default bg-bg-input"
-          style={{ height: 14 }}
-          aria-hidden="true"
-        >
-          <div style={{ width: `${contentWidth}px`, height: 1 }} />
-        </div>
-      )}
+      {/* Always-visible draggable horizontal scrollbar, pinned above the table. */}
+      <TopScrollbar targetRef={scrollRef} />
 
       {/* Single scrollable container */}
-      <div
-        ref={scrollRef}
-        onScroll={() => mirrorScroll(scrollRef.current, topScrollRef.current)}
-        className="max-h-[600px] overflow-auto w-full"
-      >
+      <div ref={scrollRef} className="max-h-[600px] overflow-auto w-full">
         <table className="w-max min-w-full" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
           <thead>
             <tr>
