@@ -69,6 +69,35 @@ export function getRMDStartAge(birthYear: number): number {
 }
 
 /**
+ * Birth year for a client, preferring the entered `age` (the engine's primary
+ * input) and falling back to DOB. Centralizes the derivation so DISPLAY
+ * surfaces (report dashboard, Story Mode, PDF) compute the same RMD start age
+ * the engine uses — and uses the string-parsing getBirthYear() so it never
+ * hits the `new Date(dob).getFullYear()` timezone bug (which returns the year
+ * minus one in US timezones).
+ */
+export function getClientBirthYear(
+  client: { age?: number | null; date_of_birth?: string | null },
+  currentYear: number = new Date().getFullYear(),
+): number {
+  if (client.age != null && client.age > 0) return getBirthYearFromAge(client.age, currentYear);
+  if (client.date_of_birth) return getBirthYear(client.date_of_birth);
+  return currentYear - 65;
+}
+
+/**
+ * The client's RMD start age (SECURE 2.0: 73 for born ≤1959, 75 for 1960+).
+ * Use this anywhere the report/PDF/Story Mode needs to state when RMDs begin —
+ * never hardcode 73.
+ */
+export function getClientRMDStartAge(
+  client: { age?: number | null; date_of_birth?: string | null },
+  currentYear: number = new Date().getFullYear(),
+): number {
+  return getRMDStartAge(getClientBirthYear(client, currentYear));
+}
+
+/**
  * Calculates the year when a person reaches a target age
  * @param dob - Date of birth in ISO format (YYYY-MM-DD)
  * @param targetAge - Age to calculate year for

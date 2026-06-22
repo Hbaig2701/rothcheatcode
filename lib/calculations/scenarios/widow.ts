@@ -1,6 +1,6 @@
 import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
-import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/age';
+import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge, getBirthYear } from '../utils/age';
 import { calculateRMD } from '../modules/rmd';
 import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
@@ -37,7 +37,7 @@ export function runWidowScenario(
   const clientAge = useAgeBased ? client.age : (client.date_of_birth ? calculateAge(client.date_of_birth, currentYear) : 62);
   const birthYear = useAgeBased
     ? getBirthYearFromAge(clientAge, currentYear)
-    : (client.date_of_birth ? new Date(client.date_of_birth).getFullYear() : currentYear - clientAge);
+    : (client.date_of_birth ? getBirthYear(client.date_of_birth) : currentYear - clientAge);
 
   // Use new rate fields or legacy fields
   const growthRate = (client.baseline_comparison_rate ?? client.growth_rate ?? 7) / 100;
