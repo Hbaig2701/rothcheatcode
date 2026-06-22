@@ -34,12 +34,12 @@ import type { CustomProductRow, ProductArchetype } from "@/lib/products/types";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { ProductsTab } from "@/components/settings/tabs/products-tab";
 
 // Encoded picker value: "system:<formula>" or "custom:<uuid>"
@@ -278,22 +278,24 @@ export function NewAccountSection() {
 
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
-      {/* Manage-products Sheet — opens over the builder so the advisor never
-          loses their in-progress client. Reuses the Settings ProductsTab. */}
-      <Sheet open={manageOpen} onOpenChange={setManageOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl">
-          <SheetHeader className="border-b pr-12">
-            <SheetTitle>Manage your products</SheetTitle>
-            <SheetDescription>
+      {/* Manage-products Dialog — opens centered over the builder so the advisor
+          never loses their in-progress client. Reuses the Settings ProductsTab.
+          Wide + capped height with internal scroll so the ProductsTab header
+          (title + Community/Add buttons) lays out on one row. */}
+      <Dialog open={manageOpen} onOpenChange={setManageOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="border-b p-6 pb-4 pr-12">
+            <DialogTitle>Manage your products</DialogTitle>
+            <DialogDescription>
               Add, edit, or adopt products without leaving this client. New
               products appear in the picker as soon as you&apos;re done.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 pb-6">
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-6">
             <ProductsTab />
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* Product Preset Dropdown */}
       <Controller
