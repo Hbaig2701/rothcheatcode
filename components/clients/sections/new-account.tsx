@@ -47,6 +47,12 @@ import { ProductsTab } from "@/components/settings/tabs/products-tab";
 const SYSTEM = "system:";
 const CUSTOM = "custom:";
 
+// Legacy/no-income mode toggle is hidden in production until the legacy report
+// view ships — otherwise turning it on routes to the income report and shows a
+// confusing $0-income dashboard. Flip to true once GILegacyReportDashboard is
+// wired into the report dispatch. The field + engine support are already live.
+const LEGACY_MODE_ENABLED = false;
+
 interface ExtendedFormData extends ClientFormData {
   custom_product_id?: string | null;
 }
@@ -659,6 +665,7 @@ export function NewAccountSection() {
               heirs (no lifetime income, no RMDs). The benefit base keeps rolling
               up and is shown as the tax-free death benefit. Hides the income-only
               fields below; roll-up + conversion fields still apply. */}
+          {LEGACY_MODE_ENABLED && (
           <Controller
             name="gi_legacy_mode"
             control={form.control}
@@ -687,6 +694,7 @@ export function NewAccountSection() {
               </div>
             )}
           />
+          )}
 
           {/* Roll-Up Option - for products with selectable roll-up options */}
           {giData?.hasRollUpOptions && giData.rollUp.options && (
