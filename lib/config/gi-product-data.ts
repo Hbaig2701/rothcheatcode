@@ -64,6 +64,20 @@ export interface RollUpConfig {
    * computed at lookup time from the year's credited rate.
    */
   interestMultiple?: number;
+  /**
+   * How a performance-linked (interestMultiple) roll-up credits the income base:
+   *  - 'income_base' (default): income base COMPOUNDS by interestMultiple × the
+   *    credited rate, i.e. base × (1 + multiple×rate). Matches Allianz 222 (the
+   *    PIV grows by 150% of the interest RATE).
+   *  - 'account_value': income base grows by interestMultiple × the DOLLARS
+   *    credited to the account value, i.e. base + multiple×rate×accountValue.
+   *    Matches Athene Agility 10 ("200% of the dollar amount credited to the
+   *    Accumulated Value"). Because the benefit base starts above the account
+   *    value, this credits LESS than 'income_base' — and reproduces Agility's
+   *    illustration to the dollar.
+   * Only consulted when interestMultiple is set; ignored by fixed roll-ups.
+   */
+  creditBasis?: 'income_base' | 'account_value';
   /** Max deferral period for roll-up */
   maxPeriod: number;
   /** User-selectable options */
@@ -79,6 +93,17 @@ export interface GIProductData {
   riderFee: number;
   /** What the rider fee is calculated on */
   riderFeeAppliesTo: 'incomeBase' | 'accountValue';
+  /**
+   * Whether the benefit base (= enhanced death benefit) draws DOWN pro-rata as
+   * the account value is reduced by withdrawals/income — i.e. a withdrawal of
+   * X% of the account value cuts the benefit base by X% too. TRUE for the
+   * "withdrawal-benefit" FIAs where the benefit base IS the drawing-down death
+   * benefit (Allianz 222, Athene Agility). FALSE (default) for classic GLWBs,
+   * whose income base stays LOCKED during guaranteed income and only reduces on
+   * EXCESS withdrawals (American Equity IncomeShield, North American Income Pay
+   * Pro, Athene Ascent). Verified per-product — see project_david_legacy_build_plan.
+   */
+  benefitBaseDrawsDown?: boolean;
   /** Roll-up configuration */
   rollUp: RollUpConfig;
   /** Payout percentage table */

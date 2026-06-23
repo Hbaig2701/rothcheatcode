@@ -35,6 +35,7 @@ import {
 } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAAWithLookback } from '../modules/irmaa';
+import { calculateRMD } from '../modules/rmd';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { getStateTaxRate } from '@/lib/data/states';
 import { type GIProductData } from '@/lib/config/gi-product-data';
@@ -203,7 +204,14 @@ function runGIStrategyScenario(
   const rateOfReturn = (client.rate_of_return ?? 7) / 100;
 
   // --- GI timing ---
-  const effectiveIncomeStartAge = Math.max(client.income_start_age ?? 65, clientAge);
+  // Legacy / no-income mode: push the income start age beyond any projection so
+  // the income phase never triggers. The annuity is converted to Roth and held;
+  // the benefit base rolls up (to its max period) and is the tax-free death
+  // benefit to heirs. No lifetime income, no RMDs.
+  const LEGACY_NO_INCOME_AGE = 999;
+  const effectiveIncomeStartAge = client.gi_legacy_mode
+    ? LEGACY_NO_INCOME_AGE
+    : Math.max(client.income_start_age ?? 65, clientAge);
   const payoutType = client.payout_type ?? 'individual';
   const payoutOption = client.payout_option ?? 'level';
   const rollUpOption = client.roll_up_option ?? null;
@@ -617,7 +625,13 @@ function runGIStrategyScenario(
       if (productData) {
         const rollUpInfo = getEffectiveRollUpForYear(productId, 1, rollUpOption, customProduct, rateOfReturn); // Year 1 roll-up
         if (rollUpInfo) {
-          if (rollUpInfo.type === 'simple') {
+          if (rollUpInfo.creditBasis === 'account_value') {
+            // Pattern B (Athene Agility): credit the multiple of the DOLLARS
+            // credited to the account value. rollUpInfo.rate is already
+            // multiple × creditedRate, and accountValue is the year's beginning
+            // AV, so rate × accountValue = multiple × (creditedRate × AV).
+            incomeBase = incomeBase + Math.round(rollUpInfo.rate * accountValue);
+          } else if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
           } else {
             incomeBase = Math.round(incomeBase * (1 + rollUpInfo.rate));
@@ -749,7 +763,14 @@ function runGIStrategyScenario(
       if (productData) {
         const rollUpInfo = getEffectiveRollUpForYear(productId, deferralYear, rollUpOption, customProduct, rateOfReturn);
         if (rollUpInfo) {
-          if (rollUpInfo.type === 'simple') {
+          if (rollUpInfo.creditBasis === 'account_value') {
+            // Pattern B (Athene Agility): grow the base by the multiple of the
+            // DOLLARS credited to the account value this year. accountValue here
+            // is the beginning-of-year AV (it grows just below), matching the
+            // carrier's "200% of the dollar amount credited to the Accumulated
+            // Value". rollUpInfo.rate = multiple × creditedRate.
+            incomeBase = incomeBase + Math.round(rollUpInfo.rate * accountValue);
+          } else if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
           } else {
             incomeBase = Math.round(incomeBase * (1 + rollUpInfo.rate));
@@ -920,6 +941,18 @@ function runGIStrategyScenario(
       totalGrossPaid += grossGI;
       totalNetPaid += netGI;
       cumulativeIncome += netGI;
+
+      // Pro-rata benefit-base draw-down (Allianz 222 / Athene Agility): the
+      // benefit base (= enhanced death benefit) reduces by the SAME proportion
+      // the income withdrawal reduces the account value. Opt-in per product —
+      // classic GLWBs keep the income base LOCKED during guaranteed income and
+      // only reduce it on excess withdrawals (benefitBaseDrawsDown = false).
+      // Verified to the dollar vs the Agility/222 illustrations
+      // (yr1 income: $465,000 × (1 − 23,250/300,000) = $428,963).
+      if (productData?.benefitBaseDrawsDown && boyAccount > 0) {
+        const withdrawalFraction = Math.min(1, grossGI / boyAccount);
+        incomeBaseAtIncomeAge = Math.round(incomeBaseAtIncomeAge * (1 - withdrawalFraction));
+      }
 
       // Deduct GI payment from account value
       accountValue = boyAccount - grossGI;
@@ -1108,7 +1141,9 @@ function runGIBaselineScenario(
   const rateOfReturn = (client.rate_of_return ?? 7) / 100;
 
   // --- GI timing (same as strategy for fair comparison) ---
-  const effectiveIncomeStartAge = strategyMetrics.incomeStartAge;
+  // Legacy mode: income never starts here either (mirrors the strategy), so the
+  // traditional-GI baseline also just holds and rolls up its benefit base.
+  const effectiveIncomeStartAge = client.gi_legacy_mode ? 999 : strategyMetrics.incomeStartAge;
   const payoutType = client.payout_type ?? 'individual';
   const payoutOption = client.payout_option ?? 'level';
   const rollUpOption = client.roll_up_option ?? null;
@@ -1122,6 +1157,9 @@ function runGIBaselineScenario(
   const stateTaxRateDecimal = client.state_tax_rate !== undefined && client.state_tax_rate !== null
     ? client.state_tax_rate / 100
     : getStateTaxRate(client.state);
+
+  // Birth year for the forced-RMD logic in legacy mode (see deferral phase).
+  const birthYear = getBirthYearFromAge(client.age ?? 65, startYear);
 
   // --- SSI config ---
   const primarySsStartAge = client.ssi_payout_age ?? 67;
@@ -1505,7 +1543,14 @@ function runGIBaselineScenario(
       if (productData) {
         const rollUpInfo = getEffectiveRollUpForYear(productId, deferralYear, rollUpOption, customProduct, rateOfReturn);
         if (rollUpInfo) {
-          if (rollUpInfo.type === 'simple') {
+          if (rollUpInfo.creditBasis === 'account_value') {
+            // Pattern B (Athene Agility): grow the base by the multiple of the
+            // DOLLARS credited to the account value this year. accountValue here
+            // is the beginning-of-year AV (it grows just below), matching the
+            // carrier's "200% of the dollar amount credited to the Accumulated
+            // Value". rollUpInfo.rate = multiple × creditedRate.
+            incomeBase = incomeBase + Math.round(rollUpInfo.rate * accountValue);
+          } else if (rollUpInfo.type === 'simple') {
             incomeBase = incomeBase + Math.round(originalIncomeBase * rollUpInfo.rate);
           } else {
             incomeBase = Math.round(incomeBase * (1 + rollUpInfo.rate));
@@ -1536,12 +1581,50 @@ function runGIBaselineScenario(
         accountValue = Math.max(0, accountValue - yearRiderFee);
       }
 
-      // Taxable account grows
-      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
-      taxableBalance = boyTaxable + taxableInterest;
+      // ---- Forced RMD (legacy / hold years only) ----
+      // In legacy mode the traditional annuity is just held — no income comes
+      // out — so once the owner is past their RMD age the IRS forces a taxable
+      // distribution each year, eroding the account value and (pro-rata) the
+      // benefit base. This is exactly the "no RMDs" advantage of converting to
+      // Roth: the strategy side is Roth and takes none, so this only ever hits
+      // the do-nothing baseline. Gated on gi_legacy_mode so existing income
+      // scenarios (where the guaranteed income already satisfies the RMD) are
+      // unchanged. Honors rmds_handled_externally and rmd_treatment.
+      let rmdAmount = 0;
+      let rmdFederalTax = 0;
+      let rmdStateTax = 0;
+      if (client.gi_legacy_mode && !client.rmds_handled_externally && accountValue > 0) {
+        const avBeforeRmd = accountValue; // post-interest, post-fee contract value
+        rmdAmount = Math.min(calculateRMD({ age, traditionalBalance: boyAccount, birthYear }).rmdAmount, avBeforeRmd);
+        if (rmdAmount > 0) {
+          // Benefit base (= death benefit) draws down pro-rata for products where
+          // it tracks the contract value (carrier rule, e.g. Athene's "RMDs
+          // proportionally reduce the Income Base").
+          if (productData?.benefitBaseDrawsDown && avBeforeRmd > 0) {
+            incomeBase = Math.round(incomeBase * (1 - rmdAmount / avBeforeRmd));
+          }
+          accountValue = Math.max(0, accountValue - rmdAmount);
+          // MARGINAL tax of the RMD = tax(other + RMD + SS) − tax(other + SS).
+          // Isolating the incremental cost keeps the comparison fair: the Roth
+          // strategy pays no tax in these hold years, so only the RMD's own tax
+          // should weigh against the baseline (not the background SS/other-income
+          // tax, which is identical on both sides).
+          const withRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + rmdAmount, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+          const withoutRMD = computeTaxableIncomeWithSS({ otherIncome, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+          rmdFederalTax = Math.max(0, calculateFederalTax({ taxableIncome: withRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax - calculateFederalTax({ taxableIncome: withoutRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax);
+          rmdStateTax = Math.max(0, calculateStateTax({ taxableIncome: withRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax - calculateStateTax({ taxableIncome: withoutRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax);
+        }
+      }
+      // After-tax RMD proceeds move into the taxable account (reinvested default).
+      const rmdNet = rmdAmount - rmdFederalTax - rmdStateTax;
+      const rmdToTaxable = (client.rmd_treatment ?? 'reinvested') === 'reinvested' ? rmdNet : 0;
 
-      // IRMAA
-      const magi = otherIncome + taxExemptNonSSI + ssIncome;
+      // Taxable account grows (+ reinvested after-tax RMD proceeds)
+      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      taxableBalance = boyTaxable + taxableInterest + rmdToTaxable;
+
+      // IRMAA (the RMD counts toward MAGI)
+      const magi = otherIncome + rmdAmount + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
       // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
@@ -1555,15 +1638,16 @@ function runGIBaselineScenario(
         irmaaTierFromLookback = irmaaResult.tier;
       }
 
-      // Calculate tax details (with SS taxation awareness)
+      // Calculate tax details (with SS taxation awareness). The RMD is ordinary
+      // income, so it flows into AGI / taxable income / bracket display.
       const baselineDeferralTaxInfo = computeTaxableIncomeWithSS({
-        otherIncome,
+        otherIncome: otherIncome + rmdAmount,
         ssBenefits: ssIncome,
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
       });
-      const totalIncome = otherIncome + ssIncome;
+      const totalIncome = otherIncome + rmdAmount + ssIncome;
       const agi = baselineDeferralTaxInfo.agi;
       const taxableIncome = baselineDeferralTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
@@ -1579,17 +1663,17 @@ function runGIBaselineScenario(
         traditionalBalance: accountValue,
         rothBalance: 0,
         taxableBalance,
-        rmdAmount: 0,
+        rmdAmount,
         conversionAmount: 0,
         ssIncome,
         pensionIncome: 0,
         otherIncome,
         totalIncome,
-        federalTax: 0,
-        stateTax: 0,
+        federalTax: rmdFederalTax,
+        stateTax: rmdStateTax,
         niitTax: 0,
         irmaaSurcharge,
-        totalTax: irmaaSurcharge,
+        totalTax: rmdFederalTax + rmdStateTax + irmaaSurcharge,
         taxableSS: baselineDeferralTaxInfo.taxableSS,
         netWorth: accountValue + taxableBalance,
         // Extended fields for adjustable columns
@@ -1717,6 +1801,18 @@ function runGIBaselineScenario(
       totalNetPaid += netGI;
       totalTaxOnIncome += federalResult.totalTax + stateResult.totalTax;
       cumulativeIncome += netGI;
+
+      // Pro-rata benefit-base draw-down (Allianz 222 / Athene Agility): the
+      // benefit base (= enhanced death benefit) reduces by the SAME proportion
+      // the income withdrawal reduces the account value. Opt-in per product —
+      // classic GLWBs keep the income base LOCKED during guaranteed income and
+      // only reduce it on excess withdrawals (benefitBaseDrawsDown = false).
+      // Verified to the dollar vs the Agility/222 illustrations
+      // (yr1 income: $465,000 × (1 − 23,250/300,000) = $428,963).
+      if (productData?.benefitBaseDrawsDown && boyAccount > 0) {
+        const withdrawalFraction = Math.min(1, grossGI / boyAccount);
+        incomeBaseAtIncomeAge = Math.round(incomeBaseAtIncomeAge * (1 - withdrawalFraction));
+      }
 
       // Deduct GI payment from account value
       accountValue = boyAccount - grossGI;

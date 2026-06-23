@@ -120,6 +120,7 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       payout_option: client?.payout_option ?? d?.payout_option ?? null,
       gi_conversion_years: client?.gi_conversion_years ?? d?.gi_conversion_years ?? 5,
       gi_conversion_bracket: client?.gi_conversion_bracket ?? d?.gi_conversion_bracket ?? 24,
+      gi_legacy_mode: client?.gi_legacy_mode ?? d?.gi_legacy_mode ?? false,
 
       // Section 8: Advanced
       surrender_years: client?.surrender_years ?? d?.surrender_years ?? (ud.surrender_years as number) ?? 7,

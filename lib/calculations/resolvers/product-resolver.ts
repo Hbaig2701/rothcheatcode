@@ -99,6 +99,13 @@ export function getEffectiveGIData(
   // Custom config doesn't expose this today; keep system preset's choice.
   const riderFeeAppliesTo = base.riderFeeAppliesTo;
 
+  // -- benefitBaseDrawsDown --
+  // Opt-in per product: TRUE for withdrawal-benefit FIAs (Allianz 222, Athene
+  // Agility) whose benefit base draws down pro-rata on income; FALSE (default)
+  // for classic GLWBs with a locked income base. Falls back to the system
+  // preset's value, then false.
+  const benefitBaseDrawsDown = incomeCfg?.benefit_base_draws_down ?? base.benefitBaseDrawsDown ?? false;
+
   // -- rollUp --
   let rollUp: RollUpConfig = base.rollUp;
   if (incomeCfg) {
@@ -109,6 +116,10 @@ export function getEffectiveGIData(
       rollUp = {
         type: "compound",
         interestMultiple: incomeCfg.roll_up_interest_multiple,
+        // Default 'income_base' (compound on the base) preserves every existing
+        // product's behavior; only products that opt into 'account_value'
+        // (Athene Agility) credit the multiple-of-dollars-to-AV instead.
+        creditBasis: incomeCfg.roll_up_credit_basis ?? "income_base",
         maxPeriod: incomeCfg.roll_up_max_years,
       };
     } else if (incomeCfg.roll_up_split_rate) {
@@ -186,6 +197,7 @@ export function getEffectiveGIData(
     bonusAppliesTo,
     riderFee,
     riderFeeAppliesTo,
+    benefitBaseDrawsDown,
     rollUp,
     payoutTable,
     rollUpDescription,
@@ -207,7 +219,7 @@ export function getEffectiveRollUpForYear(
   // performance-linked (interestMultiple) roll-ups; ignored by fixed roll-ups,
   // so existing callers/products are unaffected.
   creditedRate: number = 0
-): { rate: number; type: "simple" | "compound"; maxPeriod: number } | null {
+): { rate: number; type: "simple" | "compound"; maxPeriod: number; creditBasis?: "income_base" | "account_value" } | null {
   const data = getEffectiveGIData(productId, customProduct);
   if (!data) return null;
   const config = data.rollUp;
@@ -230,7 +242,12 @@ export function getEffectiveRollUpForYear(
   // never be negative (0% floor), so a negative assumed return must not shrink
   // the guaranteed income base — that year simply earns no roll-up.
   if (config.interestMultiple != null) {
-    return { rate: config.interestMultiple * Math.max(0, creditedRate), type: "compound", maxPeriod: config.maxPeriod };
+    return {
+      rate: config.interestMultiple * Math.max(0, creditedRate),
+      type: "compound",
+      maxPeriod: config.maxPeriod,
+      creditBasis: config.creditBasis ?? "income_base",
+    };
   }
 
   // Tiered rates

@@ -122,6 +122,24 @@ export interface IncomeConfig {
    * compound roll-up behaves exactly as before.
    */
   roll_up_interest_multiple?: number | null;
+  /**
+   * For a performance-linked roll-up (roll_up_interest_multiple), how the income
+   * base is credited each year:
+   *  - "income_base" (default): base × (1 + multiple×rate) — compounds on the
+   *    benefit base. Allianz 222 (150% of the interest RATE).
+   *  - "account_value": base + multiple×rate×accountValue — credits the multiple
+   *    of the DOLLARS credited to the account value. Athene Agility 10 ("200% of
+   *    the dollar amount credited to the Accumulated Value"). Credits less than
+   *    "income_base" because the benefit base starts above the account value.
+   */
+  roll_up_credit_basis?: "income_base" | "account_value" | null;
+  /**
+   * Whether the benefit base draws down pro-rata on withdrawals/income (the
+   * benefit base IS the drawing-down enhanced death benefit). TRUE for Allianz
+   * 222 / Athene Agility; FALSE (default) for classic GLWBs whose income base
+   * stays locked during guaranteed income (only excess withdrawals reduce it).
+   */
+  benefit_base_draws_down?: boolean | null;
   bonus_applies_to?: "both" | "income_base" | "account_value" | null;
   payout_factors: {
     single: PayoutFactorsByAge;

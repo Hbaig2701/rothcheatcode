@@ -6,6 +6,7 @@ import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PercentInput } from "@/components/ui/percent-input";
 import {
   Select,
@@ -183,6 +184,10 @@ export function NewAccountSection() {
 
   // Re-apply state-specific overrides when client state changes (only if a custom product is selected)
   const watchedState = form.watch("state");
+  // Legacy / no-income mode (GI products): hide the income-only fields below and
+  // run the projection as a held-for-heirs death-benefit play (see engine
+  // gi_legacy_mode). Roll-up and conversion fields still apply.
+  const legacyMode = !!form.watch("gi_legacy_mode");
   useEffect(() => {
     if (!customProductId) return;
     const product = customProducts.find((p) => p.id === customProductId);
@@ -650,6 +655,39 @@ export function NewAccountSection() {
       {/* GI-specific fields - only shown for Guaranteed Income products */}
       {isGI && (
         <>
+          {/* Legacy / no-income mode — convert to Roth and hold the annuity for
+              heirs (no lifetime income, no RMDs). The benefit base keeps rolling
+              up and is shown as the tax-free death benefit. Hides the income-only
+              fields below; roll-up + conversion fields still apply. */}
+          <Controller
+            name="gi_legacy_mode"
+            control={form.control}
+            render={({ field }) => (
+              <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3 rounded-lg border border-gold-border bg-gold-subtle p-3">
+                <Checkbox
+                  id="gi_legacy_mode"
+                  checked={!!field.value}
+                  onCheckedChange={field.onChange}
+                  className="mt-0.5 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <label
+                    htmlFor="gi_legacy_mode"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+                  >
+                    Legacy mode — no income, death benefit to heirs
+                  </label>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Convert the annuity to Roth and hold it for legacy: no lifetime
+                    income, no RMDs. The benefit base keeps rolling up and passes to
+                    beneficiaries tax-free (paid over 5 years). Hides the income
+                    options below.
+                  </p>
+                </div>
+              </div>
+            )}
+          />
+
           {/* Roll-Up Option - for products with selectable roll-up options */}
           {giData?.hasRollUpOptions && giData.rollUp.options && (
             <Controller
@@ -684,6 +722,9 @@ export function NewAccountSection() {
             />
           )}
 
+          {/* Income-only fields — hidden in legacy mode (no income is taken). */}
+          {!legacyMode && (
+            <>
           {/* Payout Option - for products with dual payout option */}
           {giData?.hasDualPayoutOption && (
             <Controller
@@ -770,6 +811,8 @@ export function NewAccountSection() {
             <FieldDescription>Age when guaranteed income payments begin (55-80)</FieldDescription>
             <FieldError errors={[form.formState.errors.income_start_age]} />
           </Field>
+            </>
+          )}
 
           {/* GI Conversion Years */}
           <Field data-invalid={!!form.formState.errors.gi_conversion_years}>

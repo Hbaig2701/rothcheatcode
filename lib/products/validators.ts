@@ -85,6 +85,12 @@ const incomeSchema = z.object({
   // Performance-linked roll-up multiplier (e.g. 1.5 = 150% of credited interest).
   // When present, supersedes the fixed roll_up_rate. Capped at 5x defensively.
   roll_up_interest_multiple: z.number().min(0).max(5).nullable().optional(),
+  // How a performance-linked roll-up credits the base: compound on the income
+  // base (Allianz 222) vs. multiple-of-dollars-credited-to-AV (Athene Agility).
+  roll_up_credit_basis: z.enum(["income_base", "account_value"]).nullable().optional(),
+  // Benefit base draws down pro-rata on withdrawals/income (Allianz 222 / Athene
+  // Agility) vs. locked income base on classic GLWBs (default).
+  benefit_base_draws_down: z.boolean().nullable().optional(),
   bonus_applies_to: z.enum(["both", "income_base", "account_value"]).nullable().optional(),
   payout_factors: z.object({
     single: payoutByAgeSchema,

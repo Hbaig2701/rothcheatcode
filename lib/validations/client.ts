@@ -254,6 +254,10 @@ export const clientFormulaBaseSchema = z.object({
   payout_option: z.enum(['level', 'increasing']).nullable().default(null),
   gi_conversion_years: z.number().int().min(1, "Minimum 1 year").max(15, "Maximum 15 years").default(5),
   gi_conversion_bracket: z.number().min(0).max(40).default(24),
+  // Legacy / no-income mode: the GI annuity is converted to Roth and held for
+  // heirs — no lifetime income, no RMDs. The benefit base keeps rolling up and
+  // is shown as the tax-free death benefit (paid to heirs over 5 years).
+  gi_legacy_mode: z.boolean().default(false),
 
   // Section 8: Advanced Data
   surrender_years: z.number().int().min(0).max(20).default(7),
@@ -410,6 +414,8 @@ export const clientFullBaseSchema = z.object({
   payout_option: z.enum(['level', 'increasing']).nullable().default(null),
   gi_conversion_years: z.number().int().min(1).max(15).default(5),
   gi_conversion_bracket: z.number().min(0).max(40).default(24),
+  // Legacy / no-income mode (see create schema above).
+  gi_legacy_mode: z.boolean().default(false),
 
   // Spouse SSI fields
   spouse_ssi_payout_age: z.number()
@@ -647,6 +653,7 @@ export type ClientFormData = {
   payout_option: "level" | "increasing" | null;
   gi_conversion_years: number;
   gi_conversion_bracket: number;
+  gi_legacy_mode: boolean;
 
   // Section 8: Advanced
   surrender_years: number;

@@ -99,6 +99,13 @@ const product = {
       roll_up_rate_years_1_5: null,
       roll_up_rate_years_6_10: null,
       roll_up_max_years: 20, // rolls up to age 95 (issue age 75)
+      // 222 roll-up is "150% of the interest RATE" on the PIV → keep the default
+      // 'income_base' credit basis (pattern A), which matches the illustration
+      // (NOT the dollars-to-AV basis the Athene Agility uses).
+      // Withdrawal-benefit FIA: PIV (= enhanced death benefit) draws down
+      // pro-rata as withdrawals reduce the accumulation value. Verified to the
+      // dollar (yr3 $100k/$1M=10% → PIV $1,450,000 × 0.90 = $1,305,000).
+      benefit_base_draws_down: true,
       bonus_applies_to: "income_base" as const,
       payout_factors: { single, joint },
       payout_increment_per_year: 0, // illustration shows flat 6% past age 79

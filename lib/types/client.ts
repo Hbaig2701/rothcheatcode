@@ -141,6 +141,7 @@ export interface Client {
   // GI Conversion Settings (for 4-phase model)
   gi_conversion_years: number;              // Years to convert before GI purchase (default 5)
   gi_conversion_bracket: number;            // Target tax bracket for conversions (default 24)
+  gi_legacy_mode?: boolean;                 // No income/RMDs; benefit base held as tax-free death benefit to heirs
 
   // ===== Section 8: Advanced Data =====
   surrender_years: number;
@@ -271,6 +272,7 @@ export interface FormulaFormData {
   payout_option: 'level' | 'increasing' | null;
   gi_conversion_years: number;
   gi_conversion_bracket: number;
+  gi_legacy_mode?: boolean;                 // No income/RMDs; benefit base held as tax-free death benefit to heirs
 
   // Section 8: Advanced
   surrender_years: number;
