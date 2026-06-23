@@ -2,6 +2,7 @@ import type { YearlyResult } from './types';
 import type { Client } from '@/lib/types/client';
 import type { Projection } from '@/lib/types/projection';
 import { computePerYearMarginalConversionTax } from './marginal-conversion-tax';
+import { getClientRMDStartAge } from './utils/age';
 
 // Story entry types
 export type StoryTrigger =
@@ -81,6 +82,10 @@ export function generateStory(
   const storyEntries: StoryEntry[] = [];
   const years = projection.blueprint_years;
   const baselineYears = projection.baseline_years;
+  // SECURE 2.0 RMD start age for THIS client (73 born ≤1959, 75 born 1960+) —
+  // never hardcode 73, or 1960+ clients get a "RMDs start at 73" card that's
+  // two years early (Lori Avant ticket).
+  const rmdStartAge = getClientRMDStartAge(client);
 
   // Tracking variables
   let totalConverted = 0;
@@ -301,7 +306,7 @@ export function generateStory(
           { label: 'Total Tax This Year', value: formatCurrency(taxPaidThisYear) },
           { label: 'Tax Bracket', value: `${targetBracket}%` },
         ],
-        comparison: `Without this strategy, this money would be taxed at ${heirTaxRate * 100}%+ when your heirs inherit, or when RMDs force withdrawals at age 73.`,
+        comparison: `Without this strategy, this money would be taxed at ${heirTaxRate * 100}%+ when your heirs inherit, or when RMDs force withdrawals at age ${rmdStartAge}.`,
         runningTotals: {
           totalConverted: formatCurrency(year.conversionAmount),
           totalTaxPaid: formatCurrency(taxPaidThisYear),
@@ -725,7 +730,7 @@ export function generateStory(
     // externally on this bucket — the narrative would be misleading because
     // both baseline and strategy have zero RMDs in the projection (RMDs are
     // happening on a different IRA bucket the engine isn't modeling).
-    if (year.age === 73 && !client.rmds_handled_externally) {
+    if (year.age === rmdStartAge && !client.rmds_handled_externally) {
       const baselineRMD = baselineYear?.rmdAmount ?? 0;
       const strategyRMD = year.rmdAmount ?? 0;
       storyEntries.push({

@@ -1,6 +1,6 @@
 import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
-import { getAgeAtYearOffset } from '../utils/age';
+import { getAgeAtYearOffset, getBirthYear } from '../utils/age';
 import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
@@ -128,7 +128,7 @@ export function runGrowthFormulaScenario(
   // Birth year for RMD calculation (SECURE 2.0: RMD age depends on birth year)
   const currentYear = new Date().getFullYear();
   const birthYear = client.date_of_birth
-    ? new Date(client.date_of_birth).getFullYear()
+    ? getBirthYear(client.date_of_birth)
     : currentYear - clientAge;
 
   // RMD treatment for remaining IRA balance when conversions don't fully deplete

@@ -33,7 +33,7 @@ export const GLOSSARY = {
   },
   'rmd': {
     title: 'Required Minimum Distribution (RMD)',
-    body: 'The IRS-mandated annual withdrawal from a Traditional IRA starting at age 73. Calculated each year as the prior year-end balance divided by an IRS distribution period that shrinks with age.',
+    body: 'The IRS-mandated annual withdrawal from a Traditional IRA starting at age 73 (age 75 if born in 1960 or later, per SECURE 2.0). Calculated each year as the prior year-end balance divided by an IRS distribution period that shrinks with age.',
   },
   'irmaa': {
     title: 'IRMAA (Income-Related Monthly Adjustment Amount)',

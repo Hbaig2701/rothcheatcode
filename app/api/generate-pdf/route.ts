@@ -15,6 +15,7 @@ import { computeMarginalRMDTax } from '@/lib/calculations/marginal-rmd-tax';
 import { calculateStateTax } from '@/lib/calculations/modules/state-tax';
 import { computeTaxableIncomeWithSS } from '@/lib/calculations/tax-helpers';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getClientRMDStartAge } from '@/lib/calculations/utils/age';
 import { getBracketCeiling } from '@/lib/data/federal-brackets-2026';
 import { getTaxExemptIncomeForYear } from '@/lib/calculations/utils/income';
 import { getCustomProduct } from '@/lib/products/repository';
@@ -1626,6 +1627,10 @@ export async function POST(request: NextRequest) {
 
     // Add white-label flag
     (templateData as unknown as Record<string, unknown>).showPoweredBy = showPoweredBy;
+
+    // SECURE 2.0 RMD start age for this client (73 born ≤1959, 75 born 1960+) —
+    // the template must not hardcode 73 (Lori Avant ticket).
+    (templateData as unknown as Record<string, unknown>).rmdStartAge = getClientRMDStartAge(reportData.client);
 
     // Add section visibility flags
     // Default all to true so existing pages render when sections aren't specified

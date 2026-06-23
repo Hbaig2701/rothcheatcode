@@ -84,7 +84,10 @@ function getDefaultDeathYear(client: Client): number {
   // producing NaN, which would silently propagate as NaN death year.
   const toBirthYear = (dob: string | null, age: number | null | undefined): number | null => {
     if (dob) {
-      const parsed = new Date(dob).getFullYear();
+      // Parse the year from the string, NOT via `new Date(dob).getFullYear()`
+      // — that reads ISO dates as UTC midnight and returns the year minus one
+      // in US timezones (e.g. "1960-01-01" → 1959), which can flip the RMD age.
+      const parsed = parseInt(dob.substring(0, 4), 10);
       if (Number.isFinite(parsed)) return parsed;
     }
     if (age != null && Number.isFinite(age) && age > 0) {

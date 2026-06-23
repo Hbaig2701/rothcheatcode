@@ -13,6 +13,7 @@ import { useUpdateClient } from "@/lib/queries/clients";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
 import { computeMarginalRMDTax } from "@/lib/calculations/marginal-rmd-tax";
+import { getClientRMDStartAge } from "@/lib/calculations/utils/age";
 import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
 import { ResizableComparisonTable } from "@/components/results/deep-dive/resizable-comparison-table";
 import { ColumnSelectorModal } from "@/components/results/deep-dive/column-selector-modal";
@@ -1532,7 +1533,7 @@ function LifetimeWealthInfo({
 
       <TipSection label="Baseline · Keep Traditional IRA">
         <p className="text-xs text-text-dim leading-relaxed mb-2">
-          Your {toUSD(startingBalance)} stays in a Traditional IRA, growing at {client.rate_of_return}% with RMDs starting at 73.
+          Your {toUSD(startingBalance)} stays in a Traditional IRA, growing at {client.rate_of_return}% with RMDs starting at {getClientRMDStartAge(client)}.
         </p>
         <TipRow label="Final Traditional IRA" value={toUSD(baseFinalTraditional)} />
         <TipRow label="Final Roth IRA" value={toUSD(baseFinalRoth)} />
@@ -1928,7 +1929,7 @@ function TotalTaxesInfo({
           <TipRow
             label="Income tax on remaining RMDs"
             value={toUSD(blueRMDTaxOnly)}
-            note="Marginal tax on RMDs that still occur in the strategy when the conversion plan doesn't fully drain the Traditional IRA before age 73 (partial / optimized / fixed conversion types). Zero when the strategy fully converts before RMDs begin."
+            note={`Marginal tax on RMDs that still occur in the strategy when the conversion plan doesn't fully drain the Traditional IRA before age ${getClientRMDStartAge(client)} (partial / optimized / fixed conversion types). Zero when the strategy fully converts before RMDs begin.`}
             variant="negative"
           />
         )}
@@ -2045,7 +2046,7 @@ function DistributionsInfo({
       <p className="text-foreground font-medium">What are Forced Distributions?</p>
       <p>
         Required Minimum Distributions (RMDs) the IRS forces the client to take from a Traditional IRA
-        starting at age 73 — and the income tax owed on them. The strategy shows $0 here because Roth
+        starting at age {getClientRMDStartAge(client)} — and the income tax owed on them. The strategy shows $0 here because Roth
         IRAs have no RMDs. Voluntary withdrawals and AUM transfers DO happen in the strategy, but
         they're elective (advisor-scheduled), not forced — they're surfaced separately below.
       </p>

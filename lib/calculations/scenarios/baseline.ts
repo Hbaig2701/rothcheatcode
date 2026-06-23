@@ -1,6 +1,6 @@
 import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
-import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/age';
+import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge, getBirthYear } from '../utils/age';
 import { calculateRMD } from '../modules/rmd';
 import { calculateFederalTax, determineTaxBracket } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
@@ -40,7 +40,7 @@ export function runBaselineScenario(
   const clientAge = useAgeBased ? client.age : (client.date_of_birth ? calculateAge(client.date_of_birth, startYear) : 62);
   const birthYear = useAgeBased
     ? getBirthYearFromAge(clientAge, startYear)
-    : (client.date_of_birth ? new Date(client.date_of_birth).getFullYear() : startYear - clientAge);
+    : (client.date_of_birth ? getBirthYear(client.date_of_birth) : startYear - clientAge);
 
   // Use baseline_comparison_rate for baseline scenario (spec default: 7%)
   const growthRate = (client.baseline_comparison_rate ?? client.growth_rate ?? 7) / 100;

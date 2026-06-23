@@ -44,7 +44,7 @@ export const FIELD_HELP = {
   },
   age: {
     title: "Client Age",
-    body: "The client's current age in years. The projection uses this as Year 0 and rolls forward from here. Critical for RMD timing (age 73), Social Security start ages, and the 10% early-withdrawal penalty (under 59½).",
+    body: "The client's current age in years. The projection uses this as Year 0 and rolls forward from here. Critical for RMD timing (age 73 if born 1951–1959, age 75 if born 1960 or later), Social Security start ages, and the 10% early-withdrawal penalty (under 59½).",
     example: "If the client just turned 67, enter 67. If they're 67 but turn 68 in a few months, still enter 67 — the projection rounds based on age at the start of the projection year.",
   },
   spouse_name: {

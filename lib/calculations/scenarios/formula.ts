@@ -1,6 +1,6 @@
 import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
-import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/age';
+import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge, getBirthYear } from '../utils/age';
 import { calculateRMD } from '../modules/rmd';
 import {
   calculateFederalTax,
@@ -47,7 +47,7 @@ export function runFormulaScenario(
   const clientAge = useAgeBased ? client.age : (client.date_of_birth ? calculateAge(client.date_of_birth, startYear) : 62);
   const birthYear = useAgeBased
     ? getBirthYearFromAge(clientAge, startYear)
-    : (client.date_of_birth ? new Date(client.date_of_birth).getFullYear() : startYear - clientAge);
+    : (client.date_of_birth ? getBirthYear(client.date_of_birth) : startYear - clientAge);
 
   // Use rate_of_return for formula scenario (spec default: 7%)
   const growthRate = (client.rate_of_return ?? client.growth_rate ?? 7) / 100;
