@@ -47,11 +47,11 @@ import { ProductsTab } from "@/components/settings/tabs/products-tab";
 const SYSTEM = "system:";
 const CUSTOM = "custom:";
 
-// Legacy/no-income mode toggle is hidden in production until the legacy report
-// view ships — otherwise turning it on routes to the income report and shows a
-// confusing $0-income dashboard. Flip to true once GILegacyReportDashboard is
-// wired into the report dispatch. The field + engine support are already live.
-const LEGACY_MODE_ENABLED = false;
+// Legacy/no-income mode. The GILegacyReportDashboard is now wired into the
+// report dispatch (report-dashboard.tsx), so turning this on shows the legacy
+// report (tax-free death benefit to heirs vs RMD-eroded do-nothing) rather than
+// the income story.
+const LEGACY_MODE_ENABLED = true;
 
 interface ExtendedFormData extends ClientFormData {
   custom_product_id?: string | null;

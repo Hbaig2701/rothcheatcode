@@ -5,6 +5,7 @@ import { useClient } from "@/lib/queries/clients";
 import { Skeleton } from "@/components/ui/skeleton";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 import { GIReportDashboard } from "@/components/report/gi-report-dashboard";
+import { GILegacyReportDashboard } from "@/components/report/gi-legacy-report-dashboard";
 import { GrowthReportDashboard } from "@/components/report/growth-report-dashboard";
 
 interface ReportDashboardProps {
@@ -39,6 +40,11 @@ export function ReportDashboard({ clientId }: ReportDashboardProps) {
 
     // Render GI-specific dashboard for Guaranteed Income products
     if (isGI) {
+        // Legacy / no-income mode tells the legacy story (tax-free death benefit
+        // to heirs vs RMD-eroded do-nothing) instead of the income story.
+        if (client.gi_legacy_mode) {
+            return <GILegacyReportDashboard client={client} projection={projection} />;
+        }
         return <GIReportDashboard client={client} projection={projection} />;
     }
 
