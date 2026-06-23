@@ -71,3 +71,19 @@ Touches the conversion engine, RMD logic, and the baseline comparator — needs 
 **Demand signal:** requested by Jorge L. Tola (re: Dale Williams, ticket Jun 19 2026 — "SS & IRMMA"). Dale's own IRMAA is $0 (single, FL, 10–12% bracket), so his report has nothing to show; the ask is really about higher-income clients and clearer itemization.
 
 **Estimated effort:** **2–4 days** (reporting/template + a marginal-SS-tax helper + tests; no engine-math changes).
+
+---
+
+## Explicit birth-year / RMD-start-age control
+
+**The pitch:** Let advisors set a client's **birth year (or DOB), or override the RMD start age** directly, instead of the engine inferring it from the entered `age`.
+
+**Why:** RMD start age is 73 (born 1951–1959) vs 75 (born 1960+) under SECURE 2.0. The engine derives birth year from `age` (`getBirthYearFromAge`), which is imprecise right at the 1959/1960 boundary — a client entered as a round age can land on the wrong side. The DOB field exists in the schema but its input section (`PersonalInfoSection`) is an **orphan** (not rendered in the live form), and DOB is auto-generated as Jan-1-of-(year−age) on save. So there's no live way to pin the exact birth year.
+
+**What it requires:** wire a birth-year (or DOB) input into the live client form, and have the engine prefer it over age-derived birth year for RMD timing. Small — the engine already supports DOB; mostly a form/UX change + deciding precedence.
+
+**Note:** the RMD *calculation* and all displays now correctly apply 73/75 based on the derived birth year (fixed June 2026, Lori ticket) — so this is a precision/override convenience, not a correctness gap.
+
+**Demand signal:** Lori Avant (mtwentyone.com), Jun 22 2026 — "would be helpful to be able to edit this based on birth year."
+
+**Estimated effort:** **1–2 days** (form field + engine precedence + tests).
