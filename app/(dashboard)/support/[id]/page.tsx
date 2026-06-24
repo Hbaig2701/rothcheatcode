@@ -59,6 +59,16 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
   // peeking at this route shouldn't generate phantom events or notifications.
   // Throttled to once every 5 minutes per (user, ticket) so a page refresh
   // doesn't spam the events table OR the admin bell.
+  // A view is only worth pinging admins about when there's a support reply for
+  // the advisor to have seen — otherwise the "opened their ticket" notification
+  // fires on the auto-view right after creation and is indistinguishable from
+  // "they came back to read my reply". The only non-owner who posts a public
+  // comment on an advisor's ticket is support, so any public comment from a
+  // different user_id means support has replied.
+  const hasSupportReplyToSee = comments.some(
+    (c) => c.user_id !== ticket.user_id && c.is_internal !== true
+  )
+
   if (ticket.user_id === user.id) {
     const fiveMinAgoIso = new Date(Date.now() - 5 * 60 * 1000).toISOString()
     const { data: recentView } = await supabase
@@ -83,11 +93,13 @@ export default async function SupportTicketDetailPage({ params }: { params: Prom
         // best-effort — failure must not block the page
       }
 
-      // Notify every admin. Pull the advisor's display name from
-      // user_settings (falls back to email) for a useful title. Best-effort
-      // — every step is wrapped so a notification failure can never block
-      // the ticket page from rendering.
-      void (async () => {
+      // Notify every admin — but ONLY when there's a support reply for the
+      // advisor to have seen, so "opened their ticket" reliably means "they saw
+      // my response" (not the auto-view right after they created the ticket).
+      // Pull the advisor's display name from user_settings (falls back to
+      // email) for a useful title. Best-effort — every step is wrapped so a
+      // notification failure can never block the ticket page from rendering.
+      if (hasSupportReplyToSee) void (async () => {
         try {
           // The admins lookup MUST go through the admin client. This code
           // path runs from the advisor's session (ticket owner viewing own

@@ -7,6 +7,8 @@ import {
 } from '@/lib/types/support'
 import { notifySlackNewTicket } from '@/lib/notifications/slack'
 import { sendTicketSubmittedEmail } from '@/lib/notifications/email'
+import { createNotification } from '@/lib/notifications/create'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 const createTicketSchema = z.object({
   subject: z.string().trim().min(3, 'Subject too short').max(200),
@@ -95,6 +97,29 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error('[support-tickets] Submission email error (non-fatal)', err)
     }
+  }
+
+  // In-app notification to every admin so the support-centre bell clearly
+  // distinguishes a NEW ticket ("submitted a new ticket") from a later view
+  // ("opened their ticket"). Best-effort — wrapped so it never blocks the
+  // response (mirrors the awaited Slack/email above).
+  try {
+    const adminClient = createAdminClient()
+    const { data: admins } = await adminClient.from('profiles').select('id').eq('role', 'admin')
+    await Promise.all(
+      ((admins ?? []) as Array<{ id: string }>).map((a) =>
+        createNotification({
+          user_id: a.id,
+          type: 'support_ticket_created',
+          title: `${advisorName} submitted a new ticket`,
+          body: data.subject,
+          link_url: `/support-centre/${data.id}`,
+          related_id: data.id,
+        })
+      )
+    )
+  } catch (err) {
+    console.error('[support-tickets] admin new-ticket notification fan-out failed', err)
   }
 
   return NextResponse.json(data, { status: 201 })

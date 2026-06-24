@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, MessageSquare, RefreshCw, UserPlus, FileText, Eye } from 'lucide-react'
+import { Bell, Check, MessageSquare, RefreshCw, UserPlus, FileText, Eye, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ const TYPE_ICON: Record<string, React.ComponentType<{ className?: string }>> = {
   support_ticket_reply: MessageSquare,
   support_ticket_status_change: RefreshCw,
   support_ticket_viewed: Eye,
+  support_ticket_created: Plus,
   intake_completed: UserPlus,
 }
 
