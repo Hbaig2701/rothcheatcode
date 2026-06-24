@@ -87,3 +87,15 @@ Touches the conversion engine, RMD logic, and the baseline comparator — needs 
 **Demand signal:** Lori Avant (mtwentyone.com), Jun 22 2026 — "would be helpful to be able to edit this based on birth year."
 
 **Estimated effort:** **1–2 days** (form field + engine precedence + tests).
+
+---
+
+## Tax credits input (offset tax dollar-for-dollar)
+
+**The pitch:** Let advisors enter **tax credits** (e.g. disaster-relief carryover credits, foreign tax credits, etc.) that reduce the tax owed **dollar-for-dollar** — distinct from the `additional_deductions` field (shipped June 2026), which reduces taxable *income*. A $300K credit wipes out $300K of tax; a $300K deduction only saves marginal-rate × $300K (~$96K at 32%). So deductions are NOT a usable proxy for credits.
+
+**What it requires:** a `tax_credits` field (cents; flat or year-by-year) + apply it in every tax-computing engine **after** the federal (and/or state) tax is computed, floored at $0, mirroring how `additional_deductions` plugs into `getEffectiveDeduction`. Since each YearlyResult stores the year's tax, the marginal "Tax on Conversion" and PDF pick it up automatically. Decide: federal-only vs federal+state, and whether unused credit carries forward across years.
+
+**Demand signal:** Gerald Shaw (mysummitadvisors.com, re: Joseph Klink, Jun 24 2026 — $300K hurricane-relief carryover credits). Also explicitly promised in the Mark Nichols thread ("considering adding Additional Deductions and Tax Credits"). The deductions half is built; this is the other half.
+
+**Estimated effort:** **~half a day** (mirrors the additional_deductions build: field + validation + migration + one apply-after-tax helper + UI + cache bump).
