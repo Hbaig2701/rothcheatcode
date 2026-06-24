@@ -601,7 +601,14 @@ export function NewAccountSection() {
                           <span className="text-xs text-muted-foreground">Yr {idx + 1}</span>
                           <Input
                             type="number"
-                            step="0.1"
+                            // `any`, not `0.1`: surrender schedules carry 2-decimal
+                            // charges (e.g. Allianz 222's 6.25 / 5.25 / 3.15 / 1.05),
+                            // which fail a step=0.1 multiple check. Because these
+                            // inputs sit inside the collapsed Surrender Schedule
+                            // section, the browser can't focus the invalid control to
+                            // show a message — so the form submit was SILENTLY blocked
+                            // ("invalid form control is not focusable") with no error.
+                            step="any"
                             min="0"
                             max="100"
                             value={charge}
