@@ -1297,10 +1297,16 @@ function runGIBaselineScenario(
         }
       }
       const rmdNetW = rmdAmount - rmdFederalTax - rmdStateTax;
-      const rmdToTaxableW = (client.rmd_treatment ?? 'reinvested') === 'reinvested' ? rmdNetW : 0;
+      // rmd_treatment: 'spent' consumes the after-tax RMD (gone from the estate);
+      // 'reinvested' AND 'cash' both KEEP it — the only difference is growth.
+      // Reinvested compounds at the rate of return; cash accumulates flat. The
+      // prior `=== 'reinvested'` check silently DROPPED the 'cash' proceeds, so a
+      // cash client's accumulated RMDs vanished from the legacy comparison.
+      const treatmentW = client.rmd_treatment ?? 'reinvested';
+      const rmdToTaxableW = treatmentW === 'spent' ? 0 : rmdNetW;
 
-      // Taxable account grows (+ reinvested after-tax RMD proceeds)
-      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      // 'cash' = no growth on the accumulated balance; otherwise it grows.
+      const taxableInterest = treatmentW === 'cash' ? 0 : Math.round(boyTaxable * rateOfReturn);
       taxableBalance = boyTaxable + taxableInterest + rmdToTaxableW;
 
       // IRMAA. Voluntary IRA pulls + forced RMD feed into MAGI/income like ordinary income.
@@ -1650,12 +1656,15 @@ function runGIBaselineScenario(
           rmdStateTax = Math.max(0, calculateStateTax({ taxableIncome: withRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax - calculateStateTax({ taxableIncome: withoutRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax);
         }
       }
-      // After-tax RMD proceeds move into the taxable account (reinvested default).
+      // After-tax RMD proceeds. 'spent' consumes them; 'reinvested' and 'cash'
+      // both keep them (reinvested grows at the rate of return, cash stays flat).
+      // The old `=== 'reinvested'` check dropped 'cash' proceeds entirely.
       const rmdNet = rmdAmount - rmdFederalTax - rmdStateTax;
-      const rmdToTaxable = (client.rmd_treatment ?? 'reinvested') === 'reinvested' ? rmdNet : 0;
+      const treatment = client.rmd_treatment ?? 'reinvested';
+      const rmdToTaxable = treatment === 'spent' ? 0 : rmdNet;
 
-      // Taxable account grows (+ reinvested after-tax RMD proceeds)
-      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      // 'cash' = no growth on the accumulated balance; otherwise it grows.
+      const taxableInterest = treatment === 'cash' ? 0 : Math.round(boyTaxable * rateOfReturn);
       taxableBalance = boyTaxable + taxableInterest + rmdToTaxable;
 
       // IRMAA (the RMD counts toward MAGI)
