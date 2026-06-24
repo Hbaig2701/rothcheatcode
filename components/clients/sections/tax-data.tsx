@@ -119,14 +119,21 @@ export function TaxDataSection() {
   // 'fixed_amount') don't trip the conditional render — those would have
   // been migrated to 'bracket_ceiling' but defensive narrowing still helps.
   const constraintType = form.watch("constraint_type");
-  const showIrmaaTargetPicker = constraintType === "irmaa_threshold";
+  // GI excluded: the GI engine never caps conversions by IRMAA tier, so the
+  // picker is inert there even if a saved row still carries 'irmaa_threshold'.
+  const showIrmaaTargetPicker = !isGI && constraintType === "irmaa_threshold";
 
   return (
     <FormSection title="4. Tax Data">
-      {/* Additional Constraint — formerly labeled "Constraint." Renamed
-          2026-06-05 to make the relationship to Max Tax Rate explicit:
-          bracket ceiling is ALWAYS active (via max_tax_rate), and this
-          dropdown picks whether an *additional* IRMAA cap layers on top. */}
+      {/* Additional Constraint + Max Tax Rate + the IRMAA tier picker together
+          form the Growth-FIA "bracket ceiling / IRMAA cap" conversion-control
+          mechanism. GI products use NONE of it: the GI engine sizes conversions
+          purely from Conversion Tax Bracket (gi_conversion_bracket) and applies
+          IRMAA only as an automatic surcharge, never as a conversion cap. So the
+          whole cluster is hidden for GI to avoid duplicate/inert inputs — leaving
+          Conversion Tax Bracket (in the New Account section) as the single GI
+          conversion-bracket control. */}
+      {!isGI && (
       <Controller
         name="constraint_type"
         control={form.control}
@@ -170,6 +177,7 @@ export function TaxDataSection() {
           );
         }}
       />
+      )}
 
       {/* IRMAA target tier picker — only visible when the advisor chose
           IRMAA. When constraint_type is bracket_ceiling, the engine ignores
@@ -225,7 +233,9 @@ export function TaxDataSection() {
           historical projections; the Zod schema treats it as optional with
           default 0. */}
 
-      {/* Max Tax Rate - Dropdown with valid brackets only */}
+      {/* Max Tax Rate - Growth only (see cluster note above). For GI the
+          conversion bracket lives in Conversion Tax Bracket. */}
+      {!isGI && (
       <Controller
         name="max_tax_rate"
         control={form.control}
@@ -266,6 +276,7 @@ export function TaxDataSection() {
           );
         }}
       />
+      )}
 
       {/* Additional Deductions — offsets conversion income beyond the standard
           deduction (charitable/itemized, business losses/NOLs, leveraged-

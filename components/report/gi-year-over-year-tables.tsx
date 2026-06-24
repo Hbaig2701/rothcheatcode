@@ -168,7 +168,11 @@ export function GIYearOverYearTables({
   const hasDepletedRows = computedData.some(y => y.accountDepleted);
 
   const maxBracketCeiling = useMemo(() => {
-    const maxRate = client.max_tax_rate ?? 24;
+    // Mirror the GI engine's conversion bracket EXACTLY (engine.ts:
+    // `gi_conversion_bracket ?? max_tax_rate ?? 24`) so this table's ceiling
+    // and headroom always match what the engine actually converted to. Using
+    // max_tax_rate here would diverge whenever the two fields differed.
+    const maxRate = client.gi_conversion_bracket ?? client.max_tax_rate ?? 24;
     return getBracketCeiling(client.filing_status, maxRate, new Date().getFullYear());
   }, [client]);
 
@@ -488,7 +492,7 @@ export function GIYearOverYearTables({
           {renderHeaderCell("Age", "left")}
           {renderHeaderCell("Income(Taxable)")}
           {renderHeaderCell("Dist.(IRA)")}
-          {renderHeaderCell(`Max Bracket(${client.max_tax_rate ?? 24}%)`)}
+          {renderHeaderCell(`Conv. Bracket(${client.gi_conversion_bracket ?? client.max_tax_rate ?? 24}%)`)}
           {renderHeaderCell("Taxes")}
           {renderHeaderCell("Conversion Amt")}
           {renderHeaderCell("E.O.Y.(IRA)")}
