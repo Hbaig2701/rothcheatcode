@@ -458,10 +458,14 @@ export function TaxDataSection() {
         />
       )}
 
-      {/* RMD Treatment (Baseline Scenario) - Only for Growth products.
-          Hidden when "RMDs Handled Externally" is on, because there are no
-          RMDs in either scenario to treat. */}
-      {!isGI && !form.watch("rmds_handled_externally") && (
+      {/* RMD Treatment (Baseline Scenario). Shown for Growth products AND for
+          GI products in LEGACY mode — in both, the "do nothing" baseline takes
+          forced RMDs and this field decides what happens to that cash (drives
+          the do-nothing legacy number directly: "spent" → no taxable estate
+          builds → far bigger Roth advantage; "reinvested" → it accumulates).
+          Hidden for the GI income story (no baseline RMDs there) and whenever
+          "RMDs Handled Externally" is on (no RMDs in either scenario to treat). */}
+      {(!isGI || form.watch("gi_legacy_mode")) && !form.watch("rmds_handled_externally") && (
         <Controller
           name="rmd_treatment"
           control={form.control}
