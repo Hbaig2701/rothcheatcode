@@ -305,14 +305,25 @@ export function getEffectivePayoutFactor(
 // GI: Increasing LPA rate (replaces getIncreasingLPARate)
 // ---------------------------------------------------------------------------
 
-export function getEffectiveIncreasingLPARate(
+export function getEffectiveIncreasingIncomeRate(
   productId: GuaranteedIncomeFormulaType,
-  customProduct?: CustomProductRow | null
+  customProduct: CustomProductRow | null | undefined,
+  creditedRate: number,
 ): number {
-  // Custom config has no field for this; keep system value.
-  void customProduct;
-  const product = GI_PRODUCT_DATA[productId];
-  return (product?.increasingLPARate ?? 0) / 100;
+  // How the "increasing" LPA grows each year:
+  //  - 'credited_rate' (Allianz 222, Athene Agility): the income steps up by the
+  //    assumed crediting rate, floored at 0% — so a 0%-credit year keeps income
+  //    flat. This is the carrier's index-linked increasing-income mechanic and
+  //    matches the illustrations; the flat preset rate understated it.
+  //  - 'fixed' (default / legacy): the engine preset's flat increasingLPARate
+  //    (~2%). Existing products keep this unless they opt in, so nothing else
+  //    changes.
+  const basis =
+    customProduct?.config?.income?.increasing_income_basis
+    ?? GI_PRODUCT_DATA[productId]?.increasingIncomeBasis
+    ?? "fixed";
+  if (basis === "credited_rate") return Math.max(0, creditedRate);
+  return (GI_PRODUCT_DATA[productId]?.increasingLPARate ?? 0) / 100;
 }
 
 // ---------------------------------------------------------------------------

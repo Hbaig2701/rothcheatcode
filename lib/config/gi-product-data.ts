@@ -114,8 +114,15 @@ export interface GIProductData {
   hasRollUpOptions: boolean;
   /** Human-readable roll-up description */
   rollUpDescription: string;
-  /** Annual increase rate for "increasing" LPA option */
+  /** Annual increase rate for "increasing" LPA option (used when increasingIncomeBasis is 'fixed') */
   increasingLPARate?: number;
+  /**
+   * How the "increasing" LPA grows: 'credited_rate' ties it to the assumed
+   * crediting rate (0% floor — Allianz 222 / Agility), 'fixed' (default) uses
+   * the flat increasingLPARate above. Per-product opt-in; custom product config
+   * (increasing_income_basis) overrides this.
+   */
+  increasingIncomeBasis?: 'credited_rate' | 'fixed';
 }
 
 // ---------------------------------------------------------------------------

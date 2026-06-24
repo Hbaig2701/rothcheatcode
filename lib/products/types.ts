@@ -140,6 +140,15 @@ export interface IncomeConfig {
    * stays locked during guaranteed income (only excess withdrawals reduce it).
    */
   benefit_base_draws_down?: boolean | null;
+  /**
+   * How the "increasing" LPA payout grows each year:
+   *  - "credited_rate": income steps up by the assumed crediting rate
+   *    (rate_of_return), floored at 0% — the carrier's index-linked increasing-
+   *    income mechanic (Allianz 222, Athene Agility). Matches the illustration.
+   *  - "fixed" (default when null/undefined): the engine preset's flat
+   *    increasingLPARate (~2%). Existing products keep this — no change.
+   */
+  increasing_income_basis?: "credited_rate" | "fixed" | null;
   bonus_applies_to?: "both" | "income_base" | "account_value" | null;
   payout_factors: {
     single: PayoutFactorsByAge;

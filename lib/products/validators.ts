@@ -91,6 +91,9 @@ const incomeSchema = z.object({
   // Benefit base draws down pro-rata on withdrawals/income (Allianz 222 / Athene
   // Agility) vs. locked income base on classic GLWBs (default).
   benefit_base_draws_down: z.boolean().nullable().optional(),
+  // "increasing" LPA growth basis: credited_rate (step up by the assumed rate,
+  // 0% floor — Allianz 222 / Agility) vs fixed preset rate (default).
+  increasing_income_basis: z.enum(["credited_rate", "fixed"]).nullable().optional(),
   bonus_applies_to: z.enum(["both", "income_base", "account_value"]).nullable().optional(),
   payout_factors: z.object({
     single: payoutByAgeSchema,

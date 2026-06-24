@@ -44,7 +44,7 @@ import {
   getEffectiveGIData,
   getEffectivePayoutFactor,
   getEffectiveRollUpForYear,
-  getEffectiveIncreasingLPARate,
+  getEffectiveIncreasingIncomeRate,
 } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import { applyTaxCreditCarryforward } from '../utils/tax-credits';
@@ -928,12 +928,14 @@ function runGIStrategyScenario(
         guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
       }
 
-      // For "increasing" LPA option, apply annual increase after first year
-      // Per Flat-Rate Compound Income spec: income grows by ~2% annually (minimum 0.25%)
+      // For "increasing" LPA option, apply annual increase after first year.
+      // Rate depends on the product's increasing_income_basis: 'credited_rate'
+      // ties the step-up to the assumed crediting rate (rateOfReturn, 0% floor)
+      // — Allianz 222 / Agility; 'fixed' uses the preset's flat ~2% (default).
       const yearsOfIncome = age - effectiveIncomeStartAge;
       let grossGI = guaranteedAnnualIncome;
       if (payoutOption === 'increasing' && yearsOfIncome > 0) {
-        const increaseRate = getEffectiveIncreasingLPARate(productId, customProduct);
+        const increaseRate = getEffectiveIncreasingIncomeRate(productId, customProduct, rateOfReturn);
         if (increaseRate > 0) {
           grossGI = Math.round(guaranteedAnnualIncome * Math.pow(1 + increaseRate, yearsOfIncome));
         }
@@ -1782,11 +1784,13 @@ function runGIBaselineScenario(
         guaranteedAnnualIncome = Math.round(incomeBaseAtIncomeAge * payoutFactor);
       }
 
-      // For "increasing" LPA option, apply annual increase after first year
+      // For "increasing" LPA option, apply annual increase after first year.
+      // See strategy scenario above — 'credited_rate' basis ties the step-up to
+      // the assumed crediting rate (0% floor); 'fixed' uses the preset rate.
       const yearsOfIncome = age - effectiveIncomeStartAge;
       let grossGI = guaranteedAnnualIncome;
       if (payoutOption === 'increasing' && yearsOfIncome > 0) {
-        const increaseRate = getEffectiveIncreasingLPARate(productId, customProduct);
+        const increaseRate = getEffectiveIncreasingIncomeRate(productId, customProduct, rateOfReturn);
         if (increaseRate > 0) {
           grossGI = Math.round(guaranteedAnnualIncome * Math.pow(1 + increaseRate, yearsOfIncome));
         }
