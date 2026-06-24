@@ -4,6 +4,7 @@ import { getAgeAtYearOffset, getBirthYear } from '../utils/age';
 import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
+import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { calculateIRMAAWithLookback, calculateIRMAAHeadroom, calculateIRMAAHeadroomToTarget } from '../modules/irmaa';
@@ -959,6 +960,11 @@ export function runGrowthFormulaScenario(
     // voluntary-withdrawal semantics elsewhere in the engine.
     const taxableBrokerageRate = (client.baseline_comparison_rate ?? client.growth_rate ?? 7) / 100;
     const taxableInterest = rmdTreatment === 'reinvested' ? Math.round(boyTaxable * taxableBrokerageRate) : 0;
+    // Tax-credit savings are retained as cash in the taxable bucket: the dollars
+    // the client did NOT send to the IRS this year stay with them. (Modeling
+    // simplification: they land in taxable even when the tax would've been paid
+    // from the IRA — net worth is correct to the dollar; only the bucket/growth
+    // treatment is approximate.)
     const desiredTaxableBalance = rmdTreatment === 'spent'
       ? boyTaxable - externalConversionTax
       : boyTaxable + afterTaxForcedRmd + taxableInterest - externalConversionTax;
@@ -1067,6 +1073,11 @@ export function runGrowthFormulaScenario(
       riderFee: yearRiderFee,
     });
   }
+
+  // Apply the tax-credit carryforward pool as a post-pass over the completed
+  // results — offsets each year's federal tax and retains the savings as cash.
+  // No-op when the client has no credit (byte-identical for existing clients).
+  applyTaxCreditCarryforward(results, client.tax_credits);
 
   return results;
 }

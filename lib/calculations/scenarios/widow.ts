@@ -9,6 +9,7 @@ import { calculateNIIT } from '../modules/niit';
 import { calculateIRMAA } from '../modules/irmaa';
 import { adjustForInflation } from '../modules/inflation';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
+import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import { getMarginalBracket, getIRMAATier } from '../tax-helpers';
 
 export interface WidowScenarioInput {
@@ -202,6 +203,10 @@ export function runWidowScenario(
       stateTaxOnOrdinaryIncome: stateResult.totalTax,
     });
   }
+
+  // Tax-credit carryforward pool — post-pass over the surviving spouse's years
+  // (no-op when the client has no credit).
+  applyTaxCreditCarryforward(results, client.tax_credits);
 
   return results;
 }

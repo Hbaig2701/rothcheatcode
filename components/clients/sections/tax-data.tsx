@@ -294,6 +294,34 @@ export function TaxDataSection() {
         )}
       />
 
+      {/* Tax Credits — offsets tax OWED dollar-for-dollar (unlike a deduction,
+          which only reduces taxable income). Entered as the TOTAL available
+          credit; the engine draws it down against federal income tax each year
+          and carries the unused balance forward until it's used up. */}
+      <Controller
+        name="tax_credits"
+        control={form.control}
+        render={({ field: { ref, ...field }, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor="tax_credits">
+              Tax Credits
+            </FieldLabel>
+            <CurrencyInput
+              {...field}
+              value={field.value ?? undefined}
+              aria-invalid={fieldState.invalid}
+            />
+            <FieldDescription>
+              Total available tax credits (e.g. disaster-relief carryover credits).
+              Offsets federal income tax dollar-for-dollar — not just taxable income
+              like a deduction — and the unused balance carries forward year to year
+              until it&apos;s used up.
+            </FieldDescription>
+            <FieldError errors={[fieldState.error]} />
+          </Field>
+        )}
+      />
+
       {/* Tax Payment Source */}
       <Controller
         name="tax_payment_source"

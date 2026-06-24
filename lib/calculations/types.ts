@@ -161,6 +161,11 @@ export interface YearlyResult {
   irmaaSurcharge: number;
   totalTax: number;
 
+  // Tax credit applied this year (in cents). Carryforward-pool credit drawn
+  // against federal income tax this year. Already reflected in federalTax/
+  // totalTax (which are POST-credit). 0 when the client has no credit pool.
+  taxCreditApplied?: number;
+
   // Social Security taxation
   taxableSS: number;
 

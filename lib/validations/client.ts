@@ -201,6 +201,10 @@ export const clientFormulaBaseSchema = z.object({
   // exists in clientFullBaseSchema/the server schema, but the form's onSubmit
   // data comes from THIS schema's parse output).
   additional_deductions: z.number().int().min(0).optional().nullable().default(null),
+  // Total available tax CREDIT pool (cents, carryforward). Offsets federal
+  // income tax dollar-for-dollar. Must be in THIS schema or the form input is
+  // silently discarded on save — same reason as additional_deductions above.
+  tax_credits: z.number().int().min(0).optional().nullable().default(null),
 
   // Section 5: Taxable Income Calculation
   // Upper cap is 100, not 70: clients who delayed claiming past 70 (no
@@ -469,6 +473,9 @@ export const clientFullBaseSchema = z.object({
   // Deductions beyond the standard deduction (charitable/itemized, NOLs,
   // leveraged-deduction programs), in cents. Lowers tax on shielded conversions.
   additional_deductions: z.number().int().min(0).optional().nullable().default(null),
+  // Total available tax CREDIT pool (cents, carryforward). Offsets federal
+  // income tax dollar-for-dollar until exhausted. Null = 0.
+  tax_credits: z.number().int().min(0).optional().nullable().default(null),
 
   // Income Sources (legacy)
   ss_self: z.number().int().min(0).default(0),
@@ -612,6 +619,7 @@ export type ClientFormData = {
   tax_rate?: number;
   max_tax_rate: number;
   additional_deductions?: number | null;
+  tax_credits?: number | null;
   tax_payment_source: "from_ira" | "from_taxable";
   state_tax_rate: number | null;
 

@@ -104,6 +104,11 @@ export interface Client {
   // the tax on Roth conversions shielded by the deduction. Optional — most
   // clients have none; null/undefined is treated as $0 by getEffectiveDeduction.
   additional_deductions?: number | null;
+  // Total available tax CREDIT pool, in cents (carryforward). Unlike
+  // additional_deductions (which reduces taxable income), this offsets FEDERAL
+  // income tax dollar-for-dollar until the pool is exhausted. Optional —
+  // null/undefined is treated as $0 (no credit). See utils/tax-credits.ts.
+  tax_credits?: number | null;
   ssi_payout_age: number;         // Age to start SSI (primary)
   ssi_annual_amount: number;      // Annual SSI (primary) in cents
   spouse_ssi_payout_age: number | null;  // Spouse SSI start age (MFJ only)
@@ -249,6 +254,7 @@ export interface FormulaFormData {
   gross_taxable_non_ssi: number;
   tax_exempt_non_ssi: number;
   additional_deductions: number | null;
+  tax_credits: number | null;
   ssi_payout_age: number;
   ssi_annual_amount: number;
   spouse_ssi_payout_age: number | null;

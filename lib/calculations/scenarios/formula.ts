@@ -9,6 +9,7 @@ import {
 import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAAWithLookback, calculateIRMAAHeadroom } from '../modules/irmaa';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
+import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import { getStateTaxRate } from '@/lib/data/states';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import {
@@ -753,6 +754,10 @@ export function runFormulaScenario(
       earlyWithdrawalPenalty,
     });
   }
+
+  // Tax-credit carryforward pool — post-pass over the completed results (no-op
+  // when the client has no credit).
+  applyTaxCreditCarryforward(results, client.tax_credits);
 
   return results;
 }

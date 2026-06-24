@@ -6,6 +6,7 @@ import { calculateFederalTax, determineTaxBracket } from '../modules/federal-tax
 import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
+import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import { getMarginalBracket, computeTaxableIncomeWithSS } from '../tax-helpers';
@@ -411,6 +412,13 @@ export function runBaselineScenario(
       earlyWithdrawalPenalty: earlyPenalty || undefined,
     });
   }
+
+  // Tax-credit carryforward pool — applied as a post-pass over the completed
+  // results (no-op when the client has no credit). The "do nothing" baseline
+  // gets the FULL pool too; it spreads thinly against small annual RMD taxes
+  // (and may go partly unused), which is why a conversion strategy that front-
+  // loads the credit against large conversion taxes extracts more value.
+  applyTaxCreditCarryforward(results, client.tax_credits);
 
   return results;
 }

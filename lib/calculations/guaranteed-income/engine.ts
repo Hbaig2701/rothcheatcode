@@ -47,6 +47,7 @@ import {
   getEffectiveIncreasingLPARate,
 } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
+import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import type { CustomProductRow } from '@/lib/products/types';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { calculateMAGI, calculateAGI, getMarginalBracket, computeTaxableIncomeWithSS } from '../tax-helpers';
@@ -484,6 +485,9 @@ function runGIStrategyScenario(
       // non_ssi_income, etc.) is assumed paid from external income rather
       // than driving taxableBalance into the negatives. TODO: replace with
       // proper external-income credit (option B) for full accuracy.
+      // The pre-credit outflow is used here (the credit doesn't change what
+      // physically left the accounts); the credit savings are then added back
+      // as retained cash, mirroring growth-formula.ts.
       const desiredTaxable = payTaxFromIRA
         ? boyTaxable + taxableInterest - Math.max(0, totalTax - conversionTaxFromIRA)
         : boyTaxable + taxableInterest - conversionTax - irmaaSurcharge - earlyWithdrawalPenalty;
@@ -1105,6 +1109,11 @@ function runGIStrategyScenario(
     bonusAmount,
     bonusAppliesTo,
   };
+
+  // Tax-credit carryforward pool — post-pass over the GI strategy years. Offsets
+  // the federal conversion tax dollar-for-dollar and retains the savings as cash;
+  // no-op when the client has no credit.
+  applyTaxCreditCarryforward(results, client.tax_credits);
 
   return { formula: results, strategyMetrics, strategyGIYearlyData: giYearlyData };
 }
@@ -1965,6 +1974,11 @@ function runGIBaselineScenario(
     incomeBaseAtIncomeAge,
     yearlyData: giYearlyData,
   };
+
+  // Tax-credit carryforward pool — the "do nothing" GI baseline gets the FULL
+  // pool too, offsetting its RMD/withdrawal federal tax. Post-pass; no-op when
+  // the client has no credit.
+  applyTaxCreditCarryforward(results, client.tax_credits);
 
   return { baseline: results, baselineMetrics, baselineGIYearlyData: giYearlyData };
 }
