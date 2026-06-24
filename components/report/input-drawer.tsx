@@ -84,6 +84,11 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       payout_option: client?.payout_option ?? null,
       gi_conversion_years: client?.gi_conversion_years ?? 5,
       gi_conversion_bracket: client?.gi_conversion_bracket ?? 24,
+      // Without this the drawer's Legacy-mode checkbox never reflected the saved
+      // value — it mounted to `undefined` (unticked) on every open/refresh/save,
+      // so the toggle appeared to "untick again" no matter what. (The full edit
+      // page already seeds this; the drawer was simply missing it.)
+      gi_legacy_mode: client?.gi_legacy_mode ?? false,
       surrender_years: client?.surrender_years ?? 7,
       penalty_free_percent: client?.penalty_free_percent ?? 10,
       baseline_comparison_rate: client?.baseline_comparison_rate ?? 7,
