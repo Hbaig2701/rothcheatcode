@@ -468,8 +468,141 @@ function StoryCard({ entry, isLast }: { entry: StoryEntry; isLast: boolean }) {
 }
 
 // Main GI Story Mode Component
+// Generate the LEGACY (no-income) story — the annuity is converted to Roth and
+// held for heirs: no income, no RMDs, the benefit base IS the tax-free death
+// benefit. Mirrors the GILegacyReportDashboard narrative, reusing the same
+// render shell below.
+function generateGILegacyStory(client: Client, projection: Projection): StoryEntry[] {
+  const entries: StoryEntry[] = [];
+  const giYearlyData = projection.gi_yearly_data || [];
+  const baselineYearlyData = projection.gi_baseline_yearly_data || [];
+  if (giYearlyData.length === 0) return entries;
+
+  const carrierName = client.carrier_name || "the carrier";
+  const productName = client.product_name || "the annuity";
+  const conversionYears = projection.gi_conversion_phase_years || 5;
+  const heirRate = (client.heir_tax_rate ?? 40) / 100;
+
+  // Outcomes (same math as the legacy report)
+  const lastStrat = giYearlyData[giYearlyData.length - 1];
+  const lastBase = baselineYearlyData[baselineYearlyData.length - 1];
+  const baseRows = projection.baseline_years || [];
+  const blueRows = projection.blueprint_years || [];
+  const strategyDB = lastStrat?.incomeBase || 0;
+  const baselineDB = lastBase?.incomeBase || 0;
+  const baselineTaxable = baseRows.length ? baseRows[baseRows.length - 1].taxableBalance || 0 : 0;
+  const baselineLegacy = Math.round(baselineDB * (1 - heirRate)) + baselineTaxable;
+  const additionalLegacy = strategyDB - baselineLegacy;
+  const lifetimeRMD = baseRows.reduce((s, y) => s + (y.rmdAmount || 0), 0);
+  const finalAge = blueRows.length ? blueRows[blueRows.length - 1].age : client.end_age;
+
+  let cumulativeConverted = 0;
+  let cumulativeTax = 0;
+  let conversionYearCount = 0;
+  let deferralYearCount = 0;
+  let startingDB = 0;
+
+  for (let i = 0; i < giYearlyData.length; i++) {
+    const row = giYearlyData[i];
+    const prevRow = i > 0 ? giYearlyData[i - 1] : null;
+    if (row.phase === "conversion") {
+      cumulativeConverted += row.conversionAmount || 0;
+      cumulativeTax += row.conversionTax || 0;
+      conversionYearCount++;
+    }
+    const runningTotals = {
+      totalConverted: toUSD(cumulativeConverted),
+      totalTaxPaid: toUSD(cumulativeTax),
+      rothBalance: toUSD(row.rothBalance || 0),
+      incomeBase: toUSD(row.incomeBase || 0),
+      cumulativeIncome: toUSD(0),
+    };
+
+    if (row.phase === "conversion" && conversionYearCount === 1) {
+      entries.push({
+        year: row.year, age: row.age, trigger: "conversion_start",
+        headline: "Your Legacy Plan Begins",
+        body: `You convert ${toUSD(row.conversionAmount || 0)} from your Traditional IRA to Roth and pay ${toUSD(row.conversionTax || 0)} in tax — the last time this money is ever taxed. From here it grows for your heirs, income-tax-free.`,
+        icon: "start", sentiment: "positive",
+        metrics: [
+          { label: "Converted", value: toUSD(row.conversionAmount || 0) },
+          { label: "Tax Paid", value: toUSD(row.conversionTax || 0) },
+          { label: "Remaining IRA", value: toUSD(row.traditionalBalance || 0) },
+        ],
+        runningTotals,
+      });
+    } else if (row.phase === "conversion" && conversionYearCount === conversionYears) {
+      entries.push({
+        year: row.year, age: row.age, trigger: "conversion_complete",
+        headline: "Now Fully Roth — No More RMDs",
+        body: `Over ${conversionYears} years you moved ${toUSD(cumulativeConverted)} to your Roth (${toUSD(cumulativeTax)} in tax). Because it's a Roth, the IRS can never force you to take a withdrawal again — and what's left passes to your heirs tax-free.`,
+        icon: "celebration", sentiment: "positive",
+        metrics: [
+          { label: "Total Converted", value: toUSD(cumulativeConverted) },
+          { label: "Total Tax", value: toUSD(cumulativeTax) },
+          { label: "Roth Balance", value: toUSD(row.rothBalance || 0) },
+        ],
+        runningTotals,
+      });
+    } else if (row.phase === "purchase") {
+      startingDB = row.incomeBase || 0;
+      entries.push({
+        year: row.year, age: row.age, trigger: "gi_purchase",
+        headline: "Securing the Death Benefit",
+        body: `Your ${toUSD(projection.gi_purchase_amount || row.rothBalance || 0)} Roth funds ${productName} with ${carrierName}. The benefit base — the tax-free death benefit your heirs receive over 5 years — starts at ${toUSD(row.incomeBase || 0)} and keeps growing.`,
+        icon: "shield", sentiment: "positive",
+        metrics: [
+          { label: "Premium", value: toUSD(projection.gi_purchase_amount || row.rothBalance || 0) },
+          { label: "Death Benefit", value: toUSD(row.incomeBase || 0) },
+        ],
+        runningTotals,
+      });
+    } else if (row.phase === "deferral") {
+      if (prevRow?.phase === "purchase") deferralYearCount = 1;
+      else if (prevRow?.phase === "deferral") deferralYearCount++;
+      if (deferralYearCount === 3 || deferralYearCount === 6 || deferralYearCount === 9) {
+        const growth = (row.incomeBase || 0) - startingDB;
+        entries.push({
+          year: row.year, age: row.age, trigger: "rollup_milestone",
+          headline: `Your Death Benefit Grows`,
+          body: `With no income taken and no RMDs, your tax-free death benefit has grown to ${toUSD(row.incomeBase || 0)} — ${toUSD(growth)} of guaranteed growth for your heirs since you secured it.`,
+          icon: "progress", sentiment: "positive",
+          metrics: [
+            { label: "Death Benefit", value: toUSD(row.incomeBase || 0) },
+            { label: "Growth", value: `${growth >= 0 ? "+" : ""}${toUSD(growth)}` },
+          ],
+          runningTotals,
+        });
+      }
+    }
+  }
+
+  // Final: the legacy to heirs vs doing nothing
+  entries.push({
+    year: 0, age: finalAge, trigger: "death_legacy",
+    headline: "A Tax-Free Legacy",
+    body: `At age ${finalAge}, your heirs receive ${toUSD(strategyDB)} — income-tax-free, paid over 5 years. Doing nothing and keeping it traditional instead leaves them ${toUSD(baselineLegacy)} after taxes, with ${toUSD(lifetimeRMD)} drained by forced RMDs along the way.`,
+    icon: "end", sentiment: additionalLegacy >= 0 ? "positive" : "caution",
+    metrics: [
+      { label: "Tax-Free Legacy", value: toUSD(strategyDB) },
+      { label: "Do Nothing", value: toUSD(baselineLegacy) },
+      { label: additionalLegacy >= 0 ? "More to Heirs" : "Less to Heirs", value: `${additionalLegacy >= 0 ? "+" : ""}${toUSD(additionalLegacy)}` },
+    ],
+    comparison:
+      additionalLegacy >= 0
+        ? `Converting to a Roth and skipping RMDs leaves ${toUSD(additionalLegacy)} more to your heirs, entirely income-tax-free.`
+        : `For this client, doing nothing leaves ${toUSD(-additionalLegacy)} more — converting isn't the better move here.`,
+    runningTotals: { totalConverted: toUSD(cumulativeConverted), totalTaxPaid: toUSD(cumulativeTax), rothBalance: toUSD(strategyDB), incomeBase: toUSD(strategyDB), cumulativeIncome: toUSD(0) },
+  });
+
+  return entries;
+}
+
 export function GIStoryMode({ client, projection, onClose }: GIStoryModeProps) {
-  const storyEntries = useMemo(() => generateGIStory(client, projection), [client, projection]);
+  const storyEntries = useMemo(
+    () => (client.gi_legacy_mode ? generateGILegacyStory(client, projection) : generateGIStory(client, projection)),
+    [client, projection]
+  );
 
   const startAge = client.age ?? 55;
   const endAge = client.end_age ?? 100;
@@ -500,7 +633,7 @@ export function GIStoryMode({ client, projection, onClose }: GIStoryModeProps) {
           {/* Story Title */}
           <div className="text-center mb-12">
             <p className="text-gold text-sm uppercase tracking-[3px] mb-3 font-medium">
-              Tax-Free Income Story
+              {client.gi_legacy_mode ? "Tax-Free Legacy Story" : "Tax-Free Income Story"}
             </p>
             <h1 className="text-3xl font-semibold text-foreground mb-2">
               {client.name}

@@ -42,6 +42,32 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
     );
   }
 
+  // The slideshow tells the INCOME story — not applicable to legacy/no-income
+  // plans. The Report and Story Mode are both legacy-aware; point there instead
+  // of rendering income slides full of zeros. (Story Mode is itself a full-screen
+  // presentation + prints to PDF.)
+  if (client.gi_legacy_mode) {
+    return (
+      <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center gap-4 px-8 text-center">
+        <p className="text-gold text-sm uppercase tracking-[3px] font-medium">Legacy Mode</p>
+        <h2 className="text-2xl font-semibold text-foreground max-w-xl">
+          Slideshow presentation isn&apos;t tailored to Legacy plans yet
+        </h2>
+        <p className="text-text-muted max-w-md">
+          This client is in legacy / no-income mode. Use the <span className="text-foreground font-medium">Report</span> or{" "}
+          <span className="text-foreground font-medium">Story Mode</span> — both show the tax-free legacy-to-heirs view, and
+          Story Mode prints/saves to PDF.
+        </p>
+        <button
+          onClick={onExit}
+          className="mt-2 px-5 py-2 text-sm font-medium text-foreground bg-bg-card border border-border-default rounded-lg hover:bg-bg-card-hover transition-colors"
+        >
+          Back
+        </button>
+      </div>
+    );
+  }
+
   const { projection } = projectionResponse;
   const incomeChartData = transformToGIIncomeChartData(projection);
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
