@@ -1509,6 +1509,68 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
   };
 }
 
+// Legacy (no-income) GI report. Reuses the income prep's year-by-year tables +
+// product details, then layers the death-benefit / legacy framing on top —
+// mirroring GILegacyReportDashboard exactly so the PDF matches the on-screen
+// report. Without this, a legacy client gets the income template and renders
+// "$0/year", "Starting Age: 999", "Payout 0.00%" — the income story doesn't
+// apply when no income is ever taken.
+function prepareGILegacyTemplateData(reportData: any, branding: BrandingData): GITemplateData { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const base = prepareGITemplateData(reportData, branding);
+  const { client, projection } = reportData as { client: any; projection: any }; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  const lastOf = <T,>(arr: T[] | null | undefined): T | undefined => (arr && arr.length ? arr[arr.length - 1] : undefined);
+  const sumKey = (arr: any[] | null | undefined, key: string) => (arr ?? []).reduce((s: number, r: any) => s + (Number(r[key]) || 0), 0); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  const heirRate = (client.heir_tax_rate ?? 40) / 100;
+
+  // Death benefit = rolled-up benefit base paid to heirs over 5 years.
+  const strategyDB = (lastOf(projection.gi_yearly_data) as any)?.incomeBase ?? 0; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const baselineDB = (lastOf(projection.gi_baseline_yearly_data) as any)?.incomeBase ?? 0; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const strategyTaxable = (lastOf(projection.blueprint_years) as any)?.taxableBalance ?? 0; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const baselineTaxable = (lastOf(projection.baseline_years) as any)?.taxableBalance ?? 0; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  const strategyLegacy = strategyDB + strategyTaxable;
+  const baselineDBAfterTax = Math.round(baselineDB * (1 - heirRate));
+  const baselineLegacy = baselineDBAfterTax + baselineTaxable;
+  const additionalLegacy = strategyLegacy - baselineLegacy;
+  const legacyWinning = additionalLegacy >= 0;
+
+  const lifetimeRMD = sumKey(projection.baseline_years, 'rmdAmount');
+  const lifetimeRMDTax = sumKey(projection.baseline_years, 'federalTax') + sumKey(projection.baseline_years, 'stateTax');
+
+  const finalAge = (lastOf(projection.blueprint_years) as any)?.age ?? (client.end_age ?? 100); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+  // Roll-up of the benefit base from purchase to the final death benefit. The
+  // income-mode finalIncomeBase (gi_income_base_at_income_age) is empty in
+  // legacy mode — derive from the final benefit base instead.
+  const purchaseAmt = projection.gi_purchase_amount ?? client.qualified_account_value ?? 0;
+  const bonusAmt = Math.round(purchaseAmt * ((client.bonus_percent || 0) / 100));
+  const startingBase = projection.gi_income_base_at_start ?? (purchaseAmt + bonusAmt);
+  const legacyRollUpGrowth = Math.max(0, strategyDB - startingBase);
+
+  return {
+    ...base,
+    isLegacy: true,
+    legacyHeroLabel: legacyWinning ? 'Tax-Free Legacy to Your Heirs' : 'Legacy to Your Heirs',
+    legacyWinning,
+    strategyLegacy: formatCurrency(strategyLegacy),
+    strategyDeathBenefit: formatCurrency(strategyDB),
+    showStrategyDeathBenefit: strategyDB > 0,
+    baselineLegacy: formatCurrency(baselineLegacy),
+    baselineDeathBenefitAfterTax: formatCurrency(baselineDBAfterTax),
+    strategyTaxableLegacy: formatCurrency(strategyTaxable),
+    baselineTaxableLegacy: formatCurrency(baselineTaxable),
+    additionalLegacy: formatCurrency(Math.abs(additionalLegacy)),
+    lifetimeRMD: formatCurrency(lifetimeRMD),
+    lifetimeRMDTax: formatCurrency(lifetimeRMDTax),
+    heirTaxRatePct: Math.round(heirRate * 100),
+    finalAge,
+    finalDeathBenefit: formatCurrency(strategyDB),
+    legacyRollUpGrowth: formatCurrency(legacyRollUpGrowth),
+  } as unknown as GITemplateData;
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Auth check
@@ -1606,9 +1668,12 @@ export async function POST(request: NextRequest) {
       branding.hasContactInfo = !!(branding.phone || branding.email || branding.website);
     }
 
-    // Detect if this is a GI product
+    // Detect if this is a GI product, and whether it's running in legacy
+    // (no-income / death-benefit) mode — those use a different template + data
+    // prep so the income narrative isn't rendered for a client taking no income.
     const blueprintType = reportData.client.blueprint_type as FormulaType;
     const isGI = blueprintType && isGuaranteedIncomeProduct(blueprintType);
+    const isGILegacy = isGI && !!reportData.client.gi_legacy_mode;
 
     // If the client is using a custom product, load it so the rider fee /
     // GI roll-up / payout factors used in the PDF match what the engine uses.
@@ -1621,14 +1686,18 @@ export async function POST(request: NextRequest) {
     reportData.customProduct = customProduct;
 
     // Load and compile the appropriate template
-    const templateFileName = isGI ? 'gi-pdf-template.html' : 'pdf-template.html';
+    const templateFileName = isGI
+      ? (isGILegacy ? 'gi-legacy-pdf-template.html' : 'gi-pdf-template.html')
+      : 'pdf-template.html';
     const templatePath = path.join(process.cwd(), 'templates', templateFileName);
     const templateHtml = fs.readFileSync(templatePath, 'utf8');
     const template = Handlebars.compile(templateHtml);
 
     // Prepare data for the appropriate template
     const templateData = isGI
-      ? prepareGITemplateData(reportData, branding)
+      ? (isGILegacy
+          ? prepareGILegacyTemplateData(reportData, branding)
+          : prepareGITemplateData(reportData, branding))
       : prepareTemplateData(reportData, branding);
 
     // Add white-label flag

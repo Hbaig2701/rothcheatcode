@@ -299,14 +299,13 @@ export function ExportPdfDialog({
               </p>
             </div>
 
-            {/* Legacy plans: point to the legacy-aware Story Mode PDF. */}
+            {/* Legacy plans now export a dedicated legacy / death-benefit PDF. */}
             {isGI && client.gi_legacy_mode && (
               <div className="mb-6 rounded-lg border border-gold-border bg-gold-subtle p-3">
-                <p className="text-sm text-foreground font-medium mb-1">Legacy plan — use Story Mode for the PDF</p>
+                <p className="text-sm text-foreground font-medium mb-1">Legacy plan — tax-free legacy view</p>
                 <p className="text-xs text-muted-foreground">
-                  This export isn&apos;t tailored to the legacy / death-benefit view yet. For a legacy PDF, open{" "}
-                  <span className="text-foreground">Story Mode</span> and use{" "}
-                  <span className="text-foreground">Print / Save as PDF</span> — it&apos;s legacy-aware.
+                  This PDF is the legacy / death-benefit story: no income, no RMDs, and the
+                  tax-free benefit base passing to heirs vs. the do-nothing baseline.
                 </p>
               </div>
             )}
