@@ -99,3 +99,19 @@ Touches the conversion engine, RMD logic, and the baseline comparator — needs 
 **Demand signal:** Gerald Shaw (mysummitadvisors.com, re: Joseph Klink, Jun 24 2026 — $300K hurricane-relief carryover credits). Also explicitly promised in the Mark Nichols thread ("considering adding Additional Deductions and Tax Credits"). The deductions half is built; this is the other half.
 
 **Estimated effort:** **~half a day** (mirrors the additional_deductions build: field + validation + migration + one apply-after-tax helper + UI + cache bump).
+
+---
+
+## Explicit withdrawal-source fallback (fair baseline-vs-strategy comparison)
+
+**The pitch:** Make the **"Roth IRA"** and **"Traditional IRA"** withdrawal-source options fall back to the other bucket the way **"Auto"** already does, instead of drawing $0 when the named bucket is empty.
+
+**Why:** The baseline ("do nothing") client has no Roth; the strategy client (after full conversion) has no traditional IRA. So an explicit `source: 'roth'` draws the full income on the strategy side but **$0 on the baseline** (no Roth to pull) — the baseline just compounds while the strategy spends down, throwing the strategy deeply negative. `source: 'ira'` breaks it mirror-image (strategy draws $0, balloons). The comparison is only fair when **both sides fund the same income**, which is exactly what `auto` does today. Advisors reach for "Roth IRA" precisely *because* they want to showcase tax-free income — so the most intuitive choice silently produces the most misleading chart.
+
+**What it requires:** in `resolveWithdrawalsForYear` (`lib/calculations/utils/withdrawals.ts`), have explicit `'roth'`/`'ira'` requests fall back to the other qualified bucket when the preferred one is exhausted (same Roth-first/IRA-fallback logic Auto uses, just with the advisor's preferred bucket ordered first). Applies symmetrically in `baseline.ts` + `growth-formula.ts` (+ `formula.ts`, GI engine). Bump the cache version.
+
+**Caveat (out of scope):** this matches **gross** income, not **net spendable** — the baseline's IRA draw is taxed, so it nets less than the strategy's tax-free Roth draw. True net-income parity (gross up the baseline withdrawal) is a bigger modeling change; this same gross-vs-net imperfection already exists in `auto` today, so the fallback fix doesn't make it worse.
+
+**Demand signal:** Gerald Shaw (mysummitadvisors.com, re: Joseph Klink, Jun 24 2026 — "Why does taking income from ROTH ruin strategy? Any income from ROTH gives negative #s"). Told to use "Auto" as the interim workaround.
+
+**Estimated effort:** **~half a day** (fallback ordering in one util + verify symmetry across 4 engines + cache bump + tests).
