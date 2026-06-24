@@ -307,7 +307,14 @@ export default function ResultsPage({ params }: ResultsPageProps) {
             through the report behind it. */}
         {drawerOpen && (
           <div className="absolute right-0 top-0 bottom-0 w-full sm:w-[600px] max-w-[95vw] shrink-0 border-l border-border-default bg-background shadow-[0_0_40px_rgba(0,0,0,0.4)] overflow-hidden z-30">
-            <InputDrawer client={client} onClose={() => setDrawerOpen(false)} />
+            {/* Key on updated_at: InputDrawer seeds react-hook-form from `client`
+                via defaultValues (read once at mount), but useClient() is
+                stale-while-revalidate — so the drawer could open from a stale
+                cached copy and the background refetch's fresh data would never
+                re-sync (gi_legacy_mode appearing to "randomly untick"). A newer
+                updated_at remounts it from fresh data; an unchanged one keeps
+                in-progress edits. Same fix as the full edit page. */}
+            <InputDrawer key={`${client.id}-${client.updated_at}`} client={client} onClose={() => setDrawerOpen(false)} />
           </div>
         )}
       </div>

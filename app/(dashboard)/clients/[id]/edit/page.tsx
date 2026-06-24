@@ -50,7 +50,19 @@ export default function EditClientPage({ params }: EditClientPageProps) {
           Update {client.name}&apos;s information.
         </p>
       </div>
-      <ClientForm client={client} />
+      {/*
+        Key on updated_at so the form re-initializes when the underlying record
+        changes. ClientForm seeds react-hook-form via `defaultValues`, which is
+        read ONCE at mount — but useClient() serves stale-while-revalidate, so on
+        open the form can mount from a stale cached copy (e.g. legacy mode off
+        from a prior view) and the background refetch's fresh `client` prop never
+        re-syncs. That made gi_legacy_mode (and any field) display the stale value
+        — the toggle appearing to "randomly untick" even though the DB was correct.
+        When the refetch returns a newer updated_at the key changes and the form
+        remounts from fresh data; an unchanged updated_at (same-record refetch,
+        e.g. window-focus) keeps the key stable so in-progress edits aren't lost.
+      */}
+      <ClientForm key={`${client.id}-${client.updated_at}`} client={client} />
     </div>
   );
 }
