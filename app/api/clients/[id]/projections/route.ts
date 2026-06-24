@@ -117,6 +117,10 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     // GI 4-phase model fields
     gi_conversion_years: client.gi_conversion_years,
     gi_conversion_bracket: client.gi_conversion_bracket,
+    // Legacy/no-income mode flips the whole GI projection (no income phase +
+    // forced RMDs in the baseline) — MUST be hashed or toggling it serves a
+    // stale income-mode projection.
+    gi_legacy_mode: client.gi_legacy_mode,
     // AUM split-allocation
     aum_allocation_percent: client.aum_allocation_percent,
     aum_fee_percent: client.aum_fee_percent,

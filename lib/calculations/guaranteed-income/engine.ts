@@ -951,7 +951,11 @@ function runGIStrategyScenario(
       // (yr1 income: $465,000 × (1 − 23,250/300,000) = $428,963).
       if (productData?.benefitBaseDrawsDown && boyAccount > 0) {
         const withdrawalFraction = Math.min(1, grossGI / boyAccount);
-        incomeBaseAtIncomeAge = Math.round(incomeBaseAtIncomeAge * (1 - withdrawalFraction));
+        // Draw down `incomeBase` (the death-benefit value during income), NOT
+        // incomeBaseAtIncomeAge — the latter is the LOCKED income-base metric
+        // and must stay fixed (it sizes the income + is reported as "income base
+        // at income age"). At the income lock they're equal; here they diverge.
+        incomeBase = Math.round(incomeBase * (1 - withdrawalFraction));
       }
 
       // Deduct GI payment from account value
@@ -969,7 +973,7 @@ function runGIStrategyScenario(
       // Deduct rider fee during income phase too
       let yearRiderFee = 0;
       if (riderFeeRate > 0 && accountValue > 0) {
-        const feeBase = riderFeeAppliesTo === 'accountValue' ? accountValue : incomeBaseAtIncomeAge;
+        const feeBase = riderFeeAppliesTo === 'accountValue' ? accountValue : incomeBase;
         yearRiderFee = Math.round(feeBase * riderFeeRate);
         accountValue = Math.max(0, accountValue - yearRiderFee);
         totalRiderFees += yearRiderFee;
@@ -1053,7 +1057,7 @@ function runGIStrategyScenario(
         stateTaxOnConversions: 0,
         stateTaxOnOrdinaryIncome: 0,
         // GI-specific fields
-        incomeRiderValue: incomeBaseAtIncomeAge,
+        incomeRiderValue: incomeBase,
         accumulationValue: accountValue,
         incomePayoutAmount: grossGI,
         riderFee: yearRiderFee,
@@ -1073,7 +1077,7 @@ function runGIStrategyScenario(
         conversionAmount: 0,
         conversionTax: 0,
         accountValue,
-        incomeBase: incomeBaseAtIncomeAge,
+        incomeBase: incomeBase,
         guaranteedIncomeGross: grossGI,
         guaranteedIncomeNet: netGI,
         riderFee: yearRiderFee,
@@ -1264,12 +1268,34 @@ function runGIBaselineScenario(
       const iraGrowth = Math.round(traditionalBalance * rateOfReturn);
       traditionalBalance = traditionalBalance + iraGrowth;
 
-      // Taxable account grows
-      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
-      taxableBalance = boyTaxable + taxableInterest;
+      // Forced RMD in legacy mode. These pre-purchase "hold" years can fall past
+      // the RMD age for older clients, so mirror the deferral-phase RMD here too
+      // — otherwise an already-RMD-age client silently skips RMDs until the GI
+      // purchase, understating "RMDs avoided". A voluntary IRA withdrawal above
+      // already satisfies the RMD up to its amount. Gated on gi_legacy_mode.
+      let rmdAmount = 0;
+      let rmdFederalTax = 0;
+      let rmdStateTax = 0;
+      if (client.gi_legacy_mode && !client.rmds_handled_externally && traditionalBalance > 0) {
+        const rmdRequired = calculateRMD({ age, traditionalBalance: boyTraditional, birthYear }).rmdAmount;
+        rmdAmount = Math.min(Math.max(0, rmdRequired - iraWithdrawalW), traditionalBalance);
+        if (rmdAmount > 0) {
+          traditionalBalance = Math.max(0, traditionalBalance - rmdAmount);
+          const withRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalW + rmdAmount, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+          const withoutRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalW, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+          rmdFederalTax = Math.max(0, calculateFederalTax({ taxableIncome: withRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax - calculateFederalTax({ taxableIncome: withoutRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax);
+          rmdStateTax = Math.max(0, calculateStateTax({ taxableIncome: withRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax - calculateStateTax({ taxableIncome: withoutRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax);
+        }
+      }
+      const rmdNetW = rmdAmount - rmdFederalTax - rmdStateTax;
+      const rmdToTaxableW = (client.rmd_treatment ?? 'reinvested') === 'reinvested' ? rmdNetW : 0;
 
-      // IRMAA. Voluntary IRA pulls feed into MAGI/income exactly like ordinary income.
-      const magi = otherIncome + iraWithdrawalW + taxExemptNonSSI + ssIncome;
+      // Taxable account grows (+ reinvested after-tax RMD proceeds)
+      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      taxableBalance = boyTaxable + taxableInterest + rmdToTaxableW;
+
+      // IRMAA. Voluntary IRA pulls + forced RMD feed into MAGI/income like ordinary income.
+      const magi = otherIncome + iraWithdrawalW + rmdAmount + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
       // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
@@ -1283,15 +1309,15 @@ function runGIBaselineScenario(
         irmaaTierFromLookback = irmaaResult.tier;
       }
 
-      // Calculate tax details (with SS taxation awareness)
+      // Calculate tax details (with SS taxation awareness). RMD is ordinary income.
       const waitingTaxInfo = computeTaxableIncomeWithSS({
-        otherIncome: otherIncome + iraWithdrawalW,
+        otherIncome: otherIncome + iraWithdrawalW + rmdAmount,
         ssBenefits: ssIncome,
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
       });
-      const totalIncome = otherIncome + iraWithdrawalW + ssIncome;
+      const totalIncome = otherIncome + iraWithdrawalW + rmdAmount + ssIncome;
       const agi = waitingTaxInfo.agi;
       const taxableIncome = waitingTaxInfo.taxableIncome;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
@@ -1307,17 +1333,17 @@ function runGIBaselineScenario(
         traditionalBalance,
         rothBalance: 0,
         taxableBalance,
-        rmdAmount: 0,
+        rmdAmount,
         conversionAmount: 0,
         ssIncome,
         pensionIncome: 0,
         otherIncome,
         totalIncome,
-        federalTax: 0,
-        stateTax: 0,
+        federalTax: rmdFederalTax,
+        stateTax: rmdStateTax,
         niitTax: 0,
         irmaaSurcharge,
-        totalTax: irmaaSurcharge + earlyPenaltyW,
+        totalTax: rmdFederalTax + rmdStateTax + irmaaSurcharge + earlyPenaltyW,
         taxableSS: waitingTaxInfo.taxableSS,
         netWorth: traditionalBalance + taxableBalance,
         // Extended fields for adjustable columns
@@ -1811,7 +1837,11 @@ function runGIBaselineScenario(
       // (yr1 income: $465,000 × (1 − 23,250/300,000) = $428,963).
       if (productData?.benefitBaseDrawsDown && boyAccount > 0) {
         const withdrawalFraction = Math.min(1, grossGI / boyAccount);
-        incomeBaseAtIncomeAge = Math.round(incomeBaseAtIncomeAge * (1 - withdrawalFraction));
+        // Draw down `incomeBase` (the death-benefit value during income), NOT
+        // incomeBaseAtIncomeAge — the latter is the LOCKED income-base metric
+        // and must stay fixed (it sizes the income + is reported as "income base
+        // at income age"). At the income lock they're equal; here they diverge.
+        incomeBase = Math.round(incomeBase * (1 - withdrawalFraction));
       }
 
       // Deduct GI payment from account value
@@ -1827,7 +1857,7 @@ function runGIBaselineScenario(
       // Deduct rider fee
       let yearRiderFee = 0;
       if (riderFeeRate > 0 && accountValue > 0) {
-        const feeBase = riderFeeAppliesTo === 'accountValue' ? accountValue : incomeBaseAtIncomeAge;
+        const feeBase = riderFeeAppliesTo === 'accountValue' ? accountValue : incomeBase;
         yearRiderFee = Math.round(feeBase * riderFeeRate);
         accountValue = Math.max(0, accountValue - yearRiderFee);
       }
@@ -1895,7 +1925,7 @@ function runGIBaselineScenario(
         stateTaxOnConversions: 0,
         stateTaxOnOrdinaryIncome: stateResult.totalTax - baselineStateTaxOnSS,
         // GI-specific fields
-        incomeRiderValue: incomeBaseAtIncomeAge,
+        incomeRiderValue: incomeBase,
         accumulationValue: accountValue,
         incomePayoutAmount: grossGI,
         riderFee: yearRiderFee,
@@ -1915,7 +1945,7 @@ function runGIBaselineScenario(
         conversionAmount: 0,
         conversionTax: 0,
         accountValue,
-        incomeBase: incomeBaseAtIncomeAge,
+        incomeBase: incomeBase,
         guaranteedIncomeGross: grossGI,
         guaranteedIncomeNet: netGI,
         riderFee: yearRiderFee,

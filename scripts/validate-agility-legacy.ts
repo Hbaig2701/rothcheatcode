@@ -49,11 +49,16 @@ function karen(rate: number, legacy: boolean): Client {
   const incYears = aLeg.yearlyData.filter((y) => y.phase === "income").length;
   console.log(`  strategy income-phase years: ${incYears}  | total gross income paid: ${usd(aLeg.totalGrossPaid)}  ${incYears === 0 && aLeg.totalGrossPaid === 0 ? "✅" : "❌"}`);
 
-  console.log("\n=== (B) legacy ON, baseline (pure annuity), 0% → benefit base held $465,000 ===");
+  console.log("\n=== (B) legacy ON, 0% → Roth strategy HOLDS benefit base; do-nothing baseline ERODES from RMDs ===");
   const b = sim(0, true);
-  const bYears = b.baselineYearlyData.filter((y) => y.phase === "deferral" || y.phase === "purchase");
-  const allHeld = bYears.every((y) => Math.abs(y.incomeBase - 46_500_000) <= 100);
-  console.log(`  ${bYears.length} held years; first ${usd(bYears[0].incomeBase)}, last ${usd(bYears[bYears.length - 1].incomeBase)}  ${allHeld ? "✅ all $465,000" : "❌ not held"}`);
+  const bBase = b.baselineYearlyData.filter((y) => y.phase === "deferral" || y.phase === "purchase");
+  const sBase = b.yearlyData.filter((y) => y.phase === "deferral" || y.phase === "purchase");
+  // Strategy (Roth, no RMDs, 0% so no roll-up): benefit base held constant.
+  const stratHeld = sBase.every((y) => Math.abs(y.incomeBase - sBase[0].incomeBase) <= 100);
+  console.log(`  strategy (Roth):       ${usd(sBase[0].incomeBase)} → ${usd(sBase[sBase.length - 1].incomeBase)}  ${stratHeld ? "✅ held (no RMDs)" : "❌ not held"}`);
+  // Baseline (traditional): starts at the bonused $465k, then RMDs erode it (Option B).
+  const baseErodes = Math.abs(bBase[0].incomeBase - 46_500_000) <= 100 && bBase[bBase.length - 1].incomeBase < bBase[0].incomeBase;
+  console.log(`  baseline (do-nothing): ${usd(bBase[0].incomeBase)} → ${usd(bBase[bBase.length - 1].incomeBase)}  ${baseErodes ? "✅ starts $465k, eroded by RMDs" : "❌ unexpected"}`);
 
   console.log("\n=== (C) legacy ON, baseline, 5% → benefit base rolls up ===");
   const c = sim(5, true);

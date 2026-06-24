@@ -185,6 +185,7 @@ export function NewAccountSection() {
     } else {
       form.setValue("roll_up_option", null);
       form.setValue("payout_option", null);
+      form.setValue("gi_legacy_mode", false); // non-GI product can't use legacy mode
     }
   };
 
@@ -298,6 +299,7 @@ export function NewAccountSection() {
       // Switching to a Growth product - clear GI-specific fields
       form.setValue("roll_up_option", null);
       form.setValue("payout_option", null);
+      form.setValue("gi_legacy_mode", false); // non-GI product can't use legacy mode
     }
 
     // Anniversary bonus fields are already set above from product defaults

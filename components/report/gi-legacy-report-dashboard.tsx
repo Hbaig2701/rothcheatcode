@@ -60,7 +60,6 @@ export function GILegacyReportDashboard({ client, projection }: Props) {
   const lifetimeRMDTax =
     sum(projection.baseline_years as unknown as { [k: string]: number }[], "federalTax") +
     sum(projection.baseline_years as unknown as { [k: string]: number }[], "stateTax");
-  const heirTaxAvoided = Math.round(baselineDB * heirRate);
   const conversionTax = projection.gi_total_conversion_tax ?? 0;
 
   const finalAge = last(projection.blueprint_years)?.age ?? client.end_age;
@@ -72,46 +71,53 @@ export function GILegacyReportDashboard({ client, projection }: Props) {
         taxFundedFromIra={(projection.blueprint_years ?? []).some((y) => (y.taxesPaidFromIRA ?? 0) > 0)}
       />
       <div className="p-9 space-y-6">
-        {/* Hero: the tax-free death benefit */}
+        {/* Hero: total tax-free legacy to heirs (consistent with the do-nothing
+            comparison — both are TOTAL net legacy, not DB-only vs DB+taxable). */}
         <div className="bg-accent border border-gold-border rounded-[16px] py-10 px-12 text-center">
           <p className="text-sm uppercase tracking-[3px] text-[rgba(212,175,55,0.7)] mb-2 font-medium">
-            Tax-Free Legacy to Your Heirs
+            {winning ? "Tax-Free Legacy to Your Heirs" : "Legacy to Your Heirs"}
           </p>
           <div className="w-16 h-[2px] bg-gold mx-auto mb-6" />
-          <p className="text-5xl font-mono font-semibold text-gold mb-1">{toUSD(strategyDB)}</p>
+          <p className="text-5xl font-mono font-semibold text-gold mb-1">{toUSD(strategyLegacy)}</p>
           <p className="text-lg font-display text-foreground mb-4">
-            income-tax-free · paid to your beneficiaries over 5 years
+            income-tax-free to your beneficiaries
+            {strategyDB > 0 && <> · {toUSD(strategyDB)} death benefit, paid over 5 years</>}
           </p>
           <div className="bg-[rgba(0,0,0,0.2)] rounded-lg py-3 px-6 inline-block">
             <p className="text-sm text-text-dim">
               vs. doing nothing:{" "}
-              <span className="text-red">{toUSD(baselineLegacy)}</span> to heirs after taxes &amp; forced RMDs
+              <span className={winning ? "text-red" : "text-green"}>{toUSD(baselineLegacy)}</span> to heirs after taxes &amp; forced RMDs
             </p>
           </div>
-          {winning && additionalLegacy > 0 && (
-            <p className="text-base text-green mt-4 font-medium">
-              +{toUSD(additionalLegacy)} more to your heirs by converting to a Roth and skipping RMDs
-            </p>
-          )}
+          {additionalLegacy !== 0 &&
+            (winning ? (
+              <p className="text-base text-green mt-4 font-medium">
+                +{toUSD(additionalLegacy)} more to your heirs by converting to a Roth and skipping RMDs
+              </p>
+            ) : (
+              <p className="text-base text-red mt-4 font-medium">
+                Doing nothing leaves {toUSD(-additionalLegacy)} more here — converting isn&apos;t the better move for this client
+              </p>
+            ))}
           <p className="text-sm text-text-dim mt-4">
             No income taken · No RMDs · Held tax-free through age {finalAge}
           </p>
         </div>
 
-        {/* Convert vs. do-nothing — total net legacy */}
+        {/* Convert vs. do-nothing — total net legacy. The winning side is gold/green. */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-bg-card border border-gold-border rounded-[14px] p-7">
+          <div className={cn("bg-bg-card rounded-[14px] p-7", winning ? "border border-gold-border" : "border border-border-default")}>
             <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-medium mb-2">
               Convert to Roth · hold for legacy
             </p>
-            <p className="text-3xl font-mono font-semibold text-green mb-1">{toUSD(strategyLegacy)}</p>
+            <p className={cn("text-3xl font-mono font-semibold mb-1", winning ? "text-green" : "text-text-dim")}>{toUSD(strategyLegacy)}</p>
             <p className="text-sm text-text-dim">Total to heirs, income-tax-free</p>
           </div>
-          <div className="bg-bg-card border border-border-default rounded-[14px] p-7">
+          <div className={cn("bg-bg-card rounded-[14px] p-7", !winning ? "border border-gold-border" : "border border-border-default")}>
             <p className="text-xs uppercase tracking-[1.5px] text-text-muted font-medium mb-2">
               Do nothing · keep it traditional
             </p>
-            <p className="text-3xl font-mono font-semibold text-text-dim mb-1">{toUSD(baselineLegacy)}</p>
+            <p className={cn("text-3xl font-mono font-semibold mb-1", !winning ? "text-green" : "text-text-dim")}>{toUSD(baselineLegacy)}</p>
             <p className="text-sm text-text-dim">Total to heirs, after heir taxes &amp; forced RMDs</p>
           </div>
         </div>
@@ -125,9 +131,9 @@ export function GILegacyReportDashboard({ client, projection }: Props) {
             tone="green"
           />
           <MetricCard
-            label="RMD Taxes Avoided"
-            value={toUSD(lifetimeRMDTax + heirTaxAvoided)}
-            sub={`${toUSD(lifetimeRMDTax)} in lifetime RMD tax + ${toUSD(heirTaxAvoided)} of heir tax on the death benefit`}
+            label="Lifetime RMD Tax Avoided"
+            value={toUSD(lifetimeRMDTax)}
+            sub="Income tax on the forced RMDs a traditional account would owe over your lifetime — a Roth owes none. (Heir tax is already reflected in the comparison above.)"
             tone="green"
           />
           <MetricCard
