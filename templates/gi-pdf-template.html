@@ -981,6 +981,7 @@
         <th>Acct Value</th>
         <th>GI Income</th>
         <th>Taxes</th>
+        {{#if showRiderFee}}<th>Rider Fee</th>{{/if}}
         <th>Net Income</th>
         <th>Cumulative</th>
       </tr>
@@ -993,6 +994,7 @@
         <td>{{this.accountValue}}</td>
         <td class="gold-value">{{this.giIncome}}</td>
         <td class="tax-value">{{this.taxes}}</td>
+        {{#if ../showRiderFee}}<td class="tax-value">{{this.riderFee}}</td>{{/if}}
         <td class="positive-value">{{this.netIncome}}</td>
         <td>{{this.cumulative}}</td>
       </tr>
@@ -1027,6 +1029,7 @@
         <th>Acct Value</th>
         <th>GI Income</th>
         <th>Tax ({{taxRate}}%)</th>
+        {{#if showRiderFee}}<th>Rider Fee</th>{{/if}}
         <th>Net Income</th>
         <th>Cumulative</th>
       </tr>
@@ -1039,6 +1042,7 @@
         <td>{{this.accountValue}}</td>
         <td>{{this.giIncome}}</td>
         <td class="tax-value">{{this.taxes}}</td>
+        {{#if ../showRiderFee}}<td class="tax-value">{{this.riderFee}}</td>{{/if}}
         <td>{{this.netIncome}}</td>
         <td>{{this.cumulative}}</td>
       </tr>

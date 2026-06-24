@@ -1192,6 +1192,7 @@ interface GIYearRow {
   accountValue: string;
   giIncome: string;
   taxes: string;
+  riderFee: string;
   netIncome: string;
   cumulative: string;
   isIncomePhase?: boolean;
@@ -1263,6 +1264,8 @@ interface GITemplateData {
   strategyYears: GIYearRow[];
   baselineYears: GIYearRow[];
   taxRate: number;
+  // Show the optional per-year Rider Fee column when the product charges one
+  showRiderFee: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1371,6 +1374,7 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
         (row.accountValue <= 0 ? '$0' : formatCurrency(row.accountValue)),
       giIncome: row.guaranteedIncomeGross > 0 ? formatCurrency(row.guaranteedIncomeGross) : '—',
       taxes: row.conversionTax > 0 ? formatCurrency(row.conversionTax) : '—',
+      riderFee: row.riderFee > 0 ? formatCurrency(row.riderFee) : '—',
       netIncome: row.guaranteedIncomeNet > 0 ? formatCurrency(row.guaranteedIncomeNet) : '—',
       cumulative: strategyCumulative > 0 ? formatCurrency(strategyCumulative) : '—',
       isIncomePhase: row.phase === 'income',
@@ -1414,6 +1418,7 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
       accountValue: row.accountValue <= 0 ? '$0' : formatCurrency(row.accountValue),
       giIncome: grossIncome > 0 ? formatCurrency(grossIncome) : '—',
       taxes: taxOnIncome > 0 ? formatCurrency(taxOnIncome) : '—',
+      riderFee: row.riderFee > 0 ? formatCurrency(row.riderFee) : '—',
       netIncome: netIncome > 0 ? formatCurrency(netIncome) : '—',
       cumulative: baselineCumulative > 0 ? formatCurrency(baselineCumulative) : '—',
       isIncomePhase,
@@ -1500,6 +1505,7 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
     strategyYears,
     baselineYears,
     taxRate,
+    showRiderFee: strategyYears.some((r) => r.riderFee !== '—') || baselineYears.some((r) => r.riderFee !== '—'),
   };
 }
 
