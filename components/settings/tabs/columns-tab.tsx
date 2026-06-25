@@ -8,6 +8,8 @@ import {
   saveUserDefaultColumnPreferences,
   clearUserDefaultColumnPreferences,
   getDefaultColumns,
+  reconcileColumnPreferences,
+  userDefaultScopeKey,
 } from "@/lib/table-columns/storage";
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
 
@@ -28,9 +30,20 @@ function ProductCard({ productType, title, description }: ProductCardProps) {
   // server-rendered tree matches the client's first paint when no favourite
   // exists yet.
   useEffect(() => {
-    const saved = loadUserDefaultColumnPreferences(productType);
-    setColumns(saved?.selectedColumns ?? null);
-    setSavedAt(saved?.lastUpdated ?? null);
+    const local = loadUserDefaultColumnPreferences(productType);
+    setColumns(local?.selectedColumns ?? null);
+    setSavedAt(local?.lastUpdated ?? null);
+    // Reconcile the favourite against the account: localStorage is a same-device
+    // cache; the DB is the durable source of truth across devices and survives
+    // Safari ITP / cache wipes. Applies the account copy if present, otherwise
+    // migrates the existing local favourite up.
+    let cancelled = false;
+    reconcileColumnPreferences(userDefaultScopeKey(productType), local).then((dbPref) => {
+      if (cancelled || !dbPref) return;
+      setColumns(dbPref.selectedColumns);
+      setSavedAt(dbPref.lastUpdated);
+    });
+    return () => { cancelled = true; };
   }, [productType]);
 
   const handleSave = (next: string[]) => {

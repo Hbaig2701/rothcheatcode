@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { YearlyResult } from "@/lib/calculations/types";
 import type { NonSSIIncomeEntry } from "@/lib/types/client";
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
-import { resolveColumnPreferences, saveColumnPreferences } from "@/lib/table-columns/storage";
+import { resolveColumnPreferences, saveColumnPreferences, loadColumnPreferences, reconcileColumnPreferences } from "@/lib/table-columns/storage";
 import { ColumnSelectorModal } from "./column-selector-modal";
 import { ResizableTable } from "./resizable-table";
 import { Settings2 } from "lucide-react";
@@ -119,6 +119,24 @@ export function YearByYearTable({
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
     return resolveColumnPreferences(storageKey, productType).columnWidths;
   });
+
+  // Reconcile this client's saved layout against the account on mount. localStorage
+  // (read synchronously above) is just a same-device cache; the DB is the durable,
+  // cross-device source of truth. If the account has a saved layout (e.g. set on
+  // another device, or surviving a Safari ITP / cache wipe that cleared this
+  // browser's localStorage), apply it. If the account has nothing yet but this
+  // browser does, the existing local layout is migrated up inside reconcile.
+  useEffect(() => {
+    let cancelled = false;
+    reconcileColumnPreferences(storageKey, loadColumnPreferences(storageKey)).then((dbPref) => {
+      if (cancelled || !dbPref) return;
+      setSelectedColumns(dbPref.selectedColumns);
+      if (dbPref.columnWidths && Object.keys(dbPref.columnWidths).length > 0) {
+        setColumnWidths(dbPref.columnWidths);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [storageKey]);
 
   // Build active columns in the user-chosen order.
   // Frozen columns (Year/Age/Spouse Age) are forced to the front — CSS-sticky positioning

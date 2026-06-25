@@ -39,6 +39,10 @@ export function saveColumnPreferences(
     console.error(`[Column Storage] Failed to save preferences for ${tableId}:`, error);
     // Gracefully handle storage errors (quota exceeded, disabled, etc.)
   }
+  // Durably persist to the account so the layout survives Safari ITP, cache
+  // clears, and other devices (the localStorage write above is just a fast
+  // same-device cache). scope_key for a per-client table IS the tableId.
+  pushColumnPreferencesToDb(tableId, prefs);
 }
 
 /**
@@ -129,6 +133,7 @@ export function clearColumnPreferences(tableId: string): void {
   } catch (error) {
     console.error(`[Column Storage] Failed to clear preferences for ${tableId}:`, error);
   }
+  deleteColumnPreferencesFromDb(tableId);
 }
 
 /**
@@ -240,6 +245,7 @@ export function saveUserDefaultColumnPreferences(
   } catch (error) {
     console.error(`[Column Storage] Failed to save user-default for ${productType}:`, error);
   }
+  pushColumnPreferencesToDb(userDefaultScopeKey(productType), prefs);
 }
 
 /**
@@ -253,6 +259,7 @@ export function clearUserDefaultColumnPreferences(productType: 'growth' | 'gi'):
   } catch (error) {
     console.error(`[Column Storage] Failed to clear user-default for ${productType}:`, error);
   }
+  deleteColumnPreferencesFromDb(userDefaultScopeKey(productType));
 }
 
 /**
@@ -269,4 +276,118 @@ export function isLocalStorageAvailable(): boolean {
   } catch (error) {
     return false;
   }
+}
+
+// ============================================================================
+// Account-backed durable persistence
+// ----------------------------------------------------------------------------
+// localStorage (above) is a fast same-device CACHE. The functions below sync
+// preferences to the user's account (DB) so they survive Safari ITP (which
+// deletes script-written localStorage after 7 days), cache clears, and other
+// devices/browsers. The DB is the cross-device source of truth, reconciled on
+// load by the table/settings components. Every call is best-effort: logged-out
+// or offline simply falls back to localStorage, never throwing.
+// ============================================================================
+
+const COLUMN_PREFS_ENDPOINT = '/api/column-preferences';
+
+/** The DB scope_key for a user's per-product "favourite" layout. */
+export function userDefaultScopeKey(productType: 'growth' | 'gi'): string {
+  return `user_default_${productType}`;
+}
+
+// Debounce DB writes per scope key — width-resize drags fire rapidly; coalesce
+// them so we don't spam the endpoint. localStorage is written immediately by
+// the caller; only the durable push is debounced.
+const dbPushTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * Upsert a preference to the account (debounced, fire-and-forget). `scopeKey`
+ * is the per-client tableId (e.g. `year-by-year-<clientId>`) or the favourite
+ * key from userDefaultScopeKey(). Never throws.
+ */
+export function pushColumnPreferencesToDb(scopeKey: string, prefs: ColumnPreferences): void {
+  if (typeof window === 'undefined') return;
+  const existing = dbPushTimers.get(scopeKey);
+  if (existing) clearTimeout(existing);
+  dbPushTimers.set(scopeKey, setTimeout(() => {
+    dbPushTimers.delete(scopeKey);
+    fetch(COLUMN_PREFS_ENDPOINT, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scopeKey,
+        selectedColumns: prefs.selectedColumns,
+        columnWidths: prefs.columnWidths,
+      }),
+      keepalive: true,
+    }).catch(() => { /* offline / logged out — localStorage still holds it */ });
+  }, 600));
+}
+
+/**
+ * Fetch one preference from the account. Returns null when none exists or on
+ * any error (caller falls back to localStorage / defaults).
+ */
+export async function fetchColumnPreferenceFromDb(scopeKey: string): Promise<ColumnPreferences | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch(`${COLUMN_PREFS_ENDPOINT}?key=${encodeURIComponent(scopeKey)}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const pref = json?.preference;
+    if (!pref || !Array.isArray(pref.selectedColumns) || typeof pref.columnWidths !== 'object') return null;
+    return {
+      selectedColumns: pref.selectedColumns,
+      columnWidths: pref.columnWidths ?? {},
+      lastUpdated: pref.lastUpdated ?? new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Delete a preference from the account (fire-and-forget). */
+export function deleteColumnPreferencesFromDb(scopeKey: string): void {
+  if (typeof window === 'undefined') return;
+  fetch(`${COLUMN_PREFS_ENDPOINT}?key=${encodeURIComponent(scopeKey)}`, {
+    method: 'DELETE',
+    keepalive: true,
+  }).catch(() => { /* non-fatal */ });
+}
+
+/** Refresh the localStorage cache for a scope WITHOUT re-pushing to the DB.
+ *  The cache key is uniform: STORAGE_KEY_PREFIX + scopeKey resolves to the
+ *  same key both per-client storage and the favourite already use. */
+function writeLocalCache(scopeKey: string, prefs: ColumnPreferences): void {
+  try {
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${scopeKey}`, JSON.stringify(prefs));
+  } catch {
+    // Non-fatal — DB remains the source of truth.
+  }
+}
+
+/**
+ * Reconcile a component's current preference against the account on mount.
+ * Returns the authoritative preference to apply, or null to keep the current
+ * (local) value.
+ *
+ *   • DB has a value       -> use it (it may be newer / from another device);
+ *                             also refreshes the localStorage cache.
+ *   • DB empty, local set   -> migrate the existing local value up to the account
+ *                             (one-time, so pre-existing users don't lose layouts).
+ */
+export async function reconcileColumnPreferences(
+  scopeKey: string,
+  localPref: ColumnPreferences | null,
+): Promise<ColumnPreferences | null> {
+  const dbPref = await fetchColumnPreferenceFromDb(scopeKey);
+  if (dbPref) {
+    writeLocalCache(scopeKey, dbPref);
+    return dbPref;
+  }
+  // Nothing on the account yet — push the existing local layout up so it's
+  // durable from now on. Keep using the local value (no change to apply).
+  if (localPref) pushColumnPreferencesToDb(scopeKey, localPref);
+  return null;
 }
