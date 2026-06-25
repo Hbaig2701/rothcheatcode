@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useState, useEffect, ReactNode } from "react";
+import { Dialog } from "@base-ui/react/dialog";
+import Link from "next/link";
+import { Star } from "lucide-react";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
 import { TaxFundingNotice } from "@/components/report/tax-funding-notice";
@@ -18,7 +21,7 @@ import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
 import { ResizableComparisonTable } from "@/components/results/deep-dive/resizable-comparison-table";
 import { ColumnSelectorModal } from "@/components/results/deep-dive/column-selector-modal";
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
-import { resolveColumnPreferences, saveColumnPreferences, getDefaultColumns } from "@/lib/table-columns/storage";
+import { resolveColumnPreferences, saveColumnPreferences, getDefaultColumns, loadColumnPreferences, reconcileColumnPreferences, loadUserDefaultColumnPreferences, fetchColumnPreferenceFromDb, userDefaultScopeKey } from "@/lib/table-columns/storage";
 import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
 import { WidowSection } from "@/components/report/widow-section";
 
@@ -69,10 +72,48 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // (No useEffect-on-tableView — column state persists as the user switches
   // views, matching advisor expectation that selection is global to the client.)
 
+  // Reconcile this client's saved layout against the account on mount.
+  // localStorage (read synchronously above) is just a same-device cache; the DB
+  // is the durable, cross-device source of truth. Restores the layout if the
+  // account has one (e.g. set on another device, or surviving a Safari ITP /
+  // cache wipe that cleared this browser's localStorage); migrates an existing
+  // local layout up when the account has none yet.
+  useEffect(() => {
+    let cancelled = false;
+    reconcileColumnPreferences(columnStorageKey, loadColumnPreferences(columnStorageKey)).then((dbPref) => {
+      if (cancelled || !dbPref) return;
+      setSelectedColumns(dbPref.selectedColumns);
+      if (dbPref.columnWidths && Object.keys(dbPref.columnWidths).length > 0) {
+        setColumnWidths(dbPref.columnWidths);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [columnStorageKey]);
+
   const handleSaveColumns = (columns: string[]) => {
     setSelectedColumns(columns);
     saveColumnPreferences(columnStorageKey, {
       selectedColumns: columns,
+      columnWidths,
+      lastUpdated: new Date().toISOString(),
+    });
+  };
+
+  // "Apply my favourite columns" — snap this client's table onto the user's
+  // saved favourite. Checks localStorage first, then the account (the favourite
+  // may live only on the DB if set on another device). No favourite → prompt to
+  // set one up in Settings.
+  const [showNoFavourite, setShowNoFavourite] = useState(false);
+  const handleApplyFavourite = async () => {
+    let fav = loadUserDefaultColumnPreferences("growth");
+    if (!fav) fav = await fetchColumnPreferenceFromDb(userDefaultScopeKey("growth"));
+    if (!fav || !fav.selectedColumns?.length) {
+      setShowNoFavourite(true);
+      return;
+    }
+    setSelectedColumns(fav.selectedColumns);
+    saveColumnPreferences(columnStorageKey, {
+      selectedColumns: fav.selectedColumns,
       columnWidths,
       lastUpdated: new Date().toISOString(),
     });
@@ -920,6 +961,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               Year-by-Year Projection
             </p>
             <div className="flex items-center gap-3">
+              {/* Apply my favourite columns */}
+              <button
+                onClick={handleApplyFavourite}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-bg-card-hover border border-border-default rounded-lg text-foreground hover:bg-foreground/10 transition-colors"
+                title="Set this client's columns to your saved favourite layout"
+              >
+                <Star className="h-4 w-4" />
+                Apply my favourite columns
+              </button>
               {/* Adjust Columns button */}
               <button
                 onClick={() => setColumnModalOpen(true)}
@@ -1008,6 +1058,36 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           onSave={handleSaveColumns}
           productType="growth"
         />
+
+        {/* Empty state — clicked "Apply my favourite columns" with no favourite set. */}
+        <Dialog.Root open={showNoFavourite} onOpenChange={(o) => { if (!o) setShowNoFavourite(false); }}>
+          <Dialog.Portal>
+            <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
+            <Dialog.Popup className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-surface-elevated rounded-xl shadow-2xl border border-border-default w-[440px] max-w-[95vw] p-6">
+              <Dialog.Title className="text-lg font-semibold text-foreground">
+                No favourite columns set
+              </Dialog.Title>
+              <p className="text-sm text-text-dim mt-2">
+                You currently don&apos;t have any favourite columns set up. Set up your
+                favourite layout in Settings and it&apos;ll be ready to apply to any client.
+              </p>
+              <div className="flex items-center justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setShowNoFavourite(false)}
+                  className="px-4 py-2 text-sm border border-border rounded-lg text-foreground hover:bg-bg-card transition-colors"
+                >
+                  Cancel
+                </button>
+                <Link
+                  href="/settings#columns"
+                  className="px-4 py-2 text-sm bg-[#d4af37] text-black rounded-lg hover:bg-[#c29d2f] transition-colors font-medium"
+                >
+                  Set up favourite columns
+                </Link>
+              </div>
+            </Dialog.Popup>
+          </Dialog.Portal>
+        </Dialog.Root>
 
         {/* Section 7: Widow's Penalty Analysis (only renders if client has the
             flag enabled AND is filing MFJ — otherwise component returns null) */}
