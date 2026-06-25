@@ -4,10 +4,12 @@ import { useState, useMemo, useEffect } from "react";
 import type { YearlyResult } from "@/lib/calculations/types";
 import type { NonSSIIncomeEntry } from "@/lib/types/client";
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
-import { resolveColumnPreferences, saveColumnPreferences, loadColumnPreferences, reconcileColumnPreferences } from "@/lib/table-columns/storage";
+import { resolveColumnPreferences, saveColumnPreferences, loadColumnPreferences, reconcileColumnPreferences, loadUserDefaultColumnPreferences, fetchColumnPreferenceFromDb, userDefaultScopeKey } from "@/lib/table-columns/storage";
 import { ColumnSelectorModal } from "./column-selector-modal";
 import { ResizableTable } from "./resizable-table";
-import { Settings2 } from "lucide-react";
+import { Settings2, Star } from "lucide-react";
+import { Dialog } from "@base-ui/react/dialog";
+import Link from "next/link";
 
 const INCOME_TYPE_TO_COLUMN: Record<string, string> = {
   pension: "incomePension",
@@ -178,6 +180,28 @@ export function YearByYearTable({
     });
   };
 
+  // "Apply my favourite columns" — drop this client's layout onto the user's
+  // saved favourite. Checks localStorage first (fast), then the account (the
+  // favourite may live only on the DB if it was set on another device). If no
+  // favourite exists anywhere, prompt the user to set one up in Settings.
+  const [showNoFavourite, setShowNoFavourite] = useState(false);
+  const handleApplyFavourite = async () => {
+    let fav = loadUserDefaultColumnPreferences(productType);
+    if (!fav) fav = await fetchColumnPreferenceFromDb(userDefaultScopeKey(productType));
+    if (!fav || !fav.selectedColumns?.length) {
+      setShowNoFavourite(true);
+      return;
+    }
+    setSelectedColumns(fav.selectedColumns);
+    // The favourite captures which columns + their order; keep the current
+    // widths for any columns that carry over.
+    saveColumnPreferences(storageKey, {
+      selectedColumns: fav.selectedColumns,
+      columnWidths,
+      lastUpdated: new Date().toISOString(),
+    });
+  };
+
   return (
     <div className="space-y-4">
       {/* Header with Adjust Columns button */}
@@ -185,13 +209,23 @@ export function YearByYearTable({
         <h3 className="text-lg font-semibold text-foreground">
           {scenario === "baseline" ? "Baseline" : "Strategy"} Projection
         </h3>
-        <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 px-3 py-1.5 text-sm bg-bg-card border border-border-default rounded-lg text-foreground hover:bg-white/10 transition-colors"
-        >
-          <Settings2 className="h-4 w-4" />
-          Adjust Columns
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleApplyFavourite}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-bg-card border border-border-default rounded-lg text-foreground hover:bg-white/10 transition-colors"
+            title="Set this client's columns to your saved favourite layout"
+          >
+            <Star className="h-4 w-4" />
+            Apply my favourite columns
+          </button>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-bg-card border border-border-default rounded-lg text-foreground hover:bg-white/10 transition-colors"
+          >
+            <Settings2 className="h-4 w-4" />
+            Adjust Columns
+          </button>
+        </div>
       </div>
 
       {/* Resizable table */}
@@ -211,6 +245,36 @@ export function YearByYearTable({
         onSave={handleSaveColumns}
         productType={productType}
       />
+
+      {/* Empty state — clicked "Apply my favourite columns" with no favourite set. */}
+      <Dialog.Root open={showNoFavourite} onOpenChange={(o) => { if (!o) setShowNoFavourite(false); }}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm" />
+          <Dialog.Popup className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-surface-elevated rounded-xl shadow-2xl border border-border-default w-[440px] max-w-[95vw] p-6">
+            <Dialog.Title className="text-lg font-semibold text-foreground">
+              No favourite columns set
+            </Dialog.Title>
+            <p className="text-sm text-text-dim mt-2">
+              You currently don&apos;t have any favourite columns set up. Set up your
+              favourite layout in Settings and it&apos;ll be ready to apply to any client.
+            </p>
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <button
+                onClick={() => setShowNoFavourite(false)}
+                className="px-4 py-2 text-sm border border-border rounded-lg text-foreground hover:bg-bg-card transition-colors"
+              >
+                Cancel
+              </button>
+              <Link
+                href="/settings#columns"
+                className="px-4 py-2 text-sm bg-[#d4af37] text-black rounded-lg hover:bg-[#c29d2f] transition-colors font-medium"
+              >
+                Set up favourite columns
+              </Link>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
