@@ -33,6 +33,12 @@ export function WithdrawalsTable() {
   const currentAge = form.watch("age") || 62;
   const endAge = form.watch("end_age") || 95;
   const currentYear = new Date().getFullYear();
+  // "Age" here is always the PRIMARY client's age — it's just a shortcut to pick
+  // the calendar year (the engine matches withdrawals by year against the single
+  // combined IRA/Roth balance, not a per-spouse account). Surface whose age it is
+  // so joint cases aren't ambiguous.
+  const clientFirstName = (form.watch("name") || "").trim().split(/\s+/)[0] || "";
+  const ageSuffix = clientFirstName ? ` (${clientFirstName})` : "";
 
   const [showRecurring, setShowRecurring] = useState(false);
   // Collapse when there are a lot of rows — same UX pattern as Non-SSI Income.
@@ -174,13 +180,16 @@ export function WithdrawalsTable() {
       {showRecurring && (
         <div className="border border-primary/30 bg-accent rounded-xl p-4 space-y-3 animate-in fade-in slide-in-from-top-1">
           <p className="text-sm font-medium">Fill range with the same withdrawal</p>
+          <p className="text-xs text-muted-foreground -mt-1">
+            Ages are {clientFirstName ? `${clientFirstName}'s` : "the primary client's"} — they just set which year each withdrawal applies. Withdrawals come from the combined IRA/Roth balance, not a specific spouse.
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[11px] uppercase tracking-wide text-muted-foreground block mb-1">Start age</label>
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground block mb-1">Start age{ageSuffix}</label>
               <Input type="number" value={startAgeStr} onChange={(e) => setStartAgeStr(e.target.value)} />
             </div>
             <div>
-              <label className="text-[11px] uppercase tracking-wide text-muted-foreground block mb-1">End age</label>
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground block mb-1">End age{ageSuffix}</label>
               <Input type="number" value={endAgeStr} onChange={(e) => setEndAgeStr(e.target.value)} />
             </div>
             <div>
@@ -229,7 +238,7 @@ export function WithdrawalsTable() {
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium w-[100px]">Year</th>
-                    <th className="px-3 py-2 text-left font-medium w-[80px]">Age</th>
+                    <th className="px-3 py-2 text-left font-medium w-[80px]">Age{ageSuffix}</th>
                     <th className="px-3 py-2 text-left font-medium">Amount</th>
                     <th className="px-3 py-2 text-left font-medium w-[180px]">Source</th>
                     <th className="px-2 py-2 w-10"></th>
