@@ -389,7 +389,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
       // BOY IRA balance: previous year's end balance, or initial deposit + bonus for year 0
       const boyIRA = idx > 0
         ? projection.blueprint_years[idx - 1].traditionalBalance
-        : Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100));
+        : Math.round(rothSidePortion * (1 + (client.bonus_percent ?? 0) / 100));
       const penaltyFreeLimit = Math.round(boyIRA * penaltyFreePercent);
       if (taxFromIra > penaltyFreeLimit) {
         const excess = taxFromIra - penaltyFreeLimit;
@@ -880,19 +880,25 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               Account Summary
             </p>
             <div className="space-y-3">
+              {/* Use rothSidePortion (the slice that actually funds the annuity)
+                  not the full qualified_account_value — under an AUM split only
+                  the non-AUM portion is converted/premiumed, so the bonus and
+                  starting balance must reflect that slice. rothSidePortion equals
+                  the full balance when there's no AUM split, so this is correct
+                  in every case. */}
               <div className="flex justify-between items-center">
-                <span className="text-sm text-text-muted">Starting Balance</span>
-                <span className="text-base font-mono text-foreground">{toUSD(client.qualified_account_value)}</span>
+                <span className="text-sm text-text-muted">Starting Balance{aumActive ? ' (annuity portion)' : ''}</span>
+                <span className="text-base font-mono text-foreground">{toUSD(rothSidePortion)}</span>
               </div>
               {(client.bonus_percent ?? 0) > 0 && (
                 <>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-text-muted">+ {client.bonus_percent}% Premium Bonus</span>
-                    <span className="text-base font-mono text-gold">{toUSD(Math.round((client.qualified_account_value ?? 0) * (client.bonus_percent ?? 0) / 100))}</span>
+                    <span className="text-base font-mono text-gold">{toUSD(Math.round(rothSidePortion * (client.bonus_percent ?? 0) / 100))}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-text-dim font-medium">Starting Balance (with bonus)</span>
-                    <span className="text-base font-mono text-foreground">{toUSD(Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100)))}</span>
+                    <span className="text-base font-mono text-foreground">{toUSD(Math.round(rothSidePortion * (1 + (client.bonus_percent ?? 0) / 100)))}</span>
                   </div>
                 </>
               )}
@@ -1406,7 +1412,12 @@ function LifetimeWealthInfo({
   surrenderRateDiffers: boolean;
 }) {
   const heirTaxPct = Math.round(heirTaxRate * 100);
-  const startingBalance = client.qualified_account_value ?? 0;
+  // The premium bonus applies only to the slice that actually funds the annuity.
+  // Under an AUM split that's rothSidePortion (the non-AUM portion); with no
+  // split it equals the full qualified balance. Computing on the full
+  // qualified_account_value double-counts the bonus and overstates the starting
+  // balance — and contradicts the "Roth-conversion side runs on $X" line below.
+  const startingBalance = rothSidePortion;
   const bonusAmount = Math.round(startingBalance * (client.bonus_percent ?? 0) / 100);
   const startingWithBonus = startingBalance + bonusAmount;
   const projectionYears = (client.end_age ?? 100) - (client.age ?? 62);
