@@ -152,7 +152,7 @@ export async function GET(request: Request) {
     // each profile we ALWAYS fall back to the plan/billing_cycle list price
     // if the Stripe call fails — the worst case is we miss a discount on one
     // sub, NOT silently drop the customer from MRR like before.
-    const subAmounts = new Map<string, { amount: number; interval: string; fellBack: boolean }>();
+    const subAmounts = new Map<string, { amount: number; interval: string; listPrice: number; fellBack: boolean }>();
 
     // Seed every active profile with its list-price fallback first so the
     // map is complete even if every Stripe call fails.
@@ -164,6 +164,7 @@ export async function GET(request: Request) {
         subAmounts.set(p.id, {
           amount: planPrice.amount,
           interval: cycle === 'annual' ? 'year' : 'month',
+          listPrice: planPrice.amount,
           fellBack: true,
         });
       }
@@ -230,7 +231,7 @@ export async function GET(request: Request) {
           // Priority 3 (final fallback): plain list price.
           if (amount === null) amount = listPrice;
 
-          subAmounts.set(p.id, { amount, interval, fellBack: false });
+          subAmounts.set(p.id, { amount, interval, listPrice, fellBack: false });
           stripeSuccess++;
         } catch (err) {
           stripeFailures++;
@@ -239,6 +240,58 @@ export async function GET(request: Request) {
         }
       }
     );
+
+    // Total cash collected + per-customer latest refund. Paginate Stripe
+    // charges ONCE and derive both: (1) lifetime cash net of refunds, and
+    // (2) the refund on each customer's most recent succeeded charge (the
+    // current period's payment), used to net out partial refunds below.
+    let totalCashCollected = 0;
+    const latestRefundByCustomer = new Map<string, number>();
+    try {
+      let hasMore = true;
+      let startingAfter: string | undefined;
+      while (hasMore) {
+        const params: Record<string, unknown> = { limit: 100 };
+        if (startingAfter) params.starting_after = startingAfter;
+        const charges = await stripe.charges.list(params as Parameters<typeof stripe.charges.list>[0]);
+        for (const charge of charges.data) {
+          if (charge.status !== 'succeeded') continue;
+          if (!charge.refunded) {
+            totalCashCollected += (charge.amount - (charge.amount_refunded ?? 0)) / 100;
+          }
+          // Charges list newest-first, so the first time we see a customer is
+          // their most recent charge — record its refund (even $0, to mark the
+          // customer as seen so an older refunded charge isn't picked up).
+          const cust = typeof charge.customer === 'string' ? charge.customer : charge.customer?.id;
+          if (cust && !latestRefundByCustomer.has(cust)) {
+            latestRefundByCustomer.set(cust, charge.amount_refunded ?? 0);
+          }
+        }
+        hasMore = charges.has_more;
+        if (charges.data.length > 0) {
+          startingAfter = charges.data[charges.data.length - 1].id;
+        } else {
+          hasMore = false;
+        }
+      }
+    } catch (err) {
+      console.error("[admin/revenue] Failed to fetch Stripe charges:", err);
+    }
+
+    // Net out partial refunds from each advisor's per-period price. A discount
+    // code that failed (advisor charged full price, then refunded the
+    // difference) leaves the invoice/coupon at full price — only the refund
+    // reflects the true net. These corrections are re-issued every renewal to
+    // hold the advisor at their intended price, so they ARE recurring revenue
+    // and belong in MRR/ARR. Only adjust when the sub otherwise reads full list
+    // price (mirrors the admin advisors route); coupon-discounted subs untouched.
+    for (const p of activeProfiles) {
+      const sub = subAmounts.get(p.id);
+      if (!sub || !p.stripe_customer_id) continue;
+      if (sub.amount < sub.listPrice) continue;
+      const refundCents = latestRefundByCustomer.get(p.stripe_customer_id) ?? 0;
+      if (refundCents > 0) sub.amount = Math.max(0, sub.amount - refundCents / 100);
+    }
 
     // MRR / ARR rollup
     let totalMRR = 0;
@@ -263,31 +316,6 @@ export async function GET(request: Request) {
         annualCount++;
         annualRevenue += sub.amount;
       }
-    }
-
-    // Total cash collected from Stripe charges (paginated)
-    let totalCashCollected = 0;
-    try {
-      let hasMore = true;
-      let startingAfter: string | undefined;
-      while (hasMore) {
-        const params: Record<string, unknown> = { limit: 100 };
-        if (startingAfter) params.starting_after = startingAfter;
-        const charges = await stripe.charges.list(params as Parameters<typeof stripe.charges.list>[0]);
-        for (const charge of charges.data) {
-          if (charge.status === 'succeeded' && !charge.refunded) {
-            totalCashCollected += (charge.amount - (charge.amount_refunded ?? 0)) / 100;
-          }
-        }
-        hasMore = charges.has_more;
-        if (charges.data.length > 0) {
-          startingAfter = charges.data[charges.data.length - 1].id;
-        } else {
-          hasMore = false;
-        }
-      }
-    } catch (err) {
-      console.error("[admin/revenue] Failed to fetch Stripe charges:", err);
     }
 
     // Last-month MRR (for growth %) — same source-of-truth amounts

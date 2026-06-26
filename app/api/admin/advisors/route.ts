@@ -271,6 +271,33 @@ export async function GET(request: NextRequest) {
             }
           }
 
+          // Priority 3: partial refunds. A discount code that failed at
+          // checkout (advisor charged full $2970) and was then corrected by
+          // refunding the difference does NOT reduce the invoice
+          // total/amount_paid — a refund is a separate charge-refund object.
+          // Without subtracting it, an advisor refunded down to ~$1930 still
+          // shows the full $2970. Only look when the account otherwise reads
+          // full price (no recurring coupon / invoice discount brought it
+          // down), so we don't add a Stripe call for every advisor — just the
+          // handful that look undiscounted. (Stripe API 2026-02-25.clover
+          // removed invoice.charge, so we read amount_refunded off the latest
+          // succeeded charge, which maps to the current period's payment.)
+          if (listPrice > 0 && netInterval >= listPrice && p.stripe_customer_id) {
+            try {
+              const charges = await stripe.charges.list({ customer: p.stripe_customer_id, limit: 5 });
+              const latestCharge = charges.data
+                .filter((c) => c.status === 'succeeded')
+                .sort((a, b) => b.created - a.created)[0];
+              const refunded = latestCharge?.amount_refunded ?? 0;
+              if (refunded > 0) {
+                netInterval = Math.max(0, netInterval - refunded / 100);
+                discountLabels.push(`refund $${Math.round(refunded / 100)}`);
+              }
+            } catch (err) {
+              console.error(`[admin/advisors] refund lookup failed for ${p.id}:`, err instanceof Error ? err.message : err);
+            }
+          }
+
           const discountPercent = listPrice > 0 && netInterval < listPrice
             ? Math.round(((listPrice - netInterval) / listPrice) * 1000) / 10
             : 0;
