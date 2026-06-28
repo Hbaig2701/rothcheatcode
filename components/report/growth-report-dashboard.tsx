@@ -100,13 +100,14 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   };
 
   // "Apply my favourite columns" — snap this client's table onto the user's
-  // saved favourite. Checks localStorage first, then the account (the favourite
-  // may live only on the DB if set on another device). No favourite → prompt to
-  // set one up in Settings.
+  // saved favourite. The account (DB) is the source of truth — only fall back to
+  // the localStorage cache if the account has nothing (offline / unsynced). This
+  // also means a stale local cache can't reintroduce a column the advisor
+  // removed from their favourite. No favourite → prompt to set one up in Settings.
   const [showNoFavourite, setShowNoFavourite] = useState(false);
   const handleApplyFavourite = async () => {
-    let fav = loadUserDefaultColumnPreferences("growth");
-    if (!fav) fav = await fetchColumnPreferenceFromDb(userDefaultScopeKey("growth"));
+    let fav = await fetchColumnPreferenceFromDb(userDefaultScopeKey("growth"));
+    if (!fav) fav = loadUserDefaultColumnPreferences("growth");
     if (!fav || !fav.selectedColumns?.length) {
       setShowNoFavourite(true);
       return;

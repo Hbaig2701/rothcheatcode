@@ -181,13 +181,14 @@ export function YearByYearTable({
   };
 
   // "Apply my favourite columns" — drop this client's layout onto the user's
-  // saved favourite. Checks localStorage first (fast), then the account (the
-  // favourite may live only on the DB if it was set on another device). If no
-  // favourite exists anywhere, prompt the user to set one up in Settings.
+  // saved favourite. The account (DB) is the source of truth — only fall back to
+  // the localStorage cache if the account has nothing (offline / unsynced), so a
+  // stale local cache can't reintroduce a column removed from the favourite. If
+  // no favourite exists anywhere, prompt the user to set one up in Settings.
   const [showNoFavourite, setShowNoFavourite] = useState(false);
   const handleApplyFavourite = async () => {
-    let fav = loadUserDefaultColumnPreferences(productType);
-    if (!fav) fav = await fetchColumnPreferenceFromDb(userDefaultScopeKey(productType));
+    let fav = await fetchColumnPreferenceFromDb(userDefaultScopeKey(productType));
+    if (!fav) fav = loadUserDefaultColumnPreferences(productType);
     if (!fav || !fav.selectedColumns?.length) {
       setShowNoFavourite(true);
       return;

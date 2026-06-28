@@ -56,10 +56,15 @@ export function saveColumnPreferences(
  * column to every user's table without consent, which is intrusive.
  */
 const COLUMN_MIGRATIONS: Array<{ id: string; afterId?: string; addedAt: string }> = [
-  // Robert R. ticket a1639792 — combined "Total Fed Tax on IRA W/D" column
-  // is the answer to "what does this conversion cost in federal tax?"
-  // which the existing two-column split obscured.
-  { id: 'federalTaxOnIRAWithdrawal', afterId: 'totalIRAWithdrawal', addedAt: '2026-05-12' },
+  // NOTE: this mechanism re-injects a column on EVERY load where it's absent,
+  // so it can't tell "user hasn't seen it yet" from "user deliberately removed
+  // it" — meaning a listed column can't be removed (it keeps coming back).
+  // The 'federalTaxOnIRAWithdrawal' migration (Robert R. ticket a1639792,
+  // 2026-05-12) was removed for exactly that reason: an advisor who left it out
+  // of their favourite kept getting it forced back in (Kwanza Ellis, 2026-06).
+  // That column now ships in the DEFAULT preset, so new users get it anyway and
+  // existing users have long since seen it. Before adding a future entry here,
+  // first make this run once-per-user (track applied IDs) so removal sticks.
 ];
 
 /**
