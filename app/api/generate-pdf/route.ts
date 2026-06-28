@@ -367,14 +367,19 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const eoyCombined = year.traditionalBalance + year.rothBalance;
     const distIra = scenario === 'baseline' ? year.rmdAmount : year.conversionAmount;
     // True interest = EOY - BOY + (money that left the combined balance this year).
-    //  - Baseline: RMDs leave the combined balance (spent on living expenses).
-    //  - Strategy: conversions move within the combined balance (Traditional→Roth, no
-    //    net change), but taxes paid FROM the IRA leave the combined balance, as do
-    //    any RMDs (e.g., if conversions didn't fully drain the IRA before age 73).
-    const taxFromIRA = year.taxesPaidFromIRA ?? 0;
-    const interest = scenario === 'baseline'
-      ? eoyCombined - boyCombined + distIra
-      : eoyCombined - boyCombined + taxFromIRA + (year.rmdAmount ?? 0);
+    // What leaves: taxes paid FROM the IRA, spent IRA distributions (RMD +
+    // voluntary pulls), and voluntary Roth withdrawals. Conversions move WITHIN
+    // the combined balance (Traditional→Roth) so they're excluded. Prefer the
+    // engine's totalIRAWithdrawal (captures voluntary IRA pulls beyond the RMD);
+    // adding rothWithdrawal fixes the deeply-negative "interest" that showed for
+    // clients with a Roth-draining withdrawal schedule (Jorge Tola ticket).
+    const rothWithdrawal = year.rothWithdrawal ?? 0;
+    const nonConversionIraOut = year.totalIRAWithdrawal != null
+      ? Math.max(0, year.totalIRAWithdrawal - (year.conversionAmount ?? 0))
+      : scenario === 'baseline'
+        ? distIra
+        : (year.taxesPaidFromIRA ?? 0) + (year.rmdAmount ?? 0);
+    const interest = eoyCombined - boyCombined + nonConversionIraOut + rothWithdrawal;
     // Prefer engine-computed values so AGI/taxable-income reflect the true tax
     // picture (including any Social Security that becomes taxable via the
     // "tax torpedo"). Fall back to a local recompute only for legacy rows
@@ -866,11 +871,18 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     const eoyCombined = year.traditionalBalance + year.rothBalance;
     // Real interest = EOY − BOY + (money that left the combined balance).
     // Conversions move within the combined balance (Traditional→Roth) so they
-    // don't leave. Taxes paid FROM the IRA leave, as do any RMDs that weren't
-    // fully offset by conversions.
-    const taxFromIRA = year.taxesPaidFromIRA ?? 0;
-    const rmdOutflow = year.rmdAmount ?? 0;
-    const interest = eoyCombined - boyCombined + taxFromIRA + rmdOutflow;
+    // don't leave. What DOES leave: taxes paid from the IRA, spent IRA
+    // distributions (RMD + voluntary pulls), and voluntary Roth withdrawals.
+    // Prefer the engine's totalIRAWithdrawal (it already captures voluntary IRA
+    // pulls beyond the RMD); subtract the conversion since that stays in the
+    // combined balance. Add Roth withdrawals — previously omitted, which made
+    // "interest" dive deeply negative for any client with a withdrawal schedule
+    // that pulls from the Roth (Jorge Tola / Richard Goldstein ticket).
+    const rothWithdrawal = year.rothWithdrawal ?? 0;
+    const nonConversionIraOut = year.totalIRAWithdrawal != null
+      ? Math.max(0, year.totalIRAWithdrawal - (year.conversionAmount ?? 0))
+      : (year.taxesPaidFromIRA ?? 0) + (year.rmdAmount ?? 0);
+    const interest = eoyCombined - boyCombined + nonConversionIraOut + rothWithdrawal;
 
     // Pre-conversion taxable income now includes the taxable portion of SS
     // (which the engine computes via the SS-tax-torpedo formula). This is the
