@@ -152,3 +152,32 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 **Estimated effort:** **~2–3 days, medium-high risk** (money math in the hairiest solver, ×3 engines, heavy validation). Smaller scoped v1 (growth engine, tax≤RMD common case only) ≈ 1 day but leaves some from-IRA cases unfixed.
 
 **Demand signal:** Kwanza Ellis (mysummitadvisors.com), Jun 27 2026 — "all of the tax numbers for cases where the taxes are paid from the IRA are wrong and can't be presented to clients."
+
+### Implementation notes (precision for the build — read before starting)
+
+**Exact anchors in `growth-formula.ts` (line numbers as of cache v63):**
+- `712` `conversionTaxBeforeSplit = federalTax + stateTax` (the marginal conversion tax)
+- `717` `conversionTaxFromIRA = payTaxFromIRA ? min(taxCap, conversionTaxBeforeSplit) : 0` ← the extra pull to reduce
+- `722` `conversionTaxExternal` (overflow above the penalty-free cap)
+- `733` `iraAfterConversion = max(0, iraAfterDistribution − conversionAmount − conversionTaxFromIRA)` ← uses the pull
+- `810` `grossNonSSIncome = conversionAmount + conversionTaxFromIRA + effectiveIraDistribution + otherIncome` ← gross-up enters income HERE; must use the reduced extra-pull
+- `952-953` `rmdAttributableTax` / `afterTaxForcedRmd` (existing after-tax-RMD math to reuse)
+- `1068` `taxesPaidFromIRA: conversionTaxFromIRA` (display field — keep consistent)
+- `351-697` the `skipGrossDown` planner / gross-down branches (optimized/partial/fixed/full) — these SIZE the conversion assuming tax is an additional distribution.
+
+**Cache:** bump `PRODUCT_CONFIG_VERSION` in `app/api/clients/[id]/projections/route.ts` (currently **63** → 64).
+
+**Gross-vs-net subtlety (don't use the GROSS RMD):** the RMD also owes its own tax. Cash available to fund the *conversion* tax = the **after-tax RMD** (≈ `effectiveIraDistribution − rmdAttributableTax`), not the gross RMD. So `extraPull = max(0, conversionTaxFromIRA − afterTaxRmdAvailable)`. **Ordering gotcha:** `rmdAttributableTax` is currently computed at L952, *after* the L717 split — you'll need to compute the after-tax-RMD figure earlier (before L717) or restructure, since the extra-pull decision happens at L717.
+
+**Conversion re-sizing caveat:** for the common case (no penalty-free cap; optimized fills to a bracket; fixed is a flat $) the conversion AMOUNT is unaffected — only the tax pull / gross income / IRA balance change, so a post-split subtraction is correct. For the penalty-free-cap + gross-down branches (`skipGrossDown` paths), the conversion was sized so conv+tax fits the cap; once the RMD funds the tax there's more room, so the conversion is *conservatively small*. Decide for v1: correct the distribution/tax only (conversion may stay conservative) vs also re-size. Recommend v1 = correct distribution/tax; note the conservative sizing.
+
+**Voluntary-withdrawal decision:** `effectiveIraDistribution = iraWithdrawal (voluntary) + forcedRmdShortfall`. Voluntary pulls also count toward the RMD and provide cash, but they're the client's chosen spending. v1 recommendation: fund the conversion tax from the **RMD portion only** (`forcedRmdShortfall`/`rmdRequired`, after-tax), NOT voluntary — Kwanza's cases have no voluntary withdrawal. Flag voluntary as a follow-up.
+
+**Repro / test cases:**
+- Synthetic: age 75, IRA $738,000 → RMD ≈ $30K, `conversion_type:'fixed_amount'` $100K, `tax_payment_source:'from_ira'`, `taxable_accounts:0`. Today: totalIRAWithdrawal ≈ $148,513. Target: ≈ $130K (no extra pull; RMD covers the ~$18.5K tax).
+- Real: Peter Crane (Kwanza's, growth, age 74, $900K) and the Klink test client (`aced955f-...`).
+- Harnesses: `scripts/verify-growth-symmetry.ts`, `verify-strategy-symmetry.ts`, `verify-baseline-modes.ts`. Reuse the **with/without comparison** harness pattern from the tax-credits audit (run each scenario at `from_ira` pre-fix vs post-fix; assert pre-RMD-age + from_taxable + no-RMD cases are byte-identical; assert from_ira+RMD cases drop the extra pull).
+
+**Display fields to keep consistent after the change:** `taxesPaidFromIRA`, `taxesPaidExternally`, `totalIRAWithdrawal` (= conversion + tax-from-IRA + effectiveIraDistribution), `federalTaxOnConversions`, `federalTaxOnIRAWithdrawal`.
+
+**Repo context:** engine is in CENTS everywhere. RMD start age 73/75 via `getClientRMDStartAge`. Run `tsc --noEmit` before commit (excludes only the pre-existing untracked `scripts/audit-athene-agility-10.ts` error). No localhost — push to Vercel; Supabase migrations need manual SQL apply (no DDL via service role).
