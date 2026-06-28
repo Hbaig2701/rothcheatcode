@@ -115,3 +115,40 @@ Touches the conversion engine, RMD logic, and the baseline comparator — needs 
 **Demand signal:** Gerald Shaw (mysummitadvisors.com, re: Joseph Klink, Jun 24 2026 — "Why does taking income from ROTH ruin strategy? Any income from ROTH gives negative #s"). Told to use "Auto" as the interim workaround.
 
 **Estimated effort:** **~half a day** (fallback ordering in one util + verify symmetry across 4 engines + cache bump + tests).
+
+---
+
+## RMD should fund the conversion tax (from-IRA over-distributes) — VERIFIED BUG
+
+**The pitch:** When conversion tax is paid **from the IRA** and the client has an **RMD**, the engine pulls the conversion tax as a *separate* distribution **on top of** the full RMD. It should fund the conversion tax **from the RMD first** (the IRS counts any distribution — including tax withholding — toward the RMD), pulling extra only for the shortfall.
+
+**Verified correct (the law):** Confirmed via IRS RMD FAQs + Fidelity/Schwab + Ed Slott:
+1. RMDs can't be converted; RMD must be satisfied before a conversion ("first dollars out").
+2. The conversion itself does NOT count toward the RMD.
+3. The **gross amount of any distribution counts toward the RMD — including the portion withheld for taxes.** So money pulled to pay the conversion tax counts toward the RMD; you don't take a separate full RMD on top of it.
+Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our earlier reply that the tax-funding "doesn't count" was wrong.
+
+**Proof of the bug (verified numerically):** Age 75, ~$738K IRA → RMD $30K, fixed $100K conversion, tax from IRA. Engine pulls **$30K RMD + $100K conversion + $18,513 tax = $148,513** out of the IRA. Correct should be ~**$130K** (the $18.5K tax comes out of the $30K RMD; only the excess beyond the RMD is pulled extra, with gross-up only on that excess).
+
+**The design:**
+- `extra pull = max(0, conversionTaxFromIRA − rmdCashAvailable)` where `rmdCashAvailable = effectiveIraDistribution` (the RMD/forced distribution).
+- RMD ≥ conversion tax → **no extra pull**; total out = RMD + conversion; **no gross-up** on the RMD-funded portion (don't add it to `grossNonSSIncome`).
+- RMD < conversion tax → pull only the shortfall, gross-up only that shortfall.
+- No RMD (pre-RMD-age conversions) → **unchanged** (rmdRequired=0 → extra pull = full tax, as today).
+- rmd_treatment governs the LEFTOVER RMD after the tax is funded (unchanged semantics).
+
+**Where it lives (the hard part):** the from-IRA conversion-tax gross-up solver — the most branch-heavy code in the engine. Touches:
+- `lib/calculations/scenarios/growth-formula.ts` — conversionTaxFromIRA split (~line 711-732), grossNonSSIncome (~line 809), and the gross-down/planner branches (~355-700) + penalty-free cap interaction.
+- `lib/calculations/scenarios/formula.ts` — equivalent solver.
+- `lib/calculations/guaranteed-income/engine.ts` — flat-rate gross-up (conversion phase).
+- Bump `PRODUCT_CONFIG_VERSION` in `app/api/clients/[id]/projections/route.ts`.
+
+**Validation plan:** guard so ONLY from_ira + RMD + conversion cases change (everything else byte-identical); run verify-growth-symmetry / verify-strategy-symmetry / verify-baseline-modes; add RMD+conversion+from_ira cases (tax<RMD → no extra pull; tax>RMD → partial; pre-RMD-age → unchanged); confirm conversion at/after RMD age + from_taxable is unaffected.
+
+**Interim workaround (given to advisor):** set Tax Payment Source = "External (from taxable accounts)" with RMD/cash entered as the taxable balance — models the client paying the conversion tax from the RMD, no extra pull, accurate numbers today.
+
+**Scope note:** affects only conversions at age 73+ with tax paid from the IRA. Pre-RMD-age conversions and from-taxable cases are correct already.
+
+**Estimated effort:** **~2–3 days, medium-high risk** (money math in the hairiest solver, ×3 engines, heavy validation). Smaller scoped v1 (growth engine, tax≤RMD common case only) ≈ 1 day but leaves some from-IRA cases unfixed.
+
+**Demand signal:** Kwanza Ellis (mysummitadvisors.com), Jun 27 2026 — "all of the tax numbers for cases where the taxes are paid from the IRA are wrong and can't be presented to clients."
