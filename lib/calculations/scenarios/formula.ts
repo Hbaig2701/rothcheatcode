@@ -317,6 +317,11 @@ export function runFormulaScenario(
       && taxCap === Number.POSITIVE_INFINITY
       && !useOutflowCap
       && client.constraint_type !== 'irmaa_threshold';
+    // Set when a full/fixed self-consistent branch ran, so the display
+    // attribution can recompute the conversion-ONLY tax (the branch leaves
+    // federalConversionTax = tax on the FULL distribution, which is the correct
+    // withholding but overstates the "Tax on Conversions" display columns).
+    let selfConsistentTaxFromIra = false;
 
     if (shouldConvert) {
       // Branch on conversion strategy. Defaults match growth-formula.ts so
@@ -366,6 +371,7 @@ export function runFormulaScenario(
             const extraNeeded = Math.max(0, tf.federalTax + tf.stateTax - Math.max(0, afterTaxForcedRmd));
             conversionAmount = Math.max(0, effectiveIraForConversion - extraNeeded);
             totalIRAWithdrawal = conversionAmount + federalConversionTax + stateConversionTax;
+            selfConsistentTaxFromIra = true;
           } else if (!useRegimeB) {
             // Legacy iterative solver — carrier penalty-free / outflow cap cases.
             let solved = effectiveIraForConversion * (1 - (maxTaxRate / 100 + stateTaxRateDecimal));
@@ -411,6 +417,7 @@ export function runFormulaScenario(
           stateConversionTax = tS;
           totalIRAWithdrawal = conversionAmount + federalConversionTax + stateConversionTax;
           taxAlreadyComputed = true;
+          selfConsistentTaxFromIra = true;
         } else if (payTaxFromIRA) {
           const estEffRate = maxTaxRate / 100 + stateTaxRateDecimal;
           const maxConvWithTax = Math.floor(effectiveIraForConversion / (1 + estEffRate));
@@ -741,8 +748,19 @@ export function runFormulaScenario(
     // Split federal/state tax between "on conversion" and "on ordinary/SS income"
     // for display breakdowns. Ordinary portion is what remains after subtracting
     // the marginal conversion tax.
-    const federalTaxOnOrdinaryAndSS = Math.max(0, federalResult.totalTax - federalConversionTax);
-    const stateTaxOnOrdinaryAndSS = Math.max(0, stateResult.totalTax - stateConversionTax);
+    // For the self-consistent full/fixed from-IRA path, federalConversionTax holds
+    // the tax on the FULL distribution (conversion + gross-up pull) — correct for
+    // the withholding, but the display "Tax on Conversions" columns should reflect
+    // the converted slice only (the gross-up pull is an ordinary IRA distribution
+    // whose tax belongs in the ordinary split). Recompute conversion-only here so
+    // these columns aren't overstated and the ordinary split isn't squeezed to ~$0.
+    const convOnlyTax = selfConsistentTaxFromIra && conversionAmount > 0
+      ? convTaxAt(conversionAmount)
+      : { federalTax: federalConversionTax, stateTax: stateConversionTax };
+    const dispFederalConvTax = convOnlyTax.federalTax;
+    const dispStateConvTax = convOnlyTax.stateTax;
+    const federalTaxOnOrdinaryAndSS = Math.max(0, federalResult.totalTax - dispFederalConvTax);
+    const stateTaxOnOrdinaryAndSS = Math.max(0, stateResult.totalTax - dispStateConvTax);
 
     const bracket = determineTaxBracket(taxInfoFinal.taxableIncome, client.filing_status, year);
     const totalIncome = grossIncomeWithWithdrawal + ssIncome;
@@ -788,14 +806,14 @@ export function runFormulaScenario(
       federalTaxOnSS: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
         ? Math.round(federalTaxOnOrdinaryAndSS * taxInfoFinal.taxableSS / (otherIncome + taxInfoFinal.taxableSS))
         : 0,
-      federalTaxOnConversions: federalConversionTax,
+      federalTaxOnConversions: dispFederalConvTax,
       federalTaxOnOrdinaryIncome: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
         ? Math.round(federalTaxOnOrdinaryAndSS * otherIncome / (otherIncome + taxInfoFinal.taxableSS))
         : federalTaxOnOrdinaryAndSS,
       stateTaxOnSS: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
         ? Math.round(stateTaxOnOrdinaryAndSS * taxInfoFinal.taxableSS / (otherIncome + taxInfoFinal.taxableSS))
         : 0,
-      stateTaxOnConversions: stateConversionTax,
+      stateTaxOnConversions: dispStateConvTax,
       stateTaxOnOrdinaryIncome: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
         ? Math.round(stateTaxOnOrdinaryAndSS * otherIncome / (otherIncome + taxInfoFinal.taxableSS))
         : stateTaxOnOrdinaryAndSS,

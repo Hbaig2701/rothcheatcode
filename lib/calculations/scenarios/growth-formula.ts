@@ -987,8 +987,20 @@ export function runGrowthFormulaScenario(
     // Preserve marginal conversion-tax attribution (captured above when
     // conversionAmount > 0) for display columns, then override the year's
     // full federal/state tax.
-    const conversionFederalTax = federalTax;
-    const conversionStateTax = stateTax;
+    // For the self-consistent full/fixed from-IRA path, `federalTax`/`stateTax`
+    // here hold the tax on the FULL distribution (conversion + the gross-up
+    // extra pull) — that's correct for the withholding (taxesPaidFromIRA, already
+    // taken from the split above), but it OVERSTATES the "Fed/State Tax on
+    // Conversions" display columns (which should be the tax on the converted
+    // slice only; the gross-up dollars are an ordinary IRA distribution and their
+    // tax belongs in the ordinary-income split). Recompute the conversion-only
+    // attribution here so federalTaxOnConversions ≤ federalTaxOnIRAWithdrawal and
+    // the residual ordinary/SS columns aren't squeezed to ~$0. (v66 regression.)
+    const conversionOnlyTax = selfConsistentTaxFromIra && conversionAmount > 0
+      ? convTaxAt(conversionAmount)
+      : { federalTax, stateTax };
+    const conversionFederalTax = conversionOnlyTax.federalTax;
+    const conversionStateTax = conversionOnlyTax.stateTax;
     federalTax = totalFederalTax;
     stateTax = totalStateTax;
 
