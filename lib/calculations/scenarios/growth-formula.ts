@@ -84,6 +84,12 @@ export function runGrowthFormulaScenario(
   // scoped and predictable.
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
+  // Running balance of ONLY the Roth dollars that came from conversions into the
+  // mirrored Roth annuity (excludes any pre-existing external Roth IRA above).
+  // Used as the base for the anniversary bonus on converted money — see
+  // anniversaryBonusFollowsConversion below. Starts at 0: the external Roth was
+  // never in the annuity, so it never earns the carrier bonus.
+  let rothMirrorBalance = 0;
 
   // Look up the product preset early so we can fall back to preset defaults
   // when the client record is missing fields. This guards against legacy
@@ -101,6 +107,11 @@ export function runGrowthFormulaScenario(
     ((client.anniversary_bonus_percent ?? presetAnnivBonus) ?? 0) / 100;
   const anniversaryBonusYears =
     (client.anniversary_bonus_years ?? presetAnnivYears) ?? 0;
+  // Per-product: does the anniversary bonus keep crediting on Roth-converted
+  // money (mirrored Roth annuity)? Confirmed true for EquiTrust (phased-bonus-
+  // growth); false everywhere else until each carrier is confirmed. Read from
+  // the preset only (not a client field) so it can't be toggled per client.
+  const bonusFollowsConversion = productConfig?.defaults.anniversaryBonusFollowsConversion ?? false;
 
   // Surrender schedule (array of charge percentages by year)
   const surrenderSchedule = client.surrender_schedule ?? null;
@@ -822,6 +833,37 @@ export function runGrowthFormulaScenario(
       iraBalance = iraBalance + anniversaryBonusAmount;
     }
 
+    // Step 3b: Anniversary bonus on CONVERTED (mirrored Roth annuity) money.
+    // For products where the Roth conversion is done via a mirrored contract at
+    // the same carrier (EquiTrust MarketEdge Bonus — Partial Tax Conversion),
+    // the converted dollars stay inside the annuity and keep earning the
+    // anniversary Accumulation Value bonus. Without this, the engine treats the
+    // Roth as a plain Roth IRA (no bonus) and drops the bonus the moment money
+    // converts — penalizing the strategy's whole point (convert early to lock in
+    // tax-free growth). We track the converted (mirror) portion separately from
+    // any pre-existing external Roth IRA, which must NEVER get the carrier bonus.
+    // (Kwanza Ellis ticket, June 2026; verified vs EquiTrust PTC FAQ.)
+    //
+    // rothBalance above already grew the WHOLE Roth (external + mirror) at the
+    // Roth rate, so here we only (a) recompute the mirror's own post-growth value
+    // to use as the bonus base and (b) add the mirror's bonus on top of
+    // rothBalance. When bonusFollowsConversion is false the bonus is 0, so
+    // rothBalance is byte-identical to the prior behavior for every other product.
+    const boyRothMirror = rothMirrorBalance;
+    const mirrorWithdrawal = boyRoth > 0
+      ? Math.round(rothWithdrawal * boyRothMirror / boyRoth)
+      : 0;
+    const mirrorAfterConversion = Math.max(0, boyRothMirror - mirrorWithdrawal) + conversionAmount;
+    const mirrorPostGrowth = mirrorAfterConversion + Math.round(mirrorAfterConversion * rothGrowthRate);
+    let rothMirrorBonus = 0;
+    if (bonusFollowsConversion && anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears) {
+      rothMirrorBonus = Math.round(mirrorPostGrowth * anniversaryBonusPercent);
+      rothBalance = rothBalance + rothMirrorBonus;
+    }
+    // Carry the mirror balance forward. Cap at the total Roth as a defensive
+    // floor against rounding drift (the mirror is a strict subset of rothBalance).
+    rothMirrorBalance = Math.min(mirrorPostGrowth + rothMirrorBonus, rothBalance);
+
     // Step 3.5: Principal protection floor (FIA guarantee).
     // The AV cannot fall below the initial premium minus any withdrawals taken.
     // Applies for the life of the contract. We model this as the entire
@@ -1018,13 +1060,15 @@ export function runGrowthFormulaScenario(
     //     making advisors think the bonus wasn't being honored.
     //  2. Anniversary bonus (years 1..anniversaryBonusYears) — applied to the
     //     post-conversion + post-interest IRA balance per the contract.
+    //  3. Anniversary bonus on the converted (mirrored Roth annuity) money
+    //     (rothMirrorBonus, EquiTrust-style) when anniversaryBonusFollowsConversion.
     const upfrontBonusThisYear = yearOffset === 0
       ? Math.round(initialValue * bonusPercent / 100)
       : 0;
     const anniversaryBonusThisYear = anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears
       ? Math.round((iraAfterConversion + iraInterest) * anniversaryBonusPercent)
       : 0;
-    const productBonusApplied = upfrontBonusThisYear + anniversaryBonusThisYear;
+    const productBonusApplied = upfrontBonusThisYear + anniversaryBonusThisYear + rothMirrorBonus;
 
     // Calculate display growth/interest for each account.
     // traditionalGrowth excludes the upfront premium bonus — that bonus is
@@ -1032,7 +1076,7 @@ export function runGrowthFormulaScenario(
     // as growth during year 0. It's surfaced in productBonusApplied for the
     // bonus column. Only anniversary bonuses count as in-year growth credits.
     const traditionalGrowth = iraInterest + anniversaryBonusThisYear;
-    const rothGrowth = rothInterest;
+    const rothGrowth = rothInterest + rothMirrorBonus;
     const taxableGrowth = taxableInterest; // interest on the reinvested-RMD side brokerage ('reinvested' mode); 0 for cash/spent
 
     // Tax component breakdown. Marginal conversion tax was computed above

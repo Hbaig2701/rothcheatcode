@@ -22,6 +22,14 @@ export interface ProductDefaults {
   riderFee?: number; // Annual rider fee percentage (deducted from AV during surrender period)
   anniversaryBonus?: number; // Anniversary bonus % applied at end of each bonus year
   anniversaryBonusYears?: number; // Number of years anniversary bonus is applied (e.g., 3)
+  // When true, the anniversary (Accumulation Value) bonus continues to be
+  // credited on money that has been Roth-converted, because the carrier moves it
+  // into a mirrored Roth annuity with the same effective date / credited rates
+  // (e.g. EquiTrust MarketEdge Bonus "Partial Tax Conversion"). When false (all
+  // other products, pending carrier confirmation), converted money leaves the
+  // annuity and stops earning the bonus. Only the CONVERTED (mirror) balance is
+  // bonused — never a pre-existing external Roth IRA.
+  anniversaryBonusFollowsConversion?: boolean;
 }
 
 export interface ProductConfig {
@@ -93,6 +101,9 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
       rateOfReturn: 7,
       anniversaryBonus: 4,
       anniversaryBonusYears: 3,
+      // EquiTrust MarketEdge Bonus: a Partial Tax Conversion moves converted
+      // dollars into a mirrored Roth annuity that keeps earning the 4% AV bonus.
+      anniversaryBonusFollowsConversion: true,
     },
   },
 
