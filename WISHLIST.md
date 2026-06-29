@@ -118,7 +118,9 @@ Touches the conversion engine, RMD logic, and the baseline comparator — needs 
 
 ---
 
-## RMD should fund the conversion tax (from-IRA over-distributes) — VERIFIED BUG
+## RMD should fund the conversion tax (from-IRA over-distributes) — ✅ DONE (Jun 28 2026, cache v64)
+
+**SHIPPED:** Fixed in `growth-formula.ts` + `formula.ts`. The conversion tax (paid from IRA) is now withheld from the after-tax RMD first; only the shortfall (`extraPullForTax = max(0, conversionTaxFromIRA − afterTaxForcedRmd)`) is pulled as an extra distribution and re-recognized as income. The reinvested-RMD taxable inflow is reduced by the tax withheld from it (conservation). `taxesPaidFromIRA` still displays the full conversion tax (it IS paid with IRA dollars, just out of the RMD). Cache bumped 63→64. **GI engine: assessed, no change** — its conversion phase models no RMD, and its RMD-bearing phases (legacy-hold, widow) have no conversion, so the bug can't occur there. Validation via git-stash pre/post diff (`scripts/audit-rmd-fix.ts`): from_taxable + pre-RMD-age controls **byte-identical**; from_ira+RMD cases corrected. Real client **Peter Crane** age-74 totalIRAwd $174,225→$146,937, fed tax $58,681→$49,949, legacy $3.65M→$4.03M. Symmetry harnesses (growth/strategy/baseline-modes) all green ($0 zero-conversion divergence). **Still deferred:** (a) conversion re-sizing for the penalty-free-cap/gross-down branches (conversion stays conservative — correct but not bracket-maximal); (b) voluntary-withdrawal funding (v1 funds from the forced RMD only); (c) GI doesn't model RMDs during conversion at 73+ (separate latent gap). Original spec retained below for reference.
 
 **The pitch:** When conversion tax is paid **from the IRA** and the client has an **RMD**, the engine pulls the conversion tax as a *separate* distribution **on top of** the full RMD. It should fund the conversion tax **from the RMD first** (the IRS counts any distribution — including tax withholding — toward the RMD), pulling extra only for the shortfall.
 
@@ -181,3 +183,19 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 **Display fields to keep consistent after the change:** `taxesPaidFromIRA`, `taxesPaidExternally`, `totalIRAWithdrawal` (= conversion + tax-from-IRA + effectiveIraDistribution), `federalTaxOnConversions`, `federalTaxOnIRAWithdrawal`.
 
 **Repo context:** engine is in CENTS everywhere. RMD start age 73/75 via `getClientRMDStartAge`. Run `tsc --noEmit` before commit (excludes only the pre-existing untracked `scripts/audit-athene-agility-10.ts` error). No localhost — push to Vercel; Supabase migrations need manual SQL apply (no DDL via service role).
+
+---
+
+## GI do-nothing baseline should take pre-income RMDs (normal income mode) — DEFERRED (validation-gated)
+
+**The pitch:** The GI engine's do-nothing BASELINE (`runGIBaselineScenario`) only forces RMDs in the pre-income waiting/deferral phases when `gi_legacy_mode` is on. In NORMAL income mode, a 73+ client's baseline takes NO RMDs until GI income starts — so the do-nothing side dodges years of RMD tax, overstating do-nothing wealth and understating the Roth strategy's advantage. (Audit finding, June 2026. Affects GI baselines with pre-income years at 73+.)
+
+**Why it's DEFERRED, not shipped:** Ungating the two baseline RMD blocks (waiting ~L1336, deferral ~L1693 — change `if (client.gi_legacy_mode && ...)` → `if (...)`) is a one-line-each change, BUT the deferral-phase RMD applies a **pro-rata benefit-base / death-benefit draw-down** (carrier rule, `productData.benefitBaseDrawsDown`) and lowers the eventual income-base, which then ripples through income sizing and terminal legacy. On a git-stash before/after across the 20 real GI clients this swung baseline legacy by **+$15K to +$39K for most but −$457K for Mark Aviles** — i.e. large, carrier-rule-sensitive, and direction-inconsistent. Shipping that without checking it to the dollar against carrier illustrations would violate the "validate money math" rule.
+
+**What it requires:** validate the deferral-phase RMD + benefit-base interaction against real carrier illustrations (the Allianz 222+ / Athene Agility / Performance Elite cases already in hand — see the David Abreu legacy work). Confirm: (1) whether carriers actually draw the benefit base down pro-rata on an RMD vs let it roll up untouched (product-specific — `benefitBaseDrawsDown` must be correct per product); (2) income re-sizing after a reduced base; (3) conservation. Then ungate both blocks + bump cache.
+
+**Already shipped (the safe half):** the GI STRATEGY conversion phase now recognizes RMDs for 73+ clients (stops illegally converting RMD dollars, taxes them marginally, routes after-tax to taxable, applies RMD-funds-conversion-tax). That half is pre-annuity (plain Traditional IRA — no benefit-base interaction), validated to small conservation-holding changes (7 affected clients, strategy-side only; baseline untouched). v64.
+
+**Demand signal:** ~7 GI clients currently convert through age 73+ (Roy Spruyt, Daniel Rick, Mark Aviles, Laren Stover ×3, Julian Hutchins). The strategy half is fixed for them; the baseline half makes the comparison fully fair.
+
+**Estimated effort:** ~1 day once a carrier illustration with pre-income RMDs is available to validate against; low LOC, high validation burden.

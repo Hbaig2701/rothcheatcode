@@ -192,6 +192,16 @@ export function runFormulaScenario(
     // Standard deduction (age-adjusted) + any advisor-entered additional deductions
     const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, client.additional_deductions);
 
+    // Base ordinary income for ALL marginal-conversion-tax and bracket-fill
+    // calculations: it MUST include the forced RMD, because the RMD is "first
+    // dollars out" and fills the lower brackets before the conversion stacks on
+    // top. Passing bare otherIncome here taxed the conversion as if it were the
+    // only income (lower brackets), understating the conversion tax for every
+    // from_ira + RMD client and overstating legacy. growth-formula.ts already
+    // seeds its solver with the RMD-inclusive base (existingNonSSIncome); this
+    // brings formula.ts to parity. (Audit finding, June 2026.)
+    const otherIncomeForTax = otherIncome + rmdAmount;
+
     // Tax picture WITHOUT any conversion this year — used as the baseline for
     // marginal-conversion-tax math AND for tax owed in years we don't convert.
     // RMDs ARE part of the no-conversion ordinary income (forced distribution).
@@ -286,7 +296,7 @@ export function runFormulaScenario(
             const tryConv = Math.max(0, effectiveIraForConversion - taxCap);
             const tryTax = calculateConversionTaxWithSS({
               conversionAmount: tryConv,
-              otherIncome,
+              otherIncome: otherIncomeForTax,
               ssBenefits: ssIncome,
               taxExemptInterest: taxExemptNonSSI,
               deductions,
@@ -309,7 +319,7 @@ export function runFormulaScenario(
             for (let i = 0; i < 5; i++) {
               const t = calculateConversionTaxWithSS({
                 conversionAmount: solved,
-                otherIncome,
+                otherIncome: otherIncomeForTax,
                 ssBenefits: ssIncome,
                 taxExemptInterest: taxExemptNonSSI,
                 deductions,
@@ -323,7 +333,7 @@ export function runFormulaScenario(
             conversionAmount = Math.max(0, Math.round(solved));
             const fcVerify = calculateConversionTaxWithSS({
               conversionAmount,
-              otherIncome,
+              otherIncome: otherIncomeForTax,
               ssBenefits: ssIncome,
               taxExemptInterest: taxExemptNonSSI,
               deductions,
@@ -351,7 +361,7 @@ export function runFormulaScenario(
             for (let i = 0; i < 5; i++) {
               const t = calculateConversionTaxWithSS({
                 conversionAmount: solved,
-                otherIncome,
+                otherIncome: otherIncomeForTax,
                 ssBenefits: ssIncome,
                 taxExemptInterest: taxExemptNonSSI,
                 deductions,
@@ -368,7 +378,7 @@ export function runFormulaScenario(
           }
           const fxVerify = calculateConversionTaxWithSS({
             conversionAmount,
-            otherIncome,
+            otherIncome: otherIncomeForTax,
             ssBenefits: ssIncome,
             taxExemptInterest: taxExemptNonSSI,
             deductions,
@@ -398,7 +408,7 @@ export function runFormulaScenario(
         } else if (payTaxFromIRA) {
           const plan = calculateSSAwareIRAWithdrawalPlan({
             iraBalance: cappedIra,
-            otherIncome,
+            otherIncome: otherIncomeForTax,
             ssBenefits: ssIncome,
             taxExemptInterest: taxExemptNonSSI,
             deductions,
@@ -429,7 +439,7 @@ export function runFormulaScenario(
               const mid = (lo + hi) / 2;
               const p = calculateSSAwareIRAWithdrawalPlan({
                 iraBalance: mid,
-                otherIncome,
+                otherIncome: otherIncomeForTax,
                 ssBenefits: ssIncome,
                 taxExemptInterest: taxExemptNonSSI,
                 deductions,
@@ -457,7 +467,7 @@ export function runFormulaScenario(
         } else {
           conversionAmount = calculateSSAwareOptimalConversion({
             iraBalance: cappedIra,
-            otherIncome,
+            otherIncome: otherIncomeForTax,
             ssBenefits: ssIncome,
             taxExemptInterest: taxExemptNonSSI,
             deductions,
@@ -479,7 +489,7 @@ export function runFormulaScenario(
       if (payTaxFromIRA && conversionAmount > 0 && taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
           && (conversionType === 'fixed_amount' || conversionType === 'full_conversion')) {
         const capTax0 = calculateConversionTaxWithSS({
-          conversionAmount, otherIncome, ssBenefits: ssIncome,
+          conversionAmount, otherIncome: otherIncomeForTax, ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI, deductions,
           filingStatus: client.filing_status, taxYear: year,
           state: client.state ?? 'CA', stateTaxRateDecimal,
@@ -489,7 +499,7 @@ export function runFormulaScenario(
           for (let i = 0; i < 40; i++) {
             const mid = (lo + hi) / 2;
             const t = calculateConversionTaxWithSS({
-              conversionAmount: mid, otherIncome, ssBenefits: ssIncome,
+              conversionAmount: mid, otherIncome: otherIncomeForTax, ssBenefits: ssIncome,
               taxExemptInterest: taxExemptNonSSI, deductions,
               filingStatus: client.filing_status, taxYear: year,
               state: client.state ?? 'CA', stateTaxRateDecimal,
@@ -498,7 +508,7 @@ export function runFormulaScenario(
           }
           conversionAmount = Math.floor(lo);
           const finalTax = calculateConversionTaxWithSS({
-            conversionAmount, otherIncome, ssBenefits: ssIncome,
+            conversionAmount, otherIncome: otherIncomeForTax, ssBenefits: ssIncome,
             taxExemptInterest: taxExemptNonSSI, deductions,
             filingStatus: client.filing_status, taxYear: year,
             state: client.state ?? 'CA', stateTaxRateDecimal,
@@ -515,7 +525,7 @@ export function runFormulaScenario(
       // marginal conversion tax against the chosen conversion amount.
       if (conversionAmount > 0 && !taxAlreadyComputed) {
         const taxInfoWithConv = computeTaxableIncomeWithSS({
-          otherIncome: otherIncome + conversionAmount,
+          otherIncome: otherIncomeForTax + conversionAmount,
           ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI,
           deductions,
@@ -549,6 +559,30 @@ export function runFormulaScenario(
       }
     }
 
+    // --- IRMAA surcharge (computed here so the RMD-funds-tax math below can use
+    // it). 2-year MAGI lookback reads only PRIOR years — independent of this
+    // year's conversion, so it's safe to compute before the conversion-tax split.
+    let irmaaSurcharge = 0;
+    let irmaaTierFromLookback = 0;
+    if (age >= 65) {
+      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+      irmaaSurcharge = irmaaResult.annualSurcharge;
+      irmaaTierFromLookback = irmaaResult.tier;
+    }
+
+    // --- After-tax RMD available to fund the conversion tax ---
+    // The IRS counts any IRA distribution — including the portion withheld for
+    // taxes — toward the RMD. So when the conversion tax is paid from the IRA in
+    // an RMD year, the tax can be withheld from the RMD distribution instead of
+    // pulled as a SEPARATE distribution on top of the full RMD. We size the
+    // after-tax RMD cash here (same basis as the reinvested-RMD figure below) so
+    // the split can fund the conversion tax from the RMD first and only pull the
+    // shortfall. (Kwanza Ellis ticket — from-IRA cases over-distributed.)
+    const grossOrdinaryIncome = rmdAmount + otherIncome;
+    const rmdShareOfOrdinary = grossOrdinaryIncome > 0 ? rmdAmount / grossOrdinaryIncome : 0;
+    const rmdAttributableTax = Math.round((fedNoConv + stateNoConv + irmaaSurcharge) * rmdShareOfOrdinary);
+    const afterTaxForcedRmd = rmdAmount - rmdAttributableTax;
+
     // Execute conversion. When payTaxFromIRA, the IRA funds the conversion
     // and the conversion tax — but the conversion tax is capped by the
     // carrier penalty-free allowance (taxCap) when active. Anything above the
@@ -565,21 +599,29 @@ export function runFormulaScenario(
     const conversionTaxExternal = payTaxFromIRA
       ? Math.max(0, conversionTaxBeforeSplit - conversionTaxFromIRA)
       : 0;
+    // RMD-funds-tax: the IRA-funded conversion tax is withheld from the RMD's
+    // after-tax cash first; only the shortfall is pulled as an EXTRA distribution
+    // beyond the RMD. The RMD already left the IRA (iraAfterRmd), so the portion
+    // funded by it must NOT re-deplete the IRA or be re-recognized as income.
+    // conversionTaxFromIRA (gross) is retained for the "taxes paid from IRA"
+    // display — the full tax IS paid with IRA dollars, just out of the RMD.
+    const conversionTaxFundedFromRmd = Math.min(conversionTaxFromIRA, Math.max(0, afterTaxForcedRmd));
+    const extraPullForTax = conversionTaxFromIRA - conversionTaxFundedFromRmd;
     // RMD has already been mentally pulled off the IRA above (iraAfterRmd).
-    // Now the conversion + tax-from-IRA (capped) come off too. Floor at 0: a
-    // traditional IRA can never go negative. In a depletion year the iterative
+    // Now the conversion + the EXTRA tax pull (capped) come off too. Floor at 0:
+    // a traditional IRA can never go negative. In a depletion year the iterative
     // tax solvers (full/fixed, and the penalty-free cap-down) can size
     // conversion + tax a few cents above the remaining balance — without this
     // floor that residual compounds via interest into a small negative balance
     // in later years. Mirrors the same floor in growth-formula.ts (Kwanza E.).
-    const iraAfterConversion = Math.max(0, iraAfterRmd - conversionAmount - conversionTaxFromIRA);
+    const iraAfterConversion = Math.max(0, iraAfterRmd - conversionAmount - extraPullForTax);
     // Override the per-branch totalIRAWithdrawal so the IRS-visible 1099-R
-    // amount matches what was actually distributed (conv + capped tax). The
-    // recomputed federal/state tax below uses this value, so without this
-    // override an advisor with the cap binding would see ordinary-income tax
-    // computed against an IRA distribution larger than what physically left
-    // the policy.
-    totalIRAWithdrawal = conversionAmount + conversionTaxFromIRA;
+    // amount matches what was actually distributed (conv + EXTRA tax pull; the
+    // RMD-funded tax is already inside rmdAmount). The recomputed federal/state
+    // tax below uses this value, so without this override an advisor would see
+    // ordinary-income tax computed against an IRA distribution larger than what
+    // physically left the policy.
+    totalIRAWithdrawal = conversionAmount + extraPullForTax;
     const rothAfterConversion = boyRoth + conversionAmount;
 
     // Interest = (B.O.Y. Balance − Distribution) × Rate
@@ -616,23 +658,18 @@ export function runFormulaScenario(
     // post-73 client.
     const grossIncomeWithWithdrawal = otherIncome + rmdAmount + totalIRAWithdrawal;
     const magi = grossIncomeWithWithdrawal + taxExemptNonSSI + ssIncome;
+    // Store MAGI for FUTURE years' IRMAA lookback. irmaaSurcharge / tier for THIS
+    // year were already computed above (before the conversion-tax split) so the
+    // RMD-funds-tax math could use the surcharge — IRMAA's 2-year lookback never
+    // reads the current year, so computing it earlier is equivalent.
     incomeHistory.set(year, magi);
 
-    // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
-    // so the display column "IRMAA Tier" matches the "IRMAA Amount" cents
-    // on the same row. See baseline.ts for the longer rationale.
-    let irmaaSurcharge = 0;
-    let irmaaTierFromLookback = 0;
-    if (age >= 65) {
-      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
-      irmaaSurcharge = irmaaResult.annualSurcharge;
-      irmaaTierFromLookback = irmaaResult.tier;
-    }
-
-    // 10% early withdrawal penalty on tax paid from IRA when under 59.5
+    // 10% early withdrawal penalty on the EXTRA pull to cover tax when under
+    // 59.5 (RMDs are age 73+, so extraPullForTax == conversionTaxFromIRA
+    // whenever age < 60 anyway).
     const earlyWithdrawalPenalty =
-      conversionTaxFromIRA > 0 && age < 60
-        ? Math.round(conversionTaxFromIRA * 0.10)
+      extraPullForTax > 0 && age < 60
+        ? Math.round(extraPullForTax * 0.10)
         : 0;
 
     // Total tax this year = full federal + full state + IRMAA + penalty.
@@ -670,17 +707,20 @@ export function runFormulaScenario(
     // it's correctly omitted. Including IRMAA here is what makes the strategy's
     // reinvested-RMD accumulation match baseline to the dollar in the no-
     // conversion case (verified via the symmetry harness).
-    const grossOrdinaryIncome = rmdAmount + otherIncome;
-    const rmdShareOfOrdinary = grossOrdinaryIncome > 0 ? rmdAmount / grossOrdinaryIncome : 0;
-    const rmdAttributableTax = Math.round((fedNoConv + stateNoConv + irmaaSurcharge) * rmdShareOfOrdinary);
-    const afterTaxForcedRmd = rmdAmount - rmdAttributableTax;
+    // grossOrdinaryIncome / rmdShareOfOrdinary / rmdAttributableTax /
+    // afterTaxForcedRmd are computed ABOVE — before the conversion-tax split —
+    // because the RMD-funds-tax logic needs the after-tax RMD figure. Same
+    // method/basis as baseline.ts; reused here for the reinvested-RMD inflow.
     // Reinvested mode earns interest on the prior-year taxable balance; cash
     // mode accumulates without growth. Clamp at $0 (Jorge V., ticket 809a5774)
     // remains only as a defensive floor and should virtually never bind now.
     const taxableInterest = rmdTreatment === 'reinvested' ? Math.round(boyTaxable * growthRate) : 0;
+    // RMD-funds-tax (reinvested mode): conversion tax withheld from the RMD goes
+    // to the IRS, not the brokerage — subtract it so the cash isn't double-counted.
+    const reinvestedRmdToTaxable = Math.max(0, afterTaxForcedRmd - conversionTaxFundedFromRmd);
     const desiredTaxableBalance = rmdTreatment === 'spent'
       ? boyTaxable - externalConversionTax
-      : boyTaxable + afterTaxForcedRmd + taxableInterest - externalConversionTax;
+      : boyTaxable + reinvestedRmdToTaxable + taxableInterest - externalConversionTax;
     taxableBalance = Math.max(0, desiredTaxableBalance);
 
     // Split federal/state tax between "on conversion" and "on ordinary/SS income"

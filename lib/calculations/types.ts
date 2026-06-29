@@ -213,7 +213,10 @@ export interface YearlyResult {
   stateTaxOnConversions?: number;
   stateTaxOnOrdinaryIncome?: number;
 
-  // Total IRA withdrawal: conversion + taxes paid from IRA (in cents)
+  // Total dollars physically withdrawn from the IRA (cents): conversion + the
+  // RMD/voluntary distribution + only the EXTRA conversion-tax pull beyond the
+  // RMD. Conversion tax withheld from the RMD is already inside the RMD figure,
+  // so it is NOT added again (the v64 RMD-funds-conversion-tax fix).
   totalIRAWithdrawal?: number;
 
   // Marginal federal tax on the FULL IRA withdrawal for the year — computed

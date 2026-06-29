@@ -133,12 +133,19 @@ export function YearOverYearTables({
 
       // True interest = EOY - BOY + (money that left the combined balance this year).
       // - Baseline: RMDs leave the combined balance.
-      // - Strategy: conversions move within combined (Trad→Roth), but taxes paid
-      //   FROM the IRA leave the combined balance, as do any RMDs.
+      // - Strategy: conversions move WITHIN the combined balance (Trad→Roth), so
+      //   they don't count. What leaves is the non-conversion IRA outflow: the
+      //   RMD/voluntary distribution plus only the EXTRA tax pull beyond the RMD.
+      //   That is exactly totalIRAWithdrawal − conversion. (Since v64 the
+      //   conversion tax can be withheld FROM the RMD, so it's already inside the
+      //   RMD outflow — adding taxesPaidFromIRA on top would double-count it.)
       const taxFromIRA = year.taxesPaidFromIRA ?? 0;
+      const nonConversionOut = year.totalIRAWithdrawal != null
+        ? Math.max(0, year.totalIRAWithdrawal - year.conversionAmount)
+        : taxFromIRA + (year.rmdAmount ?? 0); // pre-v64 fallback if field absent
       const interest = scenario === "baseline"
         ? eoyCombined - boyCombined + distIra
-        : eoyCombined - boyCombined + taxFromIRA + (year.rmdAmount ?? 0);
+        : eoyCombined - boyCombined + nonConversionOut;
 
       // Tax dollars that came from the IRA (vs. the year's total tax bill which
       // includes tax on SS / NQ / IRMAA that aren't IRA-related).

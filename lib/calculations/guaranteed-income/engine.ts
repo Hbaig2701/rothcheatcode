@@ -209,6 +209,11 @@ function runGIStrategyScenario(
   // the income phase never triggers. The annuity is converted to Roth and held;
   // the benefit base rolls up (to its max period) and is the tax-free death
   // benefit to heirs. No lifetime income, no RMDs.
+  // Birth year drives the SECURE-Act RMD start age (73 vs 75). A client can
+  // still hold a Traditional balance during the conversion window at 73+, and
+  // RMDs are "first dollars out" — they can't be converted.
+  const birthYear = getBirthYearFromAge(clientAge, startYear);
+
   const LEGACY_NO_INCOME_AGE = 999;
   const effectiveIncomeStartAge = client.gi_legacy_mode
     ? LEGACY_NO_INCOME_AGE
@@ -356,8 +361,22 @@ function runGIStrategyScenario(
       const wdGI = resolveWithdrawalsForYear(client, year, boyTraditional, boyRoth);
       const iraWithdrawalGI = wdGI.iraPulled;
       const rothWithdrawalGI = wdGI.rothPulled;
-      // Subtract immediately so conversion math sees the right balance.
-      let availableTraditional = boyTraditional - iraWithdrawalGI;
+
+      // Forced RMD — kicks in at the SECURE-Act age (73/75). A client can be
+      // mid-conversion at RMD age; the RMD is "first dollars out" and CANNOT be
+      // converted (IRS rule), so it must be distributed and removed from the
+      // convertible balance. A voluntary IRA pull already counts toward the RMD
+      // up to its amount (so we only force the shortfall beyond it). Mirrors the
+      // growth/formula engines + the GI baseline's own RMD handling.
+      const rmdRequired = client.rmds_handled_externally
+        ? 0
+        : Math.min(calculateRMD({ age, traditionalBalance: boyTraditional, birthYear }).rmdAmount, boyTraditional);
+      const forcedRmdShortfall = Math.max(0, rmdRequired - iraWithdrawalGI);
+      const effectiveIraDistribution = iraWithdrawalGI + forcedRmdShortfall;
+
+      // Subtract the RMD + voluntary distribution immediately so conversion math
+      // sees the right balance (those dollars leave the IRA; they don't convert).
+      let availableTraditional = boyTraditional - effectiveIraDistribution;
       const availableRoth = boyRoth - rothWithdrawalGI;
 
       // Check if this is the LAST year of conversion phase
@@ -429,11 +448,33 @@ function runGIStrategyScenario(
       const conversionTax = federalConversionTax + stateConversionTax;
       totalConversionTax += conversionTax;
 
-      // Execute conversion. The voluntary withdrawals were already netted out
-      // of availableTraditional / availableRoth above, so we apply conversion
-      // on top of those reduced balances.
+      // Marginal tax on the forced RMD (ordinary income on top of other income +
+      // any voluntary IRA pull + SS), mirroring the GI baseline's RMD tax so the
+      // two sides compare fairly. The RMD is taxable even though it isn't a
+      // conversion. (The conversion's own tax is the flat-rate figure above.)
+      let rmdFederalTax = 0;
+      let rmdStateTax = 0;
+      if (forcedRmdShortfall > 0) {
+        const withRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalGI + forcedRmdShortfall, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+        const withoutRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalGI, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+        rmdFederalTax = Math.max(0, calculateFederalTax({ taxableIncome: withRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax - calculateFederalTax({ taxableIncome: withoutRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax);
+        rmdStateTax = Math.max(0, calculateStateTax({ taxableIncome: withRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax - calculateStateTax({ taxableIncome: withoutRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax);
+      }
+      const afterTaxForcedRmd = forcedRmdShortfall - rmdFederalTax - rmdStateTax;
+
+      // RMD-funds-conversion-tax (v64): when the conversion tax is paid from the
+      // IRA in an RMD year, it's withheld from the after-tax RMD first; only the
+      // shortfall is pulled as an EXTRA distribution beyond the RMD. The RMD has
+      // already left the IRA (effectiveIraDistribution), so the funded portion
+      // must NOT re-deplete the IRA or be re-recognized as income.
       const conversionTaxFromIRA = payTaxFromIRA ? conversionTax : 0;
-      traditionalBalance = availableTraditional - conversionAmount - conversionTaxFromIRA;
+      const conversionTaxFundedFromRmd = Math.min(conversionTaxFromIRA, Math.max(0, afterTaxForcedRmd));
+      const extraPullForTax = conversionTaxFromIRA - conversionTaxFundedFromRmd;
+
+      // Execute conversion. The RMD + voluntary distribution were already netted
+      // out of availableTraditional above; only the conversion and the EXTRA tax
+      // pull (beyond the RMD) come off the IRA here.
+      traditionalBalance = availableTraditional - conversionAmount - extraPullForTax;
       rothBalance = availableRoth + conversionAmount;
 
       // Apply growth
@@ -448,9 +489,11 @@ function runGIStrategyScenario(
       // the tax withheld is ALSO a taxable distribution on the 1099-R, so it
       // must be added to the income base — otherwise the year's MAGI/IRMAA
       // lookback and the reported taxable income both understate reality.
-      // Voluntary IRA pulls (iraWithdrawalGI) join the same ordinary-income
-      // bucket; voluntary Roth pulls are tax-free and excluded.
-      const grossIncomeWithConversion = otherIncome + conversionAmount + conversionTaxFromIRA + iraWithdrawalGI;
+      // Voluntary IRA pulls + the forced RMD (effectiveIraDistribution) join the
+      // same ordinary-income bucket; voluntary Roth pulls are tax-free/excluded.
+      // Only the EXTRA tax pull beyond the RMD adds incremental income — the
+      // conversion tax withheld from the RMD is already inside the RMD.
+      const grossIncomeWithConversion = otherIncome + conversionAmount + extraPullForTax + effectiveIraDistribution;
       const magi = grossIncomeWithConversion + taxExemptNonSSI + ssIncome;
       incomeHistory.set(year, magi);
 
@@ -468,29 +511,32 @@ function runGIStrategyScenario(
       // 10% early withdrawal penalty applies to (a) IRA-funded conversion tax
       // when under 59.5 and (b) any voluntary IRA pull this year when under
       // 59.5. Conversions themselves are penalty-exempt.
+      // Penalty applies to the EXTRA pull beyond the RMD (RMDs are 73+, never
+      // under 59.5, so extraPullForTax == conversionTaxFromIRA when age < 60).
       const conversionTaxPenalty =
-        conversionTaxFromIRA > 0 && age < 60
-          ? Math.round(conversionTaxFromIRA * 0.10)
+        extraPullForTax > 0 && age < 60
+          ? Math.round(extraPullForTax * 0.10)
           : 0;
       const voluntaryWithdrawalPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawalGI);
       const earlyWithdrawalPenalty = conversionTaxPenalty + voluntaryWithdrawalPenalty;
 
-      const totalTax = conversionTax + irmaaSurcharge + earlyWithdrawalPenalty;
+      const totalTax = conversionTax + rmdFederalTax + rmdStateTax + irmaaSurcharge + earlyWithdrawalPenalty;
 
-      // Handle tax payment on taxable account.
-      // When payTaxFromIRA, conversion tax came from the IRA, but IRMAA and
-      // early withdrawal penalty are still paid externally.
-      // Clamp at $0 (Jorge V., ticket 809a5774) — once the qualified buckets
-      // and the taxable account drain, residual non-conversion tax (on SS,
-      // non_ssi_income, etc.) is assumed paid from external income rather
-      // than driving taxableBalance into the negatives. TODO: replace with
-      // proper external-income credit (option B) for full accuracy.
-      // The pre-credit outflow is used here (the credit doesn't change what
-      // physically left the accounts); the credit savings are then added back
-      // as retained cash, mirroring growth-formula.ts.
-      const desiredTaxable = payTaxFromIRA
-        ? boyTaxable + taxableInterest - Math.max(0, totalTax - conversionTaxFromIRA)
-        : boyTaxable + taxableInterest - conversionTax - irmaaSurcharge - earlyWithdrawalPenalty;
+      // Handle the taxable account. Inflow: the after-tax forced RMD, reduced by
+      // the conversion tax withheld from it (those dollars went to the IRS, not
+      // the brokerage — so they aren't double-counted), kept only in
+      // reinvested/cash treatment ('spent' consumes it). The RMD's own tax is
+      // already netted out (afterTaxForcedRmd). Outflow: conversion tax only when
+      // paid externally, plus IRMAA + early-withdrawal penalty (always external).
+      // Clamp at $0 (Jorge V., ticket 809a5774) — residual tax with no portfolio
+      // left is assumed paid from external income, not driven negative.
+      const rmdTreatment = client.rmd_treatment ?? 'reinvested';
+      const afterTaxRmdToTaxable = rmdTreatment === 'spent'
+        ? 0
+        : Math.max(0, afterTaxForcedRmd - conversionTaxFundedFromRmd);
+      const externalConversionTax = payTaxFromIRA ? 0 : conversionTax;
+      const desiredTaxable = boyTaxable + taxableInterest + afterTaxRmdToTaxable
+        - externalConversionTax - irmaaSurcharge - earlyWithdrawalPenalty;
       taxableBalance = Math.max(0, desiredTaxable);
 
       // Calculate tax details with SS taxation awareness.
@@ -517,14 +563,14 @@ function runGIStrategyScenario(
         traditionalBalance,
         rothBalance,
         taxableBalance,
-        rmdAmount: 0,
+        rmdAmount: rmdRequired,
         conversionAmount,
         ssIncome,
         pensionIncome: 0,
         otherIncome,
         totalIncome,
-        federalTax: federalConversionTax,
-        stateTax: stateConversionTax,
+        federalTax: federalConversionTax + rmdFederalTax,
+        stateTax: stateConversionTax + rmdStateTax,
         niitTax: 0,
         irmaaSurcharge,
         totalTax,
@@ -546,11 +592,11 @@ function runGIStrategyScenario(
         irmaaTier,
         federalTaxOnSS: 0,
         federalTaxOnConversions: federalConversionTax,
-        federalTaxOnOrdinaryIncome: 0,
+        federalTaxOnOrdinaryIncome: rmdFederalTax,
         stateTaxOnSS: 0,
         stateTaxOnConversions: stateConversionTax,
-        stateTaxOnOrdinaryIncome: 0,
-        totalIRAWithdrawal: conversionAmount + conversionTaxFromIRA + iraWithdrawalGI,
+        stateTaxOnOrdinaryIncome: rmdStateTax,
+        totalIRAWithdrawal: conversionAmount + extraPullForTax + effectiveIraDistribution,
         taxesPaidFromIRA: conversionTaxFromIRA,
         earlyWithdrawalPenalty,
         iraWithdrawal: iraWithdrawalGI,
@@ -1284,6 +1330,11 @@ function runGIBaselineScenario(
       // — otherwise an already-RMD-age client silently skips RMDs until the GI
       // purchase, understating "RMDs avoided". A voluntary IRA withdrawal above
       // already satisfies the RMD up to its amount. Gated on gi_legacy_mode.
+      // NOTE: ungating this for NORMAL income mode (so the do-nothing baseline
+      // also takes pre-income RMDs) is a known gap — DEFERRED pending validation
+      // against carrier illustrations, because the deferral-phase RMD interacts
+      // with benefit-base draw-down and income sizing in ways that swing real
+      // client legacy by six figures (audit finding, June 2026 — see WISHLIST).
       let rmdAmount = 0;
       let rmdFederalTax = 0;
       let rmdStateTax = 0;
@@ -1624,15 +1675,19 @@ function runGIBaselineScenario(
         accountValue = Math.max(0, accountValue - yearRiderFee);
       }
 
-      // ---- Forced RMD (legacy / hold years only) ----
-      // In legacy mode the traditional annuity is just held — no income comes
-      // out — so once the owner is past their RMD age the IRS forces a taxable
-      // distribution each year, eroding the account value and (pro-rata) the
-      // benefit base. This is exactly the "no RMDs" advantage of converting to
-      // Roth: the strategy side is Roth and takes none, so this only ever hits
-      // the do-nothing baseline. Gated on gi_legacy_mode so existing income
-      // scenarios (where the guaranteed income already satisfies the RMD) are
-      // unchanged. Honors rmds_handled_externally and rmd_treatment.
+      // ---- Forced RMD (pre-income deferral / hold years) ----
+      // While the traditional annuity is held and no income is coming out, once
+      // the owner is past their RMD age the IRS forces a taxable distribution
+      // each year, eroding the account value and (pro-rata) the benefit base.
+      // This is exactly the "no RMDs" advantage of converting to Roth: the
+      // strategy side is Roth and takes none, so this only ever hits the
+      // do-nothing baseline. Gated on gi_legacy_mode so existing income scenarios
+      // (where the guaranteed income already satisfies the RMD) are unchanged.
+      // NOTE: ungating for NORMAL income mode's pre-income deferral years is a
+      // known gap — DEFERRED pending validation against carrier illustrations,
+      // because the deferral-phase RMD's pro-rata benefit-base draw-down swings
+      // real client legacy by six figures (audit finding, June 2026 — WISHLIST).
+      // Honors rmds_handled_externally and rmd_treatment.
       let rmdAmount = 0;
       let rmdFederalTax = 0;
       let rmdStateTax = 0;
