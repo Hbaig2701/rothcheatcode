@@ -361,6 +361,47 @@ export function runGrowthFormulaScenario(
     // the conversion twice.
     let skipGrossDown = false;
 
+    // --- IRMAA surcharge + after-tax forced RMD (computed BEFORE conversion
+    // sizing so the self-consistent gross-up below can use the after-tax RMD).
+    // IRMAA uses a 2-year MAGI lookback (reads only PRIOR years), and the
+    // after-tax RMD depends only on the RMD + existing income — neither depends
+    // on this year's conversion, so it's safe to compute here.
+    let irmaaSurcharge = 0;
+    let irmaaTier = 0;
+    if (age >= 65) {
+      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+      irmaaSurcharge = irmaaResult.annualSurcharge;
+      irmaaTier = irmaaResult.tier;
+    }
+    // After-tax forced RMD available to fund the conversion tax (Kwanza Ellis
+    // RMD-funds-tax, v64). Same method/basis as the reinvested-RMD figure below.
+    const noConvFedStateTax = forcedRmdShortfall > 0
+      ? calculateFederalTax({ taxableIncome: existingTaxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax
+        + calculateStateTax({ taxableIncome: existingTaxableIncome, state: client.state ?? 'CA', filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax
+      : 0;
+    const grossOrdinaryIncome = effectiveIraDistribution + otherIncome;
+    const rmdShareOfOrdinary = grossOrdinaryIncome > 0 ? forcedRmdShortfall / grossOrdinaryIncome : 0;
+    const rmdAttributableTax = Math.round((noConvFedStateTax + irmaaSurcharge) * rmdShareOfOrdinary);
+    const afterTaxForcedRmd = forcedRmdShortfall - rmdAttributableTax;
+
+    // Self-consistent gross-up: when the conversion tax is paid from the IRA and
+    // funded ENTIRELY from the IRA (no carrier penalty-free cap routing overflow
+    // external, and not the all-distributions outflow cap), the tax must be
+    // computed on the FULL conversion-attributable distribution (conversion + the
+    // extra pull to cover the tax), because the extra pull is itself a taxable
+    // distribution (tax-on-the-tax). The prior full/fixed solvers taxed only the
+    // conversion → over-converted and under-pulled the tax (James Cunningham:
+    // owed $415,930 but pulled $295,803). Excluded: the irmaa_threshold
+    // constraint, whose later cap would invalidate the tax we set here (rare and
+    // contradictory with a full conversion anyway) — it keeps the legacy path.
+    const useSelfConsistent = payTaxFromIRA
+      && taxCap === Number.POSITIVE_INFINITY
+      && !useOutflowCap
+      && client.constraint_type !== 'irmaa_threshold';
+    // Set when full/fixed produced an authoritative self-consistent tax, so the
+    // generic convTaxAt(conversion) recompute below doesn't clobber it.
+    let selfConsistentTaxFromIra = false;
+
     if (shouldConvert) {
       // Determine conversion amount based on type
       if (conversionType === 'full_conversion') {
@@ -393,9 +434,25 @@ export function runGrowthFormulaScenario(
               useRegimeB = true;
             }
           }
-          if (!useRegimeB) {
-            // Regime A — today's empty-the-IRA solver. Converges in 2-3
-            // iterations against the SS-aware marginal tax calc.
+          if (!useRegimeB && useSelfConsistent) {
+            // Regime A (self-consistent): empty the IRA. The ENTIRE post-RMD IRA
+            // is distributed; the whole amount (conversion + the extra pull that
+            // funds the tax) is taxable, so the conversion tax is computed on the
+            // full distribution — convTaxAt(effectiveIra) — not on the conversion
+            // alone. The tax is funded from the after-tax RMD first; only the
+            // shortfall is an EXTRA pull. conversion = IRA − extra pull. This is
+            // the fix for the over-conversion / under-funded-tax bug (James
+            // Cunningham: owed $415,930 but only pulled $295,803).
+            const { federalTax: fF, stateTax: sF } = convTaxAt(effectiveIraForConversion);
+            federalTax = fF;
+            stateTax = sF;
+            const extraNeeded = Math.max(0, (fF + sF) - Math.max(0, afterTaxForcedRmd));
+            conversionAmount = Math.max(0, effectiveIraForConversion - extraNeeded);
+            selfConsistentTaxFromIra = true;
+          } else if (!useRegimeB) {
+            // Legacy iterative solver — kept for the carrier penalty-free / outflow
+            // cap cases the self-consistent branch excludes (taxCap finite or
+            // useOutflowCap). Solves conv + tax(conv) = IRA.
             let solved = effectiveIraForConversion * (1 - (maxTaxRate / 100 + stateTaxRateDecimal));
             for (let i = 0; i < 5; i++) {
               const { federalTax: fTax, stateTax: sTax } = convTaxAt(solved);
@@ -414,7 +471,40 @@ export function runGrowthFormulaScenario(
         }
       } else if (conversionType === 'fixed_amount' && fixedConversionAmount > 0) {
         // Fixed amount: convert specified amount per year (or remaining balance if less).
-        if (payTaxFromIRA) {
+        if (payTaxFromIRA && useSelfConsistent) {
+          // Self-consistent gross-up. The client converts a fixed X to Roth; the
+          // tax is also pulled from the IRA, and that pull is itself taxable, so
+          // the conversion tax = convTaxAt(X + extraPull). The tax is funded from
+          // the after-tax RMD first; extraPull = max(0, tax − afterTaxRMD). These
+          // are coupled (extraPull depends on tax depends on extraPull), so we
+          // iterate to the fixed point. If X + extraPull can't fit in the IRA,
+          // fall back to emptying it (same as full_conversion, self-consistent).
+          const R = Math.max(0, afterTaxForcedRmd);
+          let convX = Math.min(fixedConversionAmount, effectiveIraForConversion);
+          let extraPull = 0;
+          let tF = 0, tS = 0;
+          for (let i = 0; i < 12; i++) {
+            const t = convTaxAt(convX + extraPull);
+            tF = t.federalTax; tS = t.stateTax;
+            const newExtra = Math.max(0, tF + tS - R);
+            if (convX + newExtra > effectiveIraForConversion) {
+              // Not enough room for the fixed conversion + its tax → empty the IRA.
+              const tf = convTaxAt(effectiveIraForConversion);
+              tF = tf.federalTax; tS = tf.stateTax;
+              extraPull = Math.max(0, tF + tS - R);
+              convX = Math.max(0, effectiveIraForConversion - extraPull);
+              break;
+            }
+            if (Math.abs(newExtra - extraPull) <= 1) { extraPull = newExtra; break; }
+            extraPull = newExtra;
+          }
+          conversionAmount = convX;
+          federalTax = tF;
+          stateTax = tS;
+          selfConsistentTaxFromIra = true;
+          skipGrossDown = true;
+        } else if (payTaxFromIRA) {
+          // Legacy path — carrier penalty-free / outflow cap cases.
           const estEffRate = maxTaxRate / 100 + stateTaxRateDecimal;
           const maxConvWithTax = Math.floor(effectiveIraForConversion / (1 + estEffRate));
           if (maxConvWithTax < fixedConversionAmount) {
@@ -706,48 +796,12 @@ export function runGrowthFormulaScenario(
       // here would overwrite it with tax-on-conversion-alone, re-introducing
       // the very bug the planner was added to fix.
       const planAlreadySetTax = payTaxFromIRA && skipGrossDown && (conversionType === 'optimized_amount' || conversionType === 'partial_amount');
-      if (conversionAmount > 0 && !planAlreadySetTax) {
+      if (conversionAmount > 0 && !planAlreadySetTax && !selfConsistentTaxFromIra) {
         const convTax = convTaxAt(conversionAmount);
         federalTax = convTax.federalTax;
         stateTax = convTax.stateTax;
       }
     }
-
-    // --- IRMAA surcharge (computed here so the RMD-funds-tax math below can use
-    // it). Uses a 2-year MAGI lookback, so it reads only PRIOR years' income
-    // history (this year's MAGI is recorded later, near the bottom of the loop) —
-    // it does NOT depend on this year's conversion, so it's safe to compute
-    // before the conversion-tax split.
-    let irmaaSurcharge = 0;
-    let irmaaTier = 0;
-    if (age >= 65) {
-      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
-      irmaaSurcharge = irmaaResult.annualSurcharge;
-      irmaaTier = irmaaResult.tier;
-    }
-
-    // --- After-tax forced RMD available to fund the conversion tax ---
-    // The IRS counts any IRA distribution — including the portion withheld for
-    // taxes — toward that year's RMD. So when the conversion tax is paid from the
-    // IRA in an RMD year, the tax can be withheld from the RMD distribution
-    // instead of pulled as a SEPARATE distribution stacked on top of the full
-    // RMD. We size the after-tax RMD cash here (same method/basis as the
-    // reinvested-RMD figure used lower down) so the split can fund the conversion
-    // tax from the RMD first and only pull the shortfall as an extra distribution.
-    // (Kwanza Ellis ticket — from-IRA cases over-distributed by re-pulling the
-    // full conversion tax on top of the full RMD; e.g. $30K RMD + $100K conv +
-    // $18.5K tax = $148.5K out, when it should be $130K.)
-    // v1 scope: funded from the forced RMD portion only — not voluntary
-    // withdrawals (the client's chosen spend). forcedRmdShortfall == 0 → no
-    // RMD cash → extra pull = full tax = today's behavior (byte-identical).
-    const noConvFedStateTax = forcedRmdShortfall > 0
-      ? calculateFederalTax({ taxableIncome: existingTaxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax
-        + calculateStateTax({ taxableIncome: existingTaxableIncome, state: client.state ?? 'CA', filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax
-      : 0;
-    const grossOrdinaryIncome = effectiveIraDistribution + otherIncome;
-    const rmdShareOfOrdinary = grossOrdinaryIncome > 0 ? forcedRmdShortfall / grossOrdinaryIncome : 0;
-    const rmdAttributableTax = Math.round((noConvFedStateTax + irmaaSurcharge) * rmdShareOfOrdinary);
-    const afterTaxForcedRmd = forcedRmdShortfall - rmdAttributableTax;
 
     // Execute conversion (on IRA balance already reduced by RMD + voluntary withdrawal).
     // When payTaxFromIRA, the IRA pays the conversion tax — but only up to
