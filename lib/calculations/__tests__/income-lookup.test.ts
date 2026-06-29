@@ -4,7 +4,7 @@
  */
 
 // Use relative imports to avoid @/ alias issues with tsx
-import { getNonSSIIncomeForYear } from '../utils/income';
+import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { runGrowthFormulaScenario } from '../scenarios/growth-formula';
 import { runFormulaScenario } from '../scenarios/formula';
 import { runBaselineScenario } from '../scenarios/baseline';
@@ -142,6 +142,40 @@ const clientNoIncome = makeClient({
   gross_taxable_non_ssi: 0,
 });
 assert(getNonSSIIncomeForYear(clientNoIncome, 2026) === 0, 'Should be $0 when both are 0');
+console.log('  Done.');
+
+// ============================================================
+// Test 2b: Multiple income streams in the SAME year must SUM
+// (Mike Catone / Guillermo Silesky ticket — pension + rental + annuity
+//  each stored as its own row; .find() dropped all but the first.)
+// ============================================================
+console.log('=== Test 2b: Multiple entries per year sum ===');
+
+const clientMultiStream = makeClient({
+  non_ssi_income: [
+    { year: 2026, age: '67', gross_taxable: 2461200, tax_exempt: 0, type: 'pension' },
+    { year: 2026, age: '67', gross_taxable: 1305600, tax_exempt: 100000, type: 'rental' },
+    { year: 2026, age: '67', gross_taxable: 1296000, tax_exempt: 0, type: 'annuity' },
+    { year: 2027, age: '68', gross_taxable: 2461200, tax_exempt: 0, type: 'pension' },
+  ],
+});
+
+assert(
+  getNonSSIIncomeForYear(clientMultiStream, 2026) === 2461200 + 1305600 + 1296000,
+  `2026 should sum all 3 streams ($50,628), got $${getNonSSIIncomeForYear(clientMultiStream, 2026) / 100}`
+);
+assert(
+  getNonSSIIncomeForYear(clientMultiStream, 2027) === 2461200,
+  'Year with a single stream still returns that stream'
+);
+assert(
+  getNonSSIIncomeForYear(clientMultiStream, 2028) === 0,
+  'Year with no entries returns $0'
+);
+assert(
+  getTaxExemptIncomeForYear(clientMultiStream, 2026) === 100000,
+  `2026 tax-exempt should sum across streams ($1,000), got $${getTaxExemptIncomeForYear(clientMultiStream, 2026) / 100}`
+);
 console.log('  Done.');
 
 // ============================================================
