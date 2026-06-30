@@ -53,16 +53,15 @@ const formatAge = (primaryAge: number, spouseAge: number | null): string => {
   return primaryAge.toString();
 };
 
-const getIRMAATier = (age: number, irmaaSurcharge: number): string => {
+const getIRMAATier = (age: number, tier: number | null | undefined): string => {
   if (age < 65) return "Pre-IRMAA";
-  if (irmaaSurcharge === 0) return "Tier 1";
-  const annualSurcharge = irmaaSurcharge / 100;
-  if (annualSurcharge < 1000) return "Tier 1";
-  if (annualSurcharge < 2500) return "Tier 2";
-  if (annualSurcharge < 4000) return "Tier 3";
-  if (annualSurcharge < 5500) return "Tier 4";
-  if (annualSurcharge < 7000) return "Tier 5";
-  return "Tier 6";
+  // Use the engine's irmaaTier (0 = Standard / below the first IRMAA threshold,
+  // 1-5 = surcharge tiers) rather than re-deriving the tier from the surcharge
+  // dollar amount. The old version returned "Tier 1" for a $0 surcharge —
+  // labeling every 65+ client who is NOT in IRMAA as "Tier 1" — and used
+  // single-filer dollar bands that misclassified joint filers (audit F12).
+  if (tier == null || tier <= 0) return "Standard";
+  return `Tier ${tier}`;
 };
 
 export function GIYearOverYearTables({
@@ -116,21 +115,28 @@ export function GIYearOverYearTables({
       // For baseline, the "GI payment" column shows baseline withdrawal (rmdAmount)
       const distIra = scenario === "baseline" ? year.rmdAmount : year.conversionAmount;
 
-      // AGI calculation
-      const grossIncome = scenario === "formula" && giYear?.phase === 'income'
-        ? giPaymentGross + year.otherIncome
-        : year.otherIncome + distIra;
-      const agi = grossIncome;
-
-      const deduction = getStandardDeduction(
+      // AGI / deduction / taxable income / MAGI — read the engine's own per-year
+      // fields (single source of truth) rather than re-deriving them here. The
+      // previous derivation set agi = otherIncome + distIra and, in the strategy
+      // income phase, added the GROSS GI payment. That (a) omitted taxable Social
+      // Security in the conversion/baseline phases, and (b) counted the TAX-FREE
+      // Roth-owned GI payment as taxable income during the income phase — which
+      // also overstated MAGI and could surface a too-high IRMAA tier. The engine
+      // reports agi/taxableIncome = $0 during the tax-free GI income years
+      // (correct); the gross payment is still shown in the GI Payment column.
+      // Falls back to the old derivation only if a field is somehow absent.
+      // (audit F2-GI.)
+      const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
+      const deduction = year.standardDeduction ?? getStandardDeduction(
         client.filing_status,
         year.age,
         year.spouseAge ?? undefined,
         year.year
       );
-      const taxableIncome = Math.max(0, agi - deduction);
-      const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
-      const magi = agi + taxExemptNonSSI + year.ssIncome;
+      const giIncomePhase = scenario === "formula" && giYear?.phase === 'income';
+      const agi = year.agi ?? (giIncomePhase ? giPaymentGross + year.otherIncome : year.otherIncome + distIra);
+      const taxableIncome = year.taxableIncome ?? Math.max(0, agi - deduction);
+      const magi = year.magi ?? (agi + taxExemptNonSSI + year.ssIncome);
 
       // Net income for GI
       const netIncome = scenario === "formula"
@@ -153,7 +159,7 @@ export function GIYearOverYearTables({
         taxExemptNonSSI,
         magi,
         netIncome,
-        irmaaTier: getIRMAATier(year.age, year.irmaaSurcharge),
+        irmaaTier: getIRMAATier(year.age, year.irmaaTier),
         giPhase: giYear?.phase ?? 'income',
       };
     });

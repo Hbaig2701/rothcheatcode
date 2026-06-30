@@ -1,7 +1,9 @@
 import type { YearlyResult } from './types';
 import type { Client } from '@/lib/types/client';
 import type { Projection } from '@/lib/types/projection';
-import { computePerYearMarginalConversionTax } from './marginal-conversion-tax';
+// (Story "Tax on Conversion" now reads the engine's conversion-attributable
+// fields directly — see audit F10 — so the marginal-conversion-tax helper is no
+// longer imported here; it remains available for any all-in-cost display.)
 import { getClientRMDStartAge } from './utils/age';
 
 // Story entry types
@@ -293,7 +295,14 @@ export function generateStory(
     // CONVERSION START
     if (year.conversionAmount > 0 && totalConverted === 0) {
       conversionYearCount = 1;
-      const conversionOnlyTax = computePerYearMarginalConversionTax(year, client);
+      // Use the engine's conversion-attributable tax fields — the SAME source
+      // the year-by-year table, the PDF, and the locked golden test all use — so
+      // the story's "Tax on Conversion" can never disagree with the table for the
+      // same client (audit F10). This still isolates the conversion from
+      // background SS/pension tax (Greg Stopp's ask); it differs from the old
+      // marginal helper ONLY in the from-IRA gross-up attribution, where the
+      // marginal helper over-counted vs the canonical v67 display attribution.
+      const conversionOnlyTax = (year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0);
       storyEntries.push({
         year: year.year,
         age: year.age,
@@ -323,7 +332,14 @@ export function generateStory(
     // CONVERSION END (last conversion year)
     else if (year.conversionAmount > 0 && conversionYearCount === totalConversionYears - 1) {
       conversionYearCount++;
-      const conversionOnlyTax = computePerYearMarginalConversionTax(year, client);
+      // Use the engine's conversion-attributable tax fields — the SAME source
+      // the year-by-year table, the PDF, and the locked golden test all use — so
+      // the story's "Tax on Conversion" can never disagree with the table for the
+      // same client (audit F10). This still isolates the conversion from
+      // background SS/pension tax (Greg Stopp's ask); it differs from the old
+      // marginal helper ONLY in the from-IRA gross-up attribution, where the
+      // marginal helper over-counted vs the canonical v67 display attribution.
+      const conversionOnlyTax = (year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0);
       totalConverted += year.conversionAmount;
       totalTaxPaid += taxPaidThisYear;
       totalConversionOnlyTax += conversionOnlyTax;
@@ -352,7 +368,14 @@ export function generateStory(
     // CONVERSION YEAR (middle years) - only show for longer conversion periods
     else if (year.conversionAmount > 0 && conversionYearCount > 0 && conversionYearCount < totalConversionYears - 1) {
       conversionYearCount++;
-      const conversionOnlyTax = computePerYearMarginalConversionTax(year, client);
+      // Use the engine's conversion-attributable tax fields — the SAME source
+      // the year-by-year table, the PDF, and the locked golden test all use — so
+      // the story's "Tax on Conversion" can never disagree with the table for the
+      // same client (audit F10). This still isolates the conversion from
+      // background SS/pension tax (Greg Stopp's ask); it differs from the old
+      // marginal helper ONLY in the from-IRA gross-up attribution, where the
+      // marginal helper over-counted vs the canonical v67 display attribution.
+      const conversionOnlyTax = (year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0);
       totalConverted += year.conversionAmount;
       totalTaxPaid += taxPaidThisYear;
       totalConversionOnlyTax += conversionOnlyTax;

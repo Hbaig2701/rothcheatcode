@@ -40,7 +40,7 @@ export interface ColumnDefinition {
  * Format currency values (in cents) as dollars
  */
 function formatCurrency(value: number | null | undefined): string {
-  if (value === null || value === undefined) return '—';
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
   const dollars = value / 100;
   return dollars >= 0
     ? `$${dollars.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
@@ -51,7 +51,7 @@ function formatCurrency(value: number | null | undefined): string {
  * Format percentage values
  */
 function formatPercent(value: number | null | undefined): string {
-  if (value === null || value === undefined) return '—';
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
   return `${value.toFixed(1)}%`;
 }
 
@@ -59,7 +59,7 @@ function formatPercent(value: number | null | undefined): string {
  * Format plain numbers
  */
 function formatNumber(value: number | null | undefined): string {
-  if (value === null || value === undefined) return '—';
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
   return String(value);
 }
 

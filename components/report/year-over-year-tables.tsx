@@ -57,17 +57,15 @@ const formatAge = (primaryAge: number, spouseAge: number | null): string => {
 };
 
 // Helper: Get IRMAA tier string
-const getIRMAATier = (age: number, irmaaSurcharge: number): string => {
+const getIRMAATier = (age: number, tier: number | null | undefined): string => {
   if (age < 65) return "Pre-IRMAA";
-  if (irmaaSurcharge === 0) return "Tier 1";
-  // Map surcharge amount to tier (simplified - actual mapping would need thresholds)
-  const annualSurcharge = irmaaSurcharge / 100;
-  if (annualSurcharge < 1000) return "Tier 1";
-  if (annualSurcharge < 2500) return "Tier 2";
-  if (annualSurcharge < 4000) return "Tier 3";
-  if (annualSurcharge < 5500) return "Tier 4";
-  if (annualSurcharge < 7000) return "Tier 5";
-  return "Tier 6";
+  // Use the engine's irmaaTier (0 = Standard / below the first IRMAA threshold,
+  // 1-5 = surcharge tiers) rather than re-deriving the tier from the surcharge
+  // dollar amount. The old version returned "Tier 1" for a $0 surcharge —
+  // labeling every 65+ client who is NOT in IRMAA as "Tier 1" — and used
+  // single-filer dollar bands that misclassified joint filers (audit F12).
+  if (tier == null || tier <= 0) return "Standard";
+  return `Tier ${tier}`;
 };
 
 // Helper: Determine tax bracket from taxable income and filing status
@@ -151,27 +149,27 @@ export function YearOverYearTables({
       // includes tax on SS / NQ / IRMAA that aren't IRA-related).
       const taxesIra = scenario === "baseline" ? year.totalTax : taxFromIRA;
 
-      // AGI calculation
-      const grossIncome = year.otherIncome + distIra;
-      const agi = grossIncome;
-
-      // Standard deduction
-      const deduction = getStandardDeduction(
+      // AGI / deduction / taxable income / bracket / MAGI — read the engine's
+      // own per-year fields (single source of truth) instead of re-deriving
+      // them here. The previous in-component derivation used
+      // agi = otherIncome + distIra, which OMITS the taxable Social Security
+      // portion the engine includes — understating AGI and Taxable Income by
+      // tens of thousands of dollars for any client with Social Security, and
+      // making this table disagree with the tax the rest of the report charges
+      // (audit F2). The engine populates agi/standardDeduction/taxableIncome/
+      // federalTaxBracket/magi on every row; fall back to the old derivation
+      // only if a field is somehow absent.
+      const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
+      const deduction = year.standardDeduction ?? getStandardDeduction(
         client.filing_status,
         year.age,
         year.spouseAge ?? undefined,
         year.year
       );
-
-      // Taxable income
-      const taxableIncome = Math.max(0, agi - deduction);
-
-      // Tax bracket
-      const bracket = determineBracket(taxableIncome, client.filing_status);
-
-      // MAGI for IRMAA
-      const taxExemptNonSSI = client.tax_exempt_non_ssi ?? 0;
-      const magi = agi + taxExemptNonSSI + year.ssIncome;
+      const agi = year.agi ?? (year.otherIncome + distIra);
+      const taxableIncome = year.taxableIncome ?? Math.max(0, agi - deduction);
+      const bracket = year.federalTaxBracket ?? determineBracket(taxableIncome, client.filing_status);
+      const magi = year.magi ?? (agi + taxExemptNonSSI + year.ssIncome);
 
       // Net income calculation
       const netIncome =
@@ -184,8 +182,12 @@ export function YearOverYearTables({
         (scenario === "formula" ? year.conversionAmount : 0);
 
       // Legacy to Heirs calculation
-      // Traditional taxed at 40% heir rate, Roth is tax-free, Taxable (if positive) passes through
-      const heirTaxRate = 0.40;
+      // Traditional taxed at the client's heir rate, Roth is tax-free, Taxable
+      // (if positive) passes through. Use client.heir_tax_rate (the same source
+      // the engine's heir-benefit metric uses) rather than a hardcoded 40% — the
+      // hardcode silently mis-stated this column for any client whose heir rate
+      // wasn't 40%. Falls back to 40% only when unset.
+      const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
       const legacyToHeirs =
         Math.round(year.traditionalBalance * (1 - heirTaxRate)) +
         year.rothBalance +
@@ -208,7 +210,7 @@ export function YearOverYearTables({
         magi,
         netIncome,
         legacyToHeirs,
-        irmaaTier: getIRMAATier(year.age, year.irmaaSurcharge),
+        irmaaTier: getIRMAATier(year.age, year.irmaaTier),
       };
     });
   }, [years, scenario, client]);

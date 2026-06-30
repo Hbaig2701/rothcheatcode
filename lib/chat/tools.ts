@@ -361,7 +361,22 @@ async function runGetProjectionSummary(
 
   // Engine is in cents. Normalize to dollars + add roll-ups the dashboard
   // computes (Lifetime Tax Cost, Net Legacy).
-  const heirTaxRate = 0.40; // Default — could fetch from client if needed.
+  // Use the client's actual heir tax rate so the chat's Net Legacy / Lifetime
+  // Wealth match the report (which uses client.heir_tax_rate). Hardcoding 40%
+  // made the chat contradict the report for any client whose heir rate isn't
+  // 40% — an advisor asking the assistant got a different legacy number than the
+  // PDF (audit F9). Mirror the engine's resolution: heir_tax_rate, else parse
+  // heir_bracket, else 40.
+  const { data: clientHeir } = await ctx.supabase
+    .from("clients")
+    .select("heir_tax_rate, heir_bracket")
+    .eq("id", clientId)
+    .single();
+  const heirRow = clientHeir as unknown as { heir_tax_rate: number | null; heir_bracket: string | null } | null;
+  const heirRatePct = (heirRow?.heir_tax_rate && heirRow.heir_tax_rate > 0)
+    ? heirRow.heir_tax_rate
+    : (heirRow?.heir_bracket ? (parseInt(heirRow.heir_bracket, 10) || 40) : 40);
+  const heirTaxRate = heirRatePct / 100;
   const baseHeirTax = Math.round(projection.baseline_final_traditional * heirTaxRate);
   const blueHeirTax = Math.round(projection.blueprint_final_traditional * heirTaxRate);
   const baseLifetimeWealth = projection.baseline_final_net_worth - baseHeirTax;

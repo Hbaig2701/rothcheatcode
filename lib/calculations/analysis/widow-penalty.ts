@@ -25,16 +25,20 @@ export function calculateWidowTaxImpact(input: {
 
   // Get deductions for each status, including any advisor-entered additional
   // deductions (applied to both filings) so the widow penalty stays consistent
-  // with the projection, which already applies them. `undefined` year preserves
-  // the prior default-year behavior when additionalDeductions is null.
+  // with the projection, which already applies them. Pass `year` so the standard
+  // deduction is inflation-indexed to the SAME year as the tax brackets below
+  // (audit F7): previously this passed `undefined` → the brackets inflated to the
+  // projection year but the deduction stayed frozen at 2026, overstating the
+  // survivor's taxable income and the widow penalty in every future post-death
+  // year. The main projection engine inflates both; the widow analysis now matches.
   const marriedDeduction = getEffectiveDeduction(
     'married_filing_jointly',
     marriedAge,
     spouseAge,
-    undefined,
+    year,
     additionalDeductions
   );
-  const singleDeduction = getEffectiveDeduction('single', marriedAge, undefined, undefined, additionalDeductions);
+  const singleDeduction = getEffectiveDeduction('single', marriedAge, undefined, year, additionalDeductions);
 
   // Calculate taxable income after deductions
   const marriedTaxableIncome = calculateTaxableIncome(marriedIncome, marriedDeduction);

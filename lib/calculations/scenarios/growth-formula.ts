@@ -549,6 +549,34 @@ export function runGrowthFormulaScenario(
           federalTax = 0;
           stateTax = 0;
           skipGrossDown = true;
+        } else if (payTaxFromIRA && useSelfConsistent) {
+          // F6 fix (mirror of formula.ts): RMD-funded bracket fill. The
+          // conversion fills the target bracket; the conversion tax is funded
+          // from the after-tax RMD first (v64), so only the tax BEYOND the RMD
+          // pulls EXTRA taxable dollars and shrinks the fillable room. The
+          // full_conversion / fixed_amount branches already credit
+          // afterTaxForcedRmd; the optimized/partial branch previously sized
+          // conversion + the FULL tax to the bracket via the planner, double-
+          // counting the RMD and under-converting once RMDs begin (audit F6).
+          // taxable distribution that fills the bracket = conversion + extraPull
+          // = bracketRoom; extraPull = max(0, tax(bracketRoom) − afterTaxRMD).
+          const R = Math.max(0, afterTaxForcedRmd);
+          const bracketRoom = calculateSSAwareOptimalConversion({
+            iraBalance: cappedIra,
+            otherIncome: existingNonSSIncome,
+            ssBenefits: ssIncome,
+            taxExemptInterest: taxExemptNonSSI,
+            deductions,
+            maxBracketRate: maxTaxRate,
+            filingStatus: client.filing_status,
+            taxYear: year,
+          });
+          const tFull = convTaxAt(bracketRoom);
+          const extraPull = Math.max(0, tFull.federalTax + tFull.stateTax - R);
+          conversionAmount = Math.max(0, Math.min(bracketRoom - extraPull, cappedIra));
+          federalTax = tFull.federalTax;
+          stateTax = tFull.stateTax;
+          skipGrossDown = true;
         } else if (payTaxFromIRA) {
           // Plan the full IRA withdrawal (conversion + tax) as a single
           // bracket-filling distribution. The planner's "total withdrawal"

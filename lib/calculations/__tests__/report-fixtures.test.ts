@@ -328,12 +328,21 @@ const FUCCI_EXPECTED = {
     taxOnRMDs:              9_522_765,
   },
   blue: {
-    finalNetWorth:        243_976_961,
+    // RE-LOCKED 2026-06-29 (audit F5): values below refreshed from the v67
+    // engine. The prior locks were captured pre-v64 (commit 53e86a2) and never
+    // updated through the v64→v67 conversion-tax fixes. The audit certified the
+    // new output three ways before re-locking: (1) internal consistency — money
+    // conserves, taxes compose (audit/invariants); (2) the marginal-RMD-tax
+    // helper agrees with the test's independent canonical re-derivation; (3)
+    // every drift maps to a named intentional commit. finalNetWorth/taxOnConv
+    // rose because v64 (RMD funds conversion tax) lets Fucci convert more
+    // efficiently. See lib/calculations/__tests__/AUDIT.md F5.
+    finalNetWorth:        302_943_063,
     finalTraditional:               0,
     finalRoth:            205_852_525,
-    finalTaxable:          38_124_436,
-    lifetimeWealth:       243_976_961,
-    taxOnConversions:       4_357_314,
+    finalTaxable:          97_090_538,
+    lifetimeWealth:       302_943_063,
+    taxOnConversions:      10_811_336,
     totalFedStateTax:      12_324_519,
     // Fucci is a fixed-amount conversion that doesn't fully drain the IRA
     // before age 73, so RMDs persist through the strategy phase. Tax on those
@@ -406,17 +415,22 @@ const PAUL_EXPECTED = {
     taxOnRMDs:             15_397_352,
   },
   blue: {
-    finalNetWorth:        171_415_618,
+    // RE-LOCKED 2026-06-29 (audit F5) — refreshed from v67 engine; see Fucci
+    // note above and AUDIT.md F5. Paul is fixed-amount, pay-from-IRA: the rise
+    // (netWorth +$283K, taxOnConversions +$68K) is driven by v66's
+    // self-consistent gross-up + v64 RMD-funds-tax. totalFedStateTax ==
+    // taxOnRMDs still hold (helper ≡ canonical), only the locked constant moved.
+    finalNetWorth:        199_722_613,
     finalTraditional:               0, // floored from -$14.72 (negative-IRA residual; see formula.ts iraAfterConversion floor)
-    finalRoth:            157_144_531,
-    finalTaxable:          14_272_559,
-    lifetimeWealth:       171_416_207,
-    taxOnConversions:      11_269_316,
-    totalFedStateTax:      20_612_163,
+    finalRoth:            174_689_507,
+    finalTaxable:          25_033_106,
+    lifetimeWealth:       199_722_613,
+    taxOnConversions:      18_047_690,
+    totalFedStateTax:      20_828_449,
     // Same "matching" pattern as base — fixed-amount conversion leaves RMDs
     // through the strategy phase, and Paul's $25K SS isn't enough to shift
     // the marginal RMD-attributable tax meaningfully below total.
-    taxOnRMDs:             20_612_163,
+    taxOnRMDs:             20_828_449,
   },
 };
 
@@ -498,14 +512,19 @@ const SPRENGEL_EXPECTED = {
   // requirements themselves grow because the IRA depletes slower (BOY
   // balance is higher each year, so the calculated RMD is higher).
   base: {
-    finalNetWorth:        504_383_300,
+    // RE-LOCKED 2026-06-29 (audit F5). The BASELINE moved (finalTaxable +$1.44M)
+    // even though it has no conversions — explained by commit 9396e3a
+    // "reinvested RMDs accumulate in taxable account" (plus 4fbb38d voluntary-
+    // satisfies-RMD and the 1960+ RMD-age fix). finalTraditional / forced-
+    // Distributions are unchanged, consistent with a reinvestment-side change.
+    finalNetWorth:        648_268_744,
     finalTraditional:     401_190_516,
     finalRoth:                      0,
-    finalTaxable:         103_192_784,
-    lifetimeWealth:       343_907_094,
+    finalTaxable:         247_078_228,
+    lifetimeWealth:       487_792_538,
     forcedDistributions:  396_578_978,
-    totalFedStateTax:     193_414_004,
-    taxOnRMDs:            111_630_637,
+    totalFedStateTax:     191_368_364,
+    taxOnRMDs:            111_048_140,
   },
   blue: {
     // finalTraditional was -$22,971 (a NEGATIVE IRA balance) before the
@@ -514,13 +533,18 @@ const SPRENGEL_EXPECTED = {
     // formula.ts did not. Floored to $0; finalNetWorth and lifetimeWealth rise
     // by that $22,971 accordingly. (Found via self-audit during the Joshua
     // Williamson penalty-free-cap fix.)
-    finalNetWorth:        956_940_217,
+    // RE-LOCKED 2026-06-29 (audit F5). Strategy Roth DROPPED $1.6M and
+    // taxOnConversions dropped $88K — both the expected signature of v66's
+    // self-consistent gross-up: paying conversion tax from the IRA now consumes
+    // more IRA per dollar converted, so less reaches the Roth. finalTraditional
+    // still floors to 0 (full conversion drains) and taxOnRMDs stays exactly 0.
+    finalNetWorth:        796_236_482,
     finalTraditional:               0,
-    finalRoth:            956_940_217,
+    finalRoth:            796_236_482,
     finalTaxable:                   0,
-    lifetimeWealth:       956_940_217,
-    taxOnConversions:      43_273_237,
-    totalFedStateTax:     122_754_332,
+    lifetimeWealth:       796_236_482,
+    taxOnConversions:      34_466_069,
+    totalFedStateTax:     121_898_664,
     // Full conversion drains the Traditional IRA before age 73, so there are
     // no RMDs in the strategy phase — marginal RMD tax must be exactly $0.
     // If this ever shows non-zero, full-conversion semantics broke.

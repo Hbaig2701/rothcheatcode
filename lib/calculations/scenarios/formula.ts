@@ -451,6 +451,40 @@ export function runFormulaScenario(
         if (cappedIra <= 0) {
           // Cap exhausted — no conversion this year.
           conversionAmount = 0;
+        } else if (payTaxFromIRA && useSelfConsistent) {
+          // F6 fix: RMD-funded bracket fill. The conversion fills the target
+          // bracket; the conversion tax is funded from the after-tax RMD first
+          // (v64), so only the tax BEYOND the RMD pulls EXTRA taxable dollars and
+          // shrinks the fillable room. The full_conversion / fixed_amount
+          // self-consistent branches already do this (afterTaxForcedRmd); the
+          // optimized/partial branch previously sized conversion + the FULL tax
+          // to the bracket via calculateSSAwareIRAWithdrawalPlan, double-counting
+          // the RMD (once in otherIncomeForTax, once as reserved tax room) and
+          // under-converting once RMDs begin (audit F6, ~$0.5M of conversions
+          // never made for a typical from-IRA client). The taxable distribution
+          // that fills the bracket is conversion + extraPull = bracketRoom, with
+          // extraPull = max(0, tax(bracketRoom) − afterTaxForcedRmd). Downstream
+          // (conversionTaxFundedFromRmd / extraPullForTax) splits the tax exactly
+          // the same way, so this only corrects the SIZE of the conversion.
+          const R = Math.max(0, afterTaxForcedRmd);
+          const bracketRoom = calculateSSAwareOptimalConversion({
+            iraBalance: cappedIra,
+            otherIncome: otherIncomeForTax,
+            ssBenefits: ssIncome,
+            taxExemptInterest: taxExemptNonSSI,
+            deductions,
+            maxBracketRate: maxTaxRate,
+            filingStatus: client.filing_status,
+            taxYear: year,
+          });
+          const tFull = convTaxAt(bracketRoom);
+          const extraPull = Math.max(0, tFull.federalTax + tFull.stateTax - R);
+          conversionAmount = Math.max(0, Math.min(bracketRoom - extraPull, cappedIra));
+          federalConversionTax = tFull.federalTax;
+          stateConversionTax = tFull.stateTax;
+          totalIRAWithdrawal = conversionAmount + federalConversionTax + stateConversionTax;
+          taxAlreadyComputed = true;
+          selfConsistentTaxFromIra = true;
         } else if (payTaxFromIRA) {
           const plan = calculateSSAwareIRAWithdrawalPlan({
             iraBalance: cappedIra,

@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:report": "npx tsx lib/calculations/__tests__/report-fixtures.test.ts",
+    "test:audit": "npx tsx lib/calculations/__tests__/audit/invariants.test.ts && npx tsx lib/calculations/__tests__/audit/recompute.test.ts && npx tsx lib/calculations/__tests__/audit/edge-matrix.test.ts && npx tsx lib/calculations/__tests__/audit/stress-sweep.test.ts && npx tsx lib/calculations/__tests__/audit/golden-masters.test.ts && npx tsx lib/calculations/__tests__/audit/optimizer-fill.test.ts && npx tsx lib/calculations/__tests__/audit/correctness-extra.test.ts && npx tsx lib/calculations/__tests__/audit/correctness-credits.test.ts && npx tsx lib/calculations/__tests__/audit/aum-theory.test.ts && npx tsx lib/calculations/__tests__/audit/aum-combined.test.ts && npx tsx lib/calculations/__tests__/audit/growth-theory.test.ts && npx tsx lib/calculations/__tests__/audit/penalty-free-cap.test.ts && npx tsx lib/calculations/__tests__/audit/widow-theory.test.ts && npx tsx lib/calculations/__tests__/audit/gi-mechanics.test.ts && npx tsx lib/calculations/__tests__/audit/no-hardcoded-rates.test.ts && npx tsx lib/calculations/__tests__/audit/reconcile-table.test.ts",
+    "test:audit:realdata": "npx tsx lib/calculations/__tests__/audit/realdata-sweep.test.ts",
     "test:chat-guard": "npx tsx scripts/test-hallucination-guard.ts",
     "test:story-ss": "npx tsx scripts/test-ss-begins-edge-cases.ts",
     "test:rmds-external": "npx tsx scripts/test-rmds-external.ts",
