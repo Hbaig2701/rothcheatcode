@@ -354,9 +354,10 @@ Swept every hardcoded heir rate outside the engine. Two classes:
   already tracked in memory (premium-bonus recapture omitted) — left as-is.
 
 ### F12 — IRMAA tier column mislabels non-IRMAA clients as "Tier 1" — **P1 ✅ FIXED**
-- **Where:** `getIRMAATier` in BOTH `year-over-year-tables.tsx` and
-  `gi-year-over-year-tables.tsx` (the growth version's own comment admitted
-  "simplified — actual mapping would need thresholds").
+- **Where:** `getIRMAATier` in THREE surfaces — `year-over-year-tables.tsx`,
+  `gi-year-over-year-tables.tsx`, AND `app/api/generate-pdf/route.ts` (the
+  client-facing PDF deliverable). The growth version's own comment admitted
+  "simplified — actual mapping would need thresholds".
 - **Symptom:** `if (irmaaSurcharge === 0) return "Tier 1"` — a 65+ client with $0
   surcharge (i.e. BELOW the first IRMAA threshold — **most retirees**) was labeled
   "IRMAA Tier 1". The report's IRMAA tab told advisors their not-in-IRMAA clients
@@ -379,6 +380,17 @@ Swept every hardcoded heir rate outside the engine. Two classes:
   wrong bracket for future years if it ever did. Replace with the engine field or
   delete. (The no-hardcoded-rates guard scans components+chat; neither of these
   matches its `heirTaxRate =` pattern — worth widening.)
+
+### F14 — "Net Income" column means different things in growth vs GI tables — **SPEC 🔎 REPORTED**
+- The growth report's Net Income subtracts the year's FULL tax (incl. conversion
+  tax), so it dips negative during conversion years. The GI report's Net Income
+  shows net LIVING income (SS + other − tax on living income − IRMAA), excluding
+  the conversion and its tax — so the same conversion year reads positive (e.g.
+  GI age-67 net $25,380 vs the growth definition's −$36,082; the conversion tax
+  was ~$57K). Neither is wrong, but a client comparing a growth report to a GI
+  report sees "Net Income" computed two different ways. **Decision needed:** pick
+  one definition (recommend net-living-income — the conversion tax isn't paid from
+  spendable income) and apply it to both tables. Not changed unilaterally.
 
 ## Recurrence guard 🛡️
 - `audit/no-hardcoded-rates.test.ts` scans live `components/` + `lib/chat` source and

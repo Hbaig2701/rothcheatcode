@@ -321,16 +321,14 @@ function formatPercent(rate: number): string {
   return `${rate}%`;
 }
 
-function getIRMAATier(age: number, irmaaSurcharge: number): string {
+function getIRMAATier(age: number, tier: number | null | undefined): string {
   if (age < 65) return 'Pre-IRMAA';
-  if (irmaaSurcharge === 0) return 'Tier 1';
-  const annualSurcharge = irmaaSurcharge / 100;
-  if (annualSurcharge < 1000) return 'Tier 1';
-  if (annualSurcharge < 2500) return 'Tier 2';
-  if (annualSurcharge < 4000) return 'Tier 3';
-  if (annualSurcharge < 5500) return 'Tier 4';
-  if (annualSurcharge < 7000) return 'Tier 5';
-  return 'Tier 6';
+  // Use the engine's irmaaTier (0 = Standard / below the first IRMAA threshold,
+  // 1-5 = surcharge tiers). The old version returned "Tier 1" for a $0 surcharge —
+  // labeling every 65+ client NOT in IRMAA as "Tier 1" on the client-facing PDF —
+  // and used single-filer dollar bands that misclassified joint filers (audit F12).
+  if (tier == null || tier <= 0) return 'Standard';
+  return `Tier ${tier}`;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -530,7 +528,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       taxableIncome: '',
       taxExempt: formatCurrency(taxExemptNonSSI),
       magi: formatCurrency(magi),
-      tier: getIRMAATier(year.age, year.irmaaSurcharge),
+      tier: getIRMAATier(year.age, year.irmaaTier),
       irmaaTotal: formatCurrency(year.irmaaSurcharge),
       taxableNonIra: '',
       taxExemptNonIra: '',
