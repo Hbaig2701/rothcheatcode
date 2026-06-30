@@ -451,6 +451,30 @@ proved it's a MONEY bug, and not limited to the SS torpedo.
   tax captures the torpedo. Validate baseline parity + the giConversionTax display
   attribution before shipping. High blast radius (every GI conversion client).
 
+### F16 — GI strategy INCOME phase reports federalTax $0, ignoring taxable pension/other income — **P1 (display+comparison) 🔎 ENGINE BUG**
+- **Where:** `guaranteed-income/engine.ts:1084` sets `federalTax: 0` for the
+  strategy income phase. The engine even computes the correct taxable income one
+  line earlier (`strategyIncomeTaxInfo`, line 1055, with the comment "any
+  otherIncome can still trigger SS taxation") — then throws it away.
+- **Repro (GI strategy, single, $40K/yr pension + $30K SS + tax-free Roth GI):**
+  engine income-phase `federalTax = $0` every year; correct tax on the pension +
+  the SS the pension torpedoes = **$4,588/yr** (ignored). The BASELINE income
+  phase taxes correctly (progressive, $31,789 on the traditional annuity + pension
+  + RMD). So the strategy's tax is understated → **the total-tax-savings headline
+  is overstated** for any GI client with pension/other taxable income in
+  retirement (the Roth GI is correctly tax-free, but the pension/SS tax is NOT).
+- **Severity:** display + comparison, NOT net worth — the pension is living income
+  not tracked in the balance, and its tax isn't deducted either (conservation
+  holds). But the federalTax/totalTax field is wrong and the strategy-vs-baseline
+  tax savings is inflated.
+- **Same root as F15:** the GI engine doesn't apply `calculateFederalTax` to the
+  taxable income it computes. **Combined fix:** rework GI tax across ALL phases
+  (conversion F15 + income F16) to compute `federalTax` = the real marginal tax on
+  the year's taxable income (tax-free Roth GI excluded from taxable income, but
+  pension/other/torpedo'd SS included) — exactly what the baseline already does.
+  One dedicated PR fixes both. **GI tax handling is the systematically under-built
+  area of the engine.**
+
 ## Recurrence guard 🛡️
 - `audit/no-hardcoded-rates.test.ts` scans live `components/` + `lib/chat` source and
   FAILS if any new hardcoded heir/legacy rate appears (the F1/F9 class). The 4 dead
