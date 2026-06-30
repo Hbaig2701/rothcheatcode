@@ -475,6 +475,39 @@ proved it's a MONEY bug, and not limited to the SS torpedo.
   One dedicated PR fixes both. **GI tax handling is the systematically under-built
   area of the engine.**
 
+### F17 — GI strategy's tax-free ROTH annuity is heir-taxed at 40% (legacy advantage erased) — **P0 🔎 ENGINE+DISPLAY (found widening into legacy mode)**
+- **Root:** during the GI strategy's deferral/income phases the engine stores the
+  **Roth-owned** annuity ACCOUNT VALUE in `traditionalBalance` (engine.ts:915,1092)
+  with `rothBalance = 0` — even though the strategy converted to Roth first
+  (peak `rothBalance` confirmed non-zero pre-purchase, then it moves to
+  `traditionalBalance`). EVERY legacy surface then taxes it at the heir rate:
+  - `giMetrics` (engine.ts:84): `blueHeirTax = round(lastFormula.traditionalBalance × heirRate)`
+  - `gi-summary-breakdown-table.tsx:43` (comment literally `// Account Value`), `gi-report-dashboard.tsx:121`
+  - the year-by-year table + PDF legacy-to-heirs (`traditionalBalance × (1−heirRate)`).
+- **Impact:** a Roth-inherited annuity passes income-tax-FREE; the engine applies
+  ~40%. The strategy's legacy advantage — the entire sales premise of the GI Roth
+  conversion — is **erased in the numbers.** Repro (legacy-mode MFJ, $1.2M → GI):
+  table/headline legacy **$1,826,143** vs the correct tax-free **$3,043,572** —
+  **$1.2M (40% of the $3.04M account value) wrongly taxed.** Worst in legacy mode
+  (account grows large and is held to death); present for ALL GI strategy clients
+  to the extent account value remains at death, and it mislabels the Roth annuity
+  as "Traditional IRA" in the table every deferral/income year.
+- **Direction:** makes the GI Roth strategy look FAR WORSE than reality (opposite
+  of F15/F16). An advisor would present a legacy ~$1M+ lower than the truth.
+- **Caveat / verify:** the mis-labeling is consistent across 5 surfaces, which
+  could mean a deliberate (but wrong) convention — confirm against the intended GI
+  legacy spec / a carrier illustration before the fix. But taxing a Roth-owned
+  annuity at the heir income-tax rate is fundamentally incorrect.
+- **Fix direction:** track the strategy's Roth annuity in `rothBalance` (or carry a
+  Roth flag the legacy calc honors) so heir tax = $0 on it, baseline (traditional
+  annuity) still taxed. High blast radius — every GI strategy client's legacy moves
+  UP. Dedicated, spec-validated PR.
+
+**GI engine summary (F15/F16/F17): the guaranteed-income engine has systematic
+errors in tax (flat-rate conversion, $0 income-phase tax) AND Roth-legacy
+treatment. It needs a dedicated, carrier-validated rework — it is the least
+trustworthy part of the system.**
+
 ## Recurrence guard 🛡️
 - `audit/no-hardcoded-rates.test.ts` scans live `components/` + `lib/chat` source and
   FAILS if any new hardcoded heir/legacy rate appears (the F1/F9 class). The 4 dead
