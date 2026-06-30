@@ -393,6 +393,36 @@ Swept every hardcoded heir rate outside the engine. Two classes:
   one definition (recommend net-living-income — the conversion tax isn't paid from
   spendable income) and apply it to both tables. Not changed unilaterally.
 
+### F15 — GI conversion-phase tax omits the SS-torpedo tax (display, not money) — **P1 🔎 ENGINE BUG (found via test clients)**
+- **Where:** `guaranteed-income/engine.ts:523` — `totalTax = conversionTax + rmdFederalTax
+  + rmdStateTax + irmaaSurcharge + earlyWithdrawalPenalty`, and `conversionTax`
+  (line ~408) is a simplified `conversion × (conversionBracket% + state%)` that is
+  NOT SS-torpedo-aware. The reported `federalTax` = the conversion-only tax.
+- **Repro (test client "Robert", single 70, GI compound-rollup, $36K SS, $225K/yr
+  conversion):** engine `federalTax` = **$71,053 — identical for ages 70/71/72**
+  despite changing taxable income; a full progressive walk on the engine's own
+  `taxableIncome` ($308,553) gives **$77,013**. The ~$6K/yr gap is the federal tax
+  on the **$30,600 of taxable SS the conversion itself pushed into taxability**
+  (the torpedo). At age 73 (small conversion, high margin) it flips to a +$4K
+  OVERstatement. The standard/growth engines report the full SS-aware year tax
+  (Phase 2 verified); the GI engine is the outlier.
+- **Severity:** DISPLAY / methodology — the GI "Total Tax" column understates the
+  client's real liability during conversion years and means something different
+  than on a growth report. NOT a money/wealth bug: the GI engine doesn't add SS to
+  the balance and doesn't deduct its tax either (line 538 — SS is implicitly spent
+  living income), so net worth conserves (Phase 1 passed). But the conversion's
+  true tax COST is under-attributed by the torpedo amount, mildly overstating the
+  GI strategy's advantage.
+- **Why the suite missed it:** the GI fixtures in invariants/recompute had **$0 SS**,
+  so no taxable SS and no torpedo. The realistic report-card client (with SS)
+  exposed it. **Gap closed:** add an SS-bearing GI client to the recompute suite.
+- **Fix direction (dedicated — NOT done here):** compute the GI conversion-phase tax
+  with the same SS-aware full-year method the standard engine uses
+  (computeTaxableIncomeWithSS + calculateFederalTax, marginal vs the no-conversion
+  base), so `federalTax`/`totalTax` reflect the real liability and the conversion
+  tax captures the torpedo. Validate baseline parity + the giConversionTax display
+  attribution before shipping. High blast radius (every GI conversion client).
+
 ## Recurrence guard 🛡️
 - `audit/no-hardcoded-rates.test.ts` scans live `components/` + `lib/chat` source and
   FAILS if any new hardcoded heir/legacy rate appears (the F1/F9 class). The 4 dead
