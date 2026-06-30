@@ -49,7 +49,7 @@ Touches the conversion engine, RMD logic, and the baseline comparator — needs 
 
 **Today's workaround:** set the client's IRA balance to just the amount going into the annuity (e.g. $500K) to illustrate the annuity + conversion strategy on that slice; the remaining IRA is shown separately, not blended into the same projection.
 
-**Demand signal:** requested by Daven Sharma (re: Suzanne Marcus, ticket Jun 2026) — also blocks his related "Report data" ticket. Adjacent to other "more flexible deposit/allocation" asks (e.g. Allianz 222 legacy-only / no-income).
+**Demand signal:** requested by Daven Sharma (re: Suzanne Marcus, ticket Jun 2026) — also blocks his related "Report data" ticket. Adjacent to other "more flexible deposit/allocation" asks (e.g. Allianz 222 legacy-only / no-income). Also Tim Wright (re: Jim, ticket Jun 30 2026): $5.15M pre-tax but only $1–2M into the annuity — currently the scenario converts against the full $5M. Workaround given: either set IRA balance to the annuity slice, or use `partial_amount` with `target_partial_amount` = annuity amount to cap total conversions while keeping the full balance's RMDs realistic.
 
 **Estimated effort:** **1–2 weeks** (new engine bucket + UI inputs + baseline accounting + tests).
 
@@ -199,3 +199,17 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 **Demand signal:** ~7 GI clients currently convert through age 73+ (Roy Spruyt, Daniel Rick, Mark Aviles, Laren Stover ×3, Julian Hutchins). The strategy half is fixed for them; the baseline half makes the comparison fully fair.
 
 **Estimated effort:** ~1 day once a carrier illustration with pre-income RMDs is available to validate against; low LOC, high validation burden.
+
+---
+
+## "Conversions Complete" wording when conversions actually STALLED (no bracket room)
+
+**The pitch:** Story Mode (`lib/calculations/story-generator.ts`) computes `totalConversionYears = years.filter(y => y.conversionAmount > 0).length` and headlines the last conversion year **"Conversions Complete"** with "Over N years, you converted $X to Roth." But conversions stop for **two very different reasons**: (a) the IRA is actually emptied/the goal is met, or (b) the client's forced income (SS + RMDs) grows past the target bracket ceiling, leaving **zero room** — so the optimizer converts $0 and "completes" with most of the IRA still un-converted. The copy reads as success in both cases.
+
+**Why it confuses advisors:** lowering the target bracket makes the strategy STALL EARLIER, which the report presents as finishing FASTER. Tim Wright (re: Jim, ticket Jun 30 2026): at **24%** Jim converts $7.15M over 28 years (IRA → $1.6M); at **22%** the model says "complete in 8 years" but only $627K ever converts and the IRA balloons to **$9.05M** (RMD/SS torpedo closes the 22% room once SS starts at 67 + RMDs at 75). "Complete in 8 years" looks like the better/efficient outcome when it's actually the strategy failing to run. Correct engine math — misleading label.
+
+**What it requires (display-only, no engine change):** distinguish the two end-states. If the final-conversion-year IRA balance is still material (e.g. > a few % of starting balance, or RMDs are now forcing distributions the conversion can't touch), say something like **"Conversions stopped — your income now fills the {target}% bracket, so there's no room left to convert (≈$X remains in the IRA and will be drawn down as RMDs)"** instead of "Conversions Complete." Optionally surface a one-liner nudge: a higher target bracket would let the strategy keep converting. Same data already on `YearlyResult` (`traditionalBalance`, `rmdAmount`, `conversionAmount`).
+
+**Demand signal:** Tim Wright (Jun 30 2026). Latent for every high-guaranteed-income client whose target bracket is below where their SS+RMD income lands.
+
+**Estimated effort:** ~0.5 day (Story Mode copy branch + a "stalled vs emptied" helper; no engine math).
