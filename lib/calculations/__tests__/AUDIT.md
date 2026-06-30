@@ -369,11 +369,12 @@ Swept every hardcoded heir rate outside the engine. Two classes:
   zero-surcharge years, 0 mislabeled. The engine tier↔surcharge consistency is
   already locked by `audit/edge-matrix.test.ts`.
 
-### F13 — Dashboard "Legacy Protected" + `determineBracket` hardcodes — **P2/P3 🔎 REPORTED**
-- `dashboard-metrics.ts:128` computes the aggregate "Total Legacy Protected" KPI as
-  `blueprint_final_roth * 0.4` — hardcoded 40% heir rate across ALL clients,
-  ignoring each client's `heir_tax_rate`. Aggregate marketing headline (not a
-  per-client report number), so lower severity, but should weight by the real rate.
+### F13 — Dashboard "Legacy Protected" + `determineBracket` hardcodes — **dashboard ✅ FIXED / bracket P3**
+- **Dashboard "Total Legacy Protected" ✅ FIXED:** `dashboard-metrics.ts` computed
+  the aggregate KPI as `blueprint_final_roth * 0.4` — a flat 40% heir rate across
+  the whole book. Now iterates canonicalClients and weights by each client's
+  `heir_tax_rate` (fallback 40%). The dashboard API selects `clients.*`, so the
+  rate is available and the fix takes effect.
 - `year-over-year-tables.tsx determineBracket` hardcodes 2026 bracket thresholds
   with NO inflation indexing. Now a fallback (post-F2 the table reads
   `year.federalTaxBracket`), so it never runs in practice — but it would return the

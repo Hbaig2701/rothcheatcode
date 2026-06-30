@@ -124,10 +124,17 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
     0
   );
   const totalTaxSavings = Math.abs(canonicalProjections.reduce((sum, p) => sum + p.total_tax_savings, 0));
-  const totalLegacyProtected = canonicalProjections.reduce(
-    (sum, p) => sum + Math.round(p.blueprint_final_roth * 0.4),
-    0
-  );
+  // "Legacy protected" = the heir income tax avoided by holding the final Roth
+  // balance tax-free = Roth × the client's heir rate. Weight by EACH client's
+  // heir_tax_rate (fallback 40%) rather than a flat 40% across the book (audit
+  // F13). Iterates canonicalClients so we have both the client (heir rate) and
+  // its projection; falls back to 40% when heir_tax_rate is absent.
+  const totalLegacyProtected = canonicalClients.reduce((sum, c) => {
+    const p = projMap.get(c.id);
+    if (!p) return sum;
+    const heirRate = (c.heir_tax_rate ?? 40) / 100;
+    return sum + Math.round(p.blueprint_final_roth * heirRate);
+  }, 0);
 
   // --- Product Mix ---
   // One entry per distinct client (canonical), not per scenario.
