@@ -393,7 +393,35 @@ Swept every hardcoded heir rate outside the engine. Two classes:
   one definition (recommend net-living-income — the conversion tax isn't paid from
   spendable income) and apply it to both tables. Not changed unilaterally.
 
-### F15 — GI conversion-phase tax omits the SS-torpedo tax (display, not money) — **P1 🔎 ENGINE BUG (found via test clients)**
+### F15 (CORRECTED — bigger than first documented) — GI conversion tax uses a FLAT rate, not progressive → wrong tax DEDUCTED → every GI conversion client's net worth is off — **P1 (money) 🔎 ENGINE BUG**
+**Correction:** initially logged as display-only. Scoping it with more test clients
+proved it's a MONEY bug, and not limited to the SS torpedo.
+- **Root cause:** `guaranteed-income/engine.ts:~408` taxes the conversion at a FLAT
+  `conversionBracket% + state%` instead of a progressive, SS-aware marginal calc.
+  A $240K conversion (single, only income) is taxed at a flat **24%** ($57,600)
+  but the correct progressive tax — filling 10/12/22% before 24% — is **~19–20%**
+  ($48,353). The conversion tax is then **deducted from the balance** (taxable for
+  from_taxable, traditional for from_ira), so the GI strategy net worth is wrong.
+- **Scope (96 GI configs × product × filing × SS × state):** **96/96 mis-state the
+  conversion-phase tax.** Per-year error ranges from **+$34K over** (MFJ/$0-SS/CA,
+  flat rate > progressive average) to **−$23K under** (single/$70K-SS/NY, SS
+  torpedo + high stacking). **Worst lifetime gap ~$133K.** Clean single/$0-SS/TX
+  case: **$42K excess tax deducted over the conversion years** (+ lost growth).
+- **Two compounding errors:** (1) flat vs progressive on the conversion itself
+  (over-taxes the common low-bracket-fill case); (2) not SS-torpedo-aware (under-
+  taxes when the conversion makes SS taxable). Direction depends on the client.
+- **Why missed:** GI fixtures had $0 SS AND Phase 2 recompute never covered the GI
+  conversion path; Phase 1 conservation passes because the wrong tax is applied
+  consistently (net worth = parts still holds, the parts are just wrong).
+- **Fix (dedicated, HIGH blast radius — every GI conversion client's numbers move):**
+  replace the flat-rate conversion tax with the standard engine's progressive
+  SS-aware marginal method (computeTaxableIncomeWithSS + calculateFederalTax,
+  tax_with_conversion − tax_without, on the RMD/SS-inclusive base). Then federalTax/
+  totalTax also become the real liability. Must re-validate baseline parity, the
+  giConversionTax display, the from-IRA gross-up, and golden masters. Recommend its
+  own reviewed PR — do NOT bundle with display fixes.
+
+### F15-orig (superseded) — GI conversion-phase tax omits the SS-torpedo tax
 - **Where:** `guaranteed-income/engine.ts:523` — `totalTax = conversionTax + rmdFederalTax
   + rmdStateTax + irmaaSurcharge + earlyWithdrawalPenalty`, and `conversionTax`
   (line ~408) is a simplified `conversion × (conversionBracket% + state%)` that is
