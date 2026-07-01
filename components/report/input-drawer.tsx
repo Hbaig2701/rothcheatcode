@@ -15,6 +15,7 @@ import { GI_PRODUCT_DATA } from "@/lib/config/gi-product-data";
 import type { CustomProductRow } from "@/lib/products/types";
 
 // Import Sections
+import { FormSectionsProvider, FormSectionsToggle } from "@/components/clients/form-section";
 import { ClientDataSection } from "@/components/clients/sections/client-data";
 import { CurrentAccountSection } from "@/components/clients/sections/current-account";
 import { NewAccountSection } from "@/components/clients/sections/new-account";
@@ -417,15 +418,18 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
               "[&_p]:text-xs [&_p]:text-foreground/55"
             )}
           >
-            <ClientDataSection />
-            <CurrentAccountSection />
-            <NewAccountSection />
-            <TaxDataSection />
-            <TaxableIncomeSection />
-            <ConversionSection />
-            <AumAllocationSection />
-            <RothWithdrawalsSection />
-            <AdvancedDataSection />
+            <FormSectionsProvider>
+              <FormSectionsToggle />
+              <ClientDataSection />
+              <CurrentAccountSection />
+              <NewAccountSection />
+              <TaxDataSection />
+              <TaxableIncomeSection />
+              <ConversionSection />
+              <AumAllocationSection />
+              <RothWithdrawalsSection />
+              <AdvancedDataSection />
+            </FormSectionsProvider>
           </form>
         </FormProvider>
       </div>

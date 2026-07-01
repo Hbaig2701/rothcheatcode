@@ -15,6 +15,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Loader2, AlertCircle } from "lucide-react";
 
 // Import all 8 Formula sections
+import { FormSectionsProvider, FormSectionsToggle } from "./form-section";
 import { ClientDataSection } from "./sections/client-data";
 import { CurrentAccountSection } from "./sections/current-account";
 import { NewAccountSection } from "./sections/new-account";
@@ -361,15 +362,18 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
                 </div>
               </div>
             )}
-            <ClientDataSection />
-            <CurrentAccountSection />
-            <NewAccountSection />
-            <TaxDataSection />
-            <TaxableIncomeSection />
-            <ConversionSection />
-            <AumAllocationSection />
-            <RothWithdrawalsSection />
-            <AdvancedDataSection />
+            <FormSectionsProvider>
+              <FormSectionsToggle className="-mb-2" />
+              <ClientDataSection />
+              <CurrentAccountSection />
+              <NewAccountSection />
+              <TaxDataSection />
+              <TaxableIncomeSection />
+              <ConversionSection />
+              <AumAllocationSection />
+              <RothWithdrawalsSection />
+              <AdvancedDataSection />
+            </FormSectionsProvider>
 
           </CardContent>
 

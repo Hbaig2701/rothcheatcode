@@ -40,7 +40,7 @@ export function ClientDataSection() {
   }, [isMarried, form]);
 
   return (
-    <FormSection title="1. Client Data">
+    <FormSection title="1. Client Data" defaultOpen>
       {/* Scenario Name (Optional) */}
       <Field data-invalid={!!form.formState.errors.scenario_name}>
         <FieldLabel htmlFor="scenario_name" className="flex items-center gap-1.5">
