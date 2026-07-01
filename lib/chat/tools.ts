@@ -16,6 +16,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifySlackNewTicket } from "@/lib/notifications/slack";
 import type { SupportSeverity, SupportCategory } from "@/lib/types/support";
+import { getColumnsForProduct } from "@/lib/table-columns/column-definitions";
 
 export interface ChatTool {
   name: string;
@@ -76,7 +77,7 @@ export const CHAT_TOOLS: ChatTool[] = [
   {
     name: "get_year_breakdown",
     description:
-      "Fetch one specific year from the projection for a client. Returns side-by-side baseline + strategy values for that year: income breakdown, taxes paid, RMD, conversion amount, account balances, bracket, IRMAA tier. Use for 'why is the 2028 conversion X?' style questions.",
+      "Fetch one specific year from the projection for a client. Returns side-by-side baseline + strategy values for that year as EVERY column the year-by-year table can display — each keyed by its exact on-screen label and formatted exactly as shown (e.g. \"Roth Growth\": \"$28,190\", \"Roth BOY\": \"$205,194\", \"Net Worth\": \"$755,755\", plus all balances, growth/interest, RMD, conversions, per-type taxes, MAGI/AGI/bracket, IRMAA, and GI rider/payout fields). ALWAYS call this when the advisor references ANY number or column from the table (\"why is Roth Growth so high?\", \"what's the 2028 conversion?\"); read the value straight from here instead of reconstructing or guessing it. If you don't know which year the number is in, call this for the likely year(s) and match the referenced value against the labels.",
     input_schema: {
       type: "object",
       properties: {
@@ -435,7 +436,7 @@ async function runGetYearBreakdown(
   if (error) throw new Error(error.message);
   if (!projection) throw new Error("No projection yet — generate the report first.");
 
-  type Row = Record<string, number | undefined | null> & { year: number };
+  type Row = Record<string, unknown> & { year: number; giPhase?: string | null };
   const baselineRow = (projection.baseline_years as Row[] | null)?.find((r) => r.year === year);
   const strategyRow = (projection.blueprint_years as Row[] | null)?.find((r) => r.year === year);
 
@@ -443,42 +444,37 @@ async function runGetYearBreakdown(
     return `No data found for year ${year}. The projection may not cover that year.`;
   }
 
-  // Normalize cents → dollars and keep only the fields advisors typically
-  // ask about. Full row is hundreds of fields; this is the readable subset.
-  const normalize = (row: Row | undefined) => {
+  // Which columns the year-by-year table can show is product-specific. Infer the
+  // product from the presence of a GI phase on the row (growth rows never set
+  // giPhase), so we surface the same column set the advisor is looking at.
+  const isGI = (strategyRow?.giPhase ?? baselineRow?.giPhase) != null;
+  const productType: "growth" | "gi" = isGI ? "gi" : "growth";
+
+  // Emit EVERY column the table can display for this product, keyed by the same
+  // label and run through the SAME formatter the table uses — so the assistant
+  // sees the exact on-screen strings ("Roth Growth": "$28,190") and can match
+  // whatever number the advisor references instead of reconstructing it. This is
+  // the single source of truth with the table: previously the tool returned a
+  // hand-picked ~24-field subset that OMITTED the growth/BOY columns, so the
+  // assistant was blind to values sitting right on screen and had to guess.
+  const columns = getColumnsForProduct(productType);
+  const render = (row: Row | undefined): Record<string, string> | null => {
     if (!row) return null;
-    const n = (k: string) => Math.round(((row[k] ?? 0) as number) / 100);
-    return {
-      year: row.year,
-      age: row.age,
-      bracket: row.federalTaxBracket,
-      rmd_dollars: n("rmdAmount"),
-      conversion_dollars: n("conversionAmount"),
-      ss_gross_dollars: n("ssIncome"),
-      other_income_dollars: n("otherIncome"),
-      total_income_dollars: n("totalIncome"),
-      magi_dollars: n("magi"),
-      agi_dollars: n("agi"),
-      standard_deduction_dollars: n("standardDeduction"),
-      taxable_income_dollars: n("taxableIncome"),
-      federal_tax_dollars: n("federalTax"),
-      state_tax_dollars: n("stateTax"),
-      total_tax_dollars: n("totalTax"),
-      irmaa_tier: row.irmaaTier,
-      irmaa_surcharge_dollars: n("irmaaSurcharge"),
-      traditional_boy_dollars: n("traditionalBOY"),
-      traditional_balance_dollars: n("traditionalBalance"),
-      roth_balance_dollars: n("rothBalance"),
-      taxable_balance_dollars: n("taxableBalance"),
-      net_worth_dollars: n("netWorth"),
-      product_bonus_applied_dollars: n("productBonusApplied"),
-      total_ira_withdrawal_dollars: n("totalIRAWithdrawal"),
-      taxes_paid_from_ira_dollars: n("taxesPaidFromIRA"),
-    };
+    const out: Record<string, string> = {};
+    for (const col of columns) {
+      out[col.label] = col.formatter((row as Record<string, unknown>)[col.id]);
+    }
+    return out;
   };
 
   return JSON.stringify(
-    { year, baseline: normalize(baselineRow), strategy: normalize(strategyRow) },
+    {
+      year,
+      product_type: productType,
+      note: "Every value below is EXACTLY as shown in the year-by-year table (same column label, same formatting). Match the advisor's referenced number against these and read it straight off — do not reconstruct or estimate.",
+      strategy: render(strategyRow),
+      baseline: render(baselineRow),
+    },
     null,
     0
   );
