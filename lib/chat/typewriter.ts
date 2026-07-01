@@ -39,7 +39,7 @@ export interface TypewriterApi {
 }
 
 export function useTypewriter({
-  charsPerSecond = 35,
+  charsPerSecond = 90,
   maxBufferChars = 4000,
 }: TypewriterOptions = {}): TypewriterApi {
   const [text, setText] = useState("");
@@ -62,6 +62,7 @@ export function useTypewriter({
     // out-paced 90 cps. Now the reveal stays calm and lets the advisor
     // actually read along.
     const tickMs = 1000 / 30; // 30 fps
+    const baseN = Math.max(1, Math.round(charsPerSecond / 30));
     timerRef.current = setInterval(() => {
       const queue = queueRef.current;
       if (queue.length === 0) {
@@ -71,11 +72,16 @@ export function useTypewriter({
         }
         return;
       }
-      // Steady per-tick reveal — base rate calibrated for tickMs.
-      let n = Math.max(1, Math.round(charsPerSecond / 30));
-      // Soft floor for absurd backlogs (>4KB queued). Even then, cap at
-      // 2× base rate so the reveal stays smooth — never a jarring dump.
-      if (queue.length > maxBufferChars) n = n * 2;
+      // Reveal at the base rate normally, but CATCH UP when the model has run
+      // ahead so the visible text tracks the stream (never lags more than a
+      // fraction of a second) instead of crawling out after generation is
+      // already done. The catch-up is proportional to the backlog and capped at
+      // 5× the base rate, so it accelerates smoothly on a burst but is never an
+      // instant dump. A huge backlog (>maxBufferChars, e.g. a cached message
+      // replayed at once) lifts the cap so it fills promptly.
+      const catchUp = Math.ceil(queue.length / 18);
+      const cap = baseN * (queue.length > maxBufferChars ? 40 : 5);
+      const n = Math.min(cap, Math.max(baseN, catchUp));
 
       const slice = queue.slice(0, n);
       queueRef.current = queue.slice(n);

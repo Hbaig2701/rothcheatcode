@@ -55,11 +55,10 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
 
   const [input, setInput] = useState("");
   // Smoothed reveal of the streaming assistant text. SSE chunks land in
-  // the typewriter buffer; useTypewriter exposes a steady-rate revealed
-  // string we render in the bubble. Calibrated at ~35 cps so a typical
-  // 200-char reply takes ~6 seconds to fully type out — feels considered
-  // and gives the advisor time to read along instead of dumping the
-  // answer the moment the model finishes generating.
+  // the typewriter buffer; useTypewriter exposes a revealed string we render
+  // in the bubble. It reveals at ~90 cps with backlog catch-up so the visible
+  // text TRACKS the model (stays within a fraction of a second) instead of
+  // crawling out after generation is done — the reveal is never the bottleneck.
   const typewriter = useTypewriter();
   const streamingText = typewriter.text;
   // Optimistic user message we just sent — displayed while the conversation
@@ -77,6 +76,11 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Whether the advisor is pinned to the bottom of the thread. We only
+  // auto-scroll while pinned, so scrolling UP mid-answer (to re-read a number)
+  // doesn't get yanked back down on every streamed chunk. Re-pins when they
+  // scroll back near the bottom or send a new message.
+  const pinnedRef = useRef(true);
   // Track the conversation that owns the in-flight stream so we only abort
   // on a real SWITCH (clicking a different convo). Setting conversationId
   // from null → new-id during the first message's stream must NOT abort:
@@ -85,9 +89,17 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    if (!el || !pinnedRef.current) return;
     el.scrollTop = el.scrollHeight;
   }, [data?.messages, streamingText, optimisticUser, toolStatus]);
+
+  // Track whether the advisor is (roughly) at the bottom. Threshold gives a
+  // little slack so tiny scroll jitters don't unpin them.
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }
 
   // Abort the in-flight stream only when switching to a DIFFERENT
   // conversation (e.g., user picked another thread from the sidebar). A
@@ -108,6 +120,8 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
 
     setBusy(true);
     setError(null);
+    // A new message from the advisor always scrolls to show it + the reply.
+    pinnedRef.current = true;
     setOptimisticUser(message);
     typewriter.reset();
     setToolStatus(null);
@@ -196,7 +210,7 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
 
   return (
     <div className="flex flex-col h-full">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {isEmpty && <EmptyState />}
         {messages.map((m) => (
           // content_blocks is needed so MessageBubble can detect
@@ -217,6 +231,19 @@ export function MessageThread({ conversationId, onConversationCreated }: Message
         ))}
         {showOptimisticUser && (
           <MessageBubble message={{ role: "user", content: optimisticUser! }} />
+        )}
+        {/* Initial "thinking" pill — shows the moment the advisor sends, during
+            the gap before the first token or tool call arrives (network +
+            time-to-first-token, ~1-3s on Haiku). Without it the advisor sends
+            and stares at silence. Replaced by the tool pill / streaming bubble
+            as soon as the model responds. */}
+        {busy && !streamingText && !toolStatus && !error && (
+          <div className="flex justify-start">
+            <div className="text-xs italic text-muted-foreground bg-bg-card border border-border-default/50 rounded-full px-3 py-1.5">
+              <Sparkles className="size-3 inline mr-1 text-gold animate-pulse" />
+              Thinking…
+            </div>
+          </div>
         )}
         {toolStatus && (
           <div className="flex justify-start">
