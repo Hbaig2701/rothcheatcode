@@ -149,7 +149,7 @@ export function FormSection({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-controls={bodyId}
-        className="group flex w-full items-center justify-between gap-3 border-b pb-2 text-left transition-colors hover:border-foreground/30"
+        className="group flex w-full cursor-pointer items-center justify-between gap-3 border-b pb-2 text-left transition-colors hover:border-foreground/40"
       >
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 text-lg font-semibold">
