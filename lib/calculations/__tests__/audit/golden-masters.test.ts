@@ -64,14 +64,27 @@ const gi = summarize(makeClient({
   income_start_age: 74, payout_type: 'individual', ssi_annual_amount: 3_000_000,
 }));
 
+// Re-locked v70 (2026-06-30) for the GI engine rework F15/F16/F17. The strategy
+// numbers moved (baseline UNCHANGED — only the strategy side was touched):
+//   • F15 replaced the flat conversionBracket% conversion tax with the
+//     progressive marginal tax. This single TX filer converts ~$180K/yr, whose
+//     effective rate (~19%) is below the old flat 24% — so less tax is withheld
+//     from the IRA (gross-up path: taxable_accounts=0), MORE is converted
+//     (748,857 → 814,597K), totalTax drops (250,341 → 194,014K), and the larger
+//     Roth annuity lifts final net worth (3,218,623 → 3,463,649K) and rider fees.
+//   • F16 adds income-phase tax on pension/taxable-SS; here it's ~$0 (Roth GI
+//     keeps provisional income below the SS threshold for $30K SS, no pension).
+//   • F17 (Roth annuity no longer heir-taxed) doesn't move these 4 fields.
+// Verified: invariants 0 breaches; the gi-bug-quantify diagnostic ties the new
+// conversion + income tax to an independent progressive recompute to the dollar.
 const GI_EXPECTED = {
   baseFinalNetWorth: 355_548_789,
   baseFinalTraditional: 0,
-  formulaFinalNetWorth: 321_862_345,
+  formulaFinalNetWorth: 346_364_931,
   formulaFinalRoth: 0,
-  totalConversions: 74_885_750,
-  totalTax: 25_034_133,
-  totalRiderFee: 20_990_300,
+  totalConversions: 81_459_692,
+  totalTax: 19_401_440,
+  totalRiderFee: 22_588_240,
 };
 
 console.log('=== GROWTH actuals ===');

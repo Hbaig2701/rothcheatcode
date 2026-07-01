@@ -393,9 +393,16 @@ Swept every hardcoded heir rate outside the engine. Two classes:
   one definition (recommend net-living-income — the conversion tax isn't paid from
   spendable income) and apply it to both tables. Not changed unilaterally.
 
-### F15 (CORRECTED — bigger than first documented) — GI conversion tax uses a FLAT rate, not progressive → wrong tax DEDUCTED → every GI conversion client's net worth is off — **P1 (money) 🔎 ENGINE BUG**
-**Correction:** initially logged as display-only. Scoping it with more test clients
-proved it's a MONEY bug, and not limited to the SS torpedo.
+### F15 — GI conversion tax uses a FLAT rate, not progressive → wrong tax DEDUCTED → every GI conversion client's net worth is off — **P1 (money) ✅ FIXED v70 (staged, awaiting push)**
+**RESOLUTION (v70):** `guaranteed-income/engine.ts` conversion phase now computes the
+conversion tax as the progressive marginal tax stacked on the year's forced ordinary
+income + SS (`tax_with − tax_without`, SS-torpedo aware), mirroring the baseline's own
+RMD tax. The from-IRA gross-up (conversion + withheld tax = one taxable distribution)
+is solved self-consistently by iteration (tax slope < 1 ⇒ contraction). Guard:
+`gi-tax-recompute.test.ts` ties it to an independent recompute to the dollar on
+SS/pension/from-IRA clients. GI golden master re-locked; invariants 0 breaches.
+**Correction (history):** initially logged as display-only. Scoping it with more test
+clients proved it's a MONEY bug, and not limited to the SS torpedo.
 - **Root cause:** `guaranteed-income/engine.ts:~408` taxes the conversion at a FLAT
   `conversionBracket% + state%` instead of a progressive, SS-aware marginal calc.
   A $240K conversion (single, only income) is taxed at a flat **24%** ($57,600)
@@ -451,7 +458,14 @@ proved it's a MONEY bug, and not limited to the SS torpedo.
   tax captures the torpedo. Validate baseline parity + the giConversionTax display
   attribution before shipping. High blast radius (every GI conversion client).
 
-### F16 — GI strategy INCOME phase reports federalTax $0, ignoring taxable pension/other income — **P1 (display+comparison) 🔎 ENGINE BUG**
+### F16 — GI strategy INCOME phase reports federalTax $0, ignoring taxable pension/other income — **P1 (display+comparison) ✅ FIXED v70 (staged, awaiting push)**
+**RESOLUTION (v70):** the strategy income phase now computes the real total federal+state
+tax on its taxable income (pension + taxable SS; the Roth GI is correctly excluded),
+mirroring the baseline income phase, and nets it from the taxable account. It's lower
+than the baseline's (which also taxes the GI and triggers more SS torpedo) — that gap is
+the genuine Roth advantage, no longer overstated. Deferral phase stays $0 (matches the
+baseline pre-income convention — background pension tax cancels on both sides). Guard:
+`gi-tax-recompute.test.ts` (income-phase tax == independent recompute, to the dollar).
 - **Where:** `guaranteed-income/engine.ts:1084` sets `federalTax: 0` for the
   strategy income phase. The engine even computes the correct taxable income one
   line earlier (`strategyIncomeTaxInfo`, line 1055, with the comment "any
@@ -475,7 +489,20 @@ proved it's a MONEY bug, and not limited to the SS torpedo.
   One dedicated PR fixes both. **GI tax handling is the systematically under-built
   area of the engine.**
 
-### F17 — GI strategy's tax-free ROTH annuity is heir-taxed at 40% (legacy advantage erased) — **P0 🔎 ENGINE+DISPLAY (found widening into legacy mode)**
+### F17 — GI strategy's tax-free ROTH annuity is heir-taxed at 40% (legacy advantage erased) — **P0 ✅ FIXED v70 (staged, awaiting push)**
+**RESOLUTION (v70):** the strategy's Roth annuity (mapped into `traditionalBalance` for
+chart compatibility) is now recognized as tax-free to heirs. Fixed in 3 live surfaces:
+(1) engine `calculateHeirBenefit` — `blueHeirTax = 0` unless the projection ends mid-
+conversion (giPhase guard); (2) `dashboard-metrics.ts` "Legacy Protected" — for GI uses
+the annuity (`blueprint_final_traditional`, plumbed through `ProjectionSummary` + the
+dashboard route) so it's no longer $0; (3) `gi-report-dashboard.tsx` — `blueHeirTax=0`.
+The legacy dashboard (`gi-legacy-report-dashboard.tsx`) and BOTH GI PDF prep functions
+were ALREADY correct (use the benefit base; Roth DB tax-free). The dead summary tables
+(`summary-comparison-table`, `gi-summary-breakdown-table`) still hardcode it but are
+unmounted (allowlisted). IMPLEMENTATION NOTE: did NOT move the annuity into `rothBalance`
+— the GI tables render separate "Acct Val"/"Roth Bal" columns from those fields, so a
+move would empty the account column. Guard: `gi-tax-recompute.test.ts` (heirBenefit ==
+baseline traditional × heir rate, to the dollar).
 - **Root:** during the GI strategy's deferral/income phases the engine stores the
   **Roth-owned** annuity ACCOUNT VALUE in `traditionalBalance` (engine.ts:915,1092)
   with `rothBalance = 0` — even though the strategy converted to Roth first

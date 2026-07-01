@@ -80,8 +80,19 @@ function calculateHeirBenefit(
   const lastBase = baseline[baseline.length - 1];
   const lastFormula = formula[formula.length - 1];
 
+  // Baseline holds a TRADITIONAL annuity — its death benefit is taxable to heirs.
   const baseHeirTax = Math.round(lastBase.traditionalBalance * heirRate);
-  const blueHeirTax = Math.round(lastFormula.traditionalBalance * heirRate);
+
+  // Strategy holds a ROTH annuity (converted first, bought inside the Roth). Its
+  // account value is mapped into `traditionalBalance` for chart compatibility,
+  // but it is TAX-FREE to heirs — taxing it at the heir rate (the old behavior)
+  // erased the entire GI Roth legacy advantage (audit F17, P0). Only tax it if
+  // the projection ends DURING the conversion phase, when a real Traditional IRA
+  // balance still remains (no annuity purchased yet).
+  const strategyStillTraditional = lastFormula.giPhase === 'conversion';
+  const blueHeirTax = strategyStillTraditional
+    ? Math.round(lastFormula.traditionalBalance * heirRate)
+    : 0;
 
   return baseHeirTax - blueHeirTax;
 }
@@ -224,7 +235,10 @@ function runGIStrategyScenario(
 
   // --- Conversion timing ---
   const conversionYears = client.gi_conversion_years ?? 5;
-  const conversionBracket = client.gi_conversion_bracket ?? client.max_tax_rate ?? 24;
+  // NOTE: gi_conversion_bracket is no longer used to TAX conversions — as of v70
+  // (F15) the conversion tax is computed progressively (marginal, SS-aware) like
+  // the baseline RMD tax, not at a flat bracket rate. Conversion SIZING remains
+  // the fixed-years schedule (balance / years), independent of any bracket.
   const conversionEndAge = clientAge + conversionYears - 1;
   const purchaseAge = conversionEndAge + 1;
 
@@ -376,72 +390,69 @@ function runGIStrategyScenario(
 
       // Subtract the RMD + voluntary distribution immediately so conversion math
       // sees the right balance (those dollars leave the IRA; they don't convert).
-      let availableTraditional = boyTraditional - effectiveIraDistribution;
+      const availableTraditional = boyTraditional - effectiveIraDistribution;
       const availableRoth = boyRoth - rothWithdrawalGI;
 
       // Check if this is the LAST year of conversion phase
       const isLastConversionYear = age === conversionEndAge;
 
       if (availableTraditional > 0) {
-        if (isLastConversionYear) {
-          // LAST YEAR: Convert ALL remaining Traditional to ensure everything goes into Roth GI
-          // This maximizes tax-free income by getting all money into the Roth strategy
-          conversionAmount = availableTraditional;
-        } else {
-          // For other years, use FIXED annual conversion amount
-          conversionAmount = Math.min(fixedAnnualConversion, availableTraditional);
-        }
+        // PROGRESSIVE conversion tax (F15, v70). The prior code taxed the
+        // conversion at a FLAT `conversionBracket% + state%`. That is wrong in
+        // both directions: a large conversion that blows past the assumed
+        // bracket is UNDER-taxed, while a conversion that sits below it is
+        // OVER-taxed — and because the tax is deducted from the balance (from
+        // the IRA on gross-up, or from the taxable account otherwise), the wrong
+        // rate corrupts the client's net worth. We now mirror the baseline GI's
+        // own RMD tax method: the conversion's tax is its MARGINAL tax stacked on
+        // top of the year's forced ordinary income (pension + voluntary IRA pull
+        // + forced RMD) and SS, exactly `tax_with − tax_without`, SS-torpedo
+        // aware. The RMD's own marginal tax is computed separately below on the
+        // base WITHOUT the conversion, so the two telescope to the full
+        // progressive tax on (forced income + conversion).
+        const convMarginalTax = (distribution: number): { fed: number; state: number; total: number } => {
+          if (distribution <= 0) return { fed: 0, state: 0, total: 0 };
+          const forcedOrdinary = otherIncome + iraWithdrawalGI + forcedRmdShortfall;
+          const withDist = computeTaxableIncomeWithSS({ otherIncome: forcedOrdinary + distribution, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+          const without = computeTaxableIncomeWithSS({ otherIncome: forcedOrdinary, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+          const fed = Math.max(0, calculateFederalTax({ taxableIncome: withDist.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax - calculateFederalTax({ taxableIncome: without.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax);
+          const state = Math.max(0, calculateStateTax({ taxableIncome: withDist.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax - calculateStateTax({ taxableIncome: without.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax);
+          return { fed, state, total: fed + state };
+        };
 
-        // Handle tax payment from IRA.
-        // Key insight: when the IRA funds its own tax, the tax withheld is
-        // ALSO a taxable distribution on the 1099-R. So the TOTAL IRA
-        // withdrawal (conversion + tax) is taxed, not just the conversion.
-        // At a flat rate:
-        //   total_dist × rate = tax     (tax on full distribution)
-        //   conversion + tax  = total_dist
-        //   => tax        = conversion × rate / (1 − rate)
-        //   => total_dist = conversion / (1 − rate)
-        // The prior formula `tax = conversion × rate` under-reported tax
-        // by ~rate × (conversion × rate / (1-rate)) — exactly the
-        // tax-on-tax amount that left the client with a surprise bill.
-        if (payTaxFromIRA && conversionAmount > 0) {
-          const effectiveRate = conversionBracket / 100 + stateTaxRateDecimal;
+        // Target conversion (sizing unchanged: fixed-years schedule; last year
+        // empties the IRA so everything lands in the Roth GI).
+        const targetConv = isLastConversionYear
+          ? availableTraditional
+          : Math.min(fixedAnnualConversion, availableTraditional);
+
+        if (payTaxFromIRA) {
+          // The tax is withheld from the IRA, so the conversion AND its tax both
+          // leave the IRA as ONE taxable distribution D = conversion + tax(D)
+          // (gross-up). With a progressive tax there's no closed form, so solve
+          // the self-consistent D by iteration — tax slope < 1 makes the map a
+          // contraction, so it converges in a few steps. Cap D at the available
+          // balance (can't distribute more than is there).
+          let dist: number;
           if (isLastConversionYear) {
-            // Full conversion: empty the IRA. total_dist = balance, so
-            // conversion = balance × (1 − rate).
-            conversionAmount = Math.round(availableTraditional * (1 - effectiveRate));
+            dist = availableTraditional; // empty the IRA: distribute everything
           } else {
-            // Fixed amount: cap so the SELF-CONSISTENT total (conv/(1-rate))
-            // fits inside the IRA. This is tighter than the old cap because
-            // tax-on-tax is higher than tax-on-conversion-alone.
-            const maxConvWithSelfConsistentTax = Math.floor(availableTraditional * (1 - effectiveRate));
-            conversionAmount = Math.min(conversionAmount, maxConvWithSelfConsistentTax);
+            dist = targetConv;
+            for (let i = 0; i < 8; i++) {
+              dist = Math.min(availableTraditional, targetConv + convMarginalTax(dist).total);
+            }
           }
-          conversionAmount = Math.max(0, Math.min(conversionAmount, availableTraditional));
-        }
-
-        // Calculate conversion tax (flat rate). When paying from the IRA, the
-        // tax must be computed on the TOTAL distribution (gross-up), not on
-        // the conversion alone — otherwise the reported tax is less than what
-        // the IRS would actually owe on the 1099-R.
-        if (conversionAmount > 0) {
-          if (payTaxFromIRA) {
-            const fedRate = conversionBracket / 100;
-            const stateRate = stateTaxRateDecimal;
-            // Gross-up: tax = conversion × rate / (1 − rate)
-            const totalRate = fedRate + stateRate;
-            const totalTaxGrossed = totalRate > 0 && totalRate < 1
-              ? Math.round(conversionAmount * totalRate / (1 - totalRate))
-              : 0;
-            // Split fed / state proportionally
-            federalConversionTax = totalRate > 0
-              ? Math.round(totalTaxGrossed * fedRate / totalRate)
-              : 0;
-            stateConversionTax = totalTaxGrossed - federalConversionTax;
-          } else {
-            federalConversionTax = Math.round(conversionAmount * (conversionBracket / 100));
-            stateConversionTax = Math.round(conversionAmount * stateTaxRateDecimal);
-          }
+          const t = convMarginalTax(dist);
+          federalConversionTax = t.fed;
+          stateConversionTax = t.state;
+          conversionAmount = Math.max(0, dist - t.total);
+        } else {
+          // Tax paid from the taxable account: convert the full target; the tax
+          // is the progressive marginal tax on the conversion alone.
+          conversionAmount = targetConv;
+          const t = convMarginalTax(conversionAmount);
+          federalConversionTax = t.fed;
+          stateConversionTax = t.state;
         }
       }
 
@@ -1031,9 +1042,12 @@ function runGIStrategyScenario(
         totalRiderFees += yearRiderFee;
       }
 
-      // Taxable account receives tax-free GI income
+      // Taxable account: the Roth GI itself is tax-free, but the client's pension
+      // (otherIncome) + taxable SS still generate a real tax bill. The final
+      // balance is set below, once that tax is computed (F16) — the prior code
+      // banked grossGI with NO tax deducted AND reported federalTax:0, which
+      // understated the strategy's tax and inflated the tax-savings headline.
       const taxableInterest = Math.round(boyTaxable * rateOfReturn);
-      taxableBalance = boyTaxable + grossGI + taxableInterest;
 
       // IRMAA (GI from Roth doesn't count toward MAGI)
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
@@ -1065,6 +1079,25 @@ function runGIStrategyScenario(
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = irmaaTierFromLookback;
 
+      // Real federal/state tax on the strategy's TAXABLE income — the pension +
+      // the taxable portion of SS (F16). The Roth GI is excluded from the base
+      // above, so this is strictly the background-income tax. It's lower than the
+      // baseline's (which also taxes the GI and pushes more SS into the torpedo),
+      // and that gap is the genuine Roth advantage. Computed as TOTAL tax to
+      // mirror the baseline income phase (calculateFederalTax on full taxable).
+      const strategyIncomeFederalTax = calculateFederalTax({ taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax;
+      const strategyIncomeStateTax = calculateStateTax({ taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax;
+      const strategyIncomeTotalTax = strategyIncomeFederalTax + strategyIncomeStateTax + irmaaSurcharge;
+      // Split fed/state between taxable-SS and ordinary (pension), mirroring the
+      // baseline income phase, for the per-column tax fields.
+      const strategySsPart = strategyIncomeTaxInfo.taxableSS;
+      const strategyOrdPart = otherIncome;
+      const strategyDenom = strategySsPart + strategyOrdPart;
+      const strategyFedTaxOnSS = strategyDenom > 0 && strategySsPart > 0 ? Math.round(strategyIncomeFederalTax * strategySsPart / strategyDenom) : 0;
+      const strategyStateTaxOnSS = strategyDenom > 0 && strategySsPart > 0 ? Math.round(strategyIncomeStateTax * strategySsPart / strategyDenom) : 0;
+      // Bank the tax-free GI, then net out the pension/SS tax (mirrors baseline).
+      taxableBalance = boyTaxable + grossGI + taxableInterest - strategyIncomeTotalTax;
+
       // Account growth this year (interest after payout, before rider fee)
       const traditionalGrowth = accountInterest;
       const rothGrowth = 0;
@@ -1081,11 +1114,11 @@ function runGIStrategyScenario(
         pensionIncome: 0,
         otherIncome,
         totalIncome,
-        federalTax: 0, // TAX-FREE (Roth GI)
-        stateTax: 0,   // TAX-FREE (Roth GI)
+        federalTax: strategyIncomeFederalTax, // GI is tax-free Roth; this taxes pension + taxable SS (F16)
+        stateTax: strategyIncomeStateTax,
         niitTax: 0,
         irmaaSurcharge,
-        totalTax: irmaaSurcharge,
+        totalTax: strategyIncomeTotalTax,
         taxableSS: strategyIncomeTaxInfo.taxableSS,
         netWorth: accountValue + taxableBalance,
         // Extended fields for adjustable columns
@@ -1102,12 +1135,12 @@ function runGIStrategyScenario(
         taxableIncome,
         federalTaxBracket,
         irmaaTier,
-        federalTaxOnSS: 0,
+        federalTaxOnSS: strategyFedTaxOnSS,
         federalTaxOnConversions: 0,
-        federalTaxOnOrdinaryIncome: 0, // GI income is tax-free (Roth)
-        stateTaxOnSS: 0,
+        federalTaxOnOrdinaryIncome: strategyIncomeFederalTax - strategyFedTaxOnSS, // pension; GI itself is tax-free Roth
+        stateTaxOnSS: strategyStateTaxOnSS,
         stateTaxOnConversions: 0,
-        stateTaxOnOrdinaryIncome: 0,
+        stateTaxOnOrdinaryIncome: strategyIncomeStateTax - strategyStateTaxOnSS,
         // GI-specific fields
         incomeRiderValue: incomeBase,
         accumulationValue: accountValue,

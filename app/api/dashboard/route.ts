@@ -13,6 +13,7 @@ interface ProjectionRow {
   baseline_final_net_worth: number;
   blueprint_final_net_worth: number;
   blueprint_final_roth: number;
+  blueprint_final_traditional: number;
   total_tax_savings: number;
   heir_benefit: number;
   gi_tax_free_wealth_created: number | null;
@@ -51,7 +52,7 @@ export async function GET() {
       .order("created_at", { ascending: false }),
     supabase
       .from("projections")
-      .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, blueprint_final_roth, total_tax_savings, heir_benefit, gi_tax_free_wealth_created, blueprint_years, created_at")
+      .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, blueprint_final_roth, blueprint_final_traditional, total_tax_savings, heir_benefit, gi_tax_free_wealth_created, blueprint_years, created_at")
       .in("user_id", visibleUserIds)
       .order("created_at", { ascending: false }),
     supabase
@@ -137,6 +138,7 @@ export async function GET() {
     baseline_final_net_worth: p.baseline_final_net_worth,
     blueprint_final_net_worth: p.blueprint_final_net_worth,
     blueprint_final_roth: p.blueprint_final_roth,
+    blueprint_final_traditional: p.blueprint_final_traditional,
     total_tax_savings: p.total_tax_savings,
     heir_benefit: p.heir_benefit,
     gi_tax_free_wealth_created: p.gi_tax_free_wealth_created,

@@ -133,7 +133,16 @@ export function computeDashboardMetrics(data: DashboardData): DashboardMetrics {
     const p = projMap.get(c.id);
     if (!p) return sum;
     const heirRate = (c.heir_tax_rate ?? 40) / 100;
-    return sum + Math.round(p.blueprint_final_roth * heirRate);
+    // Tax-free legacy = the heir income tax avoided by holding the estate in a
+    // Roth wrapper instead of a Traditional one = (Roth balance) × heir rate.
+    // For GUARANTEED-INCOME strategies the Roth is the annuity, whose account
+    // value is mapped into blueprint_final_traditional (not _roth) for chart
+    // compatibility — so include it here, else GI clients show $0 protected
+    // (audit F17). Growth/standard strategies keep their Roth in _roth.
+    const rothEquivalent = isGuaranteedIncomeProduct(c.blueprint_type)
+      ? p.blueprint_final_roth + p.blueprint_final_traditional
+      : p.blueprint_final_roth;
+    return sum + Math.round(rothEquivalent * heirRate);
   }, 0);
 
   // --- Product Mix ---

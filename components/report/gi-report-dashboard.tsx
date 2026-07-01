@@ -118,13 +118,16 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   });
 
   const blueIrmaa = sum(projection.blueprint_years, "irmaaSurcharge");
-  const blueFinalTraditional = projection.blueprint_final_traditional;
   const blueFinalRoth = projection.blueprint_final_roth;
   const giTotalGross = projection.gi_total_gross_paid ?? 0;
   const giTotalNet = projection.gi_total_net_paid ?? 0;
   const giTaxOnPayments = giTotalGross - giTotalNet;
-  // Heir tax only applies to remaining traditional (annuity account value)
-  const blueHeirTax = Math.round(blueFinalTraditional * heirTaxRate);
+  // The strategy's annuity is a ROTH annuity (converted first, bought inside the
+  // Roth) — TAX-FREE to heirs. Its account value is mapped into
+  // blueprint_final_traditional for chart compatibility, but taxing it at the
+  // heir rate (old behavior) erased the GI Roth legacy advantage (audit F17, P0).
+  // Baseline (traditional annuity) above is still correctly taxed.
+  const blueHeirTax = 0;
   // Net legacy = final net worth (includes taxable where GI payments accumulate) minus heir taxes
   const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
   // Lifetime wealth = net legacy (taxes already deducted in engine)

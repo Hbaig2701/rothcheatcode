@@ -15,11 +15,16 @@ wrong numbers and prior audits missed them.
 - **Fixed + PUSHED to `main` (production):** F1, F2, F2-GI, F5, F6, F7, F9, F10,
   F11, F12, F13. (main = prod, Vercel auto-deploys. Cache bumped to v69 for the
   engine fixes so projections recompute.)
-- **Found + documented, NOT fixed (need dedicated work):** F8 (carrier confirm),
-  F14 (product decision), **F15/F16/F17 (GI engine — the big ones)**.
+- **Fixed + STAGED, awaiting push approval (GI-engine rework, v70):** **F15, F16,
+  F17.** All three done in one batch (strategy side only — baseline byte-identical).
+  Cache bumped to v70. Validated: full audit suite 0 breaches + a new independent
+  recompute guard (`gi-tax-recompute.test.ts`) ties conversion tax, income-phase
+  tax, and heir benefit to the dollar on SS/pension/legacy clients; GI golden
+  master re-locked; tsc clean. NOT yet committed/pushed — holding for user OK.
+- **Found + documented, NOT fixed:** F8 (carrier confirm), F14 (product decision).
 - **Standing regression suite built + committed:** `npm run test:audit` (+ the
   read-only `npm run test:audit:realdata`). 22 files under
-  `lib/calculations/__tests__/audit/`. All green.
+  `lib/calculations/__tests__/audit/` (now incl. `gi-tax-recompute.test.ts`). Green.
 
 ## Commits pushed this session (newest last)
 ```
@@ -52,9 +57,9 @@ Severity: P0 wrong-money-headline · P1 advisor-facing wrong number · P2 minor 
 | F12 | both report tables **+ generate-pdf/route.ts** | IRMAA tier returned "Tier 1" for $0 surcharge → labeled non-IRMAA 65+ clients (most retirees) as Tier 1 | P1 | ✅ pushed |
 | F13 | dashboard-metrics.ts | "Legacy Protected" flat 40% → per-client; `determineBracket` dead 2026-threshold fallback (latent) | P2/P3 | ✅ pushed (bracket: latent) |
 | F14 | growth vs GI tables | "Net Income" defined differently (growth subtracts all tax incl conversion; GI shows net living income) | SPEC | 🔎 decision |
-| **F15** | **guaranteed-income/engine.ts ~408** | **GI taxes conversions FLAT conversionBracket% (24%) not progressive (~19-20%); wrong tax DEDUCTED from balance → every GI conversion client's net worth off (+$34K to −$23K/yr, ~$133K lifetime)** | **P1 money** | 🔎 dedicated fix |
-| **F16** | **guaranteed-income/engine.ts:1084** | **GI strategy income-phase `federalTax: 0` ignores taxable pension/other income (engine computes taxableIncome 1 line up then discards it) → tax-savings headline overstated** | **P1** | 🔎 dedicated fix |
-| **F17** | **guaranteed-income/engine.ts:84,915,1092 + all GI display** | **GI strategy's tax-FREE Roth annuity stored in `traditionalBalance` → heir-taxed 40% across giMetrics/dashboard/summary/table/PDF → erases the GI Roth legacy advantage (~$1.2M understated in legacy mode)** | **P0** | 🔎 dedicated fix |
+| F15 | guaranteed-income/engine.ts conversion phase | GI taxed conversions FLAT conversionBracket% not progressive; wrong tax DEDUCTED from balance → now progressive marginal (tax_with−tax_without, SS-aware), from-IRA gross-up solved iteratively. Guard: gi-tax-recompute.test.ts | P1 money | ✅ staged v70 |
+| F16 | guaranteed-income/engine.ts income phase | GI strategy income-phase `federalTax: 0` ignored taxable pension/SS → now taxes background income (GI excluded) as a full bill like baseline | P1 | ✅ staged v70 |
+| F17 | engine calculateHeirBenefit + dashboard-metrics + gi-report-dashboard | GI strategy's tax-FREE Roth annuity (mapped into `traditionalBalance`) was heir-taxed → now tax-free to heirs (baseline traditional still taxed). Legacy dashboard + GI PDFs were ALREADY correct; the dead summary tables (allowlisted) still hardcode it but are unmounted | P0 | ✅ staged v70 |
 
 Verified-correct (NOT bugs — already investigated, don't re-flag): post-surrender
 crediting rate ≠ baseline; rider fees break symmetry; bracket + senior-deduction
@@ -63,10 +68,23 @@ compound growth; income-breakdown column sums; chart y-axis; chart-vs-table
 legacy (taxable≥0); GI IRMAA 2-yr lookback; cache invalidation (complete except
 `ss_start_age`/`heir_bracket` fallbacks, P2). See AUDIT.md "Investigated, NOT bugs".
 
-## ⭐ TOP PRIORITY NEXT WORK: dedicated GI-engine rework (F15+F16+F17)
-The guaranteed-income engine is the least trustworthy part of the system. F15/F16/
-F17 are interrelated and need ONE carefully-validated PR (NOT bundled with anything
-else, high blast radius — every GI client's numbers move):
+## ✅ DONE (staged, awaiting push): GI-engine rework (F15+F16+F17), v70
+Completed 2026-06-30 in one batch (strategy side only; baseline byte-identical —
+confirmed via golden master + invariants). Files: `guaranteed-income/engine.ts`
+(progressive conversion tax incl. iterative from-IRA gross-up; income-phase
+pension/SS tax; `calculateHeirBenefit` giPhase-guarded so the Roth annuity isn't
+heir-taxed), `lib/calculations/dashboard-metrics.ts` (GI "Legacy Protected" uses
+the annuity, was $0), `components/report/gi-report-dashboard.tsx` (`blueHeirTax=0`),
+plus `ProjectionSummary`/dashboard route plumbing for `blueprint_final_traditional`.
+F17 IMPLEMENTATION NOTE: I did NOT move the annuity into `rothBalance` (the GI
+tables show separate "Acct Val"/"Roth Bal" columns from traditionalBalance/
+rothBalance, so moving it would empty the account column). Instead the annuity
+stays in `traditionalBalance` for display and the 3 heir-tax surfaces recognize it
+as Roth. The legacy dashboard (`gi-legacy-report-dashboard.tsx`) + both GI PDF
+prep funcs were ALREADY correct (use the benefit base, Roth DB tax-free). Guard:
+`gi-tax-recompute.test.ts` (in the chain). Cache bumped to v70.
+
+Original rework brief (for reference — interrelated, one PR, high blast radius):
 1. **Tax (F15+F16):** replace the flat-rate conversion tax and the income-phase
    `federalTax:0` with the standard engine's progressive, SS-torpedo-aware marginal
    method (`computeTaxableIncomeWithSS` + `calculateFederalTax`, tax_with − tax_without,

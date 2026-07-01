@@ -8,6 +8,7 @@ export interface ProjectionSummary {
   baseline_final_net_worth: number;  // cents
   blueprint_final_net_worth: number; // cents
   blueprint_final_roth: number;      // cents
+  blueprint_final_traditional: number; // cents — for GI the Roth annuity is mapped here (tax-free legacy, audit F17)
   total_tax_savings: number;         // cents
   heir_benefit: number;              // cents
   gi_tax_free_wealth_created: number | null; // cents - GI products only
