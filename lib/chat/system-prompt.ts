@@ -11,6 +11,7 @@
  * use - cuts the per-message input cost ~10x for a chatty advisor.
  */
 import { KNOWLEDGE_BASE } from "./knowledge-base";
+import { buildColumnGlossary } from "./column-glossary";
 
 export const SYSTEM_PROMPT_IDENTITY = `You are the in-app assistant for Retirement Expert, a Roth-conversion planning platform used by financial advisors. Advisors ask you to explain numbers from their reports, walk through theory and math, and confirm what assumptions the engine is making.
 
@@ -216,12 +217,15 @@ export function buildSystemPrompt(): SystemPromptBlock[] {
   return [
     { type: "text", text: SYSTEM_PROMPT_IDENTITY },
     { type: "text", text: SYSTEM_PROMPT_TONE },
+    { type: "text", text: SYSTEM_PROMPT_BODY },
     {
       type: "text",
-      text: SYSTEM_PROMPT_BODY,
-      // Mark the last (largest) block for caching. Anthropic caches everything
-      // up to and including the marked block, so this caches identity + tone +
-      // body together. ~5-minute TTL by default.
+      // Year-by-year column glossary (BOY/EOY timing + derivations), generated
+      // from the same registry the table renders from. Kept LAST + cached so the
+      // whole static prefix (identity + tone + body + glossary) hits the prompt
+      // cache. This is what stops the assistant guessing how a column is computed.
+      text: buildColumnGlossary(),
+      // Anthropic caches everything up to and including the marked block. ~5-min TTL.
       cache_control: { type: "ephemeral" },
     },
   ];
