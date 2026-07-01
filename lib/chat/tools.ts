@@ -77,7 +77,7 @@ export const CHAT_TOOLS: ChatTool[] = [
   {
     name: "get_year_breakdown",
     description:
-      "Fetch one specific year from the projection for a client. Returns side-by-side baseline + strategy values for that year as EVERY column the year-by-year table can display — each keyed by its exact on-screen label and formatted exactly as shown (e.g. \"Roth Growth\": \"$28,190\", \"Roth BOY\": \"$205,194\", \"Net Worth\": \"$755,755\", plus all balances, growth/interest, RMD, conversions, per-type taxes, MAGI/AGI/bracket, IRMAA, and GI rider/payout fields). ALWAYS call this when the advisor references ANY number or column from the table (\"why is Roth Growth so high?\", \"what's the 2028 conversion?\"); read the value straight from here instead of reconstructing or guessing it. If you don't know which year the number is in, call this for the likely year(s) and match the referenced value against the labels.",
+      "Fetch one specific year from the projection for a client. Returns side-by-side baseline + strategy values for that year as EVERY column the year-by-year table can display — each keyed by its exact on-screen label and formatted exactly as shown (e.g. \"Roth Growth\": \"$28,190\", \"Roth BOY\": \"$205,194\", \"Net Worth\": \"$755,755\", plus all balances, growth/interest, RMD, conversions, per-type taxes, MAGI/AGI/bracket, IRMAA, and GI rider/payout fields). ALWAYS call this when the advisor references ANY number or column from the table (\"why is Roth Growth so high?\", \"what's the 2028 conversion?\"); read the value straight from here instead of reconstructing or guessing it. IMPORTANT: if you do NOT already know the exact calendar year, do NOT guess a year here — call get_projection_table FIRST to find the right year (the projection may not start at the current year), then call this for that year.",
     input_schema: {
       type: "object",
       properties: {
@@ -91,6 +91,21 @@ export const CHAT_TOOLS: ChatTool[] = [
         },
       },
       required: ["client_id", "year"],
+    },
+  },
+  {
+    name: "get_projection_table",
+    description:
+      "Get a COMPACT overview of EVERY year in the projection at once (dollars): per year — age, conversion, RMD, total tax, federal bracket, end-of-year Traditional/Roth balances, and net worth, for BOTH strategy and baseline (plus GI phase for annuity products). Call this FIRST whenever the advisor's question (a) is about 'which year', 'the first/biggest/last conversion', 'when do RMDs start', 'when does the strategy pull ahead'; (b) spans MULTIPLE years or asks for a total/difference across years ('first two years combined', 'total conversion tax', 'lifetime RMDs') — this table has per-year conversion/RMD/tax/net-worth for the WHOLE projection, so you can often answer directly from this ONE call; or (c) references a year you're not 100% sure exists (the projection may start at the client's current age, not this calendar year). Scan it to find the right year(s), THEN call get_year_breakdown only if you need a specific year's full column detail. This is how you avoid guessing years one at a time.",
+    input_schema: {
+      type: "object",
+      properties: {
+        client_id: {
+          type: "string",
+          description: "UUID of the client.",
+        },
+      },
+      required: ["client_id"],
     },
   },
   {
@@ -192,6 +207,8 @@ export async function runTool(
         return { content: await runGetProjectionSummary(input, ctx), isError: false };
       case "get_year_breakdown":
         return { content: await runGetYearBreakdown(input, ctx), isError: false };
+      case "get_projection_table":
+        return { content: await runGetProjectionTable(input, ctx), isError: false };
       case "create_support_ticket":
         return { content: await runCreateSupportTicket(input, ctx), isError: false };
       default:
@@ -339,10 +356,15 @@ async function runGetProjectionSummary(
     .eq("client_id", clientId)
     .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error) throw new Error(error.message);
-  if (!projectionRaw) throw new Error("No projection yet — the report may need to be generated first.");
+  // No projection row = the advisor hasn't generated/opened the report for this
+  // client yet. RETURN this as a normal result (not an error) so the assistant
+  // simply tells them to generate the report — NOT a system fault to escalate.
+  // (`.single()` used to throw a cryptic "Cannot coerce…" here, which the model
+  // mistook for a backend bug and filed a false support ticket.)
+  if (!projectionRaw) return "This client has no generated projection yet, so there are no year-by-year numbers to read. Ask the advisor to open the client and generate (or refresh) the report first, then try again.";
 
   const projection = projectionRaw as unknown as {
     break_even_age: number | null;
@@ -372,7 +394,7 @@ async function runGetProjectionSummary(
     .from("clients")
     .select("heir_tax_rate, heir_bracket")
     .eq("id", clientId)
-    .single();
+    .maybeSingle();
   const heirRow = clientHeir as unknown as { heir_tax_rate: number | null; heir_bracket: string | null } | null;
   const heirRatePct = (heirRow?.heir_tax_rate && heirRow.heir_tax_rate > 0)
     ? heirRow.heir_tax_rate
@@ -432,9 +454,11 @@ async function runGetYearBreakdown(
     .eq("client_id", clientId)
     .order("created_at", { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!projection) throw new Error("No projection yet — generate the report first.");
+  // Graceful (return, don't throw) so the assistant relays "generate the report"
+  // instead of treating a not-yet-generated projection as a backend failure.
+  if (!projection) return "This client has no generated projection yet, so there is no year-by-year data. Ask the advisor to generate/refresh the report first, then try again.";
 
   type Row = Record<string, unknown> & { year: number; giPhase?: string | null };
   const baselineRow = (projection.baseline_years as Row[] | null)?.find((r) => r.year === year);
@@ -474,6 +498,69 @@ async function runGetYearBreakdown(
       note: "Every value below is EXACTLY as shown in the year-by-year table (same column label, same formatting). Match the advisor's referenced number against these and read it straight off — do not reconstruct or estimate.",
       strategy: render(strategyRow),
       baseline: render(baselineRow),
+    },
+    null,
+    0
+  );
+}
+
+async function runGetProjectionTable(
+  input: Record<string, unknown>,
+  ctx: ToolContext
+): Promise<string> {
+  const clientId = String(input.client_id ?? "");
+  if (!clientId) throw new Error("client_id required");
+
+  const { data: projection, error } = await ctx.supabase
+    .from("projections")
+    .select("baseline_years, blueprint_years")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!projection) return "This client has no generated projection yet, so there is no year-by-year data. Ask the advisor to generate/refresh the report first, then try again.";
+
+  type Row = Record<string, unknown> & { year: number; age?: number; giPhase?: string | null };
+  const strat = (projection.blueprint_years as Row[] | null) ?? [];
+  const base = (projection.baseline_years as Row[] | null) ?? [];
+  if (strat.length === 0 && base.length === 0) return "The projection exists but has no year rows.";
+  const baseByYear = new Map(base.map((r) => [r.year, r]));
+  const d = (v: unknown) => Math.round(((v as number) ?? 0) / 100);
+
+  // One compact record per year — the fields advisors scan to LOCATE a year
+  // (conversion/RMD/tax/bracket/balances/net worth, strategy vs baseline). Raw
+  // rounded dollars (not formatted) to stay small; get_year_breakdown gives the
+  // exact on-screen strings once the right year is found.
+  const rows = strat.map((s) => {
+    const b = baseByYear.get(s.year);
+    const rec: Record<string, unknown> = {
+      year: s.year,
+      age: s.age,
+      conversion: d(s.conversionAmount),
+      rmd: d(s.rmdAmount),
+      strat_tax: d(s.totalTax),
+      // Conversion-attributable tax only (fed+state on the conversion), so
+      // "total conversion tax over the plan" sums THIS, not strat_tax (which also
+      // includes RMD/SS/other-income tax + IRMAA).
+      conv_tax: d(((s.federalTaxOnConversions as number) ?? 0) + ((s.stateTaxOnConversions as number) ?? 0)),
+      bracket: s.federalTaxBracket ?? null,
+      strat_trad_eoy: d(s.traditionalBalance),
+      strat_roth_eoy: d(s.rothBalance),
+      strat_net_worth: d(s.netWorth),
+      base_rmd: b ? d(b.rmdAmount) : null,
+      base_tax: b ? d(b.totalTax) : null,
+      base_net_worth: b ? d(b.netWorth) : null,
+    };
+    if (s.giPhase != null) rec.phase = s.giPhase;
+    return rec;
+  });
+
+  return JSON.stringify(
+    {
+      note: "Compact all-years overview in DOLLARS (strategy vs baseline). Use it to LOCATE the right year — the largest/first conversion, when RMDs begin, when the strategy pulls ahead — then call get_year_breakdown for that year's full, exactly-formatted column detail. Do NOT guess years one at a time; scan this.",
+      year_count: rows.length,
+      years: rows,
     },
     null,
     0

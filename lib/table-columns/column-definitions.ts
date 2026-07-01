@@ -145,7 +145,7 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
   // ============================================================
   {
     id: 'traditionalBalance',
-    label: 'Traditional IRA',
+    label: 'Traditional IRA (EOY)',
     category: 'balances',
     description: 'End-of-year Traditional IRA balance after distributions, conversions, and growth. In the baseline, this shrinks as RMDs are taken. In the strategy, it decreases faster due to Roth conversions.',
     formatter: formatCurrency,
@@ -167,7 +167,7 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
   },
   {
     id: 'rothBalance',
-    label: 'Roth IRA',
+    label: 'Roth IRA (EOY)',
     category: 'balances',
     description: 'End-of-year Roth IRA balance. Grows tax-free and is not subject to RMDs. In the strategy, this increases as conversions move money from Traditional to Roth.',
     formatter: formatCurrency,
@@ -189,7 +189,7 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
   },
   {
     id: 'taxableBalance',
-    label: 'Taxable Account',
+    label: 'Taxable Account (EOY)',
     category: 'balances',
     description: 'Taxable account balance. In the baseline, this accumulates after-tax RMD proceeds. In the strategy, this tracks the cumulative cost of taxes paid on conversions.',
     formatter: formatCurrency,

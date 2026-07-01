@@ -51,10 +51,11 @@ tool already returns.
 TIMING — beginning-of-year vs end-of-year (this trips advisors up, so be explicit):
 - Columns whose label ends in "BOY" are BEGINNING-of-year: the balance BEFORE that
   year's conversions, distributions, and growth.
-- Every other balance column — "Traditional IRA", "Roth IRA", "Taxable Account",
-  "Net Worth", "Accumulation Value", "AUM Bucket", "Surrender Value", "Income Benefit
-  Base" — is END-of-year: AFTER that year's events. There is NO "EOY" suffix; the
-  absence of "BOY" means end-of-year. If an advisor seems unsure, say so plainly.
+- The three core account balances are labeled with "(EOY)" — "Traditional IRA (EOY)",
+  "Roth IRA (EOY)", "Taxable Account (EOY)" — to make the pairing with their BOY twin
+  explicit. The other balance columns ("Net Worth", "Accumulation Value", "AUM Bucket",
+  "Surrender Value", "Income Benefit Base") are ALSO end-of-year even without the
+  suffix. Rule of thumb: a balance column is end-of-year unless its label says "BOY".
 - Growth, tax, income, distribution, RMD, conversion, and fee columns are AMOUNTS FOR
   that year (flows during the year), not balances.
 
