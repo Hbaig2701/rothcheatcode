@@ -333,8 +333,8 @@ export const FIELD_HELP = {
   },
   end_age: {
     title: "End Age",
-    body: "Final age the projection runs through. Sets the time horizon of all charts, tables, and the heir/legacy calculation. Default 95 is standard for life-expectancy-based planning.",
-    example: "Standard projection → 95. Conservative long-horizon client with longevity in family → 100.",
+    body: "Final age the projection runs through. Sets the time horizon of all charts, tables, and the heir/legacy calculation. Default is 100; lower it toward life expectancy for a shorter horizon.",
+    example: "Long-horizon default → 100. Trim to ~90–95 to model a shorter life expectancy.",
   },
   heir_tax_rate: {
     title: "Heir Tax Rate",

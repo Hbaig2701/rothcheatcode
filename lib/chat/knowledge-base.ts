@@ -156,10 +156,11 @@ There are four product modes the strategy can run on (picked in section "3. New 
 
 If an advisor asks "where do I upload a brochure", "can I add my own product from a PDF", "how do I add an Athene / Allianz / Nationwide / [carrier name] product", or anything else about creating a custom carrier-named product: **the feature exists and lives at Settings → "My Products" → "Add Product"**. Do NOT tell them it doesn't exist.
 
-Two paths inside the "Add Product" dialog:
+Three paths inside the "Add Product" dialog (in this order on screen):
 
-- **AI Research / Upload a Brochure** — advisor uploads a PDF brochure or pastes the carrier disclosure text. The AI extracts the parameters (bonus %, surrender schedule, free withdrawal %, MVA, roll-up, payout factors, etc.) and pre-fills the product config. They review and save.
-- **Manual Builder** — advisor types the parameters themselves into a form. Use this when the brochure is short, when AI extraction came back wrong, or when the advisor wants full control.
+- **Choose from Community Products** (the primary/Recommended option) — pick an existing, already-configured product from the shared community catalog and add it in one click, no data entry. This is the fastest route when the carrier/product is already in the catalog; suggest it first.
+- **Upload a brochure or spec sheet** (has an "AI" badge) — advisor uploads a PDF brochure or pastes the carrier disclosure text. The AI extracts the parameters (bonus %, surrender schedule, free withdrawal %, MVA, roll-up, payout factors, etc.) and pre-fills the product config. They review and save. (Do NOT call this "AI Research" — that label does not appear on screen.)
+- **Manual builder** — advisor types the parameters themselves into a form. Use this when the brochure is short, when AI extraction came back wrong, or when the advisor wants full control.
 
 Once saved, the custom product shows up in the Product Preset dropdown when creating or editing a client scenario (section "3. New Account Data"). The advisor can name it whatever they want (including the carrier-specific name like "Athene Ascent Pro 10"). Their saved values always win over engine preset defaults.
 
@@ -240,6 +241,24 @@ In the report UI:
 - Annual RMD = prior-year-end Traditional IRA balance / divisor for current age.
 - The strategy avoids RMDs to the extent it converts the IRA before age 73. A full conversion in year 1 → zero RMDs. A partial conversion → smaller RMDs.
 
+## IRA / Roth Withdrawals (voluntary income — section "8. IRA / Roth Withdrawals")
+
+An optional schedule of voluntary distributions the client takes to live on, on top of (or instead of) RMDs. Set it up with the recurring panel (Start age, End age, Annual amount, Source) or per-year "Add Entry" rows. The amount entered is GROSS (pre-tax).
+
+The **Source** dropdown has exactly THREE options — there is NO "taxable account" or "AUM bucket" source (do not tell an advisor to pull a withdrawal from the taxable account or AUM — that option does not exist):
+- **Auto** — Roth first (tax-free), then Traditional IRA. This is the default and the right choice for a baseline-vs-strategy income comparison: the do-nothing baseline has no Roth so it naturally pulls from the (taxable) IRA, while the strategy pulls from the tax-free Roth once conversions accumulate.
+- **Traditional IRA** — always pulls from the IRA (taxable; 10% early-withdrawal penalty if under 59½).
+- **Roth IRA** — always pulls from the Roth (tax-free; assumes qualified).
+
+Key behaviors:
+- The withdrawal schedule is a SINGLE shared list — the SAME amounts apply to BOTH the baseline and the strategy. You cannot set a different amount per scenario, and there is no "net/after-tax target" input — the field is gross only.
+- Withdrawals work at ANY age, including before RMDs start at 73 — no RMD is required for them to run.
+- An IRA pull COUNTS toward that year's RMD (it doesn't stack on top); only the shortfall, if any, is forced as extra RMD.
+
+**"How do I get the baseline to show taxable distributions BEFORE RMDs?"** → In section "8. IRA / Roth Withdrawals", add a withdrawal for the pre-RMD age range (e.g., ages 63–72) with Source = **Auto** (or **Traditional IRA**). On the baseline (do-nothing) side that pulls taxable distributions straight from the IRA before RMDs begin. (It also applies to the strategy side — from the Roth under Auto — since the schedule is shared.)
+
+**"How do I show an after-tax income stream from BOTH the baseline and the conversion?"** (e.g., $60–70K starting at age 67) → Same feature: add the annual amount with Source = **Auto**. The baseline pulls it from the taxable IRA (client keeps less after tax); the strategy pulls it from the tax-free Roth (client keeps the full amount). That contrast IS the after-tax story. The amount is gross and shared across both scenarios — do NOT gross it up to hit a net target, because that also over-withdraws from the Roth side and skews the comparison.
+
 ## IRMAA (Medicare Income-Related Monthly Adjustment Amount)
 
 - IRMAA is a Medicare Part B / D surcharge based on MAGI from 2 years prior (2-year lookback).
@@ -282,7 +301,7 @@ The Lifetime Tax Cost tooltip splits taxes into matching buckets on both sides: 
 
 ## Year-by-year table columns (what each means)
 
-Click the "Adjust Columns" button (gear icon) above the table to add/remove/reorder columns. The ones advisors ask about most:
+Click the "Adjust Columns" button (sliders icon) above the table to add/remove/reorder columns. The ones advisors ask about most:
 
 - **Year / Age** - always shown, frozen left.
 - **Conversion** - amount converted from Traditional to Roth that year.
