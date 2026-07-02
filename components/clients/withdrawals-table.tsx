@@ -251,7 +251,7 @@ export function WithdrawalsTable() {
             </p>
           ) : (
             <div className="border rounded-md overflow-x-auto">
-              <table className="text-sm min-w-full" style={{ minWidth: "560px" }}>
+              <table className="text-sm min-w-full" style={{ minWidth: "720px" }}>
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium w-[100px]">Year</th>
