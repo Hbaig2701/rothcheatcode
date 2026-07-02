@@ -48,6 +48,7 @@ export function WithdrawalsTable() {
   const [endAgeStr, setEndAgeStr] = useState(String(endAge));
   const [recurringAmount, setRecurringAmount] = useState<number | null>(null);
   const [recurringSource, setRecurringSource] = useState<"auto" | "ira" | "roth">("auto");
+  const [recurringNet, setRecurringNet] = useState(false);
   const [recurringError, setRecurringError] = useState<string | null>(null);
 
   const handleAddYear = () => {
@@ -60,6 +61,7 @@ export function WithdrawalsTable() {
       age: nextAge,
       amount: lastEntry?.amount ?? 0,
       source: lastEntry?.source ?? "auto",
+      net: lastEntry?.net ?? false,
     });
   };
 
@@ -98,6 +100,7 @@ export function WithdrawalsTable() {
         age: a,
         amount: recurringAmount,
         source: recurringSource,
+        net: recurringNet,
       });
     }
     replace(rows);
@@ -208,7 +211,21 @@ export function WithdrawalsTable() {
                 ))}
               </select>
             </div>
+            <div>
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground block mb-1">Amount type</label>
+              <select
+                value={recurringNet ? "net" : "gross"}
+                onChange={(e) => setRecurringNet(e.target.value === "net")}
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="gross">Gross (pre-tax)</option>
+                <option value="net">Net (after-tax)</option>
+              </select>
+            </div>
           </div>
+          <p className="text-[11px] text-muted-foreground -mt-1">
+            <strong>Net (after-tax)</strong> grosses up the &quot;do nothing&quot; baseline&apos;s taxable IRA pull so the client nets this amount — draining that account faster. The Roth strategy is tax-free, so its withdrawal already equals the net amount.
+          </p>
           {recurringError && <p className="text-xs text-red-600">{recurringError}</p>}
           <div className="flex gap-2 pt-1">
             <Button
@@ -241,6 +258,7 @@ export function WithdrawalsTable() {
                     <th className="px-3 py-2 text-left font-medium w-[80px]">Age{ageSuffix}</th>
                     <th className="px-3 py-2 text-left font-medium">Amount</th>
                     <th className="px-3 py-2 text-left font-medium w-[180px]">Source</th>
+                    <th className="px-3 py-2 text-left font-medium w-[140px]">Amount type</th>
                     <th className="px-2 py-2 w-10"></th>
                   </tr>
                 </thead>
@@ -308,6 +326,23 @@ export function WithdrawalsTable() {
                                   {opt.label}
                                 </option>
                               ))}
+                            </select>
+                          )}
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top">
+                        <Controller
+                          control={form.control}
+                          name={`withdrawals.${idx}.net`}
+                          render={({ field: f }) => (
+                            <select
+                              value={f.value ? "net" : "gross"}
+                              onChange={(e) => f.onChange(e.target.value === "net")}
+                              className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                              title="Net grosses up the baseline's taxable IRA pull so the client nets this amount"
+                            >
+                              <option value="gross">Gross</option>
+                              <option value="net">Net (after-tax)</option>
                             </select>
                           )}
                         />

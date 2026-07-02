@@ -8,7 +8,7 @@ import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
-import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
+import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA, netIraTargetForYear } from '../utils/withdrawals';
 import { getMarginalBracket, computeTaxableIncomeWithSS } from '../tax-helpers';
 
 /**
@@ -123,7 +123,7 @@ export function runBaselineScenario(
     // distribution counts toward that year's RMD; you don't take an RMD on
     // top of a larger voluntary distribution).
     const wd = resolveWithdrawalsForYear(client, year, boyIRA, boyRoth);
-    const iraWithdrawal = wd.iraPulled;
+    let iraWithdrawal = wd.iraPulled;
     const rothWithdrawal = wd.rothPulled;
 
     // Net the voluntary against the RMD requirement:
@@ -135,14 +135,14 @@ export function runBaselineScenario(
     // the "what the IRS demanded this year" column), unchanged by whether
     // voluntary covered it. The actual forced shortfall and total are
     // tracked internally for the math.
-    const forcedRmdShortfall = Math.max(0, rmdRequired - iraWithdrawal);
+    let forcedRmdShortfall = Math.max(0, rmdRequired - iraWithdrawal);
     const rmdAmount = rmdRequired;
-    const effectiveIraDistribution = iraWithdrawal + forcedRmdShortfall;
+    let effectiveIraDistribution = iraWithdrawal + forcedRmdShortfall;
 
     // 10% early-withdrawal penalty applies only to voluntary IRA pulls under
     // 59.5 — at any age where an RMD requirement exists (73+), 59.5 is long
     // past, so there's no penalty interaction.
-    const earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
+    let earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
 
     // Primary SSI income (with COLA)
     const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
@@ -171,10 +171,53 @@ export function runBaselineScenario(
     // taxable IRA distribution is max(rmdRequired, iraWithdrawal) =
     // effectiveIraDistribution — never the sum. Roth withdrawals are tax-free
     // (assumed qualified) and excluded.
-    const grossTaxableIncome = effectiveIraDistribution + otherIncome;
+    let grossTaxableIncome = effectiveIraDistribution + otherIncome;
 
     // Standard deduction (age-adjusted) + any advisor-entered additional deductions
     const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, client.additional_deductions);
+
+    // NET (after-tax) withdrawal gross-up — BASELINE side only. If the advisor
+    // marked this withdrawal as an after-tax target, solve for the gross IRA
+    // pull that nets that amount after the marginal fed+state tax it triggers
+    // (stacked on top of the forced RMD + other income, SS-torpedo aware), then
+    // re-derive RMD satisfaction, penalty, and taxable income. The strategy side
+    // pulls from the tax-free Roth (net == gross) so it is untouched. Clients
+    // with no net-flagged withdrawal hit netTarget == 0 and stay byte-identical.
+    const netTarget = netIraTargetForYear(client, year);
+    if (netTarget > 0 && boyIRA > 0) {
+      const stateOverride = stateTaxRateOverride;
+      const taxAt = (voluntaryGross: number): number => {
+        const dist = Math.max(rmdRequired, voluntaryGross);
+        const ti = computeTaxableIncomeWithSS({
+          otherIncome: dist + otherIncome,
+          ssBenefits: ssIncome,
+          taxExemptInterest: taxExemptNonSSI,
+          deductions,
+          filingStatus: client.filing_status,
+        });
+        const fed = calculateFederalTax({ taxableIncome: ti.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax;
+        const st = calculateStateTax({ taxableIncome: ti.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateOverride }).totalTax;
+        return fed + st;
+      };
+      // Marginal tax caused by the VOLUNTARY pull (above the forced RMD).
+      const taxRmdOnly = taxAt(0);
+      let g = netTarget;
+      for (let i = 0; i < 12; i++) {
+        const marginalVol = Math.max(0, taxAt(g) - taxRmdOnly);
+        const netCash = g - marginalVol;
+        const err = netTarget - netCash;
+        if (Math.abs(err) < 100) break; // within $1
+        const effRate = g > 0 ? Math.min(0.6, marginalVol / g) : 0.25;
+        g += err / Math.max(0.2, 1 - effRate);
+        if (g >= boyIRA) { g = boyIRA; break; }
+        if (g < netTarget) g = netTarget;
+      }
+      iraWithdrawal = Math.min(Math.round(g), boyIRA);
+      forcedRmdShortfall = Math.max(0, rmdRequired - iraWithdrawal);
+      effectiveIraDistribution = iraWithdrawal + forcedRmdShortfall;
+      earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
+      grossTaxableIncome = effectiveIraDistribution + otherIncome;
+    }
 
     // Compute taxable income with proper SS taxation (tax torpedo).
     const taxInfo = computeTaxableIncomeWithSS({

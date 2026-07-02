@@ -115,6 +115,9 @@ export const withdrawalEntrySchema = z.object({
     z.number({ error: "Amount must be a number" }).int().min(0, "Amount must be positive")
   ),
   source: withdrawalSourceEnum.default("auto"),
+  // When true, `amount` is an after-tax (net) target: the baseline grosses up
+  // the taxable IRA pull to net it. Optional — absent/false = gross (legacy).
+  net: z.boolean().optional(),
 });
 
 // ============================================================================
@@ -640,6 +643,7 @@ export type ClientFormData = {
     age: number | string;
     amount: number;
     source: "ira" | "roth" | "auto";
+    net?: boolean;
   }>;
 
   // Section 6: Conversion

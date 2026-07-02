@@ -40,6 +40,13 @@ export interface WithdrawalEntry {
   age: number | string;  // for display only — engine uses year
   amount: number;        // cents
   source: WithdrawalSource;
+  // When true, `amount` is an AFTER-TAX (net) target for the baseline "do
+  // nothing" side: the engine grosses up the taxable IRA distribution so the
+  // client nets `amount` after the marginal tax it triggers, which drains the
+  // do-nothing IRA faster. The strategy side pulls from the tax-free Roth, so
+  // net == gross there and this flag is a no-op. Default (undefined/false) =
+  // amount is the gross withdrawal (legacy behavior — byte-identical).
+  net?: boolean;
 }
 
 export interface Client {

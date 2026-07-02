@@ -102,6 +102,30 @@ export function earlyWithdrawalPenaltyOnIRA(age: number, iraPulled: number): num
  * Sources NOT counted: 'roth' (means specifically the Roth IRA — the AUM
  * brokerage is not a Roth and shouldn't be used as a substitute).
  */
+/**
+ * After-tax (net) IRA withdrawal target for `year` — the sum of net-flagged
+ * withdrawal amounts that land on the IRA (source 'ira' or 'auto'). Roth-source
+ * entries are excluded: Roth withdrawals are tax-free, so net == gross and there
+ * is nothing to gross up. Returns 0 when no net-flagged IRA withdrawal exists
+ * (the common case), so the caller stays on the byte-identical gross path.
+ *
+ * Only the BASELINE ("do nothing") side grosses this up — see baseline.ts. The
+ * strategy pulls from the tax-free Roth, where net already equals gross.
+ */
+export function netIraTargetForYear(
+  client: { withdrawals?: WithdrawalEntry[] },
+  year: number,
+): number {
+  const list = client.withdrawals ?? [];
+  let total = 0;
+  for (const e of list) {
+    if (e.year !== year || !e.net) continue;
+    if (e.source === 'roth') continue; // tax-free — net == gross
+    total += Math.max(0, Math.round(e.amount ?? 0));
+  }
+  return total;
+}
+
 export function requestedFromQualifiedForYear(
   client: { withdrawals?: Array<{ year: number; amount?: number; source?: 'ira' | 'roth' | 'auto' }> },
   year: number,
