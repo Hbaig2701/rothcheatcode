@@ -363,7 +363,14 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
     const boyCombined = boyTraditional + boyRoth;
     const eoyCombined = year.traditionalBalance + year.rothBalance;
-    const distIra = scenario === 'baseline' ? year.rmdAmount : year.conversionAmount;
+    // Baseline "Dist IRA" must include voluntary pre-RMD withdrawals, not just
+    // the RMD. totalIRAWithdrawal = max(rmdRequired, voluntary IRA pull), so it
+    // surfaces income the advisor scheduled before age 73 — previously this
+    // column showed $0 in every pre-RMD year even with a withdrawal schedule
+    // set (Gerald Shaw ticket). Falls back to rmdAmount for legacy rows.
+    const distIra = scenario === 'baseline'
+      ? (year.totalIRAWithdrawal ?? year.rmdAmount)
+      : year.conversionAmount;
     // True interest = EOY - BOY + (money that left the combined balance this year).
     // What leaves: taxes paid FROM the IRA, spent IRA distributions (RMD +
     // voluntary pulls), and voluntary Roth withdrawals. Conversions move WITHIN
@@ -452,7 +459,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
         : formatCurrency(year.taxesPaidFromIRA ?? 0),
       bracket: formatPercent(bracket),
       converted: formatCurrency(year.conversionAmount),
-      distRoth: '$0',
+      distRoth: formatCurrency(rothWithdrawal),
       interest: formatCurrency(interest),
       eoyCombined: formatCurrency(eoyCombined),
       ssi: '',
@@ -544,7 +551,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       taxesIra: '',
       bracket: '',
       converted: formatCurrency(year.conversionAmount),
-      distRoth: '$0',
+      distRoth: formatCurrency(rothWithdrawal),
       interest: '',
       eoyCombined: '',
       ssi: '',
@@ -572,7 +579,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       : (year.taxesPaidFromIRA ?? 0);
     totRiderFee += year.riderFee ?? 0;
     totConverted += year.conversionAmount ?? 0;
-    totDistRoth += 0; // engine does not currently model Roth distributions
+    totDistRoth += rothWithdrawal; // voluntary Roth withdrawals (income the client takes)
     totInterest += interest;
     totSsi += year.ssIncome ?? 0;
     totTaxableSs += taxableSSAmount;
