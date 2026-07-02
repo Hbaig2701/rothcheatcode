@@ -272,6 +272,10 @@ interface TemplateData {
   lifetimeWealthBefore: string;
   lifetimeWealthAfter: string;
   wealthIncreasePercent: string;
+  wealthIncreaseDisplay: string;
+  wealthIncreaseClass: string;
+  wealthIncreaseDiffClass: string;
+  afterTaxInvert: boolean;
   reportDate: string;
   legacyChartSVG: string;
   baseline: ScenarioData;
@@ -358,7 +362,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const boyTraditional = prevYear
       ? prevYear.traditionalBalance
       : scenario === 'formula'
-        ? Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 10) / 100))
+        ? Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100))
         : (client.qualified_account_value ?? 0);
     const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
     const boyCombined = boyTraditional + boyRoth;
@@ -420,7 +424,12 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const taxesOutOfPocket = payTaxFromIraStrategy
       ? (year.irmaaSurcharge ?? 0)
       : year.totalTax;
-    const iraCashInflow = year.rmdAmount ?? 0;
+    // Cash the client actually receives from the IRA = the effective
+    // distribution (RMD OR voluntary pull, whichever is larger), NOT just the
+    // RMD. Using rmdAmount alone dropped advisor-scheduled pre-RMD withdrawals
+    // from Net (After-Tax) while still taxing them — understating (or negating)
+    // net income for any client with a withdrawal schedule (Gerald Shaw ticket).
+    const iraCashInflow = Math.max(year.rmdAmount ?? 0, year.iraWithdrawal ?? 0);
     const rothCashIn = year.rothWithdrawal ?? 0;
     // AUM-bucket spending withdrawals are real cash leaving the managed
     // brokerage and arriving in the client's bank. The companion LTCG tax is
@@ -508,7 +517,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       irmaaTotal: '',
       taxableNonIra: '',
       taxExemptNonIra: '',
-      taxesTotal: formatCurrency(year.totalTax + year.irmaaSurcharge),
+      taxesTotal: formatCurrency(year.totalTax),
       // Net (after-tax) spendable income — what actually hits the client's
       // bank account this year. Conversions are backed out of the strategy
       // side because converted dollars stay inside the Roth (not spendable).
@@ -870,7 +879,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     const prevYear = originalIndex > 0 ? projection.blueprint_years[originalIndex - 1] : null;
     const boyTraditional = prevYear
       ? prevYear.traditionalBalance
-      : Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 10) / 100));
+      : Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100));
     const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
     const boyCombined = boyTraditional + boyRoth;
     const eoyCombined = year.traditionalBalance + year.rothBalance;
@@ -976,7 +985,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     showSpouse,
     filingStatus: filingStatusMap[client.filing_status] || client.filing_status,
     initialDeposit: formatCurrency(client.qualified_account_value),
-    bonusRate: client.bonus_percent ?? 10,
+    bonusRate: client.bonus_percent ?? 0,
     // Pre-computed for the PDF so the template can show "starting balance
     // with bonus applied" alongside the raw deposit — matches what the
     // engine actually starts year 1 with and what the in-app Account
@@ -1002,6 +1011,15 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     lifetimeWealthBefore: formatCurrency(baseLifetimeWealth),
     lifetimeWealthAfter: formatCurrency(blueLifetimeWealth),
     wealthIncreasePercent: wealthIncrease.toFixed(2),
+    // Sign-aware display + color class so a strategy that REDUCES lifetime
+    // wealth doesn't render as a green "+-5.00%" on the headline / wealth table.
+    wealthIncreaseDisplay: (wealthIncrease >= 0 ? '+' : '') + wealthIncrease.toFixed(2),
+    wealthIncreaseClass: wealthIncrease >= 0 ? 'positive' : 'negative',
+    wealthIncreaseDiffClass: wealthIncrease >= 0 ? 'diff-positive' : 'diff-negative',
+    // "After-Tax Distributions Spent": avoiding forced distributions is
+    // FAVORABLE in reinvested/cash mode (green), but is lost spendable income
+    // in 'spent' mode (red). Mirror the dashboard's invertColor logic.
+    afterTaxInvert: rmdTreatment !== 'spent',
     reportDate: new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',

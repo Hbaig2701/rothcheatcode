@@ -193,6 +193,10 @@
       color: #22c55e;
     }
 
+    .metric-value.negative {
+      color: #dc2626;
+    }
+
     .metric-value.highlight {
       color: #16a34a;
       font-size: 14pt;
@@ -486,7 +490,7 @@
         </div>
         <div class="metric-row">
           <span class="metric-label">Increase</span>
-          <span class="metric-value positive">+{{wealthIncreasePercent}}%</span>
+          <span class="metric-value {{wealthIncreaseClass}}">{{wealthIncreaseDisplay}}%</span>
         </div>
       </div>
     </div>
@@ -560,7 +564,7 @@
           <td>After-Tax Distributions Spent</td>
           <td>{{baseline.afterTaxDistributions}}</td>
           <td>{{strategy.afterTaxDistributions}}</td>
-          <td>{{{formatDiff diff.afterTax false}}}</td>
+          <td>{{{formatDiff diff.afterTax afterTaxInvert}}}</td>
         </tr>
       </table>
 
@@ -614,7 +618,7 @@
           <td><strong>Lifetime Wealth</strong></td>
           <td><strong>{{baseline.lifetimeWealth}}</strong></td>
           <td><strong>{{strategy.lifetimeWealth}}</strong></td>
-          <td><strong class="diff-positive">{{wealthIncreasePercent}}%</strong></td>
+          <td><strong class="{{wealthIncreaseDiffClass}}">{{wealthIncreaseDisplay}}%</strong></td>
         </tr>
       </table>
     </div>
