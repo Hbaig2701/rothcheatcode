@@ -213,3 +213,15 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 **Demand signal:** Tim Wright (Jun 30 2026). Latent for every high-guaranteed-income client whose target bracket is below where their SS+RMD income lands.
 
 **Estimated effort:** ~0.5 day (Story Mode copy branch + a "stalled vs emptied" helper; no engine math).
+
+---
+
+## Net (after-tax) income-target withdrawals — per-scenario gross-up
+
+**The pitch:** Section 8 withdrawals take a single GROSS dollar amount, shared across baseline and strategy. Advisors think in AFTER-TAX income ("the client needs $70K/yr to live on"). Today the same gross $70K comes out of both sides — the do-nothing IRA pull is taxable (client nets ~$54K) while the Roth pull is tax-free (nets $70K), and you can't set different amounts per scenario (source "Auto" shares the number; grossing up the baseline also over-withdraws the Roth). So the report UNDERSTATES the do-nothing depletion: in reality the client would pull MORE gross from the taxable IRA to net their target, draining it faster — which favors the Roth. Gerald Shaw (Bo Cline, Jul 2 2026): "wouldn't it be more accurate to show net rather than gross… the Baseline would draw down faster and favor the conversion if the withdrawals were after-tax?" He's right.
+
+**What it requires:** a per-year "net income target" mode on the withdrawal schedule — the engine solves each scenario independently for the GROSS pull that nets the requested after-tax amount (baseline grosses up for the marginal tax on the IRA distribution; strategy pulls the target straight from the tax-free Roth). Needs: a toggle on the withdrawals table (Gross vs Net/after-tax), a per-scenario solver (iterate gross → tax → net like the from-IRA conversion-tax gross-up already does), and clear labeling on the PDF ("after-tax income $X"). Baseline and strategy would show DIFFERENT gross Dist IRA / Dist Roth for the same net income — that's the point.
+
+**Demand signal:** Gerald Shaw (Jul 2 2026), and latent for every "income + legacy" client (retirees drawing living expenses from the accounts). The gross-only limitation also produced a bad support back-and-forth (my own wrong "just bump it to $85-90K" suggestion, which the shared-schedule breaks).
+
+**Estimated effort:** ~1.5–2 days (per-scenario net→gross solver reusing the existing gross-up iteration, a schedule toggle, PDF/label updates). Display of gross withdrawals is now correct (Dist IRA/Dist Roth fix, Jul 2 2026) — this builds the net mode on top.
