@@ -17,6 +17,11 @@ const videos = [
     loomId: '28fcb6cae434460a9744b2e1b5c79d99',
   },
   {
+    title: "Understanding Your Client's Results",
+    description: 'Learn how to read a projection - the baseline vs. strategy comparison, lifetime wealth, legacy to heirs, taxes, and the year-by-year tables - so you can confidently explain the numbers to your clients.',
+    loomId: 'a7adac83c7db41e7826f339e448798df',
+  },
+  {
     title: 'Adding Team Members',
     description: 'Learn how to invite team members to your account so they can collaborate on client cases.',
     loomId: 'da607e87203a4f499327b3b9018225e2',
