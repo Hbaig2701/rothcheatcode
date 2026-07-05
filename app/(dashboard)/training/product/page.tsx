@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { GraduationCap, Play, ArrowLeft } from 'lucide-react'
-
-const LOOM_PARAMS = 'hide_owner=true&hide_share=true&hide_title=true&hideEmbedTopBar=true'
+import { GraduationCap, ArrowLeft } from 'lucide-react'
+import { LessonList } from '@/components/training/lesson-list'
 
 const videos = [
   {
@@ -70,36 +69,7 @@ export default async function ProductTrainingPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {videos.map((video, index) => (
-          <div
-            key={video.loomId}
-            className="rounded-[14px] bg-bg-card border border-border-default overflow-hidden transition-all hover:border-gold-border"
-          >
-            <div className="relative w-full aspect-video">
-              <iframe
-                src={`https://www.loom.com/embed/${video.loomId}?${LOOM_PARAMS}`}
-                frameBorder="0"
-                allowFullScreen
-                className="absolute inset-0 w-full h-full"
-              />
-            </div>
-
-            <div className="px-5 py-4">
-              <div className="flex items-center gap-2.5 mb-1.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-[7px] bg-accent border border-gold-border">
-                  <Play className="h-3.5 w-3.5 text-gold" />
-                </div>
-                <span className="text-xs font-semibold uppercase tracking-[1.5px] text-text-dimmer">
-                  Lesson {index + 1}
-                </span>
-              </div>
-              <h2 className="text-lg font-semibold text-foreground mb-1">{video.title}</h2>
-              <p className="text-sm text-text-dim leading-relaxed">{video.description}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+      <LessonList videos={videos} />
 
       <div className="mt-8 rounded-[14px] bg-bg-card border border-border-default px-6 py-5 text-center">
         <p className="text-sm text-text-dimmer">
