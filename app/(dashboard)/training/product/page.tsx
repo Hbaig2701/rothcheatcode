@@ -31,6 +31,11 @@ const videos = [
     description: 'See how to generate and customize professional PDF reports to share with your clients.',
     loomId: '1914f9854f474d90b28051524caa8b4c',
   },
+  {
+    title: 'How to Submit a Support Ticket',
+    description: 'Learn how to report an issue or ask a question - what to include so the team can help you fast, and where to track the response.',
+    loomId: 'a4218180edf741b9b3f27ceef0b0662c',
+  },
 ]
 
 export default async function ProductTrainingPage() {
