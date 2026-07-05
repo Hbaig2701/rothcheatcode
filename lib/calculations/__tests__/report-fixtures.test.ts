@@ -420,11 +420,14 @@ const PAUL_EXPECTED = {
     // (netWorth +$283K, taxOnConversions +$68K) is driven by v66's
     // self-consistent gross-up + v64 RMD-funds-tax. totalFedStateTax ==
     // taxOnRMDs still hold (helper ≡ canonical), only the locked constant moved.
-    finalNetWorth:        199_722_613,
+    // finalNetWorth + lifetimeWealth re-locked v71 (2026-07-05): IRMAA 2026
+    // brackets corrected (Lori Avant). Raised thresholds drop Paul a tier in
+    // some years → less IRMAA drag → +$4,939 (199,722,613 → 200,216,521).
+    finalNetWorth:        200_216_521,
     finalTraditional:               0, // floored from -$14.72 (negative-IRA residual; see formula.ts iraAfterConversion floor)
     finalRoth:            174_689_507,
     finalTaxable:          25_033_106,
-    lifetimeWealth:       199_722_613,
+    lifetimeWealth:       200_216_521,
     taxOnConversions:      18_047_690,
     totalFedStateTax:      20_828_449,
     // Same "matching" pattern as base — fixed-amount conversion leaves RMDs
@@ -517,11 +520,15 @@ const SPRENGEL_EXPECTED = {
     // "reinvested RMDs accumulate in taxable account" (plus 4fbb38d voluntary-
     // satisfies-RMD and the 1960+ RMD-age fix). finalTraditional / forced-
     // Distributions are unchanged, consistent with a reinvestment-side change.
-    finalNetWorth:        648_268_744,
+    // finalNetWorth/finalTaxable/lifetimeWealth re-locked v71 (2026-07-05):
+    // IRMAA 2026 brackets corrected (Lori Avant). Sprengel's baseline MAGI stays
+    // above the raised thresholds, so the higher 2026 surcharges add ~$2,340 of
+    // lifetime IRMAA drag → net worth −$233,985 cents (648,268,744 → 648,034,759).
+    finalNetWorth:        648_034_759,
     finalTraditional:     401_190_516,
     finalRoth:                      0,
-    finalTaxable:         247_078_228,
-    lifetimeWealth:       487_792_538,
+    finalTaxable:         246_844_243,
+    lifetimeWealth:       487_558_553,
     forcedDistributions:  396_578_978,
     totalFedStateTax:     191_368_364,
     taxOnRMDs:            111_048_140,

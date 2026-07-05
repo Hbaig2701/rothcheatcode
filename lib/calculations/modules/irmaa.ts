@@ -2,6 +2,7 @@ import type { IRMAAResult } from '../types';
 import {
   getIRMAATier,
   getIRMAASurcharge,
+  getIRMAATierIndex,
   calculateIRMAAHeadroom as getHeadroom,
   calculateIRMAAHeadroomToTarget as getHeadroomToTarget,
   isNearIRMAACliff
@@ -35,13 +36,9 @@ export function calculateIRMAA(input: IRMAAInput): IRMAAResult {
   const tier = getIRMAATier(input.magi, isJoint, year);
   const annualSurcharge = getIRMAASurcharge(input.magi, isJoint, year);
 
-  // For tier index, count from 0 (standard) upward
-  const tierIndex = annualSurcharge === 0 ? 0 :
-    annualSurcharge <= 84000 ? 1 :   // Single Tier 1
-    annualSurcharge <= 210000 ? 2 :  // Single Tier 2
-    annualSurcharge <= 336000 ? 3 :  // Single Tier 3
-    annualSurcharge <= 462000 ? 4 :  // Single Tier 4
-    5;                                // Single Tier 5
+  // Tier index derived from the threshold position (robust to surcharge-amount
+  // changes and correct for joint filers, whose surcharge is 2× the single).
+  const tierIndex = getIRMAATierIndex(input.magi, isJoint, year);
 
   return {
     tier: tierIndex,

@@ -76,12 +76,14 @@ for (const status of ['single', 'married_filing_jointly', 'head_of_household'] a
 // 2-year lookback: surcharge at year T reflects MAGI at year T−2.
 // 2026 single thresholds (cents) and per-person monthly surcharge.
 // ---------------------------------------------------------------------------
+// Actual CMS 2026 figures (corrected v71 — Lori Avant ticket). Must mirror
+// lib/data/irmaa-brackets.ts exactly, including its 2.5% threshold inflation.
 const IRMAA_SINGLE: { upTo: number; monthly: number }[] = [
-  { upTo: 10_300_000, monthly: 0 }, { upTo: 12_900_000, monthly: 7_000 }, { upTo: 16_100_000, monthly: 17_500 },
-  { upTo: 19_300_000, monthly: 28_000 }, { upTo: 50_000_000, monthly: 38_500 }, { upTo: Infinity, monthly: 42_000 },
+  { upTo: 10_900_000, monthly: 0 }, { upTo: 13_700_000, monthly: 8_120 }, { upTo: 17_100_000, monthly: 20_290 },
+  { upTo: 20_500_000, monthly: 32_460 }, { upTo: 50_000_000, monthly: 44_630 }, { upTo: Infinity, monthly: 48_700 },
 ];
 function irmaaThresholdInflate(upTo: number, year: number) {
-  return upTo === Infinity ? Infinity : Math.round((upTo * Math.pow(1.03, Math.max(0, year - 2026))) / 100) * 100;
+  return upTo === Infinity ? Infinity : Math.round((upTo * Math.pow(1.025, Math.max(0, year - 2026))) / 100) * 100;
 }
 function expectedIrmaaSingle(magi: number, year: number): number {
   for (const t of IRMAA_SINGLE) {

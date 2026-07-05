@@ -28,7 +28,7 @@ export function IrmaaBody() {
         <p className="text-base text-text-dim leading-relaxed mb-3">
           IRMAA - Income-Related Monthly Adjustment Amount - is a surcharge on Medicare Part B and
           Part D premiums. Anyone on Medicare with <Term name="magi">MAGI</Term> above a threshold
-          pays it; below the threshold, they pay the standard premium (~$185/month for Part B in
+          pays it; below the threshold, they pay the standard premium ($202.90/month for Part B in
           2026).
         </p>
         <p className="text-base text-text-dim leading-relaxed">

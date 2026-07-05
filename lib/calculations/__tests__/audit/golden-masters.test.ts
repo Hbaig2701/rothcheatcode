@@ -53,7 +53,11 @@ const GROWTH_EXPECTED = {
   formulaFinalNetWorth: 574_946_268,
   formulaFinalRoth: 574_946_268,
   totalConversions: 114_310_724,
-  totalTax: 44_134_750,
+  // totalTax re-locked v71 (2026-07-05): IRMAA 2026 brackets corrected to actual
+  // CMS figures (Lori Avant ticket). Higher surcharges add ~$4.4K lifetime IRMAA
+  // to this MFJ/CA strategy (44,134,750 → 44,576,110); net worth unchanged
+  // (IRMAA is a cost, not an account outflow, in this scenario).
+  totalTax: 44_576_110,
   totalRiderFee: 1_870_297,
 };
 
@@ -77,13 +81,18 @@ const gi = summarize(makeClient({
 //   • F17 (Roth annuity no longer heir-taxed) doesn't move these 4 fields.
 // Verified: invariants 0 breaches; the gi-bug-quantify diagnostic ties the new
 // conversion + income tax to an independent progressive recompute to the dollar.
+// baseFinalNetWorth + totalTax re-locked v71 (2026-07-05): IRMAA 2026 brackets
+// corrected to actual CMS figures (Lori Avant ticket). Raised thresholds drop
+// this single/TX filer a tier in some years → less lifetime IRMAA (totalTax
+// 19,401,440 → 19,330,040) and a slightly higher do-nothing net worth
+// (355,548,789 → 355,783,006). Strategy net worth / conversions unchanged.
 const GI_EXPECTED = {
-  baseFinalNetWorth: 355_548_789,
+  baseFinalNetWorth: 355_783_006,
   baseFinalTraditional: 0,
   formulaFinalNetWorth: 346_364_931,
   formulaFinalRoth: 0,
   totalConversions: 81_459_692,
-  totalTax: 19_401_440,
+  totalTax: 19_330_040,
   totalRiderFee: 22_588_240,
 };
 

@@ -19,69 +19,73 @@ export interface IRMAATier {
 }
 
 /**
- * 2026 IRMAA Thresholds and Surcharges
- * Thresholds increase ~2.5% annually for inflation per spec
+ * 2026 IRMAA Thresholds and Surcharges — actual CMS-published figures.
+ *
+ * Source: CMS "2026 Medicare Parts A & B Premiums and Deductibles" fact sheet
+ * (cms.gov, Nov 2025) + SSA POMS HI 01101.020. 2026 standard Part B premium is
+ * $202.90/mo; the surcharge = (tier total premium − standard). Based on 2024
+ * MAGI (2-year lookback). Thresholds increase ~2.5%/yr for inflation past 2026.
  */
 export const IRMAA_TIERS_2026: IRMAATier[] = [
-  // Tier 0: Standard premium (no surcharge)
+  // Tier 0: Standard premium (no surcharge) — total $202.90/mo
   {
     singleLower: 0,
-    singleUpper: 10300000,          // $103,000
+    singleUpper: 10900000,          // $109,000
     jointLower: 0,
-    jointUpper: 20600000,           // $206,000
+    jointUpper: 21800000,           // $218,000
     monthlyPartBSurcharge: 0,
     annualSurchargeSingle: 0,
     annualSurchargeCouple: 0
   },
-  // Tier 1
+  // Tier 1 — total $284.10/mo
   {
-    singleLower: 10300000,          // $103,000
-    singleUpper: 12900000,          // $129,000
-    jointLower: 20600000,           // $206,000
-    jointUpper: 25800000,           // $258,000
-    monthlyPartBSurcharge: 7000,    // $70.00/month
-    annualSurchargeSingle: 84000,   // $840/year
-    annualSurchargeCouple: 168000   // $1,680/year
+    singleLower: 10900000,          // $109,000
+    singleUpper: 13700000,          // $137,000
+    jointLower: 21800000,           // $218,000
+    jointUpper: 27400000,           // $274,000
+    monthlyPartBSurcharge: 8120,    // $81.20/month
+    annualSurchargeSingle: 97440,   // $974.40/year
+    annualSurchargeCouple: 194880   // $1,948.80/year
   },
-  // Tier 2
+  // Tier 2 — total $405.80/mo
   {
-    singleLower: 12900000,          // $129,000
-    singleUpper: 16100000,          // $161,000
-    jointLower: 25800000,           // $258,000
-    jointUpper: 32200000,           // $322,000
-    monthlyPartBSurcharge: 17500,   // $175.00/month
-    annualSurchargeSingle: 210000,  // $2,100/year
-    annualSurchargeCouple: 420000   // $4,200/year
+    singleLower: 13700000,          // $137,000
+    singleUpper: 17100000,          // $171,000
+    jointLower: 27400000,           // $274,000
+    jointUpper: 34200000,           // $342,000
+    monthlyPartBSurcharge: 20290,   // $202.90/month
+    annualSurchargeSingle: 243480,  // $2,434.80/year
+    annualSurchargeCouple: 486960   // $4,869.60/year
   },
-  // Tier 3
+  // Tier 3 — total $527.50/mo
   {
-    singleLower: 16100000,          // $161,000
-    singleUpper: 19300000,          // $193,000
-    jointLower: 32200000,           // $322,000
-    jointUpper: 38600000,           // $386,000
-    monthlyPartBSurcharge: 28000,   // $280.00/month
-    annualSurchargeSingle: 336000,  // $3,360/year
-    annualSurchargeCouple: 672000   // $6,720/year
+    singleLower: 17100000,          // $171,000
+    singleUpper: 20500000,          // $205,000
+    jointLower: 34200000,           // $342,000
+    jointUpper: 41000000,           // $410,000
+    monthlyPartBSurcharge: 32460,   // $324.60/month
+    annualSurchargeSingle: 389520,  // $3,895.20/year
+    annualSurchargeCouple: 779040   // $7,790.40/year
   },
-  // Tier 4
+  // Tier 4 — total $649.20/mo
   {
-    singleLower: 19300000,          // $193,000
+    singleLower: 20500000,          // $205,000
     singleUpper: 50000000,          // $500,000
-    jointLower: 38600000,           // $386,000
+    jointLower: 41000000,           // $410,000
     jointUpper: 75000000,           // $750,000
-    monthlyPartBSurcharge: 38500,   // $385.00/month
-    annualSurchargeSingle: 462000,  // $4,620/year
-    annualSurchargeCouple: 924000   // $9,240/year
+    monthlyPartBSurcharge: 44630,   // $446.30/month
+    annualSurchargeSingle: 535560,  // $5,355.60/year
+    annualSurchargeCouple: 1071120  // $10,711.20/year
   },
-  // Tier 5: Highest bracket
+  // Tier 5: Highest bracket — total $689.90/mo
   {
     singleLower: 50000000,          // $500,000
     singleUpper: Infinity,
     jointLower: 75000000,           // $750,000
     jointUpper: Infinity,
-    monthlyPartBSurcharge: 42000,   // $420.00/month
-    annualSurchargeSingle: 504000,  // $5,040/year
-    annualSurchargeCouple: 1008000  // $10,080/year
+    monthlyPartBSurcharge: 48700,   // $487.00/month
+    annualSurchargeSingle: 584400,  // $5,844.00/year
+    annualSurchargeCouple: 1168800  // $11,688.00/year
   }
 ];
 
@@ -128,6 +132,21 @@ export function getIRMAATier(magi: number, isJoint: boolean, year: number = 2026
 export function getIRMAASurcharge(magi: number, isJoint: boolean, year: number = 2026): number {
   const tier = getIRMAATier(magi, isJoint, year);
   return isJoint ? tier.annualSurchargeCouple : tier.annualSurchargeSingle;
+}
+
+/**
+ * Tier INDEX (0 = Standard … 5 = highest) for a given MAGI + filing status.
+ * Derived from the threshold position — NOT reverse-engineered from the
+ * surcharge dollar amount (which is fragile and mislabels joint filers, whose
+ * surcharge is 2× the single amount).
+ */
+export function getIRMAATierIndex(magi: number, isJoint: boolean, year: number = 2026): number {
+  const adjustedTiers = getAdjustedTiers(year);
+  for (let i = adjustedTiers.length - 1; i >= 0; i--) {
+    const lower = isJoint ? adjustedTiers[i].jointLower : adjustedTiers[i].singleLower;
+    if (magi >= lower) return i;
+  }
+  return 0;
 }
 
 /**

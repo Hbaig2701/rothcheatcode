@@ -262,7 +262,7 @@ Key behaviors:
 ## IRMAA (Medicare Income-Related Monthly Adjustment Amount)
 
 - IRMAA is a Medicare Part B / D surcharge based on MAGI from 2 years prior (2-year lookback).
-- 2026 single-filer tiers: standard premium up to $103K MAGI; +$840/yr at $103K; +$2,100/yr at $129K; +$3,360/yr at $161K; +$4,620/yr at $193K; +$5,040/yr at $500K+.
+- 2026 single-filer tiers (standard Part B premium is $202.90/mo; these are the SURCHARGES on top): standard up to $109K MAGI; +$974/yr at $109K; +$2,435/yr at $137K; +$3,895/yr at $171K; +$5,356/yr at $205K; +$5,844/yr at $500K+. The engine models only the surcharge (the marginal cost of a conversion pushing MAGI up a tier), not the base premium everyone pays.
 - Joint-filer thresholds are 2x single for tiers 1-4. Tier 5 (highest) is $750K joint, NOT $1M — that's 1.5x single, not 2x. Surcharges are 2x single (per couple) at every tier.
 - To make the engine respect IRMAA tiers, set the **Additional Constraint dropdown** in section "4. Tax Data" to "Bracket Ceiling + IRMAA Tier cap", then pick the **Target IRMAA Tier** the client should stay at or below. From age 63+, the engine then sizes each year's conversion to keep MAGI under that tier's ceiling (age 65 IRMAA is set by age-63 MAGI). This control is in section 4, NOT section 6.
 - IRMAA tiers are inflated 2.5% annually for years past 2026.
