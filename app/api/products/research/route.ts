@@ -1005,7 +1005,25 @@ function normalizeConfigPayload(raw: Record<string, unknown>, category: "growth"
         joint: (payouts.joint as Record<string, number>) ?? {},
       },
       payout_increment_per_year: num(income.payout_increment_per_year, 0.1),
-      enhanced_income: income.enhanced_income ?? null,
+      // Normalize enhanced_income defensively — like every other field here.
+      // The AI sometimes surfaces a PARTIAL object (e.g. multipliers but no
+      // `included`/`max_years`/`waiting_period`), which then failed save-time
+      // validation ("expected boolean, received undefined") with no form
+      // control to fix it (Zachariah Bryan / F&G Performance Pro ticket).
+      // enhanced_income is stored metadata — the projection engine does not
+      // consume it — so filling sensible defaults is calc-safe.
+      enhanced_income: (() => {
+        const ei = income.enhanced_income;
+        if (ei == null || typeof ei !== "object") return null;
+        const e = ei as Record<string, unknown>;
+        return {
+          included: bool(e.included, true),
+          multiplier_single: num(e.multiplier_single, 2),
+          multiplier_joint: num(e.multiplier_joint, 2),
+          max_years: Math.max(0, Math.round(num(e.max_years, 5))),
+          waiting_period: Math.max(0, Math.round(num(e.waiting_period, 0))),
+        };
+      })(),
       confidence: str(income.confidence, "assumed" as const),
     };
   } else {

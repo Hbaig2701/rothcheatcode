@@ -100,12 +100,18 @@ const incomeSchema = z.object({
     joint: payoutByAgeSchema,
   }),
   payout_increment_per_year: z.number().min(0).max(2).optional(),
+  // Inner fields carry defaults so a PARTIAL enhanced_income object (e.g. an AI
+  // extraction that surfaced multipliers but omitted `included`) auto-completes
+  // instead of hard-failing save with "expected boolean, received undefined".
+  // The object stays nullable/optional — absence is still fine. enhanced_income
+  // is stored metadata (not consumed by the projection engine), so defaulting
+  // is calc-safe. (Zachariah Bryan / F&G Performance Pro ticket.)
   enhanced_income: z.object({
-    included: z.boolean(),
-    multiplier_single: z.number().min(1).max(5),
-    multiplier_joint: z.number().min(1).max(5),
-    max_years: z.number().int().min(0).max(20),
-    waiting_period: z.number().int().min(0).max(20),
+    included: z.boolean().default(false),
+    multiplier_single: z.number().min(1).max(5).default(1),
+    multiplier_joint: z.number().min(1).max(5).default(1),
+    max_years: z.number().int().min(0).max(20).default(0),
+    waiting_period: z.number().int().min(0).max(20).default(0),
   }).nullable().optional(),
   confidence: confidenceEnum,
 });
