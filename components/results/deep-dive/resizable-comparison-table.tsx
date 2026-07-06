@@ -274,6 +274,11 @@ export function ResizableComparisonTable({
     const bgClass = rowIndex % 2 === 0 ? 'bg-background' : 'bg-bg-card';
     const baseRow = baselineData[rowIndex];
     const stratRow = strategyData[rowIndex];
+    // Use the column's accessor (e.g. Other Income subtracting the external-RMD
+    // breakout) when present, else the raw field.
+    const cellVal = (r: unknown) => sc.parent.accessor
+      ? sc.parent.accessor(r as Record<string, any>)
+      : (r as Record<string, unknown> | undefined)?.[sc.parentId];
 
     let contents: React.ReactNode = '—';
     let extraClass = '';
@@ -281,20 +286,17 @@ export function ResizableComparisonTable({
     const alignClass = isNumeric ? 'text-right font-mono tabular-nums' : 'text-left';
 
     if (sc.parent.category === 'core') {
-      const v = (baseRow as unknown as Record<string, unknown>)?.[sc.parentId];
-      contents = sc.parent.formatter(v);
+      contents = sc.parent.formatter(cellVal(baseRow));
     } else if (sc.kind === 'base') {
-      const v = (baseRow as unknown as Record<string, unknown>)?.[sc.parentId];
-      contents = sc.parent.formatter(v);
+      contents = sc.parent.formatter(cellVal(baseRow));
       extraClass = 'text-text-muted';
     } else if (sc.kind === 'strat') {
-      const v = (stratRow as unknown as Record<string, unknown>)?.[sc.parentId];
-      contents = sc.parent.formatter(v);
+      contents = sc.parent.formatter(cellVal(stratRow));
       extraClass = 'text-foreground';
     } else if (sc.kind === 'diff') {
       if (isDiffable(sc.parent)) {
-        const baseVal = Number((baseRow as unknown as Record<string, unknown>)?.[sc.parentId] ?? 0);
-        const stratVal = Number((stratRow as unknown as Record<string, unknown>)?.[sc.parentId] ?? 0);
+        const baseVal = Number(cellVal(baseRow) ?? 0);
+        const stratVal = Number(cellVal(stratRow) ?? 0);
         const delta = stratVal - baseVal;
         const inverse = INVERSE_CATEGORIES.has(sc.parent.category);
         // Green = "good for strategy". For inverse categories (taxes, IRMAA),

@@ -26,6 +26,11 @@ export interface ColumnDefinition {
   category: ColumnCategory;                // For grouping in modal
   description?: string;                    // Tooltip/help text
   formatter: (value: any) => string;       // Display formatter
+  // Optional: derive the displayed value from the whole row instead of row[id].
+  // Used e.g. by "Other Income" to subtract out the external-RMD breakout so it
+  // isn't double-shown alongside the "RMD (External)" column. Falls back to
+  // row[id] when absent, so cached rows lacking the extra field are unaffected.
+  accessor?: (row: Record<string, any>) => any;
   frozen?: boolean;                        // Cannot be deselected (Year, Age)
   defaultVisible: boolean;                 // Visible by default
   visibleForProducts: ('growth' | 'gi' | 'all')[];
@@ -399,6 +404,10 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
   },
   {
     id: 'otherIncome',
+    // Subtract the external-RMD breakout so RMDs (internal AND external) never
+    // appear in Other Income — the external RMD has its own "RMD (External)"
+    // column, matching how internal RMDs live only in the RMD column.
+    accessor: (row) => (Number(row.otherIncome) || 0) - (Number(row.externalRmd) || 0),
     label: 'Other Income (All)',
     category: 'income',
     description: 'Total of all non-SSI income for this year (pension, rental, dividends, capital gains, wages, etc. combined). This is the aggregate used in tax calculations.',

@@ -156,7 +156,7 @@ export function ResizableTable({
 
   const renderCell = (col: ColumnDefinition, row: YearlyResult, rowIndex: number, isFrozen: boolean, frozenIndex: number) => {
     const width = getColumnWidth(col);
-    const value = (row as any)[col.id];
+    const value = col.accessor ? col.accessor(row as Record<string, any>) : (row as any)[col.id];
     const formatted = col.formatter(value);
     const isLastFrozen = isFrozen && frozenIndex === frozenColumns.length - 1;
     const bgClass = rowIndex % 2 === 0 ? 'bg-background' : 'bg-bg-card';
