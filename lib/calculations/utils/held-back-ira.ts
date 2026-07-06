@@ -32,9 +32,16 @@ import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '@/lib/calcula
  * RMDs on top. Net: do-nothing RMDs on the full balance, strategy RMDs on just
  * the held-back amount. The plain toggle (no held-back balance) is unchanged.
  */
-export function applyHeldBackIraRmd(client: Client): Client {
+/**
+ * The held-back IRA's per-year RMD schedule (year -> RMD in cents). Grows +
+ * RMD-depletes the balance so each year's RMD is correct. Empty map when the
+ * feature is off. Exposed so the route can also surface these as a display-only
+ * "RMD (External)" column on the year-by-year rows.
+ */
+export function computeHeldBackRmdSchedule(client: Client): Map<number, number> {
   const startBalance = client.held_back_ira_balance ?? 0;
-  if (startBalance <= 0) return client;
+  const rmdByYear = new Map<number, number>();
+  if (startBalance <= 0) return rmdByYear;
 
   const currentYear = new Date().getFullYear();
   const clientAge = client.age && client.age > 0 ? client.age : 62;
@@ -49,7 +56,6 @@ export function applyHeldBackIraRmd(client: Client): Client {
   // Grow + RMD-deplete the held-back balance year by year. RMD is taken on the
   // beginning-of-year balance (calculateRMD returns 0 before the client's SECURE
   // 2.0 start age), then the remainder grows — mirroring the engines' order.
-  const rmdByYear = new Map<number, number>();
   let balance = startBalance;
   for (let offset = 0; offset < projectionYears; offset++) {
     const age = getAgeAtYearOffset(clientAge, offset);
@@ -60,6 +66,20 @@ export function applyHeldBackIraRmd(client: Client): Client {
     }
     balance += Math.round(balance * growthRate);
   }
+  return rmdByYear;
+}
+
+export function applyHeldBackIraRmd(client: Client): Client {
+  const startBalance = client.held_back_ira_balance ?? 0;
+  if (startBalance <= 0) return client;
+
+  const currentYear = new Date().getFullYear();
+  const clientAge = client.age && client.age > 0 ? client.age : 62;
+  const projectionYears = client.age && client.end_age
+    ? client.end_age - client.age
+    : (client.projection_years ?? 30);
+
+  const rmdByYear = computeHeldBackRmdSchedule(client);
   if (rmdByYear.size === 0) return client;
 
   // Merge into a full per-year non-SSI income table, preserving the client's

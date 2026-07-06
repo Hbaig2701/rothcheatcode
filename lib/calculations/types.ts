@@ -295,6 +295,13 @@ export interface YearlyResult {
   // `totalTax`.
   aumScheduledWithdrawal?: number;
 
+  // Held-back Traditional IRA — the RMD taken from the client's OTHER IRA (the
+  // one outside this annuity). Display-only: it is already included in this
+  // year's taxable income (otherIncome), so it does NOT touch rmdAmount (which
+  // is load-bearing for cash-flow/distribution/PDF math). Surfaced as an
+  // optional "RMD (External)" column so advisors can see it as an RMD.
+  externalRmd?: number;
+
   // Guaranteed Income-specific (optional, for GI products)
   incomeRiderValue?: number; // Income benefit base (in cents)
   accumulationValue?: number; // Account accumulation value (in cents)

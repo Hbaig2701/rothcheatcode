@@ -284,6 +284,17 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     minWidth: 90,
   },
   {
+    id: 'externalRmd',
+    label: 'RMD (External)',
+    category: 'distributions',
+    description: "RMD taken from the client's held-back Traditional IRA — the IRA outside this annuity (entered under \"RMDs Handled Externally\"). It's already included in this year's taxable income and taxed in the correct brackets; this column just breaks it out so you can see the external RMD as an RMD.",
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['all'],
+    defaultWidth: 140,
+    minWidth: 100,
+  },
+  {
     id: 'conversionAmount',
     label: 'Conversion',
     category: 'distributions',
