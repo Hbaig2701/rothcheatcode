@@ -19,10 +19,18 @@ import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '@/lib/calcula
  * are intentionally NOT added to the net-worth totals (they're identical on both
  * sides, so they wash out of the "Additional Lifetime Wealth" delta). Returns the
  * client unchanged when the feature is off, so existing cases are byte-identical.
+ *
+ * IMPORTANT: this is INDEPENDENT of `rmds_handled_externally`. The held-back IRA
+ * is a SEPARATE account from the converting slice, so the slice must keep
+ * modeling its OWN RMDs (do-nothing has them, the conversion reduces them) while
+ * this overlay adds the held-back account's RMDs on top. Gating this on the
+ * "RMDs handled externally" toggle (which zeroes the slice's RMDs) understates
+ * the do-nothing baseline for a partial conversion — verified $556K too low on a
+ * $3M/$1.5M case. So the only gate is a positive held-back balance.
  */
 export function applyHeldBackIraRmd(client: Client): Client {
   const startBalance = client.held_back_ira_balance ?? 0;
-  if (!client.rmds_handled_externally || startBalance <= 0) return client;
+  if (startBalance <= 0) return client;
 
   const currentYear = new Date().getFullYear();
   const clientAge = client.age && client.age > 0 ? client.age : 62;
