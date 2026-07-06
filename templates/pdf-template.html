@@ -533,6 +533,20 @@
           <td>{{strategy.totalConversions}}</td>
           <td style="color: #9ca3af;">—</td>
         </tr>
+        <!-- Voluntary (advisor-scheduled) income taken from the accounts — shown
+             on BOTH sides (baseline pulls from the taxable IRA, strategy from the
+             tax-free Roth). Zero for clients with no withdrawal schedule, so the
+             row simply reads "—/—" and doesn't clutter a standard report. Diff is
+             "—" like the other distribution-event rows: it's the same income goal
+             on each side, not an apples-to-apples wealth comparison. -->
+        {{#if hasVoluntaryWithdrawals}}
+        <tr>
+          <td>Voluntary Withdrawals</td>
+          <td>{{baseline.voluntaryWithdrawals}}</td>
+          <td>{{strategy.voluntaryWithdrawals}}</td>
+          <td style="color: #9ca3af;">—</td>
+        </tr>
+        {{/if}}
 
         <!-- Tax on the event itself — apples-to-apples comparison.
              Excludes background tax on W-2 / SS / pension income. -->
@@ -1056,10 +1070,22 @@
     <div class="glossary-entry">
       <div class="glossary-term">Required RMDs (Forced Distributions)</div>
       <div class="glossary-def">
-        Total dollars the IRS forces out of the traditional IRA across the
-        projection (sum of all yearly Required Minimum Distributions). Pre-tax
-        amount. Strategy is typically zero because Roth conversions empty the
+        Dollars the IRS forces out of the traditional IRA that the client did
+        not already take voluntarily. Because a voluntary withdrawal counts
+        toward the RMD, this is the required amount BEYOND any scheduled
+        withdrawal (so it never double-counts with "Voluntary Withdrawals").
+        Pre-tax. Strategy is typically zero because Roth conversions empty the
         IRA before RMDs begin.
+      </div>
+    </div>
+
+    <div class="glossary-entry">
+      <div class="glossary-term">Voluntary Withdrawals</div>
+      <div class="glossary-def">
+        Advisor-scheduled income the client takes from the accounts (Section 8),
+        totaled across the projection. In the do-nothing baseline it comes from
+        the taxable IRA; in the conversion strategy it comes from the tax-free
+        Roth. Shown only when a withdrawal schedule is set.
       </div>
     </div>
 

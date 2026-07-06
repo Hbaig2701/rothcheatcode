@@ -172,6 +172,7 @@ interface RMDAvoidanceTotalsRow {
 
 interface ScenarioData {
   totalDistributions: string;
+  voluntaryWithdrawals: string;
   totalConversions: string;
   // Conversion-attributable tax only — federalTaxOnConversions + stateTaxOnConversions
   // summed across years. For baseline this is $0 (no conversions). Matches the
@@ -276,6 +277,7 @@ interface TemplateData {
   wealthIncreaseClass: string;
   wealthIncreaseDiffClass: string;
   afterTaxInvert: boolean;
+  hasVoluntaryWithdrawals: boolean;
   reportDate: string;
   legacyChartSVG: string;
   baseline: ScenarioData;
@@ -812,6 +814,33 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
 
   // Baseline metrics (matches growth-report-dashboard.tsx lines 48-70)
   const baseRMDs = sum(projection.baseline_years, 'rmdAmount');
+
+  // Voluntary (advisor-scheduled) withdrawals — the income stream the client
+  // takes from the accounts, IRA + Roth. Shown on the page-4 Distributions
+  // summary so the income appears there, not just in the year-by-year tables
+  // (Gerald Shaw ticket). A voluntary IRA pull SATISFIES the RMD up to its
+  // amount (IRS rule), so the truly-FORCED RMD = max(0, rmdRequired − voluntary
+  // IRA pull). Splitting it this way means "Voluntary Withdrawals" + "Required
+  // RMDs (forced)" sum to the real total IRA distribution with NO double-count.
+  // For clients with no withdrawal schedule, iraWithdrawal = 0 so forced RMD =
+  // rmdRequired (byte-identical to before) and voluntary = 0.
+  // Baseline has no AUM overlay (it's the full "do nothing" IRA), so its
+  // iraWithdrawal is purely the scheduled voluntary pull.
+  const baseVoluntary = sum(projection.baseline_years, 'iraWithdrawal') + sum(projection.baseline_years, 'rothWithdrawal');
+  // Strategy: for AUM clients the IRA→AUM transfer ALSO lands in iraWithdrawal
+  // (it's not spending), so strip it out; and the real income taken from the
+  // AUM brokerage lives in aumScheduledWithdrawal. Mirrors the dashboard's
+  // voluntary-withdrawal metrics (growth-report-dashboard.tsx). Non-AUM clients:
+  // aum_years is empty and aumScheduledWithdrawal is 0 → the two adjustments
+  // vanish and this is just iraWithdrawal + rothWithdrawal.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const aumTransferFromIra = (projection.aum_years ?? []).reduce((s: number, y: any) => s + (y.iraWithdrawal ?? 0), 0);
+  const blueVoluntary =
+    (sum(projection.blueprint_years, 'iraWithdrawal') - aumTransferFromIra) +
+    sum(projection.blueprint_years, 'rothWithdrawal') +
+    sum(projection.blueprint_years, 'aumScheduledWithdrawal');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const baseForcedRmd = projection.baseline_years.reduce((s: number, y: any) => s + Math.max(0, (y.rmdAmount ?? 0) - (y.iraWithdrawal ?? 0)), 0);
   const baseTax = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
   const baseIrmaa = sum(projection.baseline_years, 'irmaaSurcharge');
   const baseFinalTraditional = projection.baseline_final_traditional;
@@ -1020,6 +1049,9 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     // FAVORABLE in reinvested/cash mode (green), but is lost spendable income
     // in 'spent' mode (red). Mirror the dashboard's invertColor logic.
     afterTaxInvert: rmdTreatment !== 'spent',
+    // Only render the "Voluntary Withdrawals" row when there's actually a
+    // withdrawal schedule, so standard reports don't get an empty row.
+    hasVoluntaryWithdrawals: (baseVoluntary + blueVoluntary) > 0,
     reportDate: new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -1041,7 +1073,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     // both inconsistencies and reads as "all wealth that flowed through the
     // accounts before tax was paid" — which is what advisors expect.
     baseline: {
-      totalDistributions: formatCurrency(baseRMDs),
+      totalDistributions: formatCurrency(baseForcedRmd),
+      voluntaryWithdrawals: formatCurrency(baseVoluntary),
       totalConversions: formatCurrency(0),
       taxOnConversionsOnly: formatCurrency(0),
       taxOnRMDsOnly: formatCurrency(baseRMDTaxOnly),
@@ -1058,6 +1091,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     },
     strategy: {
       totalDistributions: formatCurrency(0),
+      voluntaryWithdrawals: formatCurrency(blueVoluntary),
       totalConversions: formatCurrency(blueConversions),
       taxOnConversionsOnly: formatCurrency(blueConversionTaxOnly),
       taxOnRMDsOnly: formatCurrency(blueRMDTaxOnly),
