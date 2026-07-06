@@ -62,6 +62,8 @@ export function InputSidebar({ client }: InputSidebarProps) {
             // Load the saved value — without this the editor shows it empty and
             // OVERWRITES the saved deduction with null on every scenario save.
             additional_deductions: client?.additional_deductions ?? null,
+            held_back_ira_balance: client?.held_back_ira_balance ?? null,
+            held_back_ira_growth_rate: client?.held_back_ira_growth_rate ?? null,
             tax_credits: client?.tax_credits ?? null,
 
             ssi_payout_age: client?.ssi_payout_age ?? 67,

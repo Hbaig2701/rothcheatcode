@@ -179,6 +179,19 @@ export interface Client {
   // RMD as Other Income in Section 5 if they want the full tax picture.
   rmds_handled_externally: boolean;
 
+  // ===== Held-back Traditional IRA (income overlay) =====
+  // Money the client keeps as a plain Traditional IRA OUTSIDE this annuity
+  // (e.g. left at Fidelity), NOT being converted. When rmds_handled_externally
+  // is on and this balance > 0, the engine auto-computes that IRA's RMDs
+  // (growing + depleting the balance each year) and folds them into the
+  // client's ordinary income for BOTH the baseline and the strategy — so the
+  // Roth conversion is taxed in the correct brackets (stacked on the RMD income,
+  // SS-torpedo/IRMAA aware) instead of in a vacuum. Income-only overlay: the
+  // held-back balance's own wealth/heir-tax are intentionally NOT added to the
+  // net-worth totals (it's a wash on the comparison delta). Default 0 = off.
+  held_back_ira_balance?: number | null;      // In cents. 0/null = feature off.
+  held_back_ira_growth_rate?: number | null;  // Percent; falls back to rate_of_return.
+
   // ===== AUM Split Allocation =====
   // When aum_allocation_percent > 0, the engine splits the IRA balance: the
   // first (100 - aum_allocation_percent)% runs through the existing Roth

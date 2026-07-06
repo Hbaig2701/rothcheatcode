@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { runSimulation, createSimulationInput, runGuaranteedIncomeSimulation, runGrowthSimulation, runAumScenario } from '@/lib/calculations';
 import { requestedFromQualifiedForYear } from '@/lib/calculations/utils/withdrawals';
+import { applyHeldBackIraRmd } from '@/lib/calculations/utils/held-back-ira';
 import type { Client } from '@/lib/types/client';
 import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projection';
 import type { SimulationResult, YearlyResult } from '@/lib/calculations';
@@ -74,6 +75,8 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     // Toggling this flag changes whether the engine computes RMDs at all
     // — must be in the cache hash or flipping it shows stale projections.
     rmds_handled_externally: client.rmds_handled_externally,
+    held_back_ira_balance: client.held_back_ira_balance ?? null,
+    held_back_ira_growth_rate: client.held_back_ira_growth_rate ?? null,
     // widow_death_age is read by widow-penalty analysis to determine the
     // first-death year. Missing from the hash meant advisors editing the
     // "First-Death Age" field saw no change in their projection because
@@ -537,8 +540,12 @@ export async function GET(
     //   comparison the advisor wants to anchor against.
     const formulaType = typedClient.blueprint_type as FormulaType;
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
-    const rothSideClient = buildRothSideClient(typedClient);
-    const baselineSimInput = createSimulationInput(typedClient, customProduct);
+    // Held-back Traditional IRA overlay: folds the external IRA's RMDs into
+    // ordinary income (both sides) before the sims, so the conversion is taxed
+    // in the right brackets. No-op when the feature is off (returns typedClient).
+    const clientForSim = applyHeldBackIraRmd(typedClient);
+    const rothSideClient = buildRothSideClient(clientForSim);
+    const baselineSimInput = createSimulationInput(clientForSim, customProduct);
     const rothSimInput = createSimulationInput(rothSideClient, customProduct);
     let projectionInsert: ProjectionInsert;
     if (isGI) {
@@ -547,32 +554,32 @@ export async function GET(
       // the GI result is replaced with a full-balance baseline below so the
       // "do nothing" comparison stays honest.
       let giSplitResult = runGuaranteedIncomeSimulation(rothSimInput);
-      giSplitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runGuaranteedIncomeSimulation, giSplitResult);
+      giSplitResult = fundConvTaxFromIraIfShort(clientForSim, rothSideClient, customProduct, runGuaranteedIncomeSimulation, giSplitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runGuaranteedIncomeSimulation(baselineSimInput).baseline
         : giSplitResult.baseline;
       const splitWithFullBaseline = { ...giSplitResult, baseline: baselineFull };
-      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const { combinedFormula, aumYears } = runAumOverlay(clientForSim, splitWithFullBaseline);
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giSplitResult.giMetrics, aumYears);
     } else if (isGrowthProduct(formulaType)) {
       let splitResult = runGrowthSimulation(rothSimInput);
-      splitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runGrowthSimulation, splitResult);
+      splitResult = fundConvTaxFromIraIfShort(clientForSim, rothSideClient, customProduct, runGrowthSimulation, splitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runGrowthSimulation(baselineSimInput).baseline
         : splitResult.baseline;
       const splitWithFullBaseline = { ...splitResult, baseline: baselineFull };
-      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const { combinedFormula, aumYears } = runAumOverlay(clientForSim, splitWithFullBaseline);
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     } else {
       let splitResult = runSimulation(rothSimInput);
-      splitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runSimulation, splitResult);
+      splitResult = fundConvTaxFromIraIfShort(clientForSim, rothSideClient, customProduct, runSimulation, splitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runSimulation(baselineSimInput).baseline
         : splitResult.baseline;
       const splitWithFullBaseline = { ...splitResult, baseline: baselineFull };
-      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const { combinedFormula, aumYears } = runAumOverlay(clientForSim, splitWithFullBaseline);
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     }
@@ -653,39 +660,43 @@ export async function POST(
     // them, and stores aum_years separately.
     const formulaType = typedClient.blueprint_type as FormulaType;
     const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
-    const rothSideClient = buildRothSideClient(typedClient);
-    const baselineSimInput = createSimulationInput(typedClient, customProduct);
+    // Held-back Traditional IRA overlay: folds the external IRA's RMDs into
+    // ordinary income (both sides) before the sims, so the conversion is taxed
+    // in the right brackets. No-op when the feature is off (returns typedClient).
+    const clientForSim = applyHeldBackIraRmd(typedClient);
+    const rothSideClient = buildRothSideClient(clientForSim);
+    const baselineSimInput = createSimulationInput(clientForSim, customProduct);
     const rothSimInput = createSimulationInput(rothSideClient, customProduct);
 
     let projectionInsert: ProjectionInsert;
     if (isGI) {
       let giSplitResult = runGuaranteedIncomeSimulation(rothSimInput);
-      giSplitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runGuaranteedIncomeSimulation, giSplitResult);
+      giSplitResult = fundConvTaxFromIraIfShort(clientForSim, rothSideClient, customProduct, runGuaranteedIncomeSimulation, giSplitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runGuaranteedIncomeSimulation(baselineSimInput).baseline
         : giSplitResult.baseline;
       const splitWithFullBaseline = { ...giSplitResult, baseline: baselineFull };
-      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const { combinedFormula, aumYears } = runAumOverlay(clientForSim, splitWithFullBaseline);
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giSplitResult.giMetrics, aumYears);
     } else if (isGrowthProduct(formulaType)) {
       let splitResult = runGrowthSimulation(rothSimInput);
-      splitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runGrowthSimulation, splitResult);
+      splitResult = fundConvTaxFromIraIfShort(clientForSim, rothSideClient, customProduct, runGrowthSimulation, splitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runGrowthSimulation(baselineSimInput).baseline
         : splitResult.baseline;
       const splitWithFullBaseline = { ...splitResult, baseline: baselineFull };
-      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const { combinedFormula, aumYears } = runAumOverlay(clientForSim, splitWithFullBaseline);
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     } else {
       let splitResult = runSimulation(rothSimInput);
-      splitResult = fundConvTaxFromIraIfShort(typedClient, rothSideClient, customProduct, runSimulation, splitResult);
+      splitResult = fundConvTaxFromIraIfShort(clientForSim, rothSideClient, customProduct, runSimulation, splitResult);
       const baselineFull = (typedClient.aum_allocation_percent ?? 0) > 0
         ? runSimulation(baselineSimInput).baseline
         : splitResult.baseline;
       const splitWithFullBaseline = { ...splitResult, baseline: baselineFull };
-      const { combinedFormula, aumYears } = runAumOverlay(typedClient, splitWithFullBaseline);
+      const { combinedFormula, aumYears } = runAumOverlay(clientForSim, splitWithFullBaseline);
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     }

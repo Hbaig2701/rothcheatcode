@@ -105,6 +105,8 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       // save — same uninitialized-field class as the penalty-free fields above
       // (Greg Stopp ticket "NEW RMD INPUT BOX BUG").
       rmds_handled_externally: client?.rmds_handled_externally ?? false,
+      held_back_ira_balance: client?.held_back_ira_balance ?? null,
+      held_back_ira_growth_rate: client?.held_back_ira_growth_rate ?? null,
       fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
       target_partial_amount: client?.target_partial_amount ?? null,
       // AUM split-allocation defaults — 0 means feature off.

@@ -285,6 +285,11 @@ export const clientFormulaBaseSchema = z.object({
   // modeled IRA bucket (both baseline and strategy stay symmetric).
   rmds_handled_externally: z.boolean().default(false),
 
+  // Held-back Traditional IRA (income overlay). Balance in cents; 0/null = off.
+  // Growth rate falls back to rate_of_return when null.
+  held_back_ira_balance: z.number().int().min(0).optional().nullable().default(null),
+  held_back_ira_growth_rate: z.number().min(0).max(30).optional().nullable().default(null),
+
   // AUM split-allocation. 0 means feature is off — preserves existing flow.
   aum_allocation_percent: z.number().min(0).max(100).default(0),
   aum_fee_percent: z.number().min(0).max(10).default(1),
@@ -535,6 +540,10 @@ export const clientFullBaseSchema = z.object({
   rmd_treatment: rmdTreatmentEnum.default("reinvested"),
   rmds_handled_externally: z.boolean().default(false),
 
+  // Held-back Traditional IRA (income overlay) — mirrored from the base schema.
+  held_back_ira_balance: z.number().int().min(0).optional().nullable().default(null),
+  held_back_ira_growth_rate: z.number().min(0).max(30).optional().nullable().default(null),
+
   // AUM split-allocation (mirrored from clientFormulaBaseSchema; the legacy
   // schema is what the PUT /api/clients/[id] handler validates against).
   aum_allocation_percent: z.number().min(0).max(100).default(0),
@@ -680,6 +689,10 @@ export type ClientFormData = {
   widow_death_age?: number | null;
   rmd_treatment: "spent" | "reinvested" | "cash";
   rmds_handled_externally: boolean;
+
+  // Held-back Traditional IRA (income overlay)
+  held_back_ira_balance?: number | null;
+  held_back_ira_growth_rate?: number | null;
 
   // AUM split-allocation
   aum_allocation_percent: number;
