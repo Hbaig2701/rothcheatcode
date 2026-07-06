@@ -542,23 +542,25 @@ export function TaxDataSection() {
                 <FieldHelp {...FIELD_HELP.rmds_handled_externally} />
               </label>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Skips RMD calculation on this bucket entirely. Use when the client&apos;s real-world RMDs
-                come from a separate IRA (e.g., a different custodian) not modeled here. Both the baseline
-                and strategy projections will skip RMDs equally to keep the comparison fair. (For a partial
-                conversion where the rest stays a Traditional IRA, use the Held-back field below instead —
-                leave this unchecked.)
+                The client&apos;s real-world RMDs come from a separate IRA (e.g., a different custodian),
+                not the money going into this annuity. <strong>Enter that IRA&apos;s balance below</strong> and
+                we&apos;ll model its RMDs — so the conversion is taxed in the right brackets and the do-nothing
+                baseline keeps the RMDs on the full balance. (Leave the balance blank to simply skip RMDs on
+                this bucket and enter any RMD income yourself.)
               </p>
             </div>
           </div>
         )}
       />
 
-      {/* Held-back Traditional IRA — always available (independent of the RMDs-
-          handled-externally toggle). Entering a balance auto-computes that IRA's
-          RMDs (growing + depleting it) and folds them into ordinary income for
-          BOTH sides, so the conversion is taxed on top of the real RMD income
-          while the converting slice keeps modeling its own RMDs. Income-only. */}
-      <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-primary/30 bg-accent/50 p-4">
+      {/* Held-back Traditional IRA — revealed under "RMDs Handled Externally":
+          that's the IRA the external RMDs come from. Entering a balance auto-
+          computes its RMDs (growing + depleting it), folds them into ordinary
+          income for BOTH sides, AND keeps the converting slice's own RMDs (the
+          engine overrides the toggle's zeroing when a balance is present) — so
+          do-nothing has RMDs on the full balance, strategy on just the held-back. */}
+      {form.watch("rmds_handled_externally") && (
+        <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-primary/30 bg-accent/50 p-4">
           <Controller
             name="held_back_ira_balance"
             control={form.control}
@@ -602,7 +604,8 @@ export function TaxDataSection() {
               </Field>
             )}
           />
-      </div>
+        </div>
+      )}
 
       {/* State */}
       <Controller

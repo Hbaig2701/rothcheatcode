@@ -20,13 +20,17 @@ import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '@/lib/calcula
  * sides, so they wash out of the "Additional Lifetime Wealth" delta). Returns the
  * client unchanged when the feature is off, so existing cases are byte-identical.
  *
- * IMPORTANT: this is INDEPENDENT of `rmds_handled_externally`. The held-back IRA
- * is a SEPARATE account from the converting slice, so the slice must keep
- * modeling its OWN RMDs (do-nothing has them, the conversion reduces them) while
- * this overlay adds the held-back account's RMDs on top. Gating this on the
- * "RMDs handled externally" toggle (which zeroes the slice's RMDs) understates
- * the do-nothing baseline for a partial conversion — verified $556K too low on a
- * $3M/$1.5M case. So the only gate is a positive held-back balance.
+ * The held-back IRA is where the client takes their RMDs ("externally"), which is
+ * why the UI reveals this field under the "RMDs Handled Externally" toggle. But
+ * that toggle by itself ZEROES RMDs on the modeled (converting) slice for BOTH
+ * sides — which is wrong for the do-nothing baseline, where that slice is still a
+ * plain Traditional IRA that WOULD take RMDs (verified $556K too low on a
+ * $3M/$1.5M case; the real "Bill Schlip" scenario showed a $0 RMD column). So
+ * when a held-back balance is present we OVERRIDE `rmds_handled_externally` back
+ * to false — keeping the converting slice's own RMDs (do-nothing has them, the
+ * conversion removes them) — and let this overlay add the held-back account's
+ * RMDs on top. Net: do-nothing RMDs on the full balance, strategy RMDs on just
+ * the held-back amount. The plain toggle (no held-back balance) is unchanged.
  */
 export function applyHeldBackIraRmd(client: Client): Client {
   const startBalance = client.held_back_ira_balance ?? 0;
@@ -77,6 +81,15 @@ export function applyHeldBackIraRmd(client: Client): Client {
     });
   }
   // Table now carries everything; clear the flat fields so they aren't summed
-  // twice (they wouldn't be — table wins — but keep it unambiguous).
-  return { ...client, non_ssi_income: merged, gross_taxable_non_ssi: 0, tax_exempt_non_ssi: 0 };
+  // twice (they wouldn't be — table wins — but keep it unambiguous). Also
+  // override rmds_handled_externally back to false so the converting slice keeps
+  // modeling its own RMDs (see the header comment) — the held-back overlay is
+  // now what represents the external RMDs.
+  return {
+    ...client,
+    non_ssi_income: merged,
+    gross_taxable_non_ssi: 0,
+    tax_exempt_non_ssi: 0,
+    rmds_handled_externally: false,
+  };
 }
