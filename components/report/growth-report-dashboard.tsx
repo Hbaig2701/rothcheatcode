@@ -1645,6 +1645,11 @@ function LifetimeWealthInfo({
         <TipNote>
           Over {projectionYears} years, you'd take {toUSD(baseRMDs)} in RMDs and pay {toUSD(baseRMDTaxOnly)} in marginal income tax attributable to them. Total lifetime fed+state across the baseline ({toUSD(baseTax)}) also includes background tax on Social Security and other income.
         </TipNote>
+        {(client.held_back_ira_balance ?? 0) > 0 && (
+          <TipNote>
+            Note: the balances above are for the {toUSD(client.qualified_account_value)} going into the annuity. The client&apos;s held-back {toUSD(client.held_back_ira_balance ?? 0)} Traditional IRA is modeled for its RMD tax (those RMDs are included in the total above and shown in the &quot;RMD (External)&quot; column), but its own balance isn&apos;t added to these figures — it&apos;s identical in both scenarios, so it nets out of the Additional Lifetime Wealth comparison.
+          </TipNote>
+        )}
       </TipSection>
 
       <TipSection
