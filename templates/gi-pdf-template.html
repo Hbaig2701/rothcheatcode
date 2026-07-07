@@ -980,6 +980,7 @@
         <th>Income Base</th>
         <th>Acct Value</th>
         <th>GI Income</th>
+        {{#if showRothDist}}<th>Roth Dist.</th>{{/if}}
         <th>Taxes</th>
         {{#if showRiderFee}}<th>Rider Fee</th>{{/if}}
         <th>Net Income</th>
@@ -993,6 +994,7 @@
         <td class="{{#if this.isIncomePhase}}gold-value{{/if}}">{{this.incomeBase}}</td>
         <td>{{this.accountValue}}</td>
         <td class="gold-value">{{this.giIncome}}</td>
+        {{#if ../showRothDist}}<td class="positive-value">{{this.rothDist}}</td>{{/if}}
         <td class="tax-value">{{this.taxes}}</td>
         {{#if ../showRiderFee}}<td class="tax-value">{{this.riderFee}}</td>{{/if}}
         <td class="positive-value">{{this.netIncome}}</td>

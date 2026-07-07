@@ -286,10 +286,19 @@ export function getEffectivePayoutFactor(
   // were silently clamped to age 80, discarding any factor defined past 80.
   // System presets top out at 80, so their behavior is unchanged.
   const clampToTable = (t: Record<number, number>): number => {
-    const ages = Object.keys(t).map(Number).filter((n) => !Number.isNaN(n));
+    const ages = Object.keys(t).map(Number).filter((n) => !Number.isNaN(n)).sort((a, b) => a - b);
     if (ages.length === 0) return 0.05;
-    const clampedAge = Math.min(Math.max(age, Math.min(...ages)), Math.max(...ages));
-    return (t[clampedAge] ?? 5.0) / 100;
+    const clampedAge = Math.min(Math.max(age, ages[0]), ages[ages.length - 1]);
+    if (t[clampedAge] != null) return t[clampedAge] / 100;
+    // Sparse table (in-range age with no explicit entry): fall to the nearest
+    // defined age AT OR BELOW the clamped age — payout factors step up by
+    // attained-age band — instead of a blanket 5% that silently mis-sizes income.
+    let best = ages[0];
+    for (const a of ages) {
+      if (a <= clampedAge) best = a;
+      else break;
+    }
+    return t[best] / 100;
   };
 
   if (data.hasDualPayoutOption) {
@@ -338,8 +347,13 @@ export function getEffectiveGrowthRiderFee(
   formulaType: FormulaType,
   customProduct?: CustomProductRow | null
 ): number {
-  if (customProduct?.config?.fees) {
-    return customProduct.config.fees.annual_rider_fee / 100;
+  // Guard the numeric fee, not just the presence of a `fees` block: older rows,
+  // direct seeds, and partial AI extractions can carry a `fees` object with no
+  // `annual_rider_fee`, and `undefined / 100 = NaN` would silently NaN-poison
+  // every downstream balance. Mirrors the GI path's guard.
+  const fee = customProduct?.config?.fees?.annual_rider_fee;
+  if (fee != null && Number.isFinite(fee)) {
+    return fee / 100;
   }
   const productConfig = ALL_PRODUCTS[formulaType];
   return (productConfig?.defaults.riderFee ?? 0) / 100;

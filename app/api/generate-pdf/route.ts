@@ -1080,7 +1080,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       taxOnRMDsOnly: formatCurrency(baseRMDTaxOnly),
       premiumBonusReceived: formatCurrency(0),
       netTaxCost: formatCurrency(baselineNetOutOfPocketTax),
-      afterTaxDistributions: formatCurrency(rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseTax),
+      afterTaxDistributions: formatCurrency(rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseRMDTaxOnly),
       legacyGross: formatCurrency(projection.baseline_final_net_worth),
       legacyTax: formatCurrency(baseHeirTax),
       legacyNet: formatCurrency(baseNetLegacy),
@@ -1260,6 +1260,7 @@ interface GIYearRow {
   incomeBase: string;
   accountValue: string;
   giIncome: string;
+  rothDist: string;
   taxes: string;
   riderFee: string;
   netIncome: string;
@@ -1335,6 +1336,9 @@ interface GITemplateData {
   taxRate: number;
   // Show the optional per-year Rider Fee column when the product charges one
   showRiderFee: boolean;
+  // Show the optional per-year tax-free Roth distribution column (voluntary
+  // Roth withdrawals scheduled on the strategy side)
+  showRothDist: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1412,9 +1416,17 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
   const percentImprovement = projection.gi_percent_improvement ||
     (baselineLifetimeIncome > 0 ? ((taxFreeWealthCreated / baselineLifetimeIncome) * 100) : 0);
 
+  // Voluntary tax-free Roth distributions per year, joined from the strategy
+  // YearlyResult (blueprint_years) since gi_yearly_data doesn't carry them.
+  const rothWdByYear = new Map<number, number>();
+  for (const y of (projection.blueprint_years || [])) {
+    rothWdByYear.set(y.year, y.rothWithdrawal ?? 0);
+  }
+
   // Process strategy years
   let strategyCumulative = 0;
   const strategyYears: GIYearRow[] = giYearlyData.map((row: any) => {
+    const rothWd = rothWdByYear.get(row.year) ?? 0;
     if (row.guaranteedIncomeNet > 0) {
       strategyCumulative += row.guaranteedIncomeNet;
     }
@@ -1442,6 +1454,7 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
       accountValue: row.phase === 'conversion' || row.phase === 'purchase' ? '—' :
         (row.accountValue <= 0 ? '$0' : formatCurrency(row.accountValue)),
       giIncome: row.guaranteedIncomeGross > 0 ? formatCurrency(row.guaranteedIncomeGross) : '—',
+      rothDist: rothWd > 0 ? formatCurrency(rothWd) : '—',
       taxes: row.conversionTax > 0 ? formatCurrency(row.conversionTax) : '—',
       riderFee: row.riderFee > 0 ? formatCurrency(row.riderFee) : '—',
       netIncome: row.guaranteedIncomeNet > 0 ? formatCurrency(row.guaranteedIncomeNet) : '—',
@@ -1486,6 +1499,7 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
       incomeBase: row.incomeBase > 0 ? formatCurrency(row.incomeBase) : '—',
       accountValue: row.accountValue <= 0 ? '$0' : formatCurrency(row.accountValue),
       giIncome: grossIncome > 0 ? formatCurrency(grossIncome) : '—',
+      rothDist: '—', // strategy-only column; not rendered on the baseline GI table
       taxes: taxOnIncome > 0 ? formatCurrency(taxOnIncome) : '—',
       riderFee: row.riderFee > 0 ? formatCurrency(row.riderFee) : '—',
       netIncome: netIncome > 0 ? formatCurrency(netIncome) : '—',
@@ -1575,6 +1589,7 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
     baselineYears,
     taxRate,
     showRiderFee: strategyYears.some((r) => r.riderFee !== '—') || baselineYears.some((r) => r.riderFee !== '—'),
+    showRothDist: strategyYears.some((r) => r.rothDist !== '—'),
   };
 }
 

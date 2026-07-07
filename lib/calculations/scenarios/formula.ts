@@ -796,6 +796,23 @@ export function runFormulaScenario(
     const federalTaxOnOrdinaryAndSS = Math.max(0, federalResult.totalTax - dispFederalConvTax);
     const stateTaxOnOrdinaryAndSS = Math.max(0, stateResult.totalTax - dispStateConvTax);
 
+    // Split the residual (non-conversion) tax between ordinary income and the
+    // taxable-SS portion. The ordinary base MUST include the forced RMD — it is
+    // ordinary income the residual tax is levied on. Omitting it (denominator =
+    // otherIncome + taxableSS only) attributed the RMD's entire tax to SS for a
+    // post-73 client with little other income. Mirrors growth-formula.ts.
+    const ordinaryBaseline = rmdAmount + otherIncome;
+    const ssTaxableBaseline = taxInfoFinal.taxableSS;
+    const residualDenominator = ordinaryBaseline + ssTaxableBaseline;
+    const federalTaxOnSSVal = residualDenominator > 0 && ssTaxableBaseline > 0
+      ? Math.round(federalTaxOnOrdinaryAndSS * ssTaxableBaseline / residualDenominator)
+      : 0;
+    const federalTaxOnOrdinaryIncomeVal = federalTaxOnOrdinaryAndSS - federalTaxOnSSVal;
+    const stateTaxOnSSVal = residualDenominator > 0 && ssTaxableBaseline > 0
+      ? Math.round(stateTaxOnOrdinaryAndSS * ssTaxableBaseline / residualDenominator)
+      : 0;
+    const stateTaxOnOrdinaryIncomeVal = stateTaxOnOrdinaryAndSS - stateTaxOnSSVal;
+
     const bracket = determineTaxBracket(taxInfoFinal.taxableIncome, client.filing_status, year);
     const totalIncome = grossIncomeWithWithdrawal + ssIncome;
     const irmaaTier = irmaaTierFromLookback;
@@ -835,22 +852,14 @@ export function runFormulaScenario(
       taxableIncome: taxInfoFinal.taxableIncome,
       federalTaxBracket,
       irmaaTier,
-      // Rough attribution: tax on SS is the share of ordinary/SS tax
-      // proportional to how much of ordinary+SS taxable income is SS.
-      federalTaxOnSS: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
-        ? Math.round(federalTaxOnOrdinaryAndSS * taxInfoFinal.taxableSS / (otherIncome + taxInfoFinal.taxableSS))
-        : 0,
+      // Attribution: split the residual ordinary+SS tax by taxable-income share,
+      // with the forced RMD counted as ordinary income (see ordinaryBaseline above).
+      federalTaxOnSS: federalTaxOnSSVal,
       federalTaxOnConversions: dispFederalConvTax,
-      federalTaxOnOrdinaryIncome: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
-        ? Math.round(federalTaxOnOrdinaryAndSS * otherIncome / (otherIncome + taxInfoFinal.taxableSS))
-        : federalTaxOnOrdinaryAndSS,
-      stateTaxOnSS: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
-        ? Math.round(stateTaxOnOrdinaryAndSS * taxInfoFinal.taxableSS / (otherIncome + taxInfoFinal.taxableSS))
-        : 0,
+      federalTaxOnOrdinaryIncome: federalTaxOnOrdinaryIncomeVal,
+      stateTaxOnSS: stateTaxOnSSVal,
       stateTaxOnConversions: dispStateConvTax,
-      stateTaxOnOrdinaryIncome: taxInfoFinal.taxableSS > 0 && (otherIncome + taxInfoFinal.taxableSS) > 0
-        ? Math.round(stateTaxOnOrdinaryAndSS * otherIncome / (otherIncome + taxInfoFinal.taxableSS))
-        : stateTaxOnOrdinaryAndSS,
+      stateTaxOnOrdinaryIncome: stateTaxOnOrdinaryIncomeVal,
       // The IRS sees the full IRA distribution this year — RMD + conversion +
       // any tax pulled from the IRA. Stored field reflects all three so
       // downstream display (Conversion Details, etc.) shows the correct

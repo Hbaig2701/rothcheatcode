@@ -113,6 +113,9 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     pension: client.pension,
     other_income: client.other_income,
     widow_analysis: client.widow_analysis,
+    // include_niit changes the widow-scenario NIIT tax (widow.ts) — must be
+    // hashed or toggling it in the report drawer serves a stale projection.
+    include_niit: client.include_niit,
     // GI-specific fields
     blueprint_type: client.blueprint_type,
     payout_type: client.payout_type,

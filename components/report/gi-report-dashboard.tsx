@@ -64,6 +64,14 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   const startingIncomeBase = projection.gi_income_base_at_start ?? (purchaseAmount + bonusAmount);
   const finalIncomeBase = projection.gi_income_base_at_income_age || startingIncomeBase;
   const rollUpGrowth = finalIncomeBase - startingIncomeBase;
+  // Effective annualized roll-up rate DERIVED from the actual start→final income
+  // base, so the tooltip's "Starting × (1+r)^yrs = Final" reconciles for every
+  // product. (Was hardcoded to 8%, which was wrong for any non-8% roll-up and
+  // didn't match the Final Income Base shown right beside it.)
+  const rollUpYearsForTooltip = projection.gi_deferral_years || 10;
+  const effectiveRollUpRate = startingIncomeBase > 0 && rollUpYearsForTooltip > 0
+    ? Math.round((Math.pow(finalIncomeBase / startingIncomeBase, 1 / rollUpYearsForTooltip) - 1) * 1000) / 10
+    : 0;
   const payoutPercent = projection.gi_payout_percent || 0;
   const calculatedIncome = Math.round(finalIncomeBase * (payoutPercent / 100));
 
@@ -347,8 +355,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
                     bonusPercent,
                     bonusAmount,
                     startingIncomeBase,
-                    8, // Roll-up rate
-                    projection.gi_deferral_years || 10,
+                    effectiveRollUpRate, // derived from actual start→final, not hardcoded
+                    rollUpYearsForTooltip,
                     finalIncomeBase,
                     client.carrier_name || ""
                   )}

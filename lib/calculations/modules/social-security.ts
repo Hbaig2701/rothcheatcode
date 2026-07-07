@@ -13,6 +13,7 @@ const SS_THRESHOLDS: Record<string, { lower: number; upper: number }> = {
 
 const BASE_AMOUNTS: Record<string, number> = {
   married_filing_jointly: 600000,  // $6,000
+  married_filing_separately: 0,    // $0 — MFS (lived with spouse) gets no base amount; thresholds are $0/$0 so SS is taxed straight up the 85% path
   single: 450000,                  // $4,500
   head_of_household: 450000
 };

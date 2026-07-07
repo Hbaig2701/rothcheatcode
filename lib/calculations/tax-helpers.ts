@@ -7,7 +7,7 @@
 
 import type { FilingStatus } from './types';
 import { getFederalBrackets } from '@/lib/data/federal-brackets-2026';
-import { getIRMAATier as getIRMAATierFromBrackets, getIRMAASurcharge } from '@/lib/data/irmaa-brackets';
+import { getIRMAATierIndex, getIRMAASurcharge } from '@/lib/data/irmaa-brackets';
 import { calculateSSTaxableAmount } from './modules/social-security';
 import { getBracketCeiling, calculateFederalTax } from './modules/federal-tax';
 import { calculateStateTax } from './modules/state-tax';
@@ -365,17 +365,13 @@ export function getIRMAATier(
   year: number = 2026
 ): number {
   const isJoint = filingStatus === 'married_filing_jointly';
-  const tier = getIRMAATierFromBrackets(magi, isJoint, year);
-
-  // Use the monthly Part B surcharge (same for single/joint) to identify tier index
-  // Tier 0: $0, Tier 1: $70, Tier 2: $175, Tier 3: $280, Tier 4: $385, Tier 5: $420
-  const surcharge = tier.monthlyPartBSurcharge;
-  if (surcharge === 0) return 0;
-  if (surcharge <= 7000) return 1;
-  if (surcharge <= 17500) return 2;
-  if (surcharge <= 28000) return 3;
-  if (surcharge <= 38500) return 4;
-  return 5;
+  // Derive the tier index from the MAGI's threshold position — the canonical
+  // source of truth in irmaa-brackets.ts. (The previous implementation
+  // reverse-engineered the index from hardcoded monthly-surcharge dollar
+  // thresholds that went stale when the CMS 2026 surcharges were corrected in
+  // v71 — e.g. Tier 1's $81.20 surcharge no longer fit the old "≤ $70" bucket,
+  // so every tier was reported one too high.)
+  return getIRMAATierIndex(magi, isJoint, year);
 }
 
 /**

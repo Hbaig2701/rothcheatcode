@@ -56,8 +56,13 @@ export function computeMarginalRMDTax(
 
     // Recompute tax assuming no RMD this year. otherIncome on the engine row
     // already EXCLUDES the RMD (RMD is summed in separately as grossTaxableIncome
-    // inside the engine). So passing `otherIncome` alone here gives the
-    // "without RMD" picture, including any change in SS taxability.
+    // inside the engine). We DO add back any Roth conversion for the year: the
+    // year's actual tax (taxWithRMD) includes conversion tax, so to isolate the
+    // RMD's marginal cost the "without RMD" picture must still stack on the
+    // conversion — otherwise a year with both an RMD and a conversion (a strategy
+    // still converting past age 73) wrongly attributes the conversion's tax to
+    // "Tax on RMDs". Conversion is $0 on baseline_years, so those are unchanged.
+    const conversionAmount = year.conversionAmount ?? 0;
     const taxExemptNonSSI = getTaxExemptIncomeForYear(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       client as any,
@@ -76,7 +81,7 @@ export function computeMarginalRMDTax(
       );
 
     const taxInfoNoRMD = computeTaxableIncomeWithSS({
-      otherIncome: year.otherIncome ?? 0,
+      otherIncome: (year.otherIncome ?? 0) + conversionAmount,
       ssBenefits: year.ssIncome ?? 0,
       taxExemptInterest: taxExemptNonSSI,
       deductions,

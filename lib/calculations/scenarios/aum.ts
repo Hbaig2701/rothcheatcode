@@ -201,8 +201,13 @@ export function runAumScenario(input: AumScenarioInput): YearlyResult[] {
       aumWithdrawalLtcgTax = Math.round(Math.max(0, gainPortion) * ltcgEffective);
       aumBalance -= aumScheduledWithdrawal;
       aumCostBasis = Math.max(0, aumCostBasis - basisPortion);
-      // Tax comes out of what's left in the brokerage.
-      aumBalance -= aumWithdrawalLtcgTax;
+      // Tax comes out of what's left in the brokerage. Floor at 0: when the
+      // scheduled withdrawal drains the whole brokerage, the LTCG tax on it
+      // must not push the balance negative (it would be written to
+      // taxableBalance/netWorth and then compounded by next year's growth).
+      // The residual tax is paid from the client's living-expense cash, same
+      // as the $0-clamp every other engine applies to a depleted account.
+      aumBalance = Math.max(0, aumBalance - aumWithdrawalLtcgTax);
       if (aumCostBasis > aumBalance) aumCostBasis = aumBalance;
     }
 
