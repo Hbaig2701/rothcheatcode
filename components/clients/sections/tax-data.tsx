@@ -476,7 +476,7 @@ export function TaxDataSection() {
           builds → far bigger Roth advantage; "reinvested" → it accumulates).
           Hidden for the GI income story (no baseline RMDs there) and whenever
           "RMDs Handled Externally" is on (no RMDs in either scenario to treat). */}
-      {(!isGI || form.watch("gi_legacy_mode")) && !form.watch("rmds_handled_externally") && (
+      {(!isGI || form.watch("gi_legacy_mode")) && (!form.watch("rmds_handled_externally") || (form.watch("held_back_ira_balance") ?? 0) > 0) && (
         <Controller
           name="rmd_treatment"
           control={form.control}
