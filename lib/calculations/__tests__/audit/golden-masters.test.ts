@@ -47,18 +47,26 @@ const growth = summarize(makeClient({
   ssi_annual_amount: 3_600_000, spouse_ssi_payout_age: 67, spouse_ssi_annual_amount: 3_000_000,
 }));
 
+// Strategy fields (formula*, totalConversions, totalTax, totalRiderFee) re-locked
+// v73 (2026-07-06) for the rider-fee full-term fix (Stephen Gillman / Jorge Tola
+// ticket). Previously the 0.95% rider fee was charged ONLY on the shrinking
+// un-converted Traditional balance, so this optimized-conversion client (drains
+// the IRA fast) barely paid it — totalRiderFee was an absurd $18,702.97 across a
+// 15-year 0.95% rider on a $1.2M+ annuity. The fee now applies to the full
+// in-annuity account value (Traditional + converted Roth annuity) for the whole
+// surrender period → totalRiderFee 1,870,297 → 23,900,823. Those extra fees
+// compound out of the annuity, lowering final net worth (574,946,268 →
+// 506,892,485) and leaving less to convert (totalConversions 114,310,724 →
+// 112,874,098; totalTax 44,576,110 → 43,921,577). Baseline is UNCHANGED (no
+// conversions, no rider). Verified: invariants 0 breaches.
 const GROWTH_EXPECTED = {
   baseFinalNetWorth: 556_631_517,
   baseFinalTraditional: 229_665_771,
-  formulaFinalNetWorth: 574_946_268,
-  formulaFinalRoth: 574_946_268,
-  totalConversions: 114_310_724,
-  // totalTax re-locked v71 (2026-07-05): IRMAA 2026 brackets corrected to actual
-  // CMS figures (Lori Avant ticket). Higher surcharges add ~$4.4K lifetime IRMAA
-  // to this MFJ/CA strategy (44,134,750 → 44,576,110); net worth unchanged
-  // (IRMAA is a cost, not an account outflow, in this scenario).
-  totalTax: 44_576_110,
-  totalRiderFee: 1_870_297,
+  formulaFinalNetWorth: 506_892_485,
+  formulaFinalRoth: 506_892_485,
+  totalConversions: 112_874_098,
+  totalTax: 43_921_577,
+  totalRiderFee: 23_900_823,
 };
 
 // ---- GI master: compound roll-up income, single, deferral to 74 ----

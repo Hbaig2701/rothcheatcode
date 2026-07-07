@@ -148,7 +148,7 @@ If an advisor says "baseline and strategy aren't a fair comparison," 99% of the 
 There are four product modes the strategy can run on (picked in section "3. New Account Data" of the client form, via the Product Preset dropdown):
 
 1. **Generic Growth Product** - a generic fixed-index annuity wrapper. User-configurable bonus, surrender schedule, penalty-free percent.
-2. **Growth FIA presets** (exact labels): **"Short-Term Cap Growth"**, **"Phased Bonus Growth"** (4% anniversary bonus × 3 years on top of any upfront bonus), **"Vesting Bonus Growth"**, **"High-Bonus Long-Term Growth"** (22% upfront bonus, 0.95% annual rider fee, 14-year surrender), **"High-Bonus Medium-Term Growth"** (similar with 0.95% rider, 10-year surrender). Each has hardcoded bonus %, surrender, penalty-free, and rider fee locked so the label matches the math.
+2. **Growth FIA presets** (exact labels): **"Short-Term Cap Growth"**, **"Phased Bonus Growth"** (4% anniversary bonus × 3 years on top of any upfront bonus), **"Vesting Bonus Growth"**, **"High-Bonus Long-Term Growth"** (22% default premium bonus, 0.95% annual rider fee, 15-year surrender), **"High-Bonus Medium-Term Growth"** (20% default premium bonus, 0.95% rider, 10-year surrender). Each preset hardcodes surrender, penalty-free, and rider fee so the label matches the math. EXCEPTION: the two **High-Bonus** presets leave the **premium bonus % editable** (default 22%/20% but the advisor can override) — real high-bonus FIAs vary the bonus by carrier (~20-24%). The other presets keep the bonus locked.
 3. **Guaranteed Income (GI)** (exact labels): **"Generic Income Product"**, **"Simple Roll-up Income"**, **"Compound Roll-up Income"**, **"Flat-Rate Compound Income"**. These have a roll-up rate, payout factor table, rider fee, and a 4-phase model (deferral → income start → ongoing → death).
 4. **Custom Products** - advisor-built products created in Settings → "My Products". Can be based on any of the above engine presets but with the advisor's own bonus / surrender / state-specific overrides. The advisor's saved values always win over the engine preset defaults.
 
@@ -331,7 +331,7 @@ The engine uses cents internally. Tiny rounding artifacts (single-digit cents) c
 Fixed on 2026-05-18. When a custom product is loaded, all fields the user defined are sticky - no engine-preset default ever overwrites them.
 
 **"The bonus field is greyed out / locked."**
-Locked fields exist for SYSTEM PRESETS only - to keep the preset's label in sync with its math. Custom products (from Settings → "My Products") unlock everything; if it's locked on a custom product, that's a bug.
+Locked fields exist for SYSTEM PRESETS only - to keep the preset's label in sync with its math. The two **High-Bonus** growth presets are the exception: their premium bonus % is editable so advisors can match the real carrier's bonus (~20-24%). Custom products (from Settings → "My Products") unlock everything; if it's locked on a custom product, that's a bug.
 
 **"Why is the year-by-year Federal Tax higher than the bracket would suggest?"**
 The bracket is MARGINAL - the rate on the next dollar. Federal Tax is the total tax owed across all brackets, which is always lower than (marginal × taxable income) and usually higher than (lowest bracket × income). If a client converts $100K into the 22% bracket, the tax isn't $22K - it's roughly $13K because most of the income falls into the 10% and 12% brackets first.

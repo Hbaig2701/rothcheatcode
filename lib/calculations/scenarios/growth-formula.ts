@@ -899,13 +899,10 @@ export function runGrowthFormulaScenario(
     iraBalance = iraAfterConversion + iraInterest;
     rothBalance = rothAfterConversion + rothInterest;
 
-    // Step 2.5: Apply annual rider fee (only during surrender period, applied to IRA balance)
-    // Rider fees are charged on the annuity (IRA) — Roth side has already been moved out
-    let yearRiderFee = 0;
-    if (riderFeePercent > 0 && yearOffset < surrenderYears) {
-      yearRiderFee = Math.round(iraBalance * riderFeePercent);
-      iraBalance = iraBalance - yearRiderFee;
-    }
+    // Step 2.5: The annual rider fee is applied further down (Step 3c), AFTER the
+    // mirrored Roth-annuity balance is known — the fee is charged on the annuity's
+    // TOTAL account value (Traditional + in-annuity Roth), not just the shrinking
+    // un-converted Traditional balance. See Step 3c.
 
     // Step 3: Apply anniversary bonus to IRA (annuity AV) if within bonus years
     // yearOffset is 0-indexed: yearOffset 0 = first year of policy
@@ -945,6 +942,31 @@ export function runGrowthFormulaScenario(
     // Carry the mirror balance forward. Cap at the total Roth as a defensive
     // floor against rounding drift (the mirror is a strict subset of rothBalance).
     rothMirrorBalance = Math.min(mirrorPostGrowth + rothMirrorBonus, rothBalance);
+
+    // Step 3c: Apply the annual rider fee for the full rider/surrender period.
+    // The fee is charged on the annuity's TOTAL account value — the un-converted
+    // Traditional balance PLUS any dollars converted IN-ANNUITY (the mirrored Roth
+    // annuity, rothMirrorBalance). A Roth conversion inside an annuity re-characterizes
+    // the money into a Roth annuity that stays in the contract and keeps paying the
+    // rider fee; it does NOT make the fee vanish. Previously the fee was charged only
+    // on iraBalance, so it wrongly dropped to $0 the year the IRA finished converting
+    // — understating fees and overstating the strategy. (Stephen Gillman / Jorge Tola
+    // ticket, July 2026.) rothMirrorBalance excludes any pre-existing EXTERNAL Roth
+    // (which was never in the annuity), so the fee only ever touches in-annuity money.
+    // We take the fee from the Traditional balance first, then from the Roth mirror
+    // once the Traditional side is exhausted.
+    let yearRiderFee = 0;
+    if (riderFeePercent > 0 && yearOffset < surrenderYears) {
+      const annuityAccountValue = iraBalance + rothMirrorBalance;
+      yearRiderFee = Math.round(annuityAccountValue * riderFeePercent);
+      const feeFromIra = Math.min(iraBalance, yearRiderFee);
+      iraBalance = iraBalance - feeFromIra;
+      const feeFromRoth = yearRiderFee - feeFromIra;
+      if (feeFromRoth > 0) {
+        rothBalance = Math.max(0, rothBalance - feeFromRoth);
+        rothMirrorBalance = Math.max(0, rothMirrorBalance - feeFromRoth);
+      }
+    }
 
     // Step 3.5: Principal protection floor (FIA guarantee).
     // The AV cannot fall below the initial premium minus any withdrawals taken.
