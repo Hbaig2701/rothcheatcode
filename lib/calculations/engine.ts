@@ -29,11 +29,20 @@ function calculateBreakEvenAge(
 ): number | null {
   let baseCum = 0;
   let stratCum = 0;
+  // "Tax payback" = the strategy first pays MORE cumulative tax (the upfront
+  // conversion cost) and only later recovers. Report the recovery year, and ONLY
+  // once it has actually gone behind — otherwise pre-conversion years, where both
+  // sides pay identical tax, trivially satisfy stratCum <= baseCum and report a
+  // nonsensical break-even at the very start of the projection (e.g. a client
+  // whose conversions don't begin until their wages stop — was firing at age 62).
+  let everBehind = false;
   const n = Math.min(baseline.length, formula.length);
   for (let i = 0; i < n; i++) {
     baseCum += baseline[i].totalTax || 0;
     stratCum += formula[i].totalTax || 0;
-    if (stratCum <= baseCum) {
+    if (stratCum > baseCum) {
+      everBehind = true;
+    } else if (everBehind) {
       return formula[i].age;
     }
   }
