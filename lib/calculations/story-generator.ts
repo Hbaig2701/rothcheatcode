@@ -749,13 +749,19 @@ export function generateStory(
       });
     }
 
-    // RMD AGE (73 is current RMD start age). Suppress when RMDs are handled
+    // RMD AGE (73/75 is current RMD start age). Suppress when RMDs are handled
     // externally on this bucket — the narrative would be misleading because
     // both baseline and strategy have zero RMDs in the projection (RMDs are
-    // happening on a different IRA bucket the engine isn't modeling).
-    if (year.age === rmdStartAge && !client.rmds_handled_externally) {
-      const baselineRMD = baselineYear?.rmdAmount ?? 0;
-      const strategyRMD = year.rmdAmount ?? 0;
+    // happening on a different IRA bucket the engine isn't modeling). EXCEPT
+    // when a held-back Traditional IRA is set: then the engine DOES model RMDs
+    // (on the converting slice AND the held-back IRA), so the beat must show —
+    // otherwise held-back clients lose the single most important baseline-pain
+    // beat even though they have large RMDs. Include the held-back IRA's RMDs
+    // (externalRmd) in the amounts so the numbers reflect ALL the client's RMDs.
+    const hasHeldBack = (client.held_back_ira_balance ?? 0) > 0;
+    if (year.age === rmdStartAge && (!client.rmds_handled_externally || hasHeldBack)) {
+      const baselineRMD = (baselineYear?.rmdAmount ?? 0) + (baselineYear?.externalRmd ?? 0);
+      const strategyRMD = (year.rmdAmount ?? 0) + (year.externalRmd ?? 0);
       storyEntries.push({
         year: year.year,
         age: year.age,
@@ -763,7 +769,9 @@ export function generateStory(
         headline: isNoConversion ? 'RMDs Start Now' : 'RMDs Would Start Now',
         body: isNoConversion
           ? `At age ${year.age}, the IRS forces you to start withdrawing from your Traditional IRA — whether you need the income or not. This year's RMD is ${formatCurrency(strategyRMD)}, and it grows every year as the IRS divisor shrinks. Every dollar is taxed at your bracket and counts toward your IRMAA tier.`
-          : `At age ${year.age}, the IRS would force you to withdraw from a Traditional IRA — whether you need it or not. But because you converted to Roth, you have no RMDs. Your money stays invested and growing tax-free.`,
+          : hasHeldBack
+            ? `At age ${year.age}, the IRS forces RMDs to begin. The money you converted to Roth has NO RMDs — but the client's held-back Traditional IRA still requires ${formatCurrency(strategyRMD)} this year, taxed at their bracket. The strategy eliminates RMDs on everything that gets converted.`
+            : `At age ${year.age}, the IRS would force you to withdraw from a Traditional IRA — whether you need it or not. But because you converted to Roth, you have no RMDs. Your money stays invested and growing tax-free.`,
         comparison: isNoConversion
           ? undefined
           : baselineRMD > 0

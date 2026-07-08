@@ -530,7 +530,18 @@ export function TaxDataSection() {
             <Checkbox
               id="rmds_handled_externally"
               checked={field.value}
-              onCheckedChange={field.onChange}
+              onCheckedChange={(checked) => {
+                field.onChange(checked);
+                // The held-back balance/growth inputs are only shown while this box
+                // is checked, but the engine keys the whole held-back overlay off the
+                // BALANCE alone. Clear the held-back fields on uncheck so an entered
+                // balance can't keep silently driving the projection from a hidden,
+                // uneditable state.
+                if (!checked) {
+                  form.setValue("held_back_ira_balance", null, { shouldDirty: true });
+                  form.setValue("held_back_ira_growth_rate", null, { shouldDirty: true });
+                }
+              }}
               className="mt-0.5 shrink-0"
             />
             <div className="flex-1 min-w-0">

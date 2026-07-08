@@ -223,7 +223,12 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
             },
             {
               label: "Legacy to Heirs",
-              value: toUSD(projection.blueprint_final_roth + projection.blueprint_final_traditional * 0.6),
+              // Use the same net-legacy the dashboard/report use (blueLifetime):
+              // final net worth minus heir tax on the remaining Traditional at the
+              // CLIENT's heir rate. The old formula hardcoded a 40% rate (× 0.6) and
+              // dropped the taxable account entirely, understating legacy for any
+              // client whose heir_tax_rate ≠ 40% or who has a taxable balance.
+              value: toUSD(blueLifetime),
               sub: "After heir taxes",
             },
           ].map((m) => (

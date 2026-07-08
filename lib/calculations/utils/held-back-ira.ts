@@ -1,5 +1,7 @@
 import type { Client, NonSSIIncomeEntry } from '@/lib/types/client';
+import type { SimulationResult, YearlyResult, FilingStatus } from '@/lib/calculations/types';
 import { calculateRMD } from '@/lib/calculations/modules/rmd';
+import { calculateConversionFederalTax } from '@/lib/calculations/modules/federal-tax';
 import { getBirthYear, getBirthYearFromAge, getAgeAtYearOffset } from '@/lib/calculations/utils/age';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '@/lib/calculations/utils/income';
 
@@ -48,10 +50,23 @@ export function computeHeldBackRmdSchedule(client: Client): Map<number, number> 
   const projectionYears = client.age && client.end_age
     ? client.end_age - client.age
     : (client.projection_years ?? 30);
-  const birthYear = client.date_of_birth
-    ? getBirthYear(client.date_of_birth)
-    : getBirthYearFromAge(clientAge, currentYear);
-  const growthRate = ((client.held_back_ira_growth_rate ?? client.rate_of_return ?? 0)) / 100;
+  // Derive birthYear the SAME way the engines do (baseline.ts): prefer AGE when
+  // present (age-based clients), falling back to DOB. Deriving from DOB first — while
+  // the divisor age comes from client.age — could start the held-back RMDs a year off
+  // from the modeled slice when age and DOB straddle the 1959/1960 SECURE-2.0 line
+  // (RMD start 73 vs 75).
+  const birthYear = client.age && client.age > 0
+    ? getBirthYearFromAge(clientAge, currentYear)
+    : (client.date_of_birth ? getBirthYear(client.date_of_birth) : getBirthYearFromAge(clientAge, currentYear));
+  // The held-back IRA is a plain "do-nothing" Traditional IRA held elsewhere, so
+  // absent an explicit override it grows at the SAME rate the baseline models its own
+  // Traditional IRA (baseline_comparison_rate) — NOT the annuity's rate_of_return. An
+  // explicit held_back_ira_growth_rate governs the IRA ITSELF; note the residual's
+  // reinvestment side-account (applyHeldBackResidualToStrategy) always grows at
+  // baseline_comparison_rate, since those after-tax RMD proceeds sit in a taxable
+  // brokerage (a different account) — so the two rates intentionally diverge only when
+  // the override is set. When it's unset, both equal baseline_comparison_rate.
+  const growthRate = ((client.held_back_ira_growth_rate ?? client.baseline_comparison_rate ?? client.rate_of_return ?? 0)) / 100;
 
   // Grow + RMD-deplete the held-back balance year by year. RMD is taken on the
   // beginning-of-year balance (calculateRMD returns 0 before the client's SECURE
@@ -112,4 +127,127 @@ export function applyHeldBackIraRmd(client: Client): Client {
     tax_exempt_non_ssi: 0,
     rmds_handled_externally: false,
   };
+}
+
+/**
+ * The after-tax value of one year's held-back RMD on a given side.
+ *
+ * The held-back RMD is the client's mandatory ordinary income, so it's taxed at that
+ * side's MARGINAL rate — NOT the average. That distinction is the whole point of the
+ * residual: the two sides differ in marginal rate (the do-nothing side is shoved into
+ * a higher bracket by its own slice RMDs; the strategy sits lower once the slice is
+ * Roth), and average-rate attribution would badly over-state the gap (the baseline
+ * average is dragged up by slice RMDs that have nothing to do with the held-back RMD's
+ * marginal position).
+ *
+ * We compute the true marginal federal tax with the engine's own conversion-tax helper
+ * (tax_with − tax_without), stacking the held-back RMD at its FLOOR position: the base
+ * is the year's taxable income MINUS the conversion MINUS the held-back RMD, so the
+ * discretionary conversion correctly sits ABOVE the mandatory RMD (matching the engine's
+ * stacking) instead of inflating its rate in conversion/RMD overlap years. State is the
+ * flat marginal rate. Inherits the engine's inflation-indexed brackets and filing status.
+ */
+function afterTaxHeldBackRmd(
+  row: YearlyResult | undefined,
+  rmd: number,
+  filingStatus: FilingStatus,
+  stateRate: number,
+): number {
+  if (!row || rmd <= 0) return 0;
+  const base = Math.max(0, (row.taxableIncome ?? 0) - (row.conversionAmount ?? 0) - rmd);
+  const marginalFed = calculateConversionFederalTax(rmd, base, filingStatus, row.year);
+  const marginalState = Math.round(rmd * stateRate);
+  return rmd - marginalFed - marginalState;
+}
+
+/**
+ * Held-back Traditional IRA — RESIDUAL overlay (tier 2, strategy side only).
+ *
+ * The income-only overlay (applyHeldBackIraRmd) taxes the held-back RMDs in the
+ * correct brackets on both sides but banks their after-tax proceeds nowhere — so
+ * the held-back IRA is a pure wash in the delta. That wash is EXACT for every
+ * component EXCEPT one: the held-back RMDs are taxed at a different marginal rate
+ * on each side (do-nothing is shoved into a high bracket by its own slice RMDs;
+ * the strategy sits lower once the slice is Roth), so the strategy keeps more of
+ * each RMD after tax. Reinvested and grown, that difference is a REAL advantage of
+ * converting — and it's the only part of the held-back IRA that doesn't cancel.
+ *
+ * This function models exactly that residual and nothing else: it grows two
+ * identical held-back reinvestment side-accounts (one per side) that differ ONLY
+ * in the tax on the RMD, and folds the running difference (strategy − baseline)
+ * into each strategy year's netWorth + taxableBalance. The held-back balance,
+ * terminal value, and heir tax are identical on both sides and stay OUT of the
+ * totals (so the % denominator isn't inflated — see the residual-only decision).
+ *
+ * No-op when there's no held-back balance, or when rmd_treatment is 'spent' (spent
+ * proceeds don't accumulate as legacy, matching how the engines treat spent slice
+ * RMDs). Mutates result.formula in place. `client` is the RAW client (pre-overlay).
+ */
+export function applyHeldBackResidualToStrategy(client: Client, result: SimulationResult): void {
+  const startBalance = client.held_back_ira_balance ?? 0;
+  if (startBalance <= 0) return;
+  const rmdTreatment = client.rmd_treatment ?? 'reinvested';
+  if (rmdTreatment === 'spent') return;
+
+  const rmdByYear = computeHeldBackRmdSchedule(client);
+  if (rmdByYear.size === 0) return;
+
+  const growthRate = ((client.baseline_comparison_rate ?? client.rate_of_return ?? 0)) / 100;
+  const stateRate = (client.state_tax_rate ?? 0) / 100;
+  const filingStatus = (client.filing_status ?? 'single') as FilingStatus;
+  const baselineByYear = new Map(result.baseline.map((y) => [y.year, y]));
+
+  // Two side-accounts (baseline vs strategy) reinvesting the held-back IRA's
+  // after-tax RMDs. Identical mechanics; the ONLY difference is the per-side tax
+  // on the RMD. 'reinvested' grows at the comparison rate; 'cash' accumulates flat
+  // (mirrors baseline.ts). Grow the beginning-of-year balance first, then add this
+  // year's after-tax proceeds — same order as the engines.
+  let baselineAcct = 0;
+  let strategyAcct = 0;
+  for (const fy of result.formula) {
+    const rmd = rmdByYear.get(fy.year) ?? 0;
+    if (rmdTreatment === 'reinvested') {
+      baselineAcct += Math.round(baselineAcct * growthRate);
+      strategyAcct += Math.round(strategyAcct * growthRate);
+    }
+    baselineAcct += afterTaxHeldBackRmd(baselineByYear.get(fy.year), rmd, filingStatus, stateRate);
+    strategyAcct += afterTaxHeldBackRmd(fy, rmd, filingStatus, stateRate);
+
+    // The residual can be NEGATIVE: e.g. a Growth FIA whose premium bonus inflates
+    // the strategy's slice RMDs pushes the held-back RMDs into a higher bracket on the
+    // strategy than on the do-nothing baseline, so the strategy keeps LESS of them —
+    // a real (if small) cost. Floor taxableBalance at $0 when applying it (matching the
+    // engines' v53 taxable floor) and move netWorth by the SAME floored delta so the
+    // traditional+roth+taxable === netWorth invariant is preserved. heldBackResidual
+    // records the raw (possibly negative) figure for the breakout column.
+    const residual = strategyAcct - baselineAcct;
+    const newTaxable = Math.max(0, fy.taxableBalance + residual);
+    const appliedDelta = newTaxable - fy.taxableBalance;
+    fy.taxableBalance = newTaxable;
+    fy.netWorth += appliedDelta;
+    fy.heldBackResidual = residual;
+  }
+}
+
+/**
+ * Lifetime marginal income tax on the held-back IRA's RMDs for a given set of year
+ * rows (baseline or strategy). Uses the same floor-position marginal method as the
+ * residual. Used by the dashboard so the "tax attributable to RMDs" narrative covers
+ * the held-back external RMDs too — otherwise it pairs an all-RMDs figure (slice +
+ * external) with a slice-only tax. 0 when there's no held-back balance.
+ */
+export function computeHeldBackRmdMarginalTax(client: Client, years: YearlyResult[]): number {
+  const startBalance = client.held_back_ira_balance ?? 0;
+  if (startBalance <= 0) return 0;
+  const rmdByYear = computeHeldBackRmdSchedule(client);
+  if (rmdByYear.size === 0) return 0;
+  const stateRate = (client.state_tax_rate ?? 0) / 100;
+  const filingStatus = (client.filing_status ?? 'single') as FilingStatus;
+  let total = 0;
+  for (const y of years) {
+    const rmd = rmdByYear.get(y.year) ?? 0;
+    if (rmd <= 0) continue;
+    total += rmd - afterTaxHeldBackRmd(y, rmd, filingStatus, stateRate);
+  }
+  return total;
 }

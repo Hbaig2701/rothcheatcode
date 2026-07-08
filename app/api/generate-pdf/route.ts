@@ -12,6 +12,7 @@ import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
 import { hasFeature, hasFullAccess } from '@/lib/config/plans';
 import { determineTaxBracket, calculateFederalTax } from '@/lib/calculations/modules/federal-tax';
 import { computeMarginalRMDTax } from '@/lib/calculations/marginal-rmd-tax';
+import { computeHeldBackRmdMarginalTax } from '@/lib/calculations/utils/held-back-ira';
 import { calculateStateTax } from '@/lib/calculations/modules/state-tax';
 import { computeTaxableIncomeWithSS } from '@/lib/calculations/tax-helpers';
 import { getStandardDeduction } from '@/lib/data/standard-deductions';
@@ -813,7 +814,9 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const rmdTreatment = client.rmd_treatment ?? 'reinvested';
 
   // Baseline metrics (matches growth-report-dashboard.tsx lines 48-70)
-  const baseRMDs = sum(projection.baseline_years, 'rmdAmount');
+  // Include the held-back IRA's external RMDs so the PDF's RMD total matches the
+  // on-screen dashboard (which folds externalRmd into baseRMDs). 0 when no held-back.
+  const baseRMDs = sum(projection.baseline_years, 'rmdAmount') + sum(projection.baseline_years, 'externalRmd');
 
   // Voluntary (advisor-scheduled) withdrawals — the income stream the client
   // takes from the accounts, IRA + Roth. Shown on the page-4 Distributions
@@ -839,8 +842,16 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     (sum(projection.blueprint_years, 'iraWithdrawal') - aumTransferFromIra) +
     sum(projection.blueprint_years, 'rothWithdrawal') +
     sum(projection.blueprint_years, 'aumScheduledWithdrawal');
+  // Forced RMDs = the mandatory portion beyond any voluntary withdrawal, PLUS the
+  // held-back IRA's RMDs (externalRmd) which are pure forced distributions. The
+  // strategy STILL has forced RMDs (residual slice RMDs while converting + the
+  // held-back IRA's) — so neither side can be hardcoded to 0 for held-back clients.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const baseForcedRmd = projection.baseline_years.reduce((s: number, y: any) => s + Math.max(0, (y.rmdAmount ?? 0) - (y.iraWithdrawal ?? 0)), 0);
+  const baseForcedRmd = projection.baseline_years.reduce((s: number, y: any) => s + Math.max(0, (y.rmdAmount ?? 0) - (y.iraWithdrawal ?? 0)), 0)
+    + sum(projection.baseline_years, 'externalRmd');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const blueForcedRmd = projection.blueprint_years.reduce((s: number, y: any) => s + Math.max(0, (y.rmdAmount ?? 0) - (y.iraWithdrawal ?? 0)), 0)
+    + sum(projection.blueprint_years, 'externalRmd');
   const baseTax = sum(projection.baseline_years, 'federalTax') + sum(projection.baseline_years, 'stateTax');
   const baseIrmaa = sum(projection.baseline_years, 'irmaaSurcharge');
   const baseFinalTraditional = projection.baseline_final_traditional;
@@ -852,6 +863,10 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   // the breakdown table; no longer rolled into Lifetime Wealth.
   const lastBaselineYear = projection.baseline_years[projection.baseline_years.length - 1];
   const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
+  const lastFormulaYear = projection.blueprint_years[projection.blueprint_years.length - 1];
+  const blueCumulativeDistributions = lastFormulaYear?.cumulativeDistributions ?? 0;
+  // Strategy gross RMDs (slice + held-back external) — matches the dashboard's blueRMDs.
+  const blueRMDs = sum(projection.blueprint_years, 'rmdAmount') + sum(projection.blueprint_years, 'externalRmd');
   // Lifetime Wealth = net legacy on both sides (apples-to-apples).
   const baseLifetimeWealth = baseNetLegacy;
   const baseTotalTaxes = baseTax + baseIrmaa + baseHeirTax;
@@ -860,8 +875,13 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   // re-run the tax calc without the RMD and take the difference. Strategy
   // typically has zero RMDs (conversions empty the IRA before age 73), so its
   // value will usually be 0; we still compute it for symmetry/edge cases.
-  const baseRMDTaxOnly = computeMarginalRMDTax(projection.baseline_years, client);
-  const blueRMDTaxOnly = computeMarginalRMDTax(projection.blueprint_years, client);
+  // Add the held-back external RMD tax so it pairs with baseRMDs (slice + external),
+  // and so afterTaxDistributions (baseRMDs − baseRMDTaxOnly) is correct. Matches the
+  // dashboard. 0 when no held-back IRA.
+  const baseRMDTaxOnly = computeMarginalRMDTax(projection.baseline_years, client)
+    + computeHeldBackRmdMarginalTax(client, projection.baseline_years);
+  const blueRMDTaxOnly = computeMarginalRMDTax(projection.blueprint_years, client)
+    + computeHeldBackRmdMarginalTax(client, projection.blueprint_years);
 
   // Formula metrics (matches growth-report-dashboard.tsx lines 73-84)
   const blueConversions = sum(projection.blueprint_years, 'conversionAmount');
@@ -882,7 +902,13 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
   // Lifetime wealth = net legacy (conversion taxes/IRMAA already deducted from taxable in engine)
   const blueLifetimeWealth = blueNetLegacy;
-  const blueTotalTaxes = blueTax + blueIrmaa + blueHeirTax;
+  // Include the 10% early-withdrawal penalty (under-59½ from-IRA conversions) in the
+  // strategy's total tax cost — the on-screen dashboard does (growth-report-dashboard
+  // blueTotalTaxes), so omitting it here understated PDF tax cost / overstated tax
+  // savings vs the screen. Baseline has no conversions → no such penalty, matching the
+  // dashboard's baseTotalTaxes.
+  const blueEarlyPenalty = sum(projection.blueprint_years, 'earlyWithdrawalPenalty');
+  const blueTotalTaxes = blueTax + blueIrmaa + blueHeirTax + blueEarlyPenalty;
 
   const wealthIncrease = baseLifetimeWealth > 0
     ? ((blueLifetimeWealth - baseLifetimeWealth) / Math.abs(baseLifetimeWealth)) * 100
@@ -1090,14 +1116,14 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       ...baselineData,
     },
     strategy: {
-      totalDistributions: formatCurrency(0),
+      totalDistributions: formatCurrency(blueForcedRmd),
       voluntaryWithdrawals: formatCurrency(blueVoluntary),
       totalConversions: formatCurrency(blueConversions),
       taxOnConversionsOnly: formatCurrency(blueConversionTaxOnly),
       taxOnRMDsOnly: formatCurrency(blueRMDTaxOnly),
       premiumBonusReceived: formatCurrency(premiumBonusDollars),
       netTaxCost: formatCurrency(strategyNetOutOfPocketTax),
-      afterTaxDistributions: formatCurrency(0),
+      afterTaxDistributions: formatCurrency(rmdTreatment === 'spent' ? blueCumulativeDistributions : blueRMDs - blueRMDTaxOnly),
       legacyGross: formatCurrency(projection.blueprint_final_net_worth),
       legacyTax: formatCurrency(blueHeirTax),
       legacyNet: formatCurrency(blueNetLegacy),
@@ -1110,7 +1136,10 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       // Raw values for use with formatDiff helper (dollars, converted from cents)
       premiumBonus: (premiumBonusDollars - 0) / 100,
       netTaxCost: (strategyNetOutOfPocketTax - baselineNetOutOfPocketTax) / 100,
-      afterTax: (0 - (rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseTax)) / 100,
+      afterTax: (
+        (rmdTreatment === 'spent' ? blueCumulativeDistributions : blueRMDs - blueRMDTaxOnly)
+        - (rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs - baseRMDTaxOnly)
+      ) / 100,
       legacyGross: (projection.blueprint_final_net_worth - projection.baseline_final_net_worth) / 100,
       legacyTax: (blueHeirTax - baseHeirTax) / 100,
       legacyNet: (blueNetLegacy - baseNetLegacy) / 100,

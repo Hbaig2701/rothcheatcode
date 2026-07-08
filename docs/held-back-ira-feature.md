@@ -98,29 +98,70 @@ from_ira, conversion optimized_amount, maxTax 32%.
 
 ---
 
-## 5. KNOWN LIMITATION → the "real bucket" (next session)
+## 5. Tiers of accuracy — what's built
 
-The income-only overlay captures the held-back RMD **tax** correctly (so the **Additional
-Lifetime Wealth headline is accurate**), but does **NOT** track the held-back IRA's own
-**balance/wealth**:
-- The held-back IRA's balance, its reinvested after-tax RMD proceeds, and its heir tax are
-  NOT in the absolute net-worth totals (they're identical on both sides → cancel in the
-  delta, so the headline is right; the tooltip now says this plainly).
-- The **RMD Treatment** (reinvest/spend) setting applies to the **slice's** RMDs only — the
-  held-back RMDs are income-only regardless.
+There are three components to the held-back IRA. Two cancel EXACTLY in the strategy-vs-
+baseline delta for every client; only one does not.
 
-**The real bucket (moderate build, ~half-day + verification):** model the held-back as an
-actual IRA bucket combined into both sides (the `runAumOverlay`/`combineRothAndAum` pattern):
-grow + RMD-deplete, reinvest after-tax proceeds into a side taxable account, heir tax, and
-add its balance to `baseline_final_net_worth`/`blueprint_final_net_worth` + per-year rows.
-Then the dashboard/tooltip/totals all reflect it automatically.
-- **Tricky part:** tax the held-back RMDs at each side's **marginal** rate (to keep the
-  bracket interaction) — do a with/without tax diff per year, subtract to get after-tax
-  proceeds.
-- **Alternative (higher risk, most elegant):** fix the growth engine so the premium bonus
-  applies to the **converted amount** only, then advisors enter the **full IRA + partial
-  convert** — everything correct in one sim, no held-back field. But it's a core engine
-  change needing re-validation vs carrier illustrations.
+| Component | Same on both sides? | Handled by |
+|---|---|---|
+| Starting balance, growth, RMD schedule | Yes (depends only on balance/age) | cancels — nothing to do |
+| Terminal balance + heir tax on it | Yes (same balance × same rate) | cancels — nothing to do |
+| **After-tax RMD proceeds** (RMDs taxed at each side's own marginal rate) | **No** | **`applyHeldBackResidualToStrategy` (v74) — BUILT** |
+
+### Tier 1 (v72) — income-only overlay
+`applyHeldBackIraRmd`: injects the held-back RMDs into both sides' ordinary income so the
+conversion is taxed in the correct brackets. Makes the tax right; banks no proceeds.
+
+### Tier 2 (v74) — the residual — BUILT 2026-07-08
+`applyHeldBackResidualToStrategy`: the held-back RMDs are taxed at a **different marginal
+rate on each side** (do-nothing sits high from its own slice RMDs; the strategy sits lower
+once the slice is Roth), so the strategy keeps more of each RMD after tax. That difference —
+reinvested and grown — is the ONE piece that does **not** cancel, and it's now folded into
+the strategy's `netWorth`/`taxableBalance` (so the Additional Lifetime Wealth headline
+reflects it). **Income-sensitive:** ~10% of the delta for a high-outside-income client (the
+origin case: Bill's headline $1.88M → $2.38M), rising to 25–100%+ for low-income clients
+(verified sweep — the two brackets diverge more the lower the outside income).
+- **Marginal tax method:** `calculateConversionFederalTax` stacking the RMD at its **floor
+  position** (base = `taxableIncome − conversionAmount − rmd`), so the discretionary
+  conversion correctly sits ABOVE the mandatory RMD. Verified per-year against the engine's
+  own with/without marginal: **exact on the baseline**; on the strategy the with/without
+  shows $0 in conversion-overlap years because the RMD *displaces* conversion room — but that
+  benefit is already in `netWorth` (smaller conversion → less Roth), so the with/without
+  DOUBLE-COUNTS there and the floor-position calc is the correct, non-double-counting choice.
+- **No-op** when there's no held-back balance or `rmd_treatment='spent'` (spent proceeds
+  aren't legacy). Baseline byte-identical; strategy-side only. Audit: 0 breaches / 14-14
+  golden masters (no fixture uses held-back).
+- **Deliberately conservative:** the floor-position calc omits SS-torpedo/IRMAA *marginal*
+  effects on the held-back RMD, which would only make the residual larger for low-income
+  clients — so it under-states rather than over-sells.
+- **Consistency audit (2026-07-08):** the residual is baked into `blueprint_final_net_worth`
+  AND `blueprint_final_taxable` + each strategy `blueprint_years` row's `netWorth`/
+  `taxableBalance`/`heldBackResidual`. Every headline surface (dashboard hero, Lifetime
+  Wealth + Legacy cards, presentation mode, growth Story Mode "Extra Wealth Created", growth
+  PDF) reads `blueprint_final_net_worth` → residual counted **once**. The trajectory chart +
+  break-even reconstruct from `traditional+roth+taxable` and pick it up once via
+  `taxableBalance` (that's why it's in both, not just netWorth). `heir_benefit`/
+  `total_tax_savings` are pre-residual but not used for any headline (dashboard recomputes
+  tax savings from per-year sums, which already carry the held-back tax diff). **Explainability
+  surfaces added:** a default-hidden "Held-Back RMD Advantage" year-by-year column
+  (cumulative `heldBackResidual`), a named "+ Held-back RMD tax advantage" line in both the
+  Lifetime-Wealth and Legacy-to-Heirs tooltips (so the taxable breakdown reconciles instead
+  of the residual hiding inside the taxable balance), and the taxableBalance column
+  description. **GI scope note:** the residual also runs for GI clients (all engine branches);
+  held-back is validated for growth, and GI Story Mode strategy legacy is income-base-driven
+  (doesn't read the residual), but a GI client WITH a held-back balance would carry it in
+  `taxableBalance` → the GI-legacy PDF/baseline reconstruction would absorb it. Untested for
+  GI; scope to growth if a GI held-back case ever appears.
+
+### Tier 3 (NOT built) — the "real bucket" (absolute levels only)
+The held-back IRA's own **balance** is still not in the absolute net-worth totals / chart
+(both sides ~$9M low on the origin case). This is a WASH in the delta (identical both sides),
+so the headline is correct without it; it only matters if advisors show clients the absolute
+net-worth chart/levels rather than the delta. Deliberately NOT built (2026-07-08 decision):
+folding it in would dilute the % denominator and inflate totals for no delta gain. Build only
+if advisors start pitching off absolute levels. `rmd_treatment` still applies to the slice's
+RMDs only; the held-back RMDs are residual/income-only.
 
 ---
 

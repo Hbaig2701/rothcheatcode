@@ -302,6 +302,19 @@ export interface YearlyResult {
   // optional "RMD (External)" column so advisors can see it as an RMD.
   externalRmd?: number;
 
+  // Held-back Traditional IRA — RESIDUAL after-tax advantage (strategy side only,
+  // in cents). The held-back IRA's RMDs are taxed at a DIFFERENT marginal rate on
+  // each side (do-nothing sits in a high bracket from its own RMDs; the strategy
+  // sits lower once the converted slice is Roth), so the strategy keeps more of
+  // each held-back RMD after tax. That difference — reinvested and grown — is the
+  // ONE piece of the held-back IRA that does NOT cancel in the strategy-vs-baseline
+  // delta. It's added to this year's strategy netWorth + taxableBalance so the
+  // Additional Lifetime Wealth headline reflects it. Everything else about the
+  // held-back IRA (its balance, terminal value, heir tax) is identical on both
+  // sides and correctly nets out, so it stays OUT of the totals. Cumulative,
+  // running to the end of the projection. Absent/zero when no held-back balance.
+  heldBackResidual?: number;
+
   // Guaranteed Income-specific (optional, for GI products)
   incomeRiderValue?: number; // Income benefit base (in cents)
   accumulationValue?: number; // Account accumulation value (in cents)

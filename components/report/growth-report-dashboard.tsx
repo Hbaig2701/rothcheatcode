@@ -16,6 +16,7 @@ import { useUpdateClient } from "@/lib/queries/clients";
 import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
 import { computeMarginalRMDTax } from "@/lib/calculations/marginal-rmd-tax";
+import { computeHeldBackRmdMarginalTax } from "@/lib/calculations/utils/held-back-ira";
 import { getClientRMDStartAge } from "@/lib/calculations/utils/age";
 import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
 import { ResizableComparisonTable } from "@/components/results/deep-dive/resizable-comparison-table";
@@ -176,6 +177,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const heldBackBalance = client.held_back_ira_balance ?? 0;
   const baseExternalRMDs = sum(projection.baseline_years, "externalRmd");
   const baseRMDs = sum(projection.baseline_years, "rmdAmount") + baseExternalRMDs;
+  // Strategy STILL has forced RMDs: any residual slice RMDs while the Traditional
+  // portion is converting, PLUS the held-back IRA's RMDs (unavoidable, same both
+  // sides). Only a full conversion with no held-back IRA truly hits $0 here — so the
+  // card must not hardcode 0, which would falsely claim the strategy eliminates the
+  // held-back RMDs too (~$5.7M on the origin case).
+  const blueExternalRMDs = sum(projection.blueprint_years, "externalRmd");
+  const blueRMDs = sum(projection.blueprint_years, "rmdAmount") + blueExternalRMDs;
   const baseTax = sum(projection.baseline_years, "federalTax") + sum(projection.baseline_years, "stateTax");
   // Marginal RMD-attributable portion of baseline tax — the tax dollars caused
   // BY the RMDs themselves, isolated from background tax on SS/non-SSI income
@@ -183,12 +191,17 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // "Income tax on RMDs" silently lumps in tax on all other income — the
   // asymmetry advisors keep catching on the dashboard tooltips. Same helper
   // backs the PDF "Tax on RMDs" row, so all surfaces stay in sync.
-  const baseRMDTaxOnly = computeMarginalRMDTax(projection.baseline_years, client);
+  // Include the held-back IRA's external RMD tax so this pairs with baseRMDs
+  // (which counts slice + external RMDs) — otherwise the narrative shows all the
+  // RMDs but only the slice's tax. 0 when there's no held-back IRA.
+  const baseRMDTaxOnly = computeMarginalRMDTax(projection.baseline_years, client)
+    + computeHeldBackRmdMarginalTax(client, projection.baseline_years);
   // Same idea for strategy: when a strategy doesn't fully convert (partial /
   // optimized / fixed), there are still RMDs in the post-conversion phase,
   // and the tax on those is its own line — separate from conversion tax and
-  // separate from background income tax.
-  const blueRMDTaxOnly = computeMarginalRMDTax(projection.blueprint_years, client);
+  // separate from background income tax. Held-back external RMD tax included too.
+  const blueRMDTaxOnly = computeMarginalRMDTax(projection.blueprint_years, client)
+    + computeHeldBackRmdMarginalTax(client, projection.blueprint_years);
   const baseIrmaa = sum(projection.baseline_years, "irmaaSurcharge");
   const baseFinalTraditional = projection.baseline_final_traditional;
   const baseFinalRoth = projection.baseline_final_roth;
@@ -200,6 +213,12 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // Get cumulative after-tax distributions for 'spent' scenario
   const lastBaselineYear = projection.baseline_years[projection.baseline_years.length - 1];
   const baseCumulativeDistributions = lastBaselineYear?.cumulativeDistributions ?? 0;
+  // Strategy's cumulative after-tax forced distributions (only tracked when
+  // rmd_treatment==='spent'). Used so the "Forced Distributions (After-Tax)" card
+  // compares after-tax vs after-tax — showing gross strategy RMDs against an
+  // after-tax baseline would be apples-to-oranges.
+  const lastFormulaYear = projection.blueprint_years[projection.blueprint_years.length - 1];
+  const blueCumulativeDistributions = lastFormulaYear?.cumulativeDistributions ?? 0;
 
   // Lifetime Wealth = net legacy (apples-to-apples vs strategy).
   // Previously, when rmd_treatment === 'spent', baseline lifetime wealth added
@@ -233,6 +252,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
   // Lifetime wealth = net legacy (conversion taxes/IRMAA already deducted from taxable in engine)
   const blueLifetimeWealth = blueNetLegacy;
+  // Held-back IRA RMD-tax advantage (residual, cumulative to the final year). This is
+  // the extra after-tax money the strategy keeps because the held-back IRA's RMDs are
+  // taxed at a lower marginal rate than under do-nothing. It's already baked into
+  // blueprint_final_taxable / _net_worth (hence blueNetLegacy); surfaced here so the
+  // tooltips can name it instead of it hiding inside the taxable balance. 0 when no
+  // held-back IRA. See applyHeldBackResidualToStrategy + docs/held-back-ira-feature.md §5.
+  const blueHeldBackResidual = projection.blueprint_years?.[projection.blueprint_years.length - 1]?.heldBackResidual ?? 0;
   // Lifetime tax cost includes the 10% early-withdrawal penalty alongside
   // income tax + IRMAA + heir tax. Without the penalty line the card would
   // under-state the actual cash cost when AUM is on under 59½.
@@ -567,6 +593,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 aumTotalTaxPaid={aumTotalTaxPaid}
                 aumFinalBalance={aumFinalBalance}
                 rothSidePortion={rothSidePortion}
+                heldBackResidual={blueHeldBackResidual}
                 conversionType={conversionType}
                 conversionTypeDescription={conversionTypeDescription}
                 hasVoluntaryWithdrawals={hasVoluntaryWithdrawals}
@@ -609,6 +636,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 blueFinalTaxable={projection.blueprint_final_taxable}
                 blueHeirTax={blueHeirTax}
                 blueNetLegacy={blueNetLegacy}
+                heldBackResidual={blueHeldBackResidual}
                 heirTaxRate={heirTaxRate}
                 aumActive={aumActive}
                 aumFinalBalance={aumFinalBalance}
@@ -656,7 +684,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           <ComparisonCard
             label={rmdTreatment === 'spent' ? "Forced Distributions (After-Tax)" : "Forced Distributions"}
             baseline={rmdTreatment === 'spent' ? baseCumulativeDistributions : baseRMDs}
-            strategy={0}
+            strategy={rmdTreatment === 'spent' ? blueCumulativeDistributions : blueRMDs}
             invertColor={rmdTreatment !== 'spent'}
             infoContent={
               <DistributionsInfo
@@ -1345,6 +1373,7 @@ function LifetimeWealthInfo({
   aumTotalTaxPaid,
   aumFinalBalance,
   rothSidePortion,
+  heldBackResidual,
   conversionType,
   conversionTypeDescription,
   hasVoluntaryWithdrawals,
@@ -1395,6 +1424,7 @@ function LifetimeWealthInfo({
   aumTotalTaxPaid: number;
   aumFinalBalance: number;
   rothSidePortion: number;
+  heldBackResidual: number;
   conversionType: string;
   conversionTypeDescription: string;
   hasVoluntaryWithdrawals: boolean;
@@ -1647,7 +1677,7 @@ function LifetimeWealthInfo({
         </TipNote>
         {(client.held_back_ira_balance ?? 0) > 0 && (
           <TipNote>
-            Note: the balances above are for the {toUSD(client.qualified_account_value)} going into the annuity. The client&apos;s held-back {toUSD(client.held_back_ira_balance ?? 0)} Traditional IRA is modeled for its RMD tax (those RMDs are included in the total above and shown in the &quot;RMD (External)&quot; column), but its own balance isn&apos;t added to these figures — it&apos;s identical in both scenarios, so it nets out of the Additional Lifetime Wealth comparison.
+            Note: the balances above are for the {toUSD(client.qualified_account_value)} going into the annuity. The client&apos;s held-back {toUSD(client.held_back_ira_balance ?? 0)} Traditional IRA is modeled for its RMD tax (those RMDs are included in the total above and shown in the &quot;RMD (External)&quot; column). Its balance, terminal value, and heir tax are identical in both scenarios, so they net out of the comparison and stay out of these figures. The one part that does <em>not</em> net out — the strategy taxes those held-back RMDs at a lower marginal rate (no forced RMDs on the converted slice), so it keeps more of them after tax — <strong>is</strong> included in the Additional Lifetime Wealth above.
           </TipNote>
         )}
       </TipSection>
@@ -1724,9 +1754,17 @@ function LifetimeWealthInfo({
         <TipRow label="Final Roth IRA" value={toUSD(blueFinalRoth)} variant="positive" />
         <TipRow
           label="Final taxable account"
-          value={toUSD(Math.max(0, projection.blueprint_final_taxable))}
+          value={toUSD(Math.max(0, projection.blueprint_final_taxable - Math.max(0, heldBackResidual)))}
           note={aumActive ? <>Includes the {toUSD(aumFinalBalance)} AUM bucket.</> : undefined}
         />
+        {heldBackResidual > 0 && (
+          <TipRow
+            label="+ Held-back RMD tax advantage"
+            value={toUSD(heldBackResidual)}
+            variant="positive"
+            note={<>The held-back IRA&apos;s RMDs are taxed at a lower marginal rate under the strategy (no forced RMDs on the converted slice stacking underneath), so the client keeps more after tax. Reinvested and grown.</>}
+          />
+        )}
         <TipDivider />
         <TipRow label="Gross estate" value={toUSD(projection.blueprint_final_net_worth)} />
         <TipRow label={`− Heir tax on Traditional (${heirTaxPct}%)`} value={toUSD(blueHeirTax)} variant="negative" />
@@ -1799,6 +1837,7 @@ function LegacyToHeirsInfo({
   blueFinalTaxable,
   blueHeirTax,
   blueNetLegacy,
+  heldBackResidual,
   heirTaxRate,
   aumActive,
   aumFinalBalance,
@@ -1816,6 +1855,7 @@ function LegacyToHeirsInfo({
   blueFinalTaxable: number;
   blueHeirTax: number;
   blueNetLegacy: number;
+  heldBackResidual: number;
   heirTaxRate: number;
   aumActive: boolean;
   aumFinalBalance: number;
@@ -1853,11 +1893,14 @@ function LegacyToHeirsInfo({
         <TipRow label="+ Roth IRA (tax-free)" value={toUSD(blueFinalRoth)} variant="positive" />
         {aumActive ? (
           <>
-            <TipRow label="+ Original taxable account (step-up)" value={toUSD(blueNonAumTaxable)} />
+            <TipRow label="+ Original taxable account (step-up)" value={toUSD(Math.max(0, blueNonAumTaxable - Math.max(0, heldBackResidual)))} />
             <TipRow label="+ AUM brokerage (step-up)" value={toUSD(aumFinalBalance)} />
           </>
         ) : (
-          <TipRow label="+ Taxable account (step-up)" value={toUSD(Math.max(0, blueFinalTaxable))} />
+          <TipRow label="+ Taxable account (step-up)" value={toUSD(Math.max(0, blueFinalTaxable - Math.max(0, heldBackResidual)))} />
+        )}
+        {heldBackResidual > 0 && (
+          <TipRow label="+ Held-back RMD tax advantage" value={toUSD(heldBackResidual)} variant="positive" />
         )}
         <TipDivider />
         <TipRow label="Net legacy" value={toUSD(blueNetLegacy)} variant="total" />
