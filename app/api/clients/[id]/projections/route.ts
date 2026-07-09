@@ -307,61 +307,71 @@ function simulationToProjection(
     ? client.end_age - client.age
     : (client.projection_years ?? 30);
 
+  // The *_final_* balance and tax/heir columns are BIGINT (integer cents), but the
+  // engines can emit a fractional-cent residue from float math (e.g. a vesting bonus
+  // credited on a converted Roth balance → 66992289.00000001). Postgres rejects a
+  // non-integer for a bigint column ("invalid input syntax for type bigint"), which
+  // surfaced as a 500 on GET projections for the client whose numbers happened to land
+  // on a residue (Jim Bonadio ticket). Round every bigint-bound scalar; pass null/
+  // non-finite through as null so a bad value degrades to NULL instead of a 500.
+  const bi = (v: number | null | undefined): number | null =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : null;
+
   return {
     client_id: clientId,
     user_id: userId,
     input_hash: inputHash,
-    break_even_age: result.breakEvenAge,
-    total_tax_savings: result.totalTaxSavings,
-    heir_benefit: result.heirBenefit,
-    baseline_final_traditional: lastBaseline.traditionalBalance,
-    baseline_final_roth: lastBaseline.rothBalance,
-    baseline_final_taxable: lastBaseline.taxableBalance,
-    baseline_final_net_worth: lastBaseline.netWorth,
-    blueprint_final_traditional: lastFormula.traditionalBalance,
-    blueprint_final_roth: lastFormula.rothBalance,
-    blueprint_final_taxable: lastFormula.taxableBalance,
-    blueprint_final_net_worth: lastFormula.netWorth,
+    break_even_age: bi(result.breakEvenAge),
+    total_tax_savings: bi(result.totalTaxSavings),
+    heir_benefit: bi(result.heirBenefit),
+    baseline_final_traditional: bi(lastBaseline.traditionalBalance),
+    baseline_final_roth: bi(lastBaseline.rothBalance),
+    baseline_final_taxable: bi(lastBaseline.taxableBalance),
+    baseline_final_net_worth: bi(lastBaseline.netWorth),
+    blueprint_final_traditional: bi(lastFormula.traditionalBalance),
+    blueprint_final_roth: bi(lastFormula.rothBalance),
+    blueprint_final_taxable: bi(lastFormula.taxableBalance),
+    blueprint_final_net_worth: bi(lastFormula.netWorth),
     baseline_years: result.baseline,
     blueprint_years: result.formula,
     strategy,
     projection_years: projectionYears,
     // GI-specific metrics (null for Growth products)
-    gi_annual_income_gross: giMetrics?.annualIncomeGross ?? null,
-    gi_annual_income_net: giMetrics?.annualIncomeNet ?? null,
-    gi_income_start_age: giMetrics?.incomeStartAge ?? null,
-    gi_depletion_age: giMetrics?.depletionAge ?? null,
-    gi_income_base_at_start: giMetrics?.incomeBaseAtStart ?? null,
-    gi_income_base_at_income_age: giMetrics?.incomeBaseAtIncomeAge ?? null,
-    gi_total_gross_paid: giMetrics?.totalGrossPaid ?? null,
-    gi_total_net_paid: giMetrics?.totalNetPaid ?? null,
+    gi_annual_income_gross: bi(giMetrics?.annualIncomeGross),
+    gi_annual_income_net: bi(giMetrics?.annualIncomeNet),
+    gi_income_start_age: bi(giMetrics?.incomeStartAge),
+    gi_depletion_age: bi(giMetrics?.depletionAge),
+    gi_income_base_at_start: bi(giMetrics?.incomeBaseAtStart),
+    gi_income_base_at_income_age: bi(giMetrics?.incomeBaseAtIncomeAge),
+    gi_total_gross_paid: bi(giMetrics?.totalGrossPaid),
+    gi_total_net_paid: bi(giMetrics?.totalNetPaid),
     gi_yearly_data: giMetrics?.yearlyData ?? null,
-    gi_total_rider_fees: giMetrics?.totalRiderFees ?? null,
+    gi_total_rider_fees: bi(giMetrics?.totalRiderFees),
     gi_payout_percent: giMetrics?.payoutPercent ?? null,
     gi_roll_up_description: giMetrics?.rollUpDescription ?? null,
     // GI 4-phase model fields
     gi_conversion_phase_years: giMetrics?.conversionPhaseYears ?? null,
-    gi_purchase_age: giMetrics?.purchaseAge ?? null,
-    gi_purchase_amount: giMetrics?.purchaseAmount ?? null,
-    gi_total_conversion_tax: giMetrics?.totalConversionTax ?? null,
+    gi_purchase_age: bi(giMetrics?.purchaseAge),
+    gi_purchase_amount: bi(giMetrics?.purchaseAmount),
+    gi_total_conversion_tax: bi(giMetrics?.totalConversionTax),
     gi_deferral_years: giMetrics?.deferralYears ?? null,
     // GI comparison metrics
-    gi_strategy_annual_income_net: giMetrics?.comparison?.strategyAnnualIncomeNet ?? null,
-    gi_baseline_annual_income_gross: giMetrics?.comparison?.baselineAnnualIncomeGross ?? null,
-    gi_baseline_annual_income_net: giMetrics?.comparison?.baselineAnnualIncomeNet ?? null,
-    gi_baseline_annual_tax: giMetrics?.comparison?.baselineAnnualTax ?? null,
-    gi_baseline_income_base: giMetrics?.comparison?.baselineIncomeBase ?? null,
-    gi_annual_income_advantage: giMetrics?.comparison?.annualIncomeAdvantage ?? null,
-    gi_lifetime_income_advantage: giMetrics?.comparison?.lifetimeIncomeAdvantage ?? null,
-    gi_tax_free_wealth_created: giMetrics?.comparison?.taxFreeWealthCreated ?? null,
+    gi_strategy_annual_income_net: bi(giMetrics?.comparison?.strategyAnnualIncomeNet),
+    gi_baseline_annual_income_gross: bi(giMetrics?.comparison?.baselineAnnualIncomeGross),
+    gi_baseline_annual_income_net: bi(giMetrics?.comparison?.baselineAnnualIncomeNet),
+    gi_baseline_annual_tax: bi(giMetrics?.comparison?.baselineAnnualTax),
+    gi_baseline_income_base: bi(giMetrics?.comparison?.baselineIncomeBase),
+    gi_annual_income_advantage: bi(giMetrics?.comparison?.annualIncomeAdvantage),
+    gi_lifetime_income_advantage: bi(giMetrics?.comparison?.lifetimeIncomeAdvantage),
+    gi_tax_free_wealth_created: bi(giMetrics?.comparison?.taxFreeWealthCreated),
     gi_break_even_years: giMetrics?.comparison?.breakEvenYears ?? null,
-    gi_break_even_age: giMetrics?.comparison?.breakEvenAge ?? null,
+    gi_break_even_age: bi(giMetrics?.comparison?.breakEvenAge),
     gi_percent_improvement: giMetrics?.comparison?.percentImprovement ?? null,
     gi_baseline_yearly_data: giMetrics?.baselineYearlyData ?? null,
 
     // AUM bucket — null when split-allocation isn't active.
     aum_years: aumYears,
-    aum_final_balance: lastAum ? lastAum.taxableBalance : null,
+    aum_final_balance: bi(lastAum ? lastAum.taxableBalance : null),
   };
 }
 
