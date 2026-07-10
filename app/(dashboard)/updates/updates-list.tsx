@@ -5,6 +5,38 @@ import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck
 
 const updates = [
   {
+    id: '34',
+    date: 'July 1, 2026',
+    title: 'Collapsible Form Sections',
+    description: "The client form (and the Inputs panel on the report) now organizes into collapsible sections: Client Data, Current Account Data, New Account Data, and so on.\n\nOnly Client Data is open when you land; click any section header to expand it, or use \"Expand all / Collapse all\" at the top. Fill in what you need, and if a required field is empty, its section opens automatically when you save so you can spot it right away.",
+    category: 'New Feature',
+    icon: SlidersHorizontal,
+  },
+  {
+    id: '33',
+    date: 'June 25, 2026',
+    title: 'Apply Your Favourite Columns in One Click',
+    description: "Set your go-to year-by-year column layout once, then apply it anywhere. The table header now has an \"Apply my favourite columns\" button that snaps any client's table to the layout you saved in Settings under \"My Columns\".\n\nYour column choices and order are saved to your account, so they follow you across every device you sign in on.",
+    category: 'New Feature',
+    icon: Columns,
+  },
+  {
+    id: '32',
+    date: 'June 24, 2026',
+    title: 'Tax-Credit Carryforward',
+    description: "You can now enter tax credits a client is carrying — for example a disaster-relief or other carryover credit — in the \"Tax Credits\" field of Section 4 (Tax Data). The engine applies them against the federal conversion tax dollar-for-dollar, year by year, until the pool runs out.\n\nUnlike a deduction (which lowers taxable income), a credit directly reduces the tax owed, so a client sitting on a large carryover can convert far more cheaply. Both the do-nothing baseline and the conversion strategy get the full credit, so the comparison stays fair.",
+    category: 'New Feature',
+    icon: HandCoins,
+  },
+  {
+    id: '31',
+    date: 'June 24, 2026',
+    title: 'Guaranteed Income: Legacy / No-Income Mode',
+    description: "For clients buying an annuity purely to leave a larger, tax-free death benefit rather than to take income, there's now a dedicated Legacy mode. Turn it on and the report focuses entirely on the enhanced death benefit: how the benefit base rolls up, what the heirs receive, and how a Roth annuity leaves it tax-free versus a taxable traditional one.\n\nIt comes with a legacy-specific report view, Story Mode, and PDF, so the whole illustration speaks to the legacy goal: the death benefit, not an income stream.",
+    category: 'New Feature',
+    icon: Shield,
+  },
+  {
     id: '30',
     date: 'May 19, 2026',
     title: 'AI Chat Assistant (Beta)',
