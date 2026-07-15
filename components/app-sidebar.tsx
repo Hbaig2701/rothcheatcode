@@ -10,7 +10,7 @@ import {
   SidebarSeparator,
 } from '@/components/ui/sidebar'
 import { LogoutButton } from '@/components/logout-button'
-import { LayoutDashboard, Users, Settings, FileText, Video, Mic, Bell, LifeBuoy } from 'lucide-react'
+import { LayoutDashboard, Users, Settings, FileText, Video, Mic, Bell, LifeBuoy, Gift } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 
 const navItems = [
@@ -73,6 +73,15 @@ export async function AppSidebar({ user, displayName, userRole: _userRole }: { u
 
       <SidebarFooter className="px-4 pb-6 mt-auto">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              render={<a href="/settings#refer" />}
+              className="h-11 gap-2.5 rounded-[10px] px-3.5 text-sm font-medium text-muted-foreground transition-all hover:bg-accent hover:text-accent-foreground data-active:bg-accent data-active:text-accent-foreground data-active:border data-active:border-gold-border data-active:font-medium"
+            >
+              <Gift className="size-4 opacity-80" />
+              <span>Refer &amp; Earn</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
               render={<a href="/settings" />}

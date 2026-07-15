@@ -14,6 +14,7 @@ import {
   Palette,
   Package,
   Columns3,
+  Gift,
   Loader2,
 } from "lucide-react";
 import { ProfileTab } from "./tabs/profile-tab";
@@ -25,6 +26,7 @@ import { TeamTab } from "./tabs/team-tab";
 import { AppearanceTab } from "./tabs/appearance-tab";
 import { ProductsTab } from "./tabs/products-tab";
 import { ColumnsTab } from "./tabs/columns-tab";
+import { ReferTab } from "./tabs/refer-tab";
 
 interface TabDef {
   value: string;
@@ -41,6 +43,7 @@ const BASE_TABS: TabDef[] = [
   { value: "columns", label: "My Columns", icon: Columns3 },
   { value: "appearance", label: "Appearance", icon: Palette },
   { value: "billing", label: "Billing", icon: CreditCard },
+  { value: "refer", label: "Refer & Earn", icon: Gift },
 ];
 
 const TEAM_TAB: TabDef = { value: "team", label: "Team", icon: Users };
@@ -138,6 +141,9 @@ export function SettingsContent({ user }: { user: User }) {
             </TabsContent>
             <TabsContent value="billing" className="mt-0">
               <BillingTab />
+            </TabsContent>
+            <TabsContent value="refer" className="mt-0">
+              <ReferTab />
             </TabsContent>
             {showTeamTab && (
               <TabsContent value="team" className="mt-0">
