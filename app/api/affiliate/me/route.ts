@@ -35,10 +35,13 @@ type Admin = ReturnType<typeof createAdminClient>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AffiliateRow = any;
 
-function appBaseUrl(): string {
+// Where a NEW customer signs up — the marketing site, not the app. Existing
+// users log in at app.retirementexpert.ai, but referrals land on the public
+// site to subscribe, so that's the URL an advisor shares.
+function signupUrl(): string {
   return (
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    "https://app.retirementexpert.ai"
+    process.env.NEXT_PUBLIC_MARKETING_URL?.replace(/\/$/, "") ??
+    "https://retirementexpert.ai"
   );
 }
 
@@ -94,7 +97,7 @@ async function buildEnrolledPayload(admin: Admin, aff: AffiliateRow) {
       created_at: aff.created_at as string,
     },
     referral_code: primary?.code ?? (aff.code as string),
-    signup_url: appBaseUrl(),
+    signup_url: signupUrl(),
     stats: {
       conversions: Number(s?.conversions ?? 0),
       active_annual: Number(s?.active_annual ?? 0),

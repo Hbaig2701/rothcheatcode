@@ -18,6 +18,7 @@ import {
   Users,
   TrendingUp,
   BadgeDollarSign,
+  Clock,
 } from "lucide-react";
 
 interface CodeEconomics {
@@ -310,7 +311,7 @@ function Dashboard({
       </Card>
 
       {/* Stats */}
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
           icon={<Users className="size-4 text-gold" />}
           label="Total sign-ups"
@@ -326,6 +327,12 @@ function Dashboard({
           label="Annual commission"
           value={money(data.totals.annual_recurring_commission)}
           sub="recurring, at current subscribers"
+        />
+        <Stat
+          icon={<Clock className="size-4 text-gold" />}
+          label="Almost sign-ups"
+          value={data.stats.abandoned_count.toLocaleString()}
+          sub="entered your code, didn't finish"
         />
       </div>
 
