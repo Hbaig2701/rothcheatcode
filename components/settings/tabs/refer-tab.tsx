@@ -34,6 +34,7 @@ interface CodeEconomics {
 
 interface EnrolledPayload {
   enrolled: true;
+  per_referral_annual: number;
   affiliate: {
     id: string;
     name: string;
@@ -56,7 +57,9 @@ interface EnrolledPayload {
   };
 }
 
-type MeResponse = { enrolled: false } | EnrolledPayload;
+type MeResponse =
+  | { enrolled: false; per_referral_annual: number }
+  | EnrolledPayload;
 
 function money(n: number): string {
   return `$${Math.round(n).toLocaleString()}`;
@@ -113,7 +116,14 @@ export function ReferTab() {
   }
 
   if (!data || !data.enrolled) {
-    return <JoinCard onEnroll={enroll} enrolling={enrolling} error={error} />;
+    return (
+      <JoinCard
+        perReferralAnnual={data?.per_referral_annual ?? 594}
+        onEnroll={enroll}
+        enrolling={enrolling}
+        error={error}
+      />
+    );
   }
 
   return <Dashboard data={data} onPayoutSaved={setData} error={error} />;
@@ -121,60 +131,71 @@ export function ReferTab() {
 
 // ── Not enrolled: the pitch + one-click join ─────────────────────────────
 function JoinCard({
+  perReferralAnnual,
   onEnroll,
   enrolling,
   error,
 }: {
+  perReferralAnnual: number;
   onEnroll: () => void;
   enrolling: boolean;
   error: string | null;
 }) {
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Gift className="size-5 text-gold" />
+      {/* Headline hero — the money number leads */}
+      <Card className="overflow-hidden border-gold-border bg-[rgba(212,175,55,0.06)]">
+        <CardContent className="py-9 text-center">
+          <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-[rgba(212,175,55,0.15)] px-3 py-1 text-xs font-medium text-gold">
+            <Gift className="size-3.5" />
             Refer &amp; Earn
-          </CardTitle>
-          <CardDescription>
-            Know another advisor who&apos;d use Retirement Expert? Refer them and
-            earn recurring commission.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Perk
-              icon={<Gift className="size-4 text-gold" />}
-              title="20% off for them"
-              body="Your referral gets 20% off the annual plan — for as long as they stay."
-            />
-            <Perk
-              icon={<BadgeDollarSign className="size-4 text-gold" />}
-              title="25% to you"
-              body="You earn 25% commission on what each referral pays, every year they renew."
-            />
-            <Perk
-              icon={<TrendingUp className="size-4 text-gold" />}
-              title="Recurring"
-              body="It's not a one-time bounty — commission recurs as long as they're subscribed."
-            />
           </div>
-
-          <div>
-            <Button onClick={onEnroll} disabled={enrolling}>
+          <p className="font-display text-[44px] leading-none font-semibold text-foreground">
+            {money(perReferralAnnual)}
+            <span className="text-2xl font-normal text-muted-foreground">
+              {" "}
+              / referral
+            </span>
+          </p>
+          <p className="mt-3 text-lg font-medium text-gold">
+            every year — for as long as they stay
+          </p>
+          <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
+            Refer another advisor to Retirement Expert. They get 20% off, you
+            earn {money(perReferralAnnual)}/year in commission — recurring for
+            life, not a one-time bounty.
+          </p>
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <Button onClick={onEnroll} disabled={enrolling} size="lg">
               {enrolling && <Loader2 className="mr-2 size-4 animate-spin" />}
               Join the referral program
             </Button>
-            <p className="mt-2 text-xs text-muted-foreground">
-              We&apos;ll generate your personal referral code instantly. Payouts
-              are sent to your PayPal, which you can set once you&apos;re in.
+            <p className="text-xs text-muted-foreground">
+              Your personal code is generated instantly.
             </p>
           </div>
-
-          {error && <p className="text-sm text-[#ef4444]">{error}</p>}
+          {error && <p className="mt-3 text-sm text-[#ef4444]">{error}</p>}
         </CardContent>
       </Card>
+
+      {/* How it works */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Perk
+          icon={<Gift className="size-4 text-gold" />}
+          title="20% off for them"
+          body="Your referral gets 20% off the annual plan — for as long as they stay subscribed."
+        />
+        <Perk
+          icon={<BadgeDollarSign className="size-4 text-gold" />}
+          title={`${money(perReferralAnnual)} to you`}
+          body="You earn 25% commission on what each referral pays, every single year they renew."
+        />
+        <Perk
+          icon={<TrendingUp className="size-4 text-gold" />}
+          title="Recurring for life"
+          body="Two referrals is over $1,000/year. Ten is nearly $6,000/year — as long as they stay."
+        />
+      </div>
     </div>
   );
 }

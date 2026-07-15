@@ -21,6 +21,16 @@ import { PLAN_PRICES } from "@/lib/config/plans";
 // in the admin panel — this only sets the default for the self-serve path.
 const SELF_SERVE_TIER: DiscountTier = 20;
 
+// Headline figure for the pitch: what an advisor earns per referral each year,
+// recurring for as long as that referral stays subscribed. Derived from the
+// live annual price + tier so it never drifts from what customers actually pay.
+// At $2,970/yr annual, 20% off, 25% commission → $594/yr per referral.
+function perReferralAnnualCommission(): number {
+  const commissionPct = getTierConfig(SELF_SERVE_TIER).defaultCommissionPct;
+  const discounted = PLAN_PRICES.standard.annual.amount * (1 - SELF_SERVE_TIER / 100);
+  return Math.round(discounted * (commissionPct / 100));
+}
+
 type Admin = ReturnType<typeof createAdminClient>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AffiliateRow = any;
@@ -74,6 +84,7 @@ async function buildEnrolledPayload(admin: Admin, aff: AffiliateRow) {
 
   return {
     enrolled: true as const,
+    per_referral_annual: perReferralAnnualCommission(),
     affiliate: {
       id: aff.id as string,
       name: aff.name as string,
@@ -118,7 +129,12 @@ export async function GET() {
     .eq("owner_profile_id", user.id)
     .maybeSingle();
 
-  if (!aff) return NextResponse.json({ enrolled: false });
+  if (!aff) {
+    return NextResponse.json({
+      enrolled: false,
+      per_referral_annual: perReferralAnnualCommission(),
+    });
+  }
   return NextResponse.json(await buildEnrolledPayload(admin, aff));
 }
 
