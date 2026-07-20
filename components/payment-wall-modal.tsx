@@ -36,7 +36,7 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
         // Get user's profile and subscription info
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role, stripe_customer_id, stripe_subscription_id, email, team_owner_id')
+          .select('role, stripe_customer_id, stripe_subscription_id, email, team_owner_id, plan, subscription_status')
           .eq('id', user.id)
           .single();
 
@@ -64,7 +64,23 @@ export function PaymentWallModal({ enabled }: PaymentWallModalProps) {
           return;
         }
 
-        // Block this user - they're on free/grandfathered access
+        // Don't block comped / grandfathered accounts — mirror the SERVER gate
+        // in app/(dashboard)/layout.tsx so a manually-activated advisor (plan set
+        // to standard/pro with an active status and no Stripe customer) isn't
+        // wrongly hit by the trial-ended wall. Previously this modal keyed only on
+        // the presence of a Stripe id, so every comped account was blocked despite
+        // passing the server-side subscription check.
+        const isGrandfathered =
+          (profile.plan === 'pro' || profile.plan === 'standard') && !profile.stripe_customer_id;
+        const hasActivePlan =
+          ['standard', 'starter', 'pro'].includes(profile.plan ?? '') &&
+          ['active', 'trialing'].includes(profile.subscription_status ?? '');
+        if (isGrandfathered || hasActivePlan) {
+          setLoading(false);
+          return;
+        }
+
+        // Block this user - they're on free/no active plan
         setShouldBlock(true);
 
         // Generate their personalized checkout links (both monthly and annual)
