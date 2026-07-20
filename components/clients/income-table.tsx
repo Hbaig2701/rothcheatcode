@@ -342,14 +342,14 @@ export function IncomeTable() {
             </p>
           ) : (
             <div className="border rounded-md overflow-x-auto">
-              <table className="text-sm min-w-full" style={{ minWidth: "560px" }}>
+              <table className="text-sm min-w-full" style={{ minWidth: "700px" }}>
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium w-[88px]">Year</th>
                     <th className="px-3 py-2 text-left font-medium w-[72px]">Age(s)</th>
                     <th className="px-3 py-2 text-left font-medium w-[140px]">Type</th>
-                    <th className="px-3 py-2 text-left font-medium">Gross Taxable</th>
-                    <th className="px-3 py-2 text-left font-medium">Tax Exempt</th>
+                    <th className="px-3 py-2 text-left font-medium min-w-[150px]">Gross Taxable</th>
+                    <th className="px-3 py-2 text-left font-medium min-w-[150px]">Tax Exempt</th>
                     <th className="px-2 py-2 w-10"></th>
                   </tr>
                 </thead>
