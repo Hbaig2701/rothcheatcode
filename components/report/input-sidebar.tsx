@@ -136,11 +136,14 @@ export function InputSidebar({ client }: InputSidebarProps) {
         );
 
         if (matchesOtherLockedProduct) {
+            // Only correct the LOCKED identity fields (carrier/product name). Do
+            // NOT re-stamp the advisor-editable value fields (bonus / surrender /
+            // penalty-free) — the preset locks penalty-free at its default, but
+            // the advisor can override it (e.g. an Athene base at 5% vs the
+            // preset's 10%), and re-applying the default here on mount clobbered
+            // that override back to the preset value (Jorge Tola: 5% → 10%).
             form.setValue("carrier_name", product.defaults.carrierName);
             form.setValue("product_name", product.defaults.productName);
-            form.setValue("bonus_percent", product.defaults.bonus);
-            form.setValue("surrender_years", product.defaults.surrenderYears);
-            form.setValue("penalty_free_percent", product.defaults.penaltyFreePercent);
         }
 
         if (product.lockedFields.includes("carrierName") && currentCarrier !== product.defaults.carrierName) {
