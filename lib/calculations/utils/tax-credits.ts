@@ -60,6 +60,7 @@ export function applyTaxCreditCarryforward<T extends {
   federalTax?: number; totalTax?: number; taxableBalance?: number; netWorth?: number;
   taxCreditApplied?: number; federalTaxOnConversions?: number; federalTaxOnSS?: number;
   federalTaxOnOrdinaryIncome?: number; federalTaxOnIRAWithdrawal?: number;
+  taxesPaidFromIRA?: number;
 }>(results: T[], pool: number | null | undefined): T[] {
   let remaining = Math.max(0, pool ?? 0);
   if (remaining <= 0) return results;
@@ -76,6 +77,13 @@ export function applyTaxCreditCarryforward<T extends {
       if (r.federalTaxOnSS != null) r.federalTaxOnSS = Math.round(r.federalTaxOnSS * ratio);
       if (r.federalTaxOnOrdinaryIncome != null) r.federalTaxOnOrdinaryIncome = Math.round(r.federalTaxOnOrdinaryIncome * ratio);
       if (r.federalTaxOnIRAWithdrawal != null) r.federalTaxOnIRAWithdrawal = Math.round(r.federalTaxOnIRAWithdrawal * ratio);
+      // Net the credit off the "tax paid from the IRA" figure too, by the same
+      // ratio as the other tax-attribution fields. Without this, the PDF's
+      // "Tax from IRA" line stayed at the GROSS (pre-credit) tax while the
+      // conversion-tax and total-cost figures were shown net of the credit — so
+      // the pages didn't reconcile and the gap read as an unexplained overstatement
+      // exactly equal to the credit (Gerald Shaw / Joseph Klink ticket).
+      if (r.taxesPaidFromIRA != null) r.taxesPaidFromIRA = Math.round(r.taxesPaidFromIRA * ratio);
     }
     r.taxCreditApplied = applied;
     creditCash += applied;

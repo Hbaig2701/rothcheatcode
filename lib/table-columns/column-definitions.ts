@@ -380,7 +380,7 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     id: 'taxesPaidFromIRA',
     label: 'Taxes Paid from IRA',
     category: 'distributions',
-    description: 'The full federal + state tax on the Roth conversion, funded with IRA dollars. In an RMD year this tax is withheld from the RMD distribution first (so it is paid from IRA money but does not require pulling extra beyond the RMD); only any shortfall above the after-tax RMD adds to "Total IRA Withdrawal". When the carrier penalty-free cap is active and binding, this is capped at penalty_free_percent × beginning-of-year IRA — any overflow appears in "Conversion Tax (External)" instead.',
+    description: 'The federal + state tax on the Roth conversion, funded with IRA dollars — shown NET of any tax credits applied that year, so it reconciles with the "Fed Tax (Conversions)" and total conversion-cost figures elsewhere in the report (before this was shown gross of credits, which made the pages look inconsistent). It does NOT include the Medicare/IRMAA surcharge — that is reported separately, so a "total cost incl. IRMAA" figure will be higher by the IRMAA amount. In an RMD year this tax is withheld from the RMD distribution first (so it is paid from IRA money but does not require pulling extra beyond the RMD); only any shortfall above the after-tax RMD adds to "Total IRA Withdrawal". When the carrier penalty-free cap is active and binding, this is capped at penalty_free_percent × beginning-of-year IRA — any overflow appears in "Conversion Tax (External)" instead.',
     formatter: formatCurrency,
     defaultVisible: false,
     visibleForProducts: ['all'],
