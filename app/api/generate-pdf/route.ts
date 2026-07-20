@@ -15,7 +15,7 @@ import { computeMarginalRMDTax } from '@/lib/calculations/marginal-rmd-tax';
 import { computeHeldBackRmdMarginalTax } from '@/lib/calculations/utils/held-back-ira';
 import { calculateStateTax } from '@/lib/calculations/modules/state-tax';
 import { computeTaxableIncomeWithSS } from '@/lib/calculations/tax-helpers';
-import { getStandardDeduction } from '@/lib/data/standard-deductions';
+import { getStandardDeduction, getSeniorBonusDeduction } from '@/lib/data/standard-deductions';
 import { getClientRMDStartAge } from '@/lib/calculations/utils/age';
 import { getBracketCeiling } from '@/lib/data/federal-brackets-2026';
 import { getTaxExemptIncomeForYear } from '@/lib/calculations/utils/income';
@@ -396,9 +396,14 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     // picture (including any Social Security that becomes taxable via the
     // "tax torpedo"). Fall back to a local recompute only for legacy rows
     // generated before the engine exposed these fields.
-    const deduction = year.standardDeduction ?? getStandardDeduction(client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year.year, client.tax_exempt_non_ssi ?? 0);
     const agi = year.agi ?? (year.otherIncome + distIra + (year.taxableSS ?? 0));
+    // The displayed deduction must include the OBBA senior bonus deduction so
+    // the table reconciles (AGI − Deduction = Taxable Income). year.taxableIncome
+    // already reflects it via computeTaxableIncomeWithSS; standardDeduction does
+    // not (it's the standard + additional deduction only), so add it back here.
+    const stdDeduction = year.standardDeduction ?? getStandardDeduction(client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
+    const deduction = stdDeduction + getSeniorBonusDeduction(client.filing_status, agi, year.age, year.spouseAge ?? undefined, year.year);
     const taxableIncomeVal = year.taxableIncome ?? Math.max(0, agi - deduction);
     const bracket = year.federalTaxBracket ?? determineTaxBracket(taxableIncomeVal, client.filing_status, year.year);
     const magi = year.magi ?? (agi + taxExemptNonSSI + (year.ssIncome - (year.taxableSS ?? 0)));
