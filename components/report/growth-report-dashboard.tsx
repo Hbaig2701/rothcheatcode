@@ -1214,6 +1214,13 @@ function ComparisonCard({
   const pct = baseline !== 0 ? diff / Math.abs(baseline) : 0;
   const isPositive = invertColor ? diff <= 0 : diff >= 0;
 
+  // Shrink the paired baseline/strategy values only when they get wide, so two
+  // 8-9 figure numbers don't collide in the narrow 4-across cards. Normal-size
+  // numbers keep the larger text-lg. Based on the longer of the two formatted
+  // strings (e.g. "$187,147,988" = 12 chars).
+  const maxValueLen = Math.max(toUSD(baseline).length, toUSD(strategy).length);
+  const valueSizeClass = maxValueLen >= 12 ? "text-sm" : maxValueLen >= 11 ? "text-base" : "text-lg";
+
   return (
     <>
       <div className="bg-bg-card border border-border-default rounded-[12px] p-5">
@@ -1231,14 +1238,14 @@ function ComparisonCard({
             </button>
           )}
         </div>
-        <div className="flex justify-between mb-2">
-          <div>
+        <div className="flex justify-between items-baseline gap-3 mb-2">
+          <div className="min-w-0">
             <p className="text-xs uppercase text-text-dim mb-1">Baseline</p>
-            <p className="text-lg font-mono text-text-dim">{toUSD(baseline)}</p>
+            <p className={cn("font-mono tabular-nums whitespace-nowrap text-text-dim", valueSizeClass)}>{toUSD(baseline)}</p>
           </div>
-          <div className="text-right">
+          <div className="text-right min-w-0">
             <p className="text-xs uppercase text-text-dim mb-1">Strategy</p>
-            <p className="text-lg font-mono font-medium text-foreground">{toUSD(strategy)}</p>
+            <p className={cn("font-mono tabular-nums whitespace-nowrap font-medium text-foreground", valueSizeClass)}>{toUSD(strategy)}</p>
           </div>
         </div>
         <div className="pt-3 border-t border-border-default">
