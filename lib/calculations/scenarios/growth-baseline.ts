@@ -87,6 +87,9 @@ export function runGrowthBaselineScenario(
       taxExemptInterest: 0,
       deductions: growthBaselineDeductions,
       filingStatus: client.filing_status,
+      age,
+      spouseAge: currentSpouseAge ?? undefined,
+      taxYear: year,
     });
 
     results.push({

@@ -76,6 +76,22 @@ function taxableSS(ss: number, nonSSAgi: number, taxExempt: number, filing: Fili
   return Math.round(Math.min((provisional - hi) * 0.85 + first, ss * 0.85));
 }
 
+// OBBA senior bonus deduction — independent re-derivation (NOT imported from
+// the engine, same as the bracket/SS formulas above). $6,000/person 65+, tax
+// years 2025–2028, 6% MAGI phase-out over $75k single / $150k MFJ. Statutory
+// amounts, not inflation-indexed. cents.
+function seniorBonus(filing: Filing, magi: number, age: number, spouseAge: number | null, year: number): number {
+  if (year < 2025 || year > 2028) return 0;
+  const isJoint = filing === 'married_filing_jointly';
+  let eligible = 0;
+  if (age >= 65) eligible += 1;
+  if (isJoint && (spouseAge ?? 0) >= 65) eligible += 1;
+  if (eligible === 0) return 0;
+  const threshold = isJoint ? 15_000_000 : 7_500_000;
+  const perPerson = Math.max(0, 600_000 - 0.06 * Math.max(0, magi - threshold));
+  return Math.round(eligible * perPerson);
+}
+
 const r = new Reporter();
 const TOL = 100; // cents — allow $1 of rounding between two independent implementations
 
@@ -92,11 +108,13 @@ for (const fx of fixtures) {
     for (const y of years as YearlyResult[]) {
       if (y.agi == null || y.taxableIncome == null || y.standardDeduction == null) continue;
 
-      // (1) taxable income identity
-      const tiExpected = Math.max(0, y.agi - y.standardDeduction);
+      // (1) taxable income identity — agi minus the standard/effective deduction
+      // AND the OBBA senior bonus deduction (applied on top for 65+ in 2025–2028).
+      const sb = seniorBonus(fx.client.filing_status as Filing, y.agi, y.age, y.spouseAge, y.year);
+      const tiExpected = Math.max(0, y.agi - y.standardDeduction - sb);
       r.ran();
       if (Math.abs(tiExpected - y.taxableIncome) > TOL) {
-        r.record({ fixture: fx.name, scenario, check: 'recompute:taxableIncome', year: y.year, age: y.age, field: 'taxableIncome', expected: tiExpected, actual: y.taxableIncome, delta: y.taxableIncome - tiExpected, note: 'taxableIncome != max(0, agi − stdDeduction)' });
+        r.record({ fixture: fx.name, scenario, check: 'recompute:taxableIncome', year: y.year, age: y.age, field: 'taxableIncome', expected: tiExpected, actual: y.taxableIncome, delta: y.taxableIncome - tiExpected, note: 'taxableIncome != max(0, agi − stdDeduction − seniorBonus)' });
       }
 
       // (2) independent federal bracket walk vs engine federalTax.

@@ -35,7 +35,7 @@ function stateRate(c: Client): number {
 /** Total federal+state tax owed on an ordinary-income base (+ SS torpedo). */
 function totalTax(c: Client, year: number, age: number, spouseAge: number | undefined, ordinary: number, ss: number) {
   const deductions = getEffectiveDeduction(c.filing_status, age, spouseAge, year, c.additional_deductions);
-  const info = computeTaxableIncomeWithSS({ otherIncome: ordinary, ssBenefits: ss, taxExemptInterest: 0, deductions, filingStatus: c.filing_status });
+  const info = computeTaxableIncomeWithSS({ otherIncome: ordinary, ssBenefits: ss, taxExemptInterest: 0, deductions, filingStatus: c.filing_status, age, spouseAge, taxYear: year });
   const fed = calculateFederalTax({ taxableIncome: info.taxableIncome, filingStatus: c.filing_status, taxYear: year }).totalTax;
   const state = calculateStateTax({ taxableIncome: info.taxableIncome, state: c.state, filingStatus: c.filing_status, overrideRate: stateRate(c) }).totalTax;
   return fed + state;

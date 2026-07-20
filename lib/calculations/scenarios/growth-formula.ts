@@ -277,6 +277,9 @@ export function runGrowthFormulaScenario(
       taxExemptInterest: taxExemptNonSSI,
       deductions,
       filingStatus: client.filing_status,
+      age,
+      spouseAge: currentSpouseAgeForDeduction,
+      taxYear: year,
     });
     const existingTaxableIncome = existingTaxInfo.taxableIncome;
 
@@ -292,6 +295,8 @@ export function runGrowthFormulaScenario(
         deductions,
         filingStatus: client.filing_status,
         taxYear: year,
+        age,
+        spouseAge: currentSpouseAgeForDeduction,
         state: client.state ?? 'CA',
         stateTaxRateDecimal,
       });
@@ -570,6 +575,8 @@ export function runGrowthFormulaScenario(
             maxBracketRate: maxTaxRate,
             filingStatus: client.filing_status,
             taxYear: year,
+            age,
+            spouseAge: currentSpouseAgeForDeduction,
           });
           const tFull = convTaxAt(bracketRoom);
           const extraPull = Math.max(0, tFull.federalTax + tFull.stateTax - R);
@@ -593,6 +600,8 @@ export function runGrowthFormulaScenario(
             maxBracketRate: maxTaxRate,
             filingStatus: client.filing_status,
             taxYear: year,
+            age,
+            spouseAge: currentSpouseAgeForDeduction,
             state: client.state ?? 'CA',
             stateTaxRateDecimal,
           });
@@ -610,6 +619,8 @@ export function runGrowthFormulaScenario(
             maxBracketRate: maxTaxRate,
             filingStatus: client.filing_status,
             taxYear: year,
+            age,
+            spouseAge: currentSpouseAgeForDeduction,
           });
         }
       }
@@ -716,6 +727,8 @@ export function runGrowthFormulaScenario(
                 maxBracketRate: maxTaxRate,
                 filingStatus: client.filing_status,
                 taxYear: year,
+                age,
+                spouseAge: currentSpouseAgeForDeduction,
                 state: client.state ?? 'CA',
                 stateTaxRateDecimal,
               });
@@ -763,6 +776,8 @@ export function runGrowthFormulaScenario(
             maxBracketRate: maxTaxRate,
             filingStatus: client.filing_status,
             taxYear: year,
+            age,
+            spouseAge: currentSpouseAgeForDeduction,
             state: client.state ?? 'CA',
             stateTaxRateDecimal,
           });
@@ -1007,6 +1022,9 @@ export function runGrowthFormulaScenario(
       taxExemptInterest: taxExemptNonSSI,
       deductions,
       filingStatus: client.filing_status,
+      age,
+      spouseAge: currentSpouseAgeForDeduction,
+      taxYear: year,
     });
     const totalIncome = grossNonSSIncome + ssIncome; // For display only
     const agi = finalTaxInfo.agi;
@@ -1071,6 +1089,9 @@ export function runGrowthFormulaScenario(
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
+        age,
+        spouseAge: currentSpouseAgeForDeduction,
+        taxYear: year,
       });
       const noIraFederalTax = calculateFederalTax({
         taxableIncome: noIraTaxInfo.taxableIncome,

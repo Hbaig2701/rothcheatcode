@@ -101,6 +101,7 @@ function canonicalTaxOnRMDs(years: Array<{
   federalTax?: number;
   stateTax?: number;
   otherIncome?: number;
+  conversionAmount?: number;
   ssIncome?: number;
   standardDeduction?: number;
   age: number;
@@ -115,12 +116,19 @@ function canonicalTaxOnRMDs(years: Array<{
     const taxWith = (y.federalTax ?? 0) + (y.stateTax ?? 0);
     const deductions = y.standardDeduction
       ?? getStandardDeduction(client.filing_status, y.age, y.spouseAge ?? undefined, y.year);
+    // Isolate the RMD's marginal tax by keeping any Roth conversion IN the
+    // "no-RMD" baseline (same definition the production computeMarginalRMDTax
+    // helper uses) — otherwise a strategy year with both an RMD and a
+    // conversion misattributes the conversion's tax to "Tax on RMDs".
     const noRMD = computeTaxableIncomeWithSS({
-      otherIncome: y.otherIncome ?? 0,
+      otherIncome: (y.otherIncome ?? 0) + (y.conversionAmount ?? 0),
       ssBenefits: y.ssIncome ?? 0,
       taxExemptInterest: client.tax_exempt_non_ssi ?? 0,
       deductions,
       filingStatus: client.filing_status,
+      age: y.age,
+      spouseAge: y.spouseAge ?? undefined,
+      taxYear: y.year,
     });
     const fedNo = calculateFederalTax({
       taxableIncome: noRMD.taxableIncome,
@@ -317,39 +325,36 @@ const fucciResults = runFixture('FIXTURE 1 — Fucci shape', fucci);
 // When a value drifts unexpectedly: do NOT just paste in to make green.
 // Investigate first.
 const FUCCI_EXPECTED = {
+  // RE-LOCKED 2026-07-15 (OBBA senior deduction): Fucci is single, age 65+, so
+  // the new $6,000 OBBA senior bonus deduction (2025–2028) reduces taxable
+  // income → less tax, more retained wealth. base tax dropped $2,160; net worth
+  // rose accordingly. Also fixes a PRE-EXISTING helper≠canonical failure in the
+  // strategy taxOnRMDs (see blue note).
   base: {
-    finalNetWorth:        307_922_757,
+    finalNetWorth:        308_616_287,
     finalTraditional:      70_671_550,
     finalRoth:                      0,
-    finalTaxable:         237_251_207,
-    lifetimeWealth:       279_654_137,
+    finalTaxable:         237_944_737,
+    lifetimeWealth:       280_347_667,
     forcedDistributions:  132_258_417,
-    totalFedStateTax:       9_522_765,
-    taxOnRMDs:              9_522_765,
+    totalFedStateTax:       9_306_765,
+    taxOnRMDs:              9_306_765,
   },
   blue: {
-    // RE-LOCKED 2026-06-29 (audit F5): values below refreshed from the v67
-    // engine. The prior locks were captured pre-v64 (commit 53e86a2) and never
-    // updated through the v64→v67 conversion-tax fixes. The audit certified the
-    // new output three ways before re-locking: (1) internal consistency — money
-    // conserves, taxes compose (audit/invariants); (2) the marginal-RMD-tax
-    // helper agrees with the test's independent canonical re-derivation; (3)
-    // every drift maps to a named intentional commit. finalNetWorth/taxOnConv
-    // rose because v64 (RMD funds conversion tax) lets Fucci convert more
-    // efficiently. See lib/calculations/__tests__/AUDIT.md F5.
-    finalNetWorth:        302_943_063,
+    finalNetWorth:        304_051_537,
     finalTraditional:               0,
     finalRoth:            205_852_525,
-    finalTaxable:          97_090_538,
-    lifetimeWealth:       302_943_063,
-    taxOnConversions:      10_811_336,
-    totalFedStateTax:      12_324_519,
-    // Fucci is a fixed-amount conversion that doesn't fully drain the IRA
-    // before age 73, so RMDs persist through the strategy phase. Tax on those
-    // remaining RMDs ≈ totalFedStateTax for the strategy because there's
-    // almost no other income (low SS, no state tax) — same "matching" pattern
-    // as the baseline side that confused Jorge.
-    taxOnRMDs:             12_324_519,
+    finalTaxable:          98_199_012,
+    lifetimeWealth:       304_051_537,
+    taxOnConversions:      10_681_557,
+    totalFedStateTax:      11_979_252,
+    // taxOnRMDs is now the MARGINAL RMD tax (conversion held in the no-RMD
+    // baseline), matching the production computeMarginalRMDTax helper. The old
+    // lock (12_324_519) was the buggy canonical value that folded conversion
+    // tax into RMD tax — the helper never matched it (this assertion was
+    // failing pre-change). Now helper ≡ canonical = 6_324_755. The senior
+    // deduction itself moved the helper only ~$1,293 (6_454_022 → 6_324_755).
+    taxOnRMDs:              6_324_755,
   },
 };
 
@@ -404,36 +409,36 @@ const paul = makeClient({
 const paulResults = runFixture('FIXTURE 2 — Paul George shape', paul);
 
 const PAUL_EXPECTED = {
+  // RE-LOCKED 2026-07-15 (OBBA senior deduction): Paul is single, age 77, so the
+  // $6,000 OBBA senior bonus deduction applies. base tax dropped $3,056; net
+  // worth/wealth rose accordingly. Also fixes the pre-existing helper≠canonical
+  // strategy taxOnRMDs failure (see blue note).
   base: {
-    finalNetWorth:        174_153_375,
+    finalNetWorth:        175_134_435,
     finalTraditional:      34_875_030,
     finalRoth:                      0,
-    finalTaxable:         139_278_345,
-    lifetimeWealth:       160_203_363,
+    finalTaxable:         140_259_405,
+    lifetimeWealth:       161_184_423,
     forcedDistributions:   91_532_668,
-    totalFedStateTax:      15_397_352,
-    taxOnRMDs:             15_397_352,
+    totalFedStateTax:      15_091_778,
+    taxOnRMDs:             15_091_778,
   },
   blue: {
-    // RE-LOCKED 2026-06-29 (audit F5) — refreshed from v67 engine; see Fucci
-    // note above and AUDIT.md F5. Paul is fixed-amount, pay-from-IRA: the rise
-    // (netWorth +$283K, taxOnConversions +$68K) is driven by v66's
-    // self-consistent gross-up + v64 RMD-funds-tax. totalFedStateTax ==
-    // taxOnRMDs still hold (helper ≡ canonical), only the locked constant moved.
-    // finalNetWorth + lifetimeWealth re-locked v71 (2026-07-05): IRMAA 2026
-    // brackets corrected (Lori Avant). Raised thresholds drop Paul a tier in
-    // some years → less IRMAA drag → +$4,939 (199,722,613 → 200,216,521).
-    finalNetWorth:        200_216_521,
+    finalNetWorth:        201_279_777,
     finalTraditional:               0, // floored from -$14.72 (negative-IRA residual; see formula.ts iraAfterConversion floor)
     finalRoth:            174_689_507,
-    finalTaxable:          25_033_106,
-    lifetimeWealth:       200_216_521,
-    taxOnConversions:      18_047_690,
-    totalFedStateTax:      20_828_449,
-    // Same "matching" pattern as base — fixed-amount conversion leaves RMDs
-    // through the strategy phase, and Paul's $25K SS isn't enough to shift
-    // the marginal RMD-attributable tax meaningfully below total.
-    taxOnRMDs:             20_828_449,
+    finalTaxable:          26_590_270,
+    lifetimeWealth:       201_279_777,
+    taxOnConversions:      18_022_494,
+    totalFedStateTax:      20_497_253,
+    // taxOnRMDs is the MARGINAL RMD tax (conversion held in the no-RMD
+    // baseline), matching the production computeMarginalRMDTax helper. It is
+    // correctly LESS than totalFedStateTax (which includes conversion tax) — the
+    // old lock (20_828_449, "== totalFedStateTax") was the buggy canonical that
+    // folded conversion tax into RMD tax; the helper never matched it (this
+    // assertion was failing pre-change). Now helper ≡ canonical = 7_883_806. The
+    // senior deduction moved the helper only ~$1,479 (7_735_927 → 7_883_806).
+    taxOnRMDs:              7_883_806,
   },
 };
 

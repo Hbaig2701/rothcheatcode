@@ -80,6 +80,9 @@ export function computePerYearMarginalConversionTax(
     deductions,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     filingStatus: client.filing_status as any,
+    age: year.age,
+    spouseAge: year.spouseAge ?? undefined,
+    taxYear: year.year,
   });
 
   const fedNoConv = calculateFederalTax({

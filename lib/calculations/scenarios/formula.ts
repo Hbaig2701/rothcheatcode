@@ -211,6 +211,8 @@ export function runFormulaScenario(
       deductions,
       filingStatus: client.filing_status,
       taxYear: year,
+      age,
+      spouseAge: spouseAge ?? undefined,
       state: client.state ?? 'CA',
       stateTaxRateDecimal,
     });
@@ -224,6 +226,9 @@ export function runFormulaScenario(
       taxExemptInterest: taxExemptNonSSI,
       deductions,
       filingStatus: client.filing_status,
+      age,
+      spouseAge: spouseAge ?? undefined,
+      taxYear: year,
     });
     const fedNoConv = calculateFederalTax({
       taxableIncome: taxInfoNoConv.taxableIncome,
@@ -349,6 +354,8 @@ export function runFormulaScenario(
               deductions,
               filingStatus: client.filing_status,
               taxYear: year,
+              age,
+              spouseAge: spouseAge ?? undefined,
               state: client.state ?? 'CA',
               stateTaxRateDecimal,
             });
@@ -476,6 +483,8 @@ export function runFormulaScenario(
             maxBracketRate: maxTaxRate,
             filingStatus: client.filing_status,
             taxYear: year,
+            age,
+            spouseAge: spouseAge ?? undefined,
           });
           const tFull = convTaxAt(bracketRoom);
           const extraPull = Math.max(0, tFull.federalTax + tFull.stateTax - R);
@@ -495,6 +504,8 @@ export function runFormulaScenario(
             maxBracketRate: maxTaxRate,
             filingStatus: client.filing_status,
             taxYear: year,
+            age,
+            spouseAge: spouseAge ?? undefined,
             state: client.state,
             stateTaxRateDecimal,
           });
@@ -526,6 +537,8 @@ export function runFormulaScenario(
                 maxBracketRate: maxTaxRate,
                 filingStatus: client.filing_status,
                 taxYear: year,
+                age,
+                spouseAge: spouseAge ?? undefined,
                 state: client.state,
                 stateTaxRateDecimal,
               });
@@ -554,6 +567,8 @@ export function runFormulaScenario(
             maxBracketRate: maxTaxRate,
             filingStatus: client.filing_status,
             taxYear: year,
+            age,
+            spouseAge: spouseAge ?? undefined,
           });
           totalIRAWithdrawal = conversionAmount;
         }
@@ -572,6 +587,7 @@ export function runFormulaScenario(
           conversionAmount, otherIncome: otherIncomeForTax, ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI, deductions,
           filingStatus: client.filing_status, taxYear: year,
+          age, spouseAge: spouseAge ?? undefined,
           state: client.state ?? 'CA', stateTaxRateDecimal,
         });
         if (capTax0.federalTax + capTax0.stateTax > taxCap) {
@@ -582,6 +598,7 @@ export function runFormulaScenario(
               conversionAmount: mid, otherIncome: otherIncomeForTax, ssBenefits: ssIncome,
               taxExemptInterest: taxExemptNonSSI, deductions,
               filingStatus: client.filing_status, taxYear: year,
+              age, spouseAge: spouseAge ?? undefined,
               state: client.state ?? 'CA', stateTaxRateDecimal,
             });
             if (t.federalTax + t.stateTax <= taxCap) lo = mid; else hi = mid;
@@ -591,6 +608,7 @@ export function runFormulaScenario(
             conversionAmount, otherIncome: otherIncomeForTax, ssBenefits: ssIncome,
             taxExemptInterest: taxExemptNonSSI, deductions,
             filingStatus: client.filing_status, taxYear: year,
+            age, spouseAge: spouseAge ?? undefined,
             state: client.state ?? 'CA', stateTaxRateDecimal,
           });
           federalConversionTax = finalTax.federalTax;
@@ -610,6 +628,9 @@ export function runFormulaScenario(
           taxExemptInterest: taxExemptNonSSI,
           deductions,
           filingStatus: client.filing_status,
+          age,
+          spouseAge: spouseAge ?? undefined,
+          taxYear: year,
         });
         const fedWithConv = calculateFederalTax({
           taxableIncome: taxInfoWithConv.taxableIncome,
@@ -694,6 +715,9 @@ export function runFormulaScenario(
           taxExemptInterest: taxExemptNonSSI,
           deductions,
           filingStatus: client.filing_status,
+          age,
+          spouseAge: spouseAge ?? undefined,
+          taxYear: year,
         })
       : taxInfoNoConv;
     const federalResult = calculateFederalTax({

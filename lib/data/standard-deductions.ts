@@ -17,6 +17,62 @@ export const STANDARD_DEDUCTIONS_2026: Record<string, number> = {
 // 3% annual inflation rate for deduction adjustments
 const DEDUCTION_INFLATION_RATE = 0.03;
 
+// ── OBBA "senior bonus" deduction (One Big Beautiful Bill Act, 2025) ────────
+// A NEW deduction on top of the standard deduction and the older age-65
+// additional standard deduction above. $6,000 per eligible individual 65+,
+// available for tax years 2025–2028 only, phasing out at 6% of MAGI over the
+// threshold. Not inflation-indexed (fixed amount + fixed thresholds).
+//
+// Per-person structure is what produces the published phase-out endpoints:
+//   single/HoH: $6,000 fully gone at $175k ($75k + $6,000/0.06)
+//   MFJ both 65+: $12,000 fully gone at $250k (two people × 6% ≈ 12% effective)
+// Verified against the IRS worked example: MFJ, MAGI $178k → $8,640.
+const OBBA_SENIOR_DEDUCTION_PER_PERSON = 600000; // $6,000 in cents
+const OBBA_PHASEOUT_RATE = 0.06;                 // 6% of MAGI over threshold
+const OBBA_FIRST_YEAR = 2025;
+const OBBA_LAST_YEAR = 2028;                      // sunsets after 2028
+const OBBA_THRESHOLD_JOINT = 15000000;            // $150,000 (MFJ)
+const OBBA_THRESHOLD_OTHER = 7500000;             // $75,000 (single/HoH/MFS)
+
+/**
+ * OBBA senior bonus deduction (cents) for a given year and income.
+ *
+ * @param filingStatus  Filing status string
+ * @param magi          Modified AGI in cents. We pass AGI (otherIncome +
+ *                      taxable SS); MAGI only adds back §911/931/933 foreign
+ *                      exclusions, which this app does not model, so AGI is
+ *                      exact here.
+ * @param age           Primary taxpayer age in the tax year
+ * @param spouseAge     Spouse age (MFJ only)
+ * @param year          Tax year — returns 0 outside 2025–2028
+ * @returns             Additional deduction in cents (0 if not eligible)
+ */
+export function getSeniorBonusDeduction(
+  filingStatus: string,
+  magi: number,
+  age: number,
+  spouseAge: number | undefined,
+  year: number
+): number {
+  if (year < OBBA_FIRST_YEAR || year > OBBA_LAST_YEAR) return 0;
+
+  const isJoint = filingStatus === 'married_filing_jointly';
+
+  // Count eligible seniors (65+). On a joint return both spouses can each
+  // claim; on any other return only the taxpayer.
+  let eligible = 0;
+  if (age >= 65) eligible += 1;
+  if (isJoint && (spouseAge ?? 0) >= 65) eligible += 1;
+  if (eligible === 0) return 0;
+
+  const threshold = isJoint ? OBBA_THRESHOLD_JOINT : OBBA_THRESHOLD_OTHER;
+  const excess = Math.max(0, magi - threshold);
+  // Each person's $6,000 is reduced by 6% of the MAGI excess, floored at $0.
+  const perPerson = Math.max(0, OBBA_SENIOR_DEDUCTION_PER_PERSON - OBBA_PHASEOUT_RATE * excess);
+
+  return Math.round(eligible * perPerson);
+}
+
 /**
  * Calculate standard deduction with senior bonus
  * @param status Filing status

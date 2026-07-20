@@ -413,8 +413,8 @@ function runGIStrategyScenario(
         const convMarginalTax = (distribution: number): { fed: number; state: number; total: number } => {
           if (distribution <= 0) return { fed: 0, state: 0, total: 0 };
           const forcedOrdinary = otherIncome + iraWithdrawalGI + forcedRmdShortfall;
-          const withDist = computeTaxableIncomeWithSS({ otherIncome: forcedOrdinary + distribution, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
-          const without = computeTaxableIncomeWithSS({ otherIncome: forcedOrdinary, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+          const withDist = computeTaxableIncomeWithSS({ otherIncome: forcedOrdinary + distribution, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status, age, spouseAge: spouseAge ?? undefined, taxYear: year });
+          const without = computeTaxableIncomeWithSS({ otherIncome: forcedOrdinary, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status, age, spouseAge: spouseAge ?? undefined, taxYear: year });
           const fed = Math.max(0, calculateFederalTax({ taxableIncome: withDist.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax - calculateFederalTax({ taxableIncome: without.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax);
           const state = Math.max(0, calculateStateTax({ taxableIncome: withDist.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax - calculateStateTax({ taxableIncome: without.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax);
           return { fed, state, total: fed + state };
@@ -466,8 +466,8 @@ function runGIStrategyScenario(
       let rmdFederalTax = 0;
       let rmdStateTax = 0;
       if (forcedRmdShortfall > 0) {
-        const withRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalGI + forcedRmdShortfall, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
-        const withoutRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalGI, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+        const withRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalGI + forcedRmdShortfall, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status, age, spouseAge: spouseAge ?? undefined, taxYear: year });
+        const withoutRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalGI, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status, age, spouseAge: spouseAge ?? undefined, taxYear: year });
         rmdFederalTax = Math.max(0, calculateFederalTax({ taxableIncome: withRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax - calculateFederalTax({ taxableIncome: withoutRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax);
         rmdStateTax = Math.max(0, calculateStateTax({ taxableIncome: withRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax - calculateStateTax({ taxableIncome: withoutRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax);
       }
@@ -557,6 +557,9 @@ function runGIStrategyScenario(
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
+        age,
+        spouseAge: spouseAge ?? undefined,
+        taxYear: year,
       });
       const totalIncome = grossIncomeWithConversion + ssIncome;
       const agi = convPhaseTaxInfo.agi;
@@ -731,6 +734,9 @@ function runGIStrategyScenario(
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
+        age,
+        spouseAge: spouseAge ?? undefined,
+        taxYear: year,
       });
       const totalIncome = otherIncome + ssIncome;
       const agi = purchaseTaxInfo.agi;
@@ -892,6 +898,9 @@ function runGIStrategyScenario(
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
+        age,
+        spouseAge: spouseAge ?? undefined,
+        taxYear: year,
       });
       const totalIncome = otherIncome + ssIncome;
       const agi = strategyDeferralTaxInfo.agi;
@@ -1072,6 +1081,9 @@ function runGIStrategyScenario(
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
+        age,
+        spouseAge: spouseAge ?? undefined,
+        taxYear: year,
       });
       const totalIncome = grossGI + otherIncome + ssIncome;
       const agi = strategyIncomeTaxInfo.agi;
@@ -1376,8 +1388,8 @@ function runGIBaselineScenario(
         rmdAmount = Math.min(Math.max(0, rmdRequired - iraWithdrawalW), traditionalBalance);
         if (rmdAmount > 0) {
           traditionalBalance = Math.max(0, traditionalBalance - rmdAmount);
-          const withRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalW + rmdAmount, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
-          const withoutRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalW, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+          const withRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalW + rmdAmount, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status, age, spouseAge: spouseAge ?? undefined, taxYear: year });
+          const withoutRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + iraWithdrawalW, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status, age, spouseAge: spouseAge ?? undefined, taxYear: year });
           rmdFederalTax = Math.max(0, calculateFederalTax({ taxableIncome: withRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax - calculateFederalTax({ taxableIncome: withoutRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax);
           rmdStateTax = Math.max(0, calculateStateTax({ taxableIncome: withRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax - calculateStateTax({ taxableIncome: withoutRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax);
         }
@@ -1417,6 +1429,9 @@ function runGIBaselineScenario(
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
+        age,
+        spouseAge: spouseAge ?? undefined,
+        taxYear: year,
       });
       const totalIncome = otherIncome + iraWithdrawalW + rmdAmount + ssIncome;
       const agi = waitingTaxInfo.agi;
@@ -1575,6 +1590,9 @@ function runGIBaselineScenario(
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
+        age,
+        spouseAge: spouseAge ?? undefined,
+        taxYear: year,
       });
       const totalIncome = otherIncome + ssIncome;
       const agi = baselinePurchaseTaxInfo.agi;
@@ -1740,8 +1758,8 @@ function runGIBaselineScenario(
           // strategy pays no tax in these hold years, so only the RMD's own tax
           // should weigh against the baseline (not the background SS/other-income
           // tax, which is identical on both sides).
-          const withRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + rmdAmount, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
-          const withoutRMD = computeTaxableIncomeWithSS({ otherIncome, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status });
+          const withRMD = computeTaxableIncomeWithSS({ otherIncome: otherIncome + rmdAmount, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status, age, spouseAge: spouseAge ?? undefined, taxYear: year });
+          const withoutRMD = computeTaxableIncomeWithSS({ otherIncome, ssBenefits: ssIncome, taxExemptInterest: taxExemptNonSSI, deductions, filingStatus: client.filing_status, age, spouseAge: spouseAge ?? undefined, taxYear: year });
           rmdFederalTax = Math.max(0, calculateFederalTax({ taxableIncome: withRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax - calculateFederalTax({ taxableIncome: withoutRMD.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax);
           rmdStateTax = Math.max(0, calculateStateTax({ taxableIncome: withRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax - calculateStateTax({ taxableIncome: withoutRMD.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax);
         }
@@ -1780,6 +1798,9 @@ function runGIBaselineScenario(
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
+        age,
+        spouseAge: spouseAge ?? undefined,
+        taxYear: year,
       });
       const totalIncome = otherIncome + rmdAmount + ssIncome;
       const agi = baselineDeferralTaxInfo.agi;
@@ -1893,6 +1914,9 @@ function runGIBaselineScenario(
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
+        age,
+        spouseAge: spouseAge ?? undefined,
+        taxYear: year,
       });
       const taxableIncome = baselineIncomeTaxInfo.taxableIncome;
 

@@ -313,6 +313,9 @@ export function analyzeWidowPenaltyFromProjection(
       taxExemptInterest,
       deductions: widowDeduction,
       filingStatus: 'single',
+      age: yearData.age,
+      spouseAge: undefined,
+      taxYear: yearData.year,
     });
     const widowFederalResult = calculateFederalTax({
       taxableIncome: widowTaxInfo.taxableIncome,

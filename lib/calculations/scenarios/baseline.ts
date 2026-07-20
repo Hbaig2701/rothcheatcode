@@ -194,6 +194,9 @@ export function runBaselineScenario(
           taxExemptInterest: taxExemptNonSSI,
           deductions,
           filingStatus: client.filing_status,
+          age,
+          spouseAge: spouseAge ?? undefined,
+          taxYear: year,
         });
         const fed = calculateFederalTax({ taxableIncome: ti.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax;
         const st = calculateStateTax({ taxableIncome: ti.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateOverride }).totalTax;
@@ -226,6 +229,9 @@ export function runBaselineScenario(
       taxExemptInterest: taxExemptNonSSI,
       deductions,
       filingStatus: client.filing_status,
+      age,
+      spouseAge: spouseAge ?? undefined,
+      taxYear: year,
     });
     const taxableIncome = taxInfo.taxableIncome;
     const agi = taxInfo.agi;
@@ -289,6 +295,9 @@ export function runBaselineScenario(
         taxExemptInterest: taxExemptNonSSI,
         deductions,
         filingStatus: client.filing_status,
+        age,
+        spouseAge: spouseAge ?? undefined,
+        taxYear: year,
       });
       const noIraFederalTax = calculateFederalTax({
         taxableIncome: noIraTaxInfo.taxableIncome,

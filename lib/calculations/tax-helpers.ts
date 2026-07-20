@@ -11,6 +11,7 @@ import { getIRMAATierIndex, getIRMAASurcharge } from '@/lib/data/irmaa-brackets'
 import { calculateSSTaxableAmount } from './modules/social-security';
 import { getBracketCeiling, calculateFederalTax } from './modules/federal-tax';
 import { calculateStateTax } from './modules/state-tax';
+import { getSeniorBonusDeduction } from '@/lib/data/standard-deductions';
 
 /**
  * Compute taxable income correctly accounting for Social Security taxation
@@ -28,10 +29,19 @@ export function computeTaxableIncomeWithSS(params: {
   taxExemptInterest: number;  // Municipal bond interest (included in provisional) (cents)
   deductions: number;         // Standard or itemized deduction (cents)
   filingStatus: FilingStatus;
+  // Age + tax year of the projection year, used to apply the OBBA senior
+  // bonus deduction ($6k/person 65+, 2025–2028, phased out on MAGI). Required
+  // so every taxable-income path applies it consistently — the senior
+  // deduction is computed per-scenario here because its phase-out depends on
+  // this scenario's AGI (a large conversion can phase it out).
+  age: number;
+  spouseAge?: number;
+  taxYear: number;
 }): {
   taxableSS: number;          // Portion of SS that becomes taxable (cents)
   agi: number;                // otherIncome + taxableSS (cents)
-  taxableIncome: number;      // max(0, agi - deductions) (cents)
+  taxableIncome: number;      // max(0, agi - deductions - seniorBonus) (cents)
+  seniorBonusDeduction: number; // OBBA senior deduction applied (cents)
   provisionalIncome: number;
   ssTaxablePercent: number;   // 0, 50, or 85
 } {
@@ -42,11 +52,21 @@ export function computeTaxableIncomeWithSS(params: {
     filingStatus: params.filingStatus,
   });
   const agi = params.otherIncome + ssResult.taxableAmount;
-  const taxableIncome = Math.max(0, agi - params.deductions);
+  // MAGI ≈ AGI (see getSeniorBonusDeduction). Computed from THIS scenario's
+  // AGI so the phase-out tracks the conversion size.
+  const seniorBonusDeduction = getSeniorBonusDeduction(
+    params.filingStatus,
+    agi,
+    params.age,
+    params.spouseAge,
+    params.taxYear
+  );
+  const taxableIncome = Math.max(0, agi - params.deductions - seniorBonusDeduction);
   return {
     taxableSS: ssResult.taxableAmount,
     agi,
     taxableIncome,
+    seniorBonusDeduction,
     provisionalIncome: ssResult.provisionalIncome,
     ssTaxablePercent: ssResult.taxablePercent,
   };
@@ -75,6 +95,8 @@ export function calculateSSAwareOptimalConversion(params: {
   maxBracketRate: number;    // e.g. 12
   filingStatus: FilingStatus;
   taxYear: number;
+  age: number;               // projection-year age (for OBBA senior deduction)
+  spouseAge?: number;
 }): number {
   if (params.iraBalance <= 0) return 0;
 
@@ -93,6 +115,9 @@ export function calculateSSAwareOptimalConversion(params: {
       taxExemptInterest: params.taxExemptInterest,
       deductions: params.deductions,
       filingStatus: params.filingStatus,
+      age: params.age,
+      spouseAge: params.spouseAge,
+      taxYear: params.taxYear,
     }).taxableIncome;
 
   // If existing income alone STRICTLY EXCEEDS the ceiling, no room to convert.
@@ -151,6 +176,8 @@ export function calculateSSAwareIRAWithdrawalPlan(params: {
   maxBracketRate: number;
   filingStatus: FilingStatus;
   taxYear: number;
+  age: number;
+  spouseAge?: number;
   state: string;
   stateTaxRateDecimal?: number;
 }): {
@@ -172,6 +199,8 @@ export function calculateSSAwareIRAWithdrawalPlan(params: {
     maxBracketRate: params.maxBracketRate,
     filingStatus: params.filingStatus,
     taxYear: params.taxYear,
+    age: params.age,
+    spouseAge: params.spouseAge,
   });
 
   if (totalIRAWithdrawal <= 0) {
@@ -191,6 +220,9 @@ export function calculateSSAwareIRAWithdrawalPlan(params: {
     taxExemptInterest: params.taxExemptInterest,
     deductions: params.deductions,
     filingStatus: params.filingStatus,
+    age: params.age,
+    spouseAge: params.spouseAge,
+    taxYear: params.taxYear,
   });
   const withWithdrawal = computeTaxableIncomeWithSS({
     otherIncome: params.otherIncome + totalIRAWithdrawal,
@@ -198,6 +230,9 @@ export function calculateSSAwareIRAWithdrawalPlan(params: {
     taxExemptInterest: params.taxExemptInterest,
     deductions: params.deductions,
     filingStatus: params.filingStatus,
+    age: params.age,
+    spouseAge: params.spouseAge,
+    taxYear: params.taxYear,
   });
 
   const fedNo = calculateFederalTax({
@@ -253,6 +288,8 @@ export function calculateConversionTaxWithSS(params: {
   deductions: number;
   filingStatus: FilingStatus;
   taxYear: number;
+  age: number;
+  spouseAge?: number;
   state: string;
   stateTaxRateDecimal?: number;
 }): { federalTax: number; stateTax: number } {
@@ -264,6 +301,9 @@ export function calculateConversionTaxWithSS(params: {
     taxExemptInterest: params.taxExemptInterest,
     deductions: params.deductions,
     filingStatus: params.filingStatus,
+    age: params.age,
+    spouseAge: params.spouseAge,
+    taxYear: params.taxYear,
   });
   const withConv = computeTaxableIncomeWithSS({
     otherIncome: params.otherIncome + params.conversionAmount,
@@ -271,6 +311,9 @@ export function calculateConversionTaxWithSS(params: {
     taxExemptInterest: params.taxExemptInterest,
     deductions: params.deductions,
     filingStatus: params.filingStatus,
+    age: params.age,
+    spouseAge: params.spouseAge,
+    taxYear: params.taxYear,
   });
 
   const fedNoConv = calculateFederalTax({
