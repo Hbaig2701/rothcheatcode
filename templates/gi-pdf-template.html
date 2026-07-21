@@ -248,6 +248,10 @@
       color: #16a34a;
     }
 
+    .metric-value.negative {
+      color: #dc2626;
+    }
+
     .metric-value.gold {
       color: #b45309;
     }
@@ -689,11 +693,11 @@
       {{#if taxFreeWealthCreated}}
       <div class="metric-card highlight full-width">
         <div class="metric-label">Tax-Free Wealth Created</div>
-        <div class="metric-value green">+{{taxFreeWealthCreated}}</div>
+        <div class="metric-value {{#if taxFreeWealthWinning}}green{{else}}negative{{/if}}">{{#if taxFreeWealthWinning}}+{{/if}}{{taxFreeWealthCreated}}</div>
         <div style="font-size: 10pt; color: #666; margin-top: 8px;">
           Lifetime advantage over Traditional GI
           {{#if percentImprovement}}
-          <span style="color: #16a34a;">(+{{percentImprovement}}% improvement)</span>
+          <span style="color: {{#if percentImprovementWinning}}#16a34a{{else}}#dc2626{{/if}};">({{#if percentImprovementWinning}}+{{/if}}{{percentImprovement}}% {{#if percentImprovementWinning}}improvement{{else}}lower{{/if}})</span>
           {{/if}}
         </div>
       </div>
@@ -711,7 +715,7 @@
             <div class="metric-comparison-value strategy">{{strategyLifetimeIncome}}</div>
           </div>
         </div>
-        <div class="metric-difference positive">+{{lifetimeIncomeAdvantage}}</div>
+        <div class="metric-difference {{#if incomeAdvantageWinning}}positive{{else}}negative{{/if}}">{{#if incomeAdvantageWinning}}+{{/if}}{{lifetimeIncomeAdvantage}}</div>
       </div>
 
       <div class="metric-card">
@@ -726,7 +730,7 @@
             <div class="metric-comparison-value strategy">{{strategyTotalTaxes}}</div>
           </div>
         </div>
-        <div class="metric-difference positive">{{taxSavings}} saved</div>
+        <div class="metric-difference {{#if taxSavingsWinning}}positive{{else}}negative{{/if}}">{{taxSavings}} {{#if taxSavingsWinning}}saved{{else}}more{{/if}}</div>
       </div>
     </div>
 
@@ -912,19 +916,19 @@
         <td>Annual Income (Net)</td>
         <td>{{baselineAnnualIncomeNet}}</td>
         <td>{{strategyAnnualIncome}}</td>
-        <td style="color: #16a34a;">+{{annualAdvantage}}</td>
+        <td style="color: {{#if annualAdvantageWinning}}#16a34a{{else}}#dc2626{{/if}};">{{#if annualAdvantageWinning}}+{{/if}}{{annualAdvantage}}</td>
       </tr>
       <tr>
         <td>Lifetime Income (Net)</td>
         <td>{{baselineLifetimeIncome}}</td>
         <td>{{strategyLifetimeIncome}}</td>
-        <td style="color: #16a34a;">+{{lifetimeIncomeAdvantage}}</td>
+        <td style="color: {{#if incomeAdvantageWinning}}#16a34a{{else}}#dc2626{{/if}};">{{#if incomeAdvantageWinning}}+{{/if}}{{lifetimeIncomeAdvantage}}</td>
       </tr>
       <tr class="highlight-row">
         <td><strong>Tax-Free Wealth Created</strong></td>
         <td>—</td>
         <td>—</td>
-        <td><strong>+{{taxFreeWealthCreated}}</strong></td>
+        <td style="color: {{#if taxFreeWealthWinning}}#16a34a{{else}}#dc2626{{/if}};"><strong>{{#if taxFreeWealthWinning}}+{{/if}}{{taxFreeWealthCreated}}</strong></td>
       </tr>
     </table>
 
@@ -995,8 +999,8 @@
         <td>{{this.accountValue}}</td>
         <td class="gold-value">{{this.giIncome}}</td>
         {{#if ../showRothDist}}<td class="positive-value">{{this.rothDist}}</td>{{/if}}
-        <td class="tax-value">{{this.taxes}}</td>
-        {{#if ../showRiderFee}}<td class="tax-value">{{this.riderFee}}</td>{{/if}}
+        <td class="{{redUnlessZero this.taxes}}">{{this.taxes}}</td>
+        {{#if ../showRiderFee}}<td class="{{redUnlessZero this.riderFee}}">{{this.riderFee}}</td>{{/if}}
         <td class="positive-value">{{this.netIncome}}</td>
         <td>{{this.cumulative}}</td>
       </tr>
@@ -1043,8 +1047,8 @@
         <td class="{{#if this.isDeferral}}gold-value{{/if}}">{{this.incomeBase}}</td>
         <td>{{this.accountValue}}</td>
         <td>{{this.giIncome}}</td>
-        <td class="tax-value">{{this.taxes}}</td>
-        {{#if ../showRiderFee}}<td class="tax-value">{{this.riderFee}}</td>{{/if}}
+        <td class="{{redUnlessZero this.taxes}}">{{this.taxes}}</td>
+        {{#if ../showRiderFee}}<td class="{{redUnlessZero this.riderFee}}">{{this.riderFee}}</td>{{/if}}
         <td>{{this.netIncome}}</td>
         <td>{{this.cumulative}}</td>
       </tr>

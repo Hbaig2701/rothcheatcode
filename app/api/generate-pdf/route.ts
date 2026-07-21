@@ -67,6 +67,14 @@ Handlebars.registerHelper('brandingFooter', function(this: any) {
 });
 
 // Helper to format difference values with color class (no +/- signs)
+// Returns the red 'tax-value' class only when the (already-formatted) value is
+// non-zero, so a $0 cost cell renders neutral instead of a long run of red "$0"s
+// that implies a cost the client isn't actually paying.
+Handlebars.registerHelper('redUnlessZero', function(value: unknown) {
+  const s = String(value ?? '').replace(/[$,\s]/g, '');
+  return (s === '' || s === '0' || s === '0.00' || s === '-') ? '' : 'tax-value';
+});
+
 Handlebars.registerHelper('formatDiff', function(value: number, invertColor: boolean = false) {
   if (value === 0) return new Handlebars.SafeString('<span class="diff-neutral">$0</span>');
   const absValue = Math.abs(value);
@@ -1323,6 +1331,12 @@ interface GITemplateData {
   strategyTotalTaxes: string;
   baselineTotalTaxes: string;
   taxSavings: string;
+  // Sign-aware color flags (true = strategy ahead → green/"+"; false → red loss)
+  taxFreeWealthWinning: boolean;
+  percentImprovementWinning: boolean;
+  incomeAdvantageWinning: boolean;
+  annualAdvantageWinning: boolean;
+  taxSavingsWinning: boolean;
 
   // Break-even
   breakEvenYears: number | null;
@@ -1568,6 +1582,16 @@ function prepareGITemplateData(reportData: any, branding: BrandingData): GITempl
     strategyTotalTaxes: formatCurrency(conversionTax),
     baselineTotalTaxes: formatCurrency(baselineTotalTaxes),
     taxSavings: formatCurrency(taxSavings),
+    // Sign-aware flags so a NEGATIVE advantage (large IRA / late income start /
+    // short horizon can make these losses) doesn't render as a green "+-$X".
+    // Mirrors the growth report's wealthIncreaseClass + the GI legacy template's
+    // legacyWinning. formatCurrency already prints the minus sign; the template
+    // adds "+" only when winning and picks the green/red class from these.
+    taxFreeWealthWinning: taxFreeWealthCreated >= 0,
+    percentImprovementWinning: percentImprovement >= 0,
+    incomeAdvantageWinning: lifetimeIncomeAdvantage >= 0,
+    annualAdvantageWinning: annualAdvantage >= 0,
+    taxSavingsWinning: taxSavings >= 0,
 
     // Break-even
     breakEvenYears: projection.gi_break_even_years || null,
@@ -1655,7 +1679,11 @@ function prepareGILegacyTemplateData(reportData: any, branding: BrandingData): G
   const legacyWinning = additionalLegacy >= 0;
 
   const lifetimeRMD = sumKey(projection.baseline_years, 'rmdAmount');
-  const lifetimeRMDTax = sumKey(projection.baseline_years, 'federalTax') + sumKey(projection.baseline_years, 'stateTax');
+  // RMD-ONLY marginal tax (the tax actually CAUSED by the RMDs), not the
+  // baseline's entire federal+state bill. Summing all baseline tax overstated
+  // "RMD Tax Avoided" by folding in tax on SS/pension/other income the client
+  // owes in BOTH scenarios. Mirrors the growth report's "Tax on RMDs".
+  const lifetimeRMDTax = computeMarginalRMDTax(projection.baseline_years, client);
 
   const finalAge = (lastOf(projection.blueprint_years) as any)?.age ?? (client.end_age ?? 100); // eslint-disable-line @typescript-eslint/no-explicit-any
 

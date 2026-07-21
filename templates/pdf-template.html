@@ -574,11 +574,18 @@
           <td><strong>{{strategy.netTaxCost}}</strong></td>
           <td>{{{formatDiff diff.netTaxCost true}}}</td>
         </tr>
+        <!-- Not apples-to-apples: baseline is forced RMD income the client
+             received/spent; strategy is $0 because that money stays inside the
+             Roth. A colored difference here misleads (green reads as "strategy
+             gives more" when it shows $0), and in reinvested mode that RMD money
+             is already counted in the baseline's legacy — so the real advantage
+             lives in Net Legacy / Lifetime Wealth. Dash it like the other
+             non-comparable rows. -->
         <tr>
           <td>After-Tax Distributions Spent</td>
           <td>{{baseline.afterTaxDistributions}}</td>
           <td>{{strategy.afterTaxDistributions}}</td>
-          <td>{{{formatDiff diff.afterTax afterTaxInvert}}}</td>
+          <td style="color: #9ca3af;">—</td>
         </tr>
       </table>
 
@@ -589,11 +596,17 @@
           <th>Strategy Trajectory</th>
           <th>Difference</th>
         </tr>
+        <!-- Gross legacy is NOT apples-to-apples: baseline's is a PRE-tax
+             traditional-IRA balance, strategy's is a POST-tax (tax-free) Roth
+             balance. Coloring the difference made the strategy look like it
+             lost ~$31K of legacy when the real, tax-adjusted comparison (Net
+             Legacy Distribution below) favors it. Dash it like the other
+             non-comparable rows (Tax on RMDs / Tax on Conversions). -->
         <tr>
           <td>Legacy Distribution</td>
           <td>{{baseline.legacyGross}}</td>
           <td>{{strategy.legacyGross}}</td>
-          <td>{{{formatDiff diff.legacyGross false}}}</td>
+          <td style="color: #9ca3af;">—</td>
         </tr>
         <tr>
           <td>Tax on Legacy Distribution</td>
@@ -661,7 +674,7 @@
         <td>{{this.existingTaxable}}</td>
         <td>{{this.distribution}}</td>
         <td>{{this.bracketCeiling}}</td>
-        <td class="tax-value">{{this.taxes}}</td>
+        <td class="{{redUnlessZero this.taxes}}">{{this.taxes}}</td>
         <td>{{this.conversionAmount}}</td>
         <td>{{this.interest}}</td>
         <td>{{this.eoyIra}}</td>
@@ -712,7 +725,7 @@
         <td>{{this.age}}</td>
         <td>{{this.boyCombined}}</td>
         <td>{{this.distIra}}</td>
-        <td class="tax-value">{{this.taxesIra}}</td>
+        <td class="{{redUnlessZero this.taxesIra}}">{{this.taxesIra}}</td>
         <td>{{this.bracket}}</td>
         <td>{{this.converted}}</td>
         <td>{{this.distRoth}}</td>
@@ -814,8 +827,8 @@
         <td>{{this.age}}</td>
         <td>{{this.boyCombined}}</td>
         <td>{{this.distIra}}</td>
-        <td class="tax-value">{{this.taxesIra}}</td>
-        {{#if ../riderFee}}<td class="tax-value">{{this.riderFeeAmount}}</td>{{/if}}
+        <td class="{{redUnlessZero this.taxesIra}}">{{this.taxesIra}}</td>
+        {{#if ../riderFee}}<td class="{{redUnlessZero this.riderFeeAmount}}">{{this.riderFeeAmount}}</td>{{/if}}
         <td>{{this.bracket}}</td>
         <td>{{this.converted}}</td>
         <td>{{this.distRoth}}</td>

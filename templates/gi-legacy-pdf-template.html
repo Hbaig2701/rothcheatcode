@@ -961,8 +961,8 @@
         <td>{{this.accountValue}}</td>
         <td class="gold-value">{{this.giIncome}}</td>
         {{#if ../showRothDist}}<td class="positive-value">{{this.rothDist}}</td>{{/if}}
-        <td class="tax-value">{{this.taxes}}</td>
-        {{#if ../showRiderFee}}<td class="tax-value">{{this.riderFee}}</td>{{/if}}
+        <td class="{{redUnlessZero this.taxes}}">{{this.taxes}}</td>
+        {{#if ../showRiderFee}}<td class="{{redUnlessZero this.riderFee}}">{{this.riderFee}}</td>{{/if}}
         <td class="positive-value">{{this.netIncome}}</td>
         <td>{{this.cumulative}}</td>
       </tr>
@@ -1009,8 +1009,8 @@
         <td class="{{#if this.isDeferral}}gold-value{{/if}}">{{this.incomeBase}}</td>
         <td>{{this.accountValue}}</td>
         <td>{{this.giIncome}}</td>
-        <td class="tax-value">{{this.taxes}}</td>
-        {{#if ../showRiderFee}}<td class="tax-value">{{this.riderFee}}</td>{{/if}}
+        <td class="{{redUnlessZero this.taxes}}">{{this.taxes}}</td>
+        {{#if ../showRiderFee}}<td class="{{redUnlessZero this.riderFee}}">{{this.riderFee}}</td>{{/if}}
         <td>{{this.netIncome}}</td>
         <td>{{this.cumulative}}</td>
       </tr>
