@@ -18,7 +18,7 @@ import {
 } from '../tax-helpers';
 import { calculateRMD } from '../modules/rmd';
 import { ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
-import { getEffectiveGrowthRiderFee } from '../resolvers/product-resolver';
+import { getEffectiveGrowthRiderFee, getEffectiveCumulativePenaltyFree } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import type { CustomProductRow } from '@/lib/products/types';
 
@@ -194,6 +194,28 @@ export function runGrowthFormulaScenario(
   // total conversions. Outside the loop so it persists across years.
   let cumulativeConverted = 0;
 
+  // Cumulative (accumulating) free-withdrawal rule: some carriers (e.g. Athene
+  // Performance Elite) let an unused penalty-free allowance carry into the next
+  // year — 10% yr1, 20% yr2 if yr1 skipped — up to a ceiling (cumulative_percent).
+  // penaltyFreeCarryPct holds the unused percentage-points carried from the prior
+  // year; it's read when sizing this year's cap and refreshed at year-end. Only
+  // meaningful for products whose config enables it and only while the penalty-
+  // free cap is actually active (surrender period + respect_penalty_free_limit).
+  const cumulativePF = getEffectiveCumulativePenaltyFree(customProduct);
+  // Extra percentage-points that can accumulate ABOVE the base penalty-free % —
+  // e.g. base 10% + room 10% = 20% ceiling. Generalizes to multi-year products
+  // (base 10%, ceiling 30% ⇒ room 20%): the carry can grow to `cumulativeRoom`,
+  // never more, so the allowance tops out at exactly maxPercent.
+  const cumulativeFreeRoom = cumulativePF.enabled
+    ? Math.max(0, cumulativePF.maxPercent - penaltyFreePercent)
+    : 0;
+  // Year-1 free-withdrawal % can differ from later years ('custom' rule with an
+  // explicit year_1_custom_percent). Honor it so a skipped/partial year 1 carries
+  // the RIGHT amount forward (else the flat 10% assumption corrupts the carry).
+  const year1Rule = customProduct?.config?.withdrawals?.year_1_rule;
+  const year1CustomPct = customProduct?.config?.withdrawals?.year_1_custom_percent;
+  let penaltyFreeCarryPct = 0;
+
   // Income history for IRMAA 2-year lookback
   const incomeHistory = new Map<number, number>();
 
@@ -326,11 +348,22 @@ export function runGrowthFormulaScenario(
     // branches below run against the FULL physical IRA (iraAfterDistribution)
     // — the split happens after the conversion is sized.
     const inSurrenderPeriod = yearOffset < surrenderYears;
+    // This year's BASE free-withdrawal %. Normally the flat penalty_free_percent
+    // (e.g. 10%); in year 1, a 'custom' rule can override it with an explicit %.
+    const baseAllowancePct =
+      yearOffset === 0 && year1Rule === 'custom' && year1CustomPct != null && Number.isFinite(year1CustomPct)
+        ? year1CustomPct
+        : penaltyFreePercent;
+    // Effective allowance = base + accumulated carry (bounded by cumulativeFreeRoom).
+    // Built by ADDING a non-negative carry to the base, so it can never fall below
+    // the base (a misconfigured maxPercent < base degrades to flat), and tops out at
+    // exactly base + room = maxPercent. Carry is 0 for non-cumulative products.
+    const effectiveAllowancePct = baseAllowancePct + Math.min(penaltyFreeCarryPct, cumulativeFreeRoom);
     // Tax cap (used in 'tax_only' scope): only the tax dollars from the IRA
     // count against the carrier's penalty-free allowance. Conversion runs
     // off the full physical IRA below.
     const taxCap = (respectPenaltyFreeLimit && inSurrenderPeriod && payTaxFromIRA)
-      ? Math.round(boyIRA * penaltyFreePercent / 100)
+      ? Math.round(boyIRA * effectiveAllowancePct / 100)
       : Number.POSITIVE_INFINITY;
     // Outflow cap (used in 'all_distributions' scope): conversion +
     // effective IRA distribution + tax-from-IRA must all fit under the
@@ -345,7 +378,7 @@ export function runGrowthFormulaScenario(
       inSurrenderPeriod &&
       penaltyFreeScope === 'all_distributions';
     const outflowCap = useOutflowCap
-      ? Math.round(boyIRA * penaltyFreePercent / 100)
+      ? Math.round(boyIRA * effectiveAllowancePct / 100)
       : Number.POSITIVE_INFINITY;
     // Conversion ceiling under the strict interpretation. Subtracts the
     // effective IRA distribution (whichever of forced RMD or voluntary is
@@ -909,6 +942,34 @@ export function runGrowthFormulaScenario(
     cumulativeWithdrawn += effectiveIraDistribution + conversionAmount + extraPullForTax;
     // Track cumulative converted (used by 'partial_amount' to enforce the total cap)
     cumulativeConverted += conversionAmount;
+
+    // Refresh the cumulative penalty-free carry-forward for next year. Carry the
+    // unused portion of this year's allowance, bounded by the room above the base
+    // (cumulativeFreeRoom) so the ceiling stays maxPercent. Only accumulates while
+    // the cap regime is actually active this year; when it's not (toggle off,
+    // surrender period over), the allowance can't carry.
+    if (cumulativePF.enabled && boyIRA > 0) {
+      const capActiveThisYear =
+        respectPenaltyFreeLimit &&
+        inSurrenderPeriod &&
+        (penaltyFreeScope === 'all_distributions' || payTaxFromIRA);
+      if (capActiveThisYear) {
+        // Dollars that counted against the penalty-free allowance this year:
+        // total physical IRA outflow under 'all_distributions', else just the
+        // IRA-funded conversion tax under 'tax_only'.
+        const penaltyFreeUsed =
+          penaltyFreeScope === 'all_distributions'
+            ? effectiveIraDistribution + conversionAmount + extraPullForTax
+            : conversionTaxFromIRA;
+        const usedPct = Math.max(0, penaltyFreeUsed) / boyIRA * 100;
+        penaltyFreeCarryPct = Math.max(
+          0,
+          Math.min(cumulativeFreeRoom, effectiveAllowancePct - usedPct),
+        );
+      } else {
+        penaltyFreeCarryPct = 0;
+      }
+    }
 
     // Step 2: Calculate interest AFTER conversion.
     // IRA (annuity) uses contract rate during the surrender period and the
