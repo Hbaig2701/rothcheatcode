@@ -358,3 +358,31 @@ export function getEffectiveGrowthRiderFee(
   const productConfig = ALL_PRODUCTS[formulaType];
   return (productConfig?.defaults.riderFee ?? 0) / 100;
 }
+
+/**
+ * Cumulative (accumulating) free-withdrawal rule for growth products.
+ *
+ * Some carriers let an unused free-withdrawal allowance carry forward — e.g.
+ * Athene Performance Elite: 10% in year 1, and if you skip year 1 you may take
+ * 20% in year 2. The product config carries this as
+ * `withdrawals.cumulative_withdrawal` (bool) + `cumulative_percent` (the ceiling
+ * on any single year's allowance, e.g. 20). Only custom/community products carry
+ * this config; system presets have no cumulative rule, so an absent/false config
+ * returns { enabled: false }.
+ */
+export function getEffectiveCumulativePenaltyFree(
+  customProduct?: CustomProductRow | null
+): { enabled: boolean; maxPercent: number } {
+  const w = customProduct?.config?.withdrawals;
+  const on = w?.cumulative_withdrawal === true;
+  // Coerce before validating: config can arrive from JSON / AI-research as a
+  // numeric string ("20"); Number.isFinite("20") is false, which would silently
+  // DISABLE the cumulative rule for a product that actually has it. Number()
+  // normalizes it. Clamp to (0, 100]: a free-withdrawal allowance above the whole
+  // account value is not a real contract term, and absurd data must not neutralize
+  // the cap. The caller floors the per-year allowance at the base penalty-free %,
+  // so a maxPercent below the base simply degrades to flat behavior.
+  const parsed = w?.cumulative_percent == null ? NaN : Number(w.cumulative_percent);
+  const maxPercent = on && Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 100) : 0;
+  return { enabled: on && maxPercent > 0, maxPercent };
+}
