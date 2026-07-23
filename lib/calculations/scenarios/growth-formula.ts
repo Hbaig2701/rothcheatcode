@@ -887,7 +887,19 @@ export function runGrowthFormulaScenario(
     // it compounds into a visibly negative "traditional IRA" in later years.
     // (Kwanza E. ticket: negative traditional IRA on a fixed-amount, tax-from-IRA
     // scenario.) Single choke point — covers every conversion type.
-    const iraAfterConversion = Math.max(0, iraAfterDistribution - conversionAmount - extraPullForTax);
+    let iraAfterConversion = Math.max(0, iraAfterDistribution - conversionAmount - extraPullForTax);
+    // Residual sweep for draining conversion types. fixed_amount / full_conversion
+    // are meant to empty the IRA, but when the tax is paid from the IRA the
+    // gross-down leaves a sub-threshold crumb that then compounds at the contract
+    // rate and dribbles out over many years as tiny "penny" conversions (Guillermo
+    // Silesky: a 5-year schedule trailing $28 / $1 conversions into years 7–8).
+    // Once only a small residual remains after a conversion, fold it into that
+    // year's conversion so the schedule finishes cleanly instead of trailing.
+    if ((conversionType === 'fixed_amount' || conversionType === 'full_conversion')
+        && conversionAmount > 0 && iraAfterConversion > 0 && iraAfterConversion <= 500000) {
+      conversionAmount += iraAfterConversion;
+      iraAfterConversion = 0;
+    }
     const rothAfterConversion = rothAfterWithdrawal + conversionAmount;
 
     // Track cumulative withdrawals for the principal protection floor.
