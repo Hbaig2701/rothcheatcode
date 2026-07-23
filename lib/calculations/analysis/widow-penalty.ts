@@ -2,7 +2,7 @@ import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
 import type { WidowTaxImpact, WidowAnalysisResult } from './types';
 import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
-import { computeTaxableIncomeWithSS } from '../tax-helpers';
+import { computeTaxableIncomeWithSS, computeIrmaaMagi } from '../tax-helpers';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { calculateIRMAA } from '../modules/irmaa';
 import { runWidowScenario } from '../scenarios/widow';
@@ -23,9 +23,11 @@ export function calculateWidowTaxImpact(input: {
 }): WidowTaxImpact {
   const { marriedIncome, widowIncome, year, marriedAge, spouseAge, additionalDeductions } = input;
 
-  // Get deductions for each status, including any advisor-entered additional
-  // deductions (applied to both filings) so the widow penalty stays consistent
-  // with the projection, which already applies them. Pass `year` so the standard
+  // Get deductions for each status. additionalDeductions is threaded through for
+  // completeness but callers now pass null: as of the deduction-isolation change
+  // (A, 2026-07) additional_deductions is a STRATEGY-only benefit, absent from the
+  // do-nothing baseline/widow projection this penalty compares against, so both
+  // filings here stay deduction-free to match. Pass `year` so the standard
   // deduction is inflation-indexed to the SAME year as the tax brackets below
   // (audit F7): previously this passed `undefined` → the brackets inflated to the
   // projection year but the deduction stayed frozen at 2026, overstating the
@@ -190,7 +192,12 @@ export function analyzeWidowPenalty(
       widowIncome: widowYear.totalIncome,
       year: widowYear.year,
       marriedAge: widowYear.age,
-      additionalDeductions: client.additional_deductions,
+      // A (deduction isolation): the widow penalty is a do-nothing-world concept,
+      // and additional_deductions is now a strategy-only benefit removed from the
+      // baseline/widow projection this analysis compares against. Pass null so both
+      // the married and single sides here stay deduction-free and consistent with
+      // that projection (Mark Nichols audit 2026-07).
+      additionalDeductions: null,
     });
 
     taxImpactByYear.push(impact);
@@ -279,9 +286,13 @@ export function analyzeWidowPenaltyFromProjection(
     // Pre-death: no widow impact this year
     if (yearData.year < resolvedDeathYear) continue;
 
-    // Years since SS started — used for COLA
+    // COLA years = min(years-from-projection-start, age - startAge). An already-
+    // collecting survivor grows only from the projection start (SS entered in
+    // today's dollars) — anchoring to (age - startAge) would re-apply COLA already
+    // baked into their current benefit. A future claimant still grows from claim age.
     const ssStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
-    const yearsCollecting = yearData.age >= ssStartAge ? yearData.age - ssStartAge : 0;
+    const yearsFromStart = yearData.year - formulaYears[0].year;
+    const yearsCollecting = yearData.age >= ssStartAge ? Math.min(yearsFromStart, yearData.age - ssStartAge) : 0;
     const inflatedSurvivorSS = Math.round(
       survivorBaseSS * Math.pow(1 + ssColaRate, yearsCollecting)
     );
@@ -300,6 +311,13 @@ export function analyzeWidowPenaltyFromProjection(
     const marriedBracket = yearData.federalTaxBracket ?? 0;
 
     // === Single (widow) re-price for the same year's economic activity ===
+    // The married comparator (marriedFederalTax = yearData.federalTax) comes from
+    // the STRATEGY projection (formulaYears = baseResult.formula), which DOES apply
+    // additional_deductions. So the single re-price must ALSO apply them, or the
+    // widow penalty (single − married) is inflated by the tax value of the
+    // deduction — an asymmetry, not a filing-status effect. (Fix 2026-07: the
+    // prior null assumed a deduction-free do-nothing married side, which was wrong
+    // — this path's married side is the strategy, not the baseline.)
     const widowDeduction = getEffectiveDeduction(
       'single',
       yearData.age,
@@ -322,9 +340,12 @@ export function analyzeWidowPenaltyFromProjection(
       filingStatus: 'single',
       taxYear: yearData.year,
     });
-    // IRMAA at Single thresholds (single brackets are roughly half MFJ)
-    const widowMagi =
-      widowTaxInfo.agi + taxExemptInterest + (inflatedSurvivorSS - widowTaxInfo.taxableSS);
+    // IRMAA at Single thresholds (single brackets are roughly half MFJ).
+    // MAGI = AGI + tax-exempt interest — NOT plus gross SS. The married comparator
+    // (yearData.irmaaSurcharge) comes from the corrected main projection, so this
+    // survivor re-price must use the same definition or the widow penalty is
+    // inflated by a phantom SS-driven IRMAA jump. (Mark Nichols audit 2026-07.)
+    const widowMagi = computeIrmaaMagi(widowTaxInfo.agi, taxExemptInterest);
     const widowIRMAAResult =
       yearData.age >= 65
         ? calculateIRMAA({ magi: widowMagi, filingStatus: 'single' })

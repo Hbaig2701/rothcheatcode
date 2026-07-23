@@ -17,7 +17,7 @@ import {
   calculateConversionTaxWithSS,
 } from '../tax-helpers';
 import { calculateRMD } from '../modules/rmd';
-import { ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
+import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from '@/lib/config/products';
 import { getEffectiveGrowthRiderFee } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import type { CustomProductRow } from '@/lib/products/types';
@@ -53,13 +53,20 @@ export function runGrowthFormulaScenario(
   // Defaults to the contract rate if not set (renewal rate assumption).
   const postContractRate = ((client.post_contract_rate ?? client.rate_of_return ?? 7)) / 100;
 
+  // "No Annuity" preset (blueprint_type === 'none'): force EVERY annuity mechanic
+  // off at the engine level, regardless of any stale field values left on the
+  // client from a previously-selected annuity product. This makes 'none' a
+  // guaranteed plain compound-growth Roth conversion — defense-in-depth so a
+  // leaked bonus/surrender/anniversary/rider can never silently apply.
+  const isNoAnnuity = isNoAnnuityProduct(client.blueprint_type);
+
   // Apply upfront premium bonus at issue
-  const bonusPercent = client.bonus_percent ?? 0;
+  const bonusPercent = isNoAnnuity ? 0 : (client.bonus_percent ?? 0);
   const initialValue = client.qualified_account_value ?? 0;
   // Principal protection floor: if enabled, the annuity AV can never drop
   // below the initial premium (less any cumulative withdrawals/conversions).
   // This is the standard FIA principal-protection guarantee.
-  const protectInitialPremium = client.protect_initial_premium === true;
+  const protectInitialPremium = !isNoAnnuity && client.protect_initial_premium === true;
   // Industry standard FIA guarantee protects premium + upfront bonus, not just
   // the pre-bonus deposit. This matches the iraBalance starting value below.
   const initialPremium = Math.round(initialValue * (1 + bonusPercent / 100));
@@ -103,9 +110,9 @@ export function runGrowthFormulaScenario(
   // Anniversary bonus (e.g., Phased Bonus Growth: 4% at end of years 1, 2, 3).
   // Prefer the value on the client record (advisor may have customized it),
   // otherwise fall back to the preset default.
-  const anniversaryBonusPercent =
+  const anniversaryBonusPercent = isNoAnnuity ? 0 :
     ((client.anniversary_bonus_percent ?? presetAnnivBonus) ?? 0) / 100;
-  const anniversaryBonusYears =
+  const anniversaryBonusYears = isNoAnnuity ? 0 :
     (client.anniversary_bonus_years ?? presetAnnivYears) ?? 0;
   // Per-product: does the anniversary bonus keep crediting on Roth-converted
   // money (mirrored Roth annuity)? Confirmed true for EquiTrust (phased-bonus-
@@ -114,15 +121,15 @@ export function runGrowthFormulaScenario(
   const bonusFollowsConversion = productConfig?.defaults.anniversaryBonusFollowsConversion ?? false;
 
   // Surrender schedule (array of charge percentages by year)
-  const surrenderSchedule = client.surrender_schedule ?? null;
+  const surrenderSchedule = isNoAnnuity ? null : (client.surrender_schedule ?? null);
 
   // Rider fee — custom product overrides the system preset when present.
   // Only applied during the surrender period.
-  const riderFeePercent = getEffectiveGrowthRiderFee(
+  const riderFeePercent = isNoAnnuity ? 0 : getEffectiveGrowthRiderFee(
     client.blueprint_type as FormulaType,
     customProduct
   );
-  const surrenderYears = client.surrender_years ?? 0;
+  const surrenderYears = isNoAnnuity ? 0 : (client.surrender_years ?? 0);
 
   // SSI parameters (per spec, SSI is treated as tax-exempt but still displayed)
   const primarySsStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
@@ -179,7 +186,7 @@ export function runGrowthFormulaScenario(
   // contracts where conversions can't exceed the free-withdrawal allowance without
   // triggering surrender charges. Only applies during the surrender period — after the
   // contract ends, conversions are unconstrained.
-  const respectPenaltyFreeLimit = client.respect_penalty_free_limit ?? false;
+  const respectPenaltyFreeLimit = !isNoAnnuity && (client.respect_penalty_free_limit ?? false);
   const penaltyFreePercent = client.penalty_free_percent ?? 10;
   // 'tax_only' (default, legacy behavior) caps only the tax dollars paid
   // from the IRA. 'all_distributions' is the strict reading: conversion +
@@ -207,18 +214,21 @@ export function runGrowthFormulaScenario(
     const boyTaxable = taxableBalance;
 
     // Primary SSI income (with COLA)
-    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
-    const primarySsIncome = primaryYearsCollecting >= 0
-      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
+    // SS is entered in TODAY'S dollars. COLA years = min(yearOffset, age - startAge):
+    // a client already collecting at the projection start grows only from the start
+    // (yearOffset) — anchoring to (age - startAge) would re-apply COLA already baked
+    // into their current benefit and over-state it. A future collector still grows
+    // from the claim age (age - startAge = 0 at claim), matching the entered amount.
+    const primarySsIncome = age >= primarySsStartAge
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)))
       : 0;
 
     // Spouse SSI income (with COLA) — MFJ only
     let spouseSsIncome = 0;
     if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
       const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : 0;
-      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
-      spouseSsIncome = spouseYearsCollecting >= 0
-        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
+      spouseSsIncome = currentSpouseAge >= spouseSsStartAge
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)))
         : 0;
     }
 
@@ -1028,9 +1038,13 @@ export function runGrowthFormulaScenario(
     });
     const totalIncome = grossNonSSIncome + ssIncome; // For display only
     const agi = finalTaxInfo.agi;
-    // MAGI for IRMAA: AGI + tax-exempt + non-taxable SS (= AGI + tax-exempt + fullSS
-    // when measured against gross SS, matching historical behavior).
-    const magi = calculateMAGI(grossNonSSIncome, taxExemptNonSSI) + ssIncome;
+    // MAGI for IRMAA = AGI + tax-exempt interest (SSA POMS HI 01101.010). AGI
+    // (finalTaxInfo.agi = otherIncome + TAXABLE SS) already includes only the
+    // taxable portion of Social Security, so adding gross SS back overstated MAGI
+    // by the non-taxable SS portion — counting the full benefit even in years SS
+    // wasn't taxable — which inflated the IRMAA tier/surcharge and the 2-year
+    // lookback. (Mark Nichols sample-client audit, 2026-07.)
+    const magi = agi + taxExemptNonSSI;
     const standardDeduction = deductions;
     const taxableIncomeForTax = finalTaxInfo.taxableIncome;
     // Pass year so the bracket lookup uses the right inflation-adjusted thresholds.

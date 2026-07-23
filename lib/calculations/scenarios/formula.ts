@@ -7,7 +7,7 @@ import {
   determineTaxBracket
 } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
-import { calculateIRMAAWithLookback, calculateIRMAAHeadroom } from '../modules/irmaa';
+import { calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import { getStateTaxRate } from '@/lib/data/states';
@@ -168,18 +168,21 @@ export function runFormulaScenario(
     const iraAfterRmd = boyIRA - rmdAmount;
 
     // Primary SSI income (with COLA)
-    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
-    const primarySsIncome = primaryYearsCollecting >= 0
-      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
+    // SS is entered in TODAY'S dollars. COLA years = min(yearOffset, age - startAge):
+    // a client already collecting at the projection start grows only from the start
+    // (yearOffset) — anchoring to (age - startAge) would re-apply COLA already baked
+    // into their current benefit and over-state it. A future collector still grows
+    // from the claim age (age - startAge = 0 at claim), matching the entered amount.
+    const primarySsIncome = age >= primarySsStartAge
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)))
       : 0;
 
     // Spouse SSI income (with COLA) - for MFJ
     let spouseSsIncome = 0;
     if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
       const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : (spouseAge ?? 0);
-      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
-      spouseSsIncome = spouseYearsCollecting >= 0
-        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
+      spouseSsIncome = currentSpouseAge >= spouseSsStartAge
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)))
         : 0;
     }
 
@@ -732,12 +735,14 @@ export function runFormulaScenario(
       overrideRate: stateTaxRateDecimal,
     });
 
-    // MAGI for IRMAA uses full SS (taxable + non-taxable portions) plus all
-    // IRA distributions (RMD + conversion + any tax-from-IRA). Without
-    // including the RMD here, IRMAA tiers would be under-triggered for any
-    // post-73 client.
+    // MAGI for IRMAA = AGI + tax-exempt interest (SSA POMS HI 01101.010).
+    // taxInfoFinal.agi already = (otherIncome + rmdAmount + totalIRAWithdrawal)
+    // + the TAXABLE portion of SS, so it captures every IRA distribution while
+    // counting only the taxable share of Social Security. Adding gross SS back
+    // (the prior behavior) overstated MAGI by the non-taxable SS portion and
+    // inflated IRMAA tiers/surcharges. (Mark Nichols sample-client audit, 2026-07.)
     const grossIncomeWithWithdrawal = otherIncome + rmdAmount + totalIRAWithdrawal;
-    const magi = grossIncomeWithWithdrawal + taxExemptNonSSI + ssIncome;
+    const magi = taxInfoFinal.agi + taxExemptNonSSI;
     // Store MAGI for FUTURE years' IRMAA lookback. irmaaSurcharge / tier for THIS
     // year were already computed above (before the conversion-tax split) so the
     // RMD-funds-tax math could use the surcharge — IRMAA's 2-year lookback never

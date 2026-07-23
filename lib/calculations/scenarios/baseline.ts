@@ -9,7 +9,7 @@ import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA, netIraTargetForYear } from '../utils/withdrawals';
-import { getMarginalBracket, computeTaxableIncomeWithSS } from '../tax-helpers';
+import { getMarginalBracket, computeTaxableIncomeWithSS, computeIrmaaMagi } from '../tax-helpers';
 
 /**
  * Run Baseline scenario: no Roth conversions, just RMDs
@@ -145,18 +145,21 @@ export function runBaselineScenario(
     let earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
 
     // Primary SSI income (with COLA)
-    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
-    const primarySsIncome = primaryYearsCollecting >= 0
-      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
+    // SS is entered in TODAY'S dollars. COLA years = min(yearOffset, age - startAge):
+    // a client already collecting at the projection start grows only from the start
+    // (yearOffset) — anchoring to (age - startAge) would re-apply COLA already baked
+    // into their current benefit and over-state it. A future collector still grows
+    // from the claim age (age - startAge = 0 at claim), matching the entered amount.
+    const primarySsIncome = age >= primarySsStartAge
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)))
       : 0;
 
     // Spouse SSI income (with COLA) - for MFJ
     let spouseSsIncome = 0;
     if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
       const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : (spouseAge ?? 0);
-      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
-      spouseSsIncome = spouseYearsCollecting >= 0
-        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
+      spouseSsIncome = currentSpouseAge >= spouseSsStartAge
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)))
         : 0;
     }
 
@@ -174,7 +177,10 @@ export function runBaselineScenario(
     let grossTaxableIncome = effectiveIraDistribution + otherIncome;
 
     // Standard deduction (age-adjusted) + any advisor-entered additional deductions
-    const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, client.additional_deductions);
+    // A (deduction isolation): additional_deductions are a STRATEGY-only benefit;
+    // the do-nothing baseline gets only the standard/senior deduction. See
+    // growth-baseline.ts for the full rationale (Mark Nichols audit 2026-07).
+    const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, null);
 
     // NET (after-tax) withdrawal gross-up — BASELINE side only. If the advisor
     // marked this withdrawal as an after-tax target, solve for the gross IRA
@@ -251,9 +257,12 @@ export function runBaselineScenario(
       overrideRate: stateTaxRateOverride
     });
 
-    // MAGI for IRMAA = AGI + tax-exempt interest + full SS (IRMAA uses gross SS,
-    // not just the taxable portion).
-    const magi = agi + taxExemptNonSSI + (ssIncome - taxInfo.taxableSS);
+    // MAGI for IRMAA = AGI + tax-exempt interest (SSA POMS HI 01101.010). AGI
+    // already includes only the TAXABLE portion of SS; adding gross SS back
+    // overstated MAGI and — critically — left this do-nothing baseline on a
+    // DIFFERENT MAGI definition than the corrected strategy engines, producing a
+    // phantom IRMAA "savings" from converting. (Mark Nichols audit 2026-07.)
+    const magi = computeIrmaaMagi(agi, taxExemptNonSSI);
 
     // Store for IRMAA lookback
     incomeHistory.set(year, magi);
