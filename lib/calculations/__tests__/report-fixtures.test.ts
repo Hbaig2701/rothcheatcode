@@ -331,30 +331,30 @@ const FUCCI_EXPECTED = {
   // rose accordingly. Also fixes a PRE-EXISTING helper≠canonical failure in the
   // strategy taxOnRMDs (see blue note).
   base: {
-    finalNetWorth:        308_616_287,
+    finalNetWorth:        308_863_272,
     finalTraditional:      70_671_550,
     finalRoth:                      0,
-    finalTaxable:         237_944_737,
-    lifetimeWealth:       280_347_667,
+    finalTaxable:         238_191_722,
+    lifetimeWealth:       280_594_652,
     forcedDistributions:  132_258_417,
-    totalFedStateTax:       9_306_765,
-    taxOnRMDs:              9_306_765,
+    totalFedStateTax:       9_175_687,
+    taxOnRMDs:              9_175_687,
   },
   blue: {
-    finalNetWorth:        304_051_537,
+    finalNetWorth:        304_368_319,
     finalTraditional:               0,
     finalRoth:            205_852_525,
     finalTaxable:          98_199_012,
-    lifetimeWealth:       304_051_537,
-    taxOnConversions:      10_681_557,
-    totalFedStateTax:      11_979_252,
+    lifetimeWealth:       304_368_319,
+    taxOnConversions:      10_585_149,
+    totalFedStateTax:      11_840_484,
     // taxOnRMDs is now the MARGINAL RMD tax (conversion held in the no-RMD
     // baseline), matching the production computeMarginalRMDTax helper. The old
     // lock (12_324_519) was the buggy canonical value that folded conversion
     // tax into RMD tax — the helper never matched it (this assertion was
-    // failing pre-change). Now helper ≡ canonical = 6_324_755. The senior
-    // deduction itself moved the helper only ~$1,293 (6_454_022 → 6_324_755).
-    taxOnRMDs:              6_324_755,
+    // failing pre-change). Now helper ≡ canonical = 6_287_679. The senior
+    // deduction itself moved the helper only ~$1,293 (6_454_022 → 6_287_679).
+    taxOnRMDs:              6_287_679,
   },
 };
 
@@ -414,31 +414,31 @@ const PAUL_EXPECTED = {
   // worth/wealth rose accordingly. Also fixes the pre-existing helper≠canonical
   // strategy taxOnRMDs failure (see blue note).
   base: {
-    finalNetWorth:        175_134_435,
+    finalNetWorth:        177_758_154,
     finalTraditional:      34_875_030,
     finalRoth:                      0,
-    finalTaxable:         140_259_405,
-    lifetimeWealth:       161_184_423,
+    finalTaxable:         142_883_124,
+    lifetimeWealth:       163_808_142,
     forcedDistributions:   91_532_668,
-    totalFedStateTax:      15_091_778,
-    taxOnRMDs:             15_091_778,
+    totalFedStateTax:      13_534_537,
+    taxOnRMDs:             13_534_537,
   },
   blue: {
-    finalNetWorth:        201_279_777,
+    finalNetWorth:        205_693_685,
     finalTraditional:               0, // floored from -$14.72 (negative-IRA residual; see formula.ts iraAfterConversion floor)
-    finalRoth:            174_689_507,
+    finalRoth:            174_953_271,
     finalTaxable:          26_590_270,
-    lifetimeWealth:       201_279_777,
-    taxOnConversions:      18_022_494,
-    totalFedStateTax:      20_497_253,
+    lifetimeWealth:       205_693_685,
+    taxOnConversions:      16_630_495,
+    totalFedStateTax:      18_703_682,
     // taxOnRMDs is the MARGINAL RMD tax (conversion held in the no-RMD
     // baseline), matching the production computeMarginalRMDTax helper. It is
     // correctly LESS than totalFedStateTax (which includes conversion tax) — the
     // old lock (20_828_449, "== totalFedStateTax") was the buggy canonical that
     // folded conversion tax into RMD tax; the helper never matched it (this
-    // assertion was failing pre-change). Now helper ≡ canonical = 7_883_806. The
-    // senior deduction moved the helper only ~$1,479 (7_735_927 → 7_883_806).
-    taxOnRMDs:              7_883_806,
+    // assertion was failing pre-change). Now helper ≡ canonical = 7_408_306. The
+    // senior deduction moved the helper only ~$1,479 (7_735_927 → 7_408_306).
+    taxOnRMDs:              7_408_306,
   },
 };
 

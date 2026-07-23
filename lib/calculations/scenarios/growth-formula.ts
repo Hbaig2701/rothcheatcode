@@ -207,18 +207,21 @@ export function runGrowthFormulaScenario(
     const boyTaxable = taxableBalance;
 
     // Primary SSI income (with COLA)
-    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
-    const primarySsIncome = primaryYearsCollecting >= 0
-      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
+    // SS is entered in TODAY'S dollars. COLA years = min(yearOffset, age - startAge):
+    // a client already collecting at the projection start grows only from the start
+    // (yearOffset) — anchoring to (age - startAge) would re-apply COLA already baked
+    // into their current benefit and over-state it. A future collector still grows
+    // from the claim age (age - startAge = 0 at claim), matching the entered amount.
+    const primarySsIncome = age >= primarySsStartAge
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)))
       : 0;
 
     // Spouse SSI income (with COLA) — MFJ only
     let spouseSsIncome = 0;
     if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
       const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : 0;
-      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
-      spouseSsIncome = spouseYearsCollecting >= 0
-        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
+      spouseSsIncome = currentSpouseAge >= spouseSsStartAge
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)))
         : 0;
     }
 

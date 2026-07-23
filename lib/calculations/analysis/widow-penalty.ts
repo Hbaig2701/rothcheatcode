@@ -279,9 +279,12 @@ export function analyzeWidowPenaltyFromProjection(
     // Pre-death: no widow impact this year
     if (yearData.year < resolvedDeathYear) continue;
 
-    // Years since SS started — used for COLA
+    // COLA years = min(years-from-projection-start, age - startAge). An already-
+    // collecting survivor grows only from the projection start (SS entered in
+    // today's dollars); a future claimant still grows from the claim age.
     const ssStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
-    const yearsCollecting = yearData.age >= ssStartAge ? yearData.age - ssStartAge : 0;
+    const yearsFromStart = yearData.year - formulaYears[0].year;
+    const yearsCollecting = yearData.age >= ssStartAge ? Math.min(yearsFromStart, yearData.age - ssStartAge) : 0;
     const inflatedSurvivorSS = Math.round(
       survivorBaseSS * Math.pow(1 + ssColaRate, yearsCollecting)
     );
