@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
-import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
+import { isGuaranteedIncomeProduct, isNoAnnuityProduct, type FormulaType } from "@/lib/config/products";
 import {
   Field,
   FieldLabel,
@@ -80,6 +80,9 @@ export function TaxDataSection() {
   const currentStateTaxRate = form.watch("state_tax_rate");
   const formulaType = form.watch("blueprint_type") as FormulaType;
   const isGI = isGuaranteedIncomeProduct(formulaType);
+  // "No Annuity" preset — the carrier penalty-free-limit toggle (and its
+  // scope sub-option) are annuity-contract concepts; hide for a plain conversion.
+  const isNoAnnuity = isNoAnnuityProduct(formulaType);
 
   // Track if user is manually editing state tax
   const [isManualEdit, setIsManualEdit] = useState(false);
@@ -372,7 +375,8 @@ export function TaxDataSection() {
           a no-op under tax_only (no money leaves the contract) but DOES
           still bind under all_distributions because the conversion itself
           is a withdrawal from the qualified IRA. So the toggle must remain
-          configurable regardless of tax source. */}
+          configurable regardless of tax source. Annuity-only — hidden in No Annuity mode. */}
+      {!isNoAnnuity && (
       <Controller
         name="respect_penalty_free_limit"
         control={form.control}
@@ -403,11 +407,12 @@ export function TaxDataSection() {
           </div>
         )}
       />
+      )}
 
       {/* Sub-option: what counts toward the cap. Only relevant when the
           parent toggle is ON. Default 'tax_only' preserves the existing
           behavior for every client that already has the toggle on. */}
-      {form.watch("respect_penalty_free_limit") && (
+      {!isNoAnnuity && form.watch("respect_penalty_free_limit") && (
         <Controller
           name="penalty_free_scope"
           control={form.control}

@@ -435,15 +435,17 @@
       </div>
 
       <div class="metric-section">
-        <h3>Contract Details</h3>
+        <h3>{{#if isNoAnnuity}}Plan Details{{else}}Contract Details{{/if}}</h3>
         <div class="metric-row">
           <span class="metric-label">Initial Deposit</span>
           <span class="metric-value">{{initialDeposit}}</span>
         </div>
+        {{#unless isNoAnnuity}}
         <div class="metric-row">
           <span class="metric-label">Bonus</span>
           <span class="metric-value">{{bonusRate}}%</span>
         </div>
+        {{/unless}}
         {{#if hasBonus}}
         <div class="metric-row">
           <span class="metric-label">Starting Balance (with bonus)</span>
@@ -562,14 +564,16 @@
           <td>{{strategy.taxOnConversionsOnly}}</td>
           <td style="color: #9ca3af;">—</td>
         </tr>
+        {{#unless isNoAnnuity}}
         <tr>
           <td>Premium Bonus Received</td>
           <td>{{baseline.premiumBonusReceived}}</td>
           <td>{{strategy.premiumBonusReceived}}</td>
           <td>{{{formatDiff diff.premiumBonus false}}}</td>
         </tr>
+        {{/unless}}
         <tr style="background: #f0fdf4;">
-          <td><strong>Net Out-of-Pocket Tax (after bonus)</strong></td>
+          <td><strong>Net Out-of-Pocket Tax{{#unless isNoAnnuity}} (after bonus){{/unless}}</strong></td>
           <td><strong>{{baseline.netTaxCost}}</strong></td>
           <td><strong>{{strategy.netTaxCost}}</strong></td>
           <td>{{{formatDiff diff.netTaxCost true}}}</td>
@@ -1141,6 +1145,7 @@
       </div>
     </div>
 
+    {{#unless isNoAnnuity}}
     <div class="glossary-entry">
       <div class="glossary-term">Premium Bonus Received</div>
       <div class="glossary-def">
@@ -1149,13 +1154,19 @@
         grows alongside it.
       </div>
     </div>
+    {{/unless}}
 
     <div class="glossary-entry">
-      <div class="glossary-term">Net Out-of-Pocket Tax (after bonus)</div>
+      <div class="glossary-term">Net Out-of-Pocket Tax{{#unless isNoAnnuity}} (after bonus){{/unless}}</div>
       <div class="glossary-def">
+        {{#if isNoAnnuity}}
+        The actual tax cost to the client. For the strategy: Tax on Conversions.
+        For the baseline: Tax on RMDs.
+        {{else}}
         The actual tax cost to the client after subtracting the premium bonus.
         For the strategy: Tax on Conversions − Premium Bonus. For the baseline:
         equals Tax on RMDs (no bonus to credit).
+        {{/if}}
       </div>
     </div>
 
@@ -1270,14 +1281,22 @@
         <strong>Hypothetical calculations only.</strong> This is an educational concept ledger only and is not intended to indicate actual performance nor predict future results. The hypothetical, non-guaranteed values shown are calculated based on user-defined interest rates and over a user-defined specified period. Please engage and rely on the advice of a properly licensed professional prior to making any financial decisions.
       </p>
       <p>
-        The information, data, calculations, and opinions contained herein are not intended to indicate actual performance nor predict future results and (1) are educational only and designed to help you better understand how internal rate of return might be affected under various conditions, (2) aren't recommendations to buy or sell a particular annuity, (3) do not constitute investment advice, (4) are not warranted to be correct, complete or accurate, (5) assume non-guaranteed rates as of the assumed issue year and age, (6) these hypothetical, non-guaranteed values shown are calculated based on user-defined interest rates and over a user-defined time period and are subject to change, (7) it is likely that the interest rates and fee percentages will, in fact, change over time.
+        The information, data, calculations, and opinions contained herein are not intended to indicate actual performance nor predict future results and (1) are educational only and designed to help you better understand how internal rate of return might be affected under various conditions, (2) aren't recommendations to buy or sell a particular {{#if isNoAnnuity}}security or product{{else}}annuity{{/if}}, (3) do not constitute investment advice, (4) are not warranted to be correct, complete or accurate, (5) assume non-guaranteed rates as of the assumed issue year and age, (6) these hypothetical, non-guaranteed values shown are calculated based on user-defined interest rates and over a user-defined time period and are subject to change, (7) it is likely that the interest rates and fee percentages will, in fact, change over time.
       </p>
+      {{#unless isNoAnnuity}}
       <p>
         This means that actual non-guaranteed account values may be higher or lower than those shown from the calculations and summaries. Market Value Adjustments are subject to daily fluctuations and may change the surrender value used for the above calculations. Please consult your carrier for the most recent values.
       </p>
+      {{/unless}}
+      {{#if isNoAnnuity}}
+      <p>
+        This projection is for illustrative purposes only and assumes a constant, user-defined rate of return. Actual results will vary based on market conditions. Projections are not guarantees. Consult a qualified professional before making financial decisions.
+      </p>
+      {{else}}
       <p>
         This projection is for illustrative purposes only and does not represent any specific insurance product. Actual results will vary based on carrier, product selection, crediting rates, and market conditions. Projections are not guarantees. Verify all details with official carrier documentation before making recommendations.
       </p>
+      {{/if}}
       <p style="margin-top: 40px; text-align: center; font-style: italic;">
         Generated by {{#if branding.hasBranding}}{{branding.companyName}}{{else}}Retirement Expert{{/if}} on {{reportDate}}
       </p>

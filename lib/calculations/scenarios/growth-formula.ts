@@ -17,8 +17,8 @@ import {
   calculateConversionTaxWithSS,
 } from '../tax-helpers';
 import { calculateRMD } from '../modules/rmd';
-import { ALL_PRODUCTS, type FormulaType } from '@/lib/config/products';
-import { getEffectiveGrowthRiderFee } from '../resolvers/product-resolver';
+import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from '@/lib/config/products';
+import { getEffectiveGrowthRiderFee, getEffectiveCumulativePenaltyFree } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import type { CustomProductRow } from '@/lib/products/types';
 
@@ -53,13 +53,20 @@ export function runGrowthFormulaScenario(
   // Defaults to the contract rate if not set (renewal rate assumption).
   const postContractRate = ((client.post_contract_rate ?? client.rate_of_return ?? 7)) / 100;
 
+  // "No Annuity" preset (blueprint_type === 'none'): force EVERY annuity mechanic
+  // off at the engine level, regardless of any stale field values left on the
+  // client from a previously-selected annuity product. This makes 'none' a
+  // guaranteed plain compound-growth Roth conversion — defense-in-depth so a
+  // leaked bonus/surrender/anniversary/rider can never silently apply.
+  const isNoAnnuity = isNoAnnuityProduct(client.blueprint_type);
+
   // Apply upfront premium bonus at issue
-  const bonusPercent = client.bonus_percent ?? 0;
+  const bonusPercent = isNoAnnuity ? 0 : (client.bonus_percent ?? 0);
   const initialValue = client.qualified_account_value ?? 0;
   // Principal protection floor: if enabled, the annuity AV can never drop
   // below the initial premium (less any cumulative withdrawals/conversions).
   // This is the standard FIA principal-protection guarantee.
-  const protectInitialPremium = client.protect_initial_premium === true;
+  const protectInitialPremium = !isNoAnnuity && client.protect_initial_premium === true;
   // Industry standard FIA guarantee protects premium + upfront bonus, not just
   // the pre-bonus deposit. This matches the iraBalance starting value below.
   const initialPremium = Math.round(initialValue * (1 + bonusPercent / 100));
@@ -103,9 +110,9 @@ export function runGrowthFormulaScenario(
   // Anniversary bonus (e.g., Phased Bonus Growth: 4% at end of years 1, 2, 3).
   // Prefer the value on the client record (advisor may have customized it),
   // otherwise fall back to the preset default.
-  const anniversaryBonusPercent =
+  const anniversaryBonusPercent = isNoAnnuity ? 0 :
     ((client.anniversary_bonus_percent ?? presetAnnivBonus) ?? 0) / 100;
-  const anniversaryBonusYears =
+  const anniversaryBonusYears = isNoAnnuity ? 0 :
     (client.anniversary_bonus_years ?? presetAnnivYears) ?? 0;
   // Per-product: does the anniversary bonus keep crediting on Roth-converted
   // money (mirrored Roth annuity)? Confirmed true for EquiTrust (phased-bonus-
@@ -114,15 +121,15 @@ export function runGrowthFormulaScenario(
   const bonusFollowsConversion = productConfig?.defaults.anniversaryBonusFollowsConversion ?? false;
 
   // Surrender schedule (array of charge percentages by year)
-  const surrenderSchedule = client.surrender_schedule ?? null;
+  const surrenderSchedule = isNoAnnuity ? null : (client.surrender_schedule ?? null);
 
   // Rider fee — custom product overrides the system preset when present.
   // Only applied during the surrender period.
-  const riderFeePercent = getEffectiveGrowthRiderFee(
+  const riderFeePercent = isNoAnnuity ? 0 : getEffectiveGrowthRiderFee(
     client.blueprint_type as FormulaType,
     customProduct
   );
-  const surrenderYears = client.surrender_years ?? 0;
+  const surrenderYears = isNoAnnuity ? 0 : (client.surrender_years ?? 0);
 
   // SSI parameters (per spec, SSI is treated as tax-exempt but still displayed)
   const primarySsStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
@@ -179,7 +186,7 @@ export function runGrowthFormulaScenario(
   // contracts where conversions can't exceed the free-withdrawal allowance without
   // triggering surrender charges. Only applies during the surrender period — after the
   // contract ends, conversions are unconstrained.
-  const respectPenaltyFreeLimit = client.respect_penalty_free_limit ?? false;
+  const respectPenaltyFreeLimit = !isNoAnnuity && (client.respect_penalty_free_limit ?? false);
   const penaltyFreePercent = client.penalty_free_percent ?? 10;
   // 'tax_only' (default, legacy behavior) caps only the tax dollars paid
   // from the IRA. 'all_distributions' is the strict reading: conversion +
@@ -194,6 +201,30 @@ export function runGrowthFormulaScenario(
   // total conversions. Outside the loop so it persists across years.
   let cumulativeConverted = 0;
 
+  // Cumulative (accumulating) free-withdrawal rule: some carriers (e.g. Athene
+  // Performance Elite) let an unused penalty-free allowance carry into the next
+  // year — 10% yr1, 20% yr2 if yr1 skipped — up to a ceiling (cumulative_percent).
+  // penaltyFreeCarryPct holds the unused percentage-points carried from the prior
+  // year; it's read when sizing this year's cap and refreshed at year-end. Only
+  // meaningful for products whose config enables it and only while the penalty-
+  // free cap is actually active (surrender period + respect_penalty_free_limit).
+  const cumulativePF = isNoAnnuity
+    ? { enabled: false, maxPercent: 0 }
+    : getEffectiveCumulativePenaltyFree(customProduct);
+  // Extra percentage-points that can accumulate ABOVE the base penalty-free % —
+  // e.g. base 10% + room 10% = 20% ceiling. Generalizes to multi-year products
+  // (base 10%, ceiling 30% ⇒ room 20%): the carry can grow to `cumulativeRoom`,
+  // never more, so the allowance tops out at exactly maxPercent.
+  const cumulativeFreeRoom = cumulativePF.enabled
+    ? Math.max(0, cumulativePF.maxPercent - penaltyFreePercent)
+    : 0;
+  // Year-1 free-withdrawal % can differ from later years ('custom' rule with an
+  // explicit year_1_custom_percent). Honor it so a skipped/partial year 1 carries
+  // the RIGHT amount forward (else the flat 10% assumption corrupts the carry).
+  const year1Rule = customProduct?.config?.withdrawals?.year_1_rule;
+  const year1CustomPct = customProduct?.config?.withdrawals?.year_1_custom_percent;
+  let penaltyFreeCarryPct = 0;
+
   // Income history for IRMAA 2-year lookback
   const incomeHistory = new Map<number, number>();
 
@@ -207,18 +238,21 @@ export function runGrowthFormulaScenario(
     const boyTaxable = taxableBalance;
 
     // Primary SSI income (with COLA)
-    const primaryYearsCollecting = age >= primarySsStartAge ? age - primarySsStartAge : -1;
-    const primarySsIncome = primaryYearsCollecting >= 0
-      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, primaryYearsCollecting))
+    // SS is entered in TODAY'S dollars. COLA years = min(yearOffset, age - startAge):
+    // a client already collecting at the projection start grows only from the start
+    // (yearOffset) — anchoring to (age - startAge) would re-apply COLA already baked
+    // into their current benefit and over-state it. A future collector still grows
+    // from the claim age (age - startAge = 0 at claim), matching the entered amount.
+    const primarySsIncome = age >= primarySsStartAge
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)))
       : 0;
 
     // Spouse SSI income (with COLA) — MFJ only
     let spouseSsIncome = 0;
     if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
       const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : 0;
-      const spouseYearsCollecting = currentSpouseAge >= spouseSsStartAge ? currentSpouseAge - spouseSsStartAge : -1;
-      spouseSsIncome = spouseYearsCollecting >= 0
-        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, spouseYearsCollecting))
+      spouseSsIncome = currentSpouseAge >= spouseSsStartAge
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)))
         : 0;
     }
 
@@ -323,11 +357,22 @@ export function runGrowthFormulaScenario(
     // branches below run against the FULL physical IRA (iraAfterDistribution)
     // — the split happens after the conversion is sized.
     const inSurrenderPeriod = yearOffset < surrenderYears;
+    // This year's BASE free-withdrawal %. Normally the flat penalty_free_percent
+    // (e.g. 10%); in year 1, a 'custom' rule can override it with an explicit %.
+    const baseAllowancePct =
+      yearOffset === 0 && year1Rule === 'custom' && year1CustomPct != null && Number.isFinite(year1CustomPct)
+        ? year1CustomPct
+        : penaltyFreePercent;
+    // Effective allowance = base + accumulated carry (bounded by cumulativeFreeRoom).
+    // Built by ADDING a non-negative carry to the base, so it can never fall below
+    // the base (a misconfigured maxPercent < base degrades to flat), and tops out at
+    // exactly base + room = maxPercent. Carry is 0 for non-cumulative products.
+    const effectiveAllowancePct = baseAllowancePct + Math.min(penaltyFreeCarryPct, cumulativeFreeRoom);
     // Tax cap (used in 'tax_only' scope): only the tax dollars from the IRA
     // count against the carrier's penalty-free allowance. Conversion runs
     // off the full physical IRA below.
     const taxCap = (respectPenaltyFreeLimit && inSurrenderPeriod && payTaxFromIRA)
-      ? Math.round(boyIRA * penaltyFreePercent / 100)
+      ? Math.round(boyIRA * effectiveAllowancePct / 100)
       : Number.POSITIVE_INFINITY;
     // Outflow cap (used in 'all_distributions' scope): conversion +
     // effective IRA distribution + tax-from-IRA must all fit under the
@@ -342,7 +387,7 @@ export function runGrowthFormulaScenario(
       inSurrenderPeriod &&
       penaltyFreeScope === 'all_distributions';
     const outflowCap = useOutflowCap
-      ? Math.round(boyIRA * penaltyFreePercent / 100)
+      ? Math.round(boyIRA * effectiveAllowancePct / 100)
       : Number.POSITIVE_INFINITY;
     // Conversion ceiling under the strict interpretation. Subtracts the
     // effective IRA distribution (whichever of forced RMD or voluntary is
@@ -895,6 +940,37 @@ export function runGrowthFormulaScenario(
     // Track cumulative converted (used by 'partial_amount' to enforce the total cap)
     cumulativeConverted += conversionAmount;
 
+    // Refresh the cumulative penalty-free carry-forward for next year. Carry the
+    // portion of THIS year's allowance that went unused, capped at one base
+    // year's worth (penaltyFreePercent) so the ceiling stays cumulative_percent.
+    // Only accumulates while the cap regime is actually active this year; when
+    // it's not (toggle off, surrender period over), the allowance can't carry.
+    if (cumulativePF.enabled && boyIRA > 0) {
+      const capActiveThisYear =
+        respectPenaltyFreeLimit &&
+        inSurrenderPeriod &&
+        (penaltyFreeScope === 'all_distributions' || payTaxFromIRA);
+      if (capActiveThisYear) {
+        // Dollars that counted against the penalty-free allowance this year:
+        // total physical IRA outflow under 'all_distributions', else just the
+        // IRA-funded conversion tax under 'tax_only'.
+        const penaltyFreeUsed =
+          penaltyFreeScope === 'all_distributions'
+            ? effectiveIraDistribution + conversionAmount + extraPullForTax
+            : conversionTaxFromIRA;
+        const usedPct = Math.max(0, penaltyFreeUsed) / boyIRA * 100;
+        // Carry the unused portion of this year's allowance, bounded by the room
+        // above the base (cumulativeFreeRoom) so the ceiling stays maxPercent —
+        // including multi-year products where the room exceeds one base year.
+        penaltyFreeCarryPct = Math.max(
+          0,
+          Math.min(cumulativeFreeRoom, effectiveAllowancePct - usedPct),
+        );
+      } else {
+        penaltyFreeCarryPct = 0;
+      }
+    }
+
     // Step 2: Calculate interest AFTER conversion.
     // IRA (annuity) uses contract rate during the surrender period and the
     // post-contract (renewal) rate afterward. When there's no surrender period
@@ -1028,9 +1104,13 @@ export function runGrowthFormulaScenario(
     });
     const totalIncome = grossNonSSIncome + ssIncome; // For display only
     const agi = finalTaxInfo.agi;
-    // MAGI for IRMAA: AGI + tax-exempt + non-taxable SS (= AGI + tax-exempt + fullSS
-    // when measured against gross SS, matching historical behavior).
-    const magi = calculateMAGI(grossNonSSIncome, taxExemptNonSSI) + ssIncome;
+    // MAGI for IRMAA = AGI + tax-exempt interest (SSA POMS HI 01101.010). AGI
+    // (finalTaxInfo.agi = otherIncome + TAXABLE SS) already includes only the
+    // taxable portion of Social Security, so adding gross SS back overstated MAGI
+    // by the non-taxable SS portion — counting the full benefit even in years SS
+    // wasn't taxable — which inflated the IRMAA tier/surcharge and the 2-year
+    // lookback. (Mark Nichols sample-client audit, 2026-07.)
+    const magi = agi + taxExemptNonSSI;
     const standardDeduction = deductions;
     const taxableIncomeForTax = finalTaxInfo.taxableIncome;
     // Pass year so the bracket lookup uses the right inflation-adjusted thresholds.

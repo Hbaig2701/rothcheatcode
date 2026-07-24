@@ -7,7 +7,7 @@ import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { PercentInput } from "@/components/ui/percent-input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { isFieldLocked, isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
+import { isFieldLocked, isGuaranteedIncomeProduct, isNoAnnuityProduct, type FormulaType } from "@/lib/config/products";
 import { Lock, LockOpen, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FieldHelp } from "@/components/clients/field-help";
@@ -26,6 +26,9 @@ export function AdvancedDataSection() {
   const customProductId = form.watch("custom_product_id");
   const rateOfReturn = form.watch("rate_of_return");
   const isGI = isGuaranteedIncomeProduct(formulaType);
+  // "No Annuity" preset — hide surrender years, penalty-free %, and post-contract
+  // (annuity renewal) rate; none apply to a plain Roth conversion.
+  const isNoAnnuity = isNoAnnuityProduct(formulaType);
 
   // Auto-sync baseline_comparison_rate with rate_of_return for ALL products
   // For a fair comparison, both scenarios should use the same growth rate
@@ -73,7 +76,8 @@ export function AdvancedDataSection() {
 
       {isExpanded && (
         <div className="grid gap-4 pl-6">
-          {/* Surrender Years */}
+          {/* Surrender Years — annuity-only, hidden in No Annuity mode */}
+          {!isNoAnnuity && (
           <Field data-invalid={!!form.formState.errors.surrender_years}>
             <FieldLabel htmlFor="surrender_years" className="flex items-center gap-1.5">
               Surrender Years
@@ -108,8 +112,10 @@ export function AdvancedDataSection() {
             </FieldDescription>
             <FieldError errors={[form.formState.errors.surrender_years]} />
           </Field>
+          )}
 
-          {/* Penalty Free % */}
+          {/* Penalty Free % — annuity-only, hidden in No Annuity mode */}
+          {!isNoAnnuity && (
           <Controller
             name="penalty_free_percent"
             control={form.control}
@@ -147,6 +153,7 @@ export function AdvancedDataSection() {
               </Field>
             )}
           />
+          )}
 
           {/* Baseline Comparison Rate - Hidden for GI (auto-synced with Rate of Return) */}
           {!isGI && (
@@ -170,8 +177,8 @@ export function AdvancedDataSection() {
             />
           )}
 
-          {/* Post Contract Rate - Growth products only */}
-          {!isGI && (
+          {/* Post Contract Rate - Growth products only; annuity renewal rate, hidden in No Annuity mode */}
+          {!isGI && !isNoAnnuity && (
             <Controller
               name="post_contract_rate"
               control={form.control}

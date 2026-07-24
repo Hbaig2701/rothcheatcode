@@ -7,7 +7,7 @@ import path from 'path';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getVisibleUserIds } from '@/lib/auth/visibleUserIds';
-import { isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
+import { isGuaranteedIncomeProduct, isNoAnnuityProduct, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
 import { hasFeature, hasFullAccess } from '@/lib/config/plans';
 import { determineTaxBracket, calculateFederalTax } from '@/lib/calculations/modules/federal-tax';
@@ -1022,9 +1022,13 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   // strategy side (baseline is a "do nothing" scenario, no product bonus).
   // Used for the "Premium Bonus Received" / "Net Tax Cost" rows in the
   // Distributions summary so advisors can show net-of-bonus tax math.
-  const premiumBonusDollars = Math.round(
-    (client.qualified_account_value ?? 0) * ((client.bonus_percent ?? 0) / 100),
-  );
+  // No Annuity mode: the engine forces bonus to 0, so there is NO premium bonus
+  // to subtract — guard here too, or a stale bonus_percent would silently reduce
+  // the strategy's "Net Out-of-Pocket Tax" below "Tax on Conversions" with the
+  // explanatory "Premium Bonus Received" row hidden, breaking reconciliation.
+  const premiumBonusDollars = isNoAnnuityProduct(client.blueprint_type)
+    ? 0
+    : Math.round((client.qualified_account_value ?? 0) * ((client.bonus_percent ?? 0) / 100));
   // Net out-of-pocket tax: event-attributable tax (RMDs for baseline,
   // conversions for strategy) less the premium bonus. This is the honest
   // "what does this strategy cost me" figure for client presentations.
@@ -1848,6 +1852,12 @@ export async function POST(request: NextRequest) {
 
     // Add white-label flag
     (templateData as unknown as Record<string, unknown>).showPoweredBy = showPoweredBy;
+
+    // "No Annuity" mode (blueprint_type === 'none') — a plain Roth-conversion PDF
+    // with NO annuity terminology. Gates the ungated bonus/carrier rows + glossary
+    // + disclaimer prose in pdf-template.html via {{#unless isNoAnnuity}}.
+    // (Mark Nichols request 2026-07.)
+    (templateData as unknown as Record<string, unknown>).isNoAnnuity = isNoAnnuityProduct(blueprintType);
 
     // SECURE 2.0 RMD start age for this client (73 born ≤1959, 75 born 1960+) —
     // the template must not hardcode 73 (Lori Avant ticket).

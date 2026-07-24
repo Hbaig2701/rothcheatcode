@@ -364,6 +364,18 @@ export function calculateMAGI(
 }
 
 /**
+ * MAGI for Medicare IRMAA = AGI + tax-exempt interest (SSA POMS HI 01101.010).
+ * AGI already includes ONLY the taxable portion of Social Security, so gross SS
+ * must NOT be added back — doing so overstated MAGI by the non-taxable SS
+ * portion and inflated IRMAA tiers/surcharges (Mark Nichols audit 2026-07).
+ * Route every IRMAA MAGI computation through this single helper so the two
+ * sides of every baseline-vs-strategy comparison can never drift apart again.
+ */
+export function computeIrmaaMagi(agi: number, taxExemptInterest: number = 0): number {
+  return agi + taxExemptInterest;
+}
+
+/**
  * Get marginal tax bracket for a given taxable income
  *
  * Uses the same bracket data as the actual tax calculation engine

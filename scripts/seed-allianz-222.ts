@@ -106,6 +106,9 @@ const product = {
       // pro-rata as withdrawals reduce the accumulation value. Verified to the
       // dollar (yr3 $100k/$1M=10% → PIV $1,450,000 × 0.90 = $1,305,000).
       benefit_base_draws_down: true,
+      // Increasing income tracks credited interest (0% floor) — the carrier
+      // mechanic, not a flat ~2%. Matches the illustration's increasing LPA.
+      increasing_income_basis: "credited_rate" as const,
       bonus_applies_to: "income_base" as const,
       payout_factors: { single, joint },
       payout_increment_per_year: 0, // illustration shows flat 6% past age 79

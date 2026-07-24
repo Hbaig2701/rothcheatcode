@@ -5,6 +5,7 @@ import type { Projection } from '@/lib/types/projection';
 // fields directly — see audit F10 — so the marginal-conversion-tax helper is no
 // longer imported here; it remains available for any all-in-cost display.)
 import { getClientRMDStartAge } from './utils/age';
+import { isNoAnnuityProduct } from '@/lib/config/products';
 
 // Story entry types
 export type StoryTrigger =
@@ -82,6 +83,10 @@ export function generateStory(
   projection: Projection
 ): StoryEntry[] {
   const storyEntries: StoryEntry[] = [];
+  // "No Annuity" mode — suppress annuity terminology (premium bonus, carrier
+  // penalty-free cap). Most already self-gate (bonus 0, no surrender period),
+  // but gate explicitly so intent is clear. (Mark Nichols request 2026-07.)
+  const isNoAnnuity = isNoAnnuityProduct(client.blueprint_type);
   const years = projection.blueprint_years;
   const baselineYears = projection.baseline_years;
   // SECURE 2.0 RMD start age for THIS client (73 born ≤1959, 75 born 1960+) —
@@ -122,7 +127,11 @@ export function generateStory(
   // Calculate totals upfront
   const totalConversionYears = years.filter(y => y.conversionAmount > 0).length;
   const originalIRA = client.qualified_account_value ?? 0;
-  const bonusAmount = Math.round(originalIRA * (client.bonus_percent ?? 0) / 100);
+  // No Annuity mode: the engine applies no bonus, so the "50% converted"
+  // milestone + "remaining" figures must be measured against the plain IRA, not
+  // a phantom original+bonus (a stale bonus_percent would otherwise fire the
+  // milestone late and show non-zero "remaining" at full conversion).
+  const bonusAmount = isNoAnnuity ? 0 : Math.round(originalIRA * (client.bonus_percent ?? 0) / 100);
   const startingWithBonus = originalIRA + bonusAmount;
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
   const targetBracket = client.max_tax_rate ?? 24;
@@ -274,7 +283,7 @@ export function generateStory(
     details: setupDetails,
     metrics: [
       { label: 'Starting IRA', value: formatCurrency(originalIRA) },
-      ...(client.bonus_percent && client.bonus_percent > 0 ? [{ label: 'Premium Bonus', value: `${client.bonus_percent}%` }] : []),
+      ...(!isNoAnnuity && client.bonus_percent && client.bonus_percent > 0 ? [{ label: 'Premium Bonus', value: `${client.bonus_percent}%` }] : []),
       ...(aumActive ? [{ label: 'AUM Split', value: `${client.aum_allocation_percent}%` }] : []),
     ],
     runningTotals: {
@@ -543,7 +552,7 @@ export function generateStory(
     // limit. The conversion still happens at the chosen size; only the tax
     // payment is split between IRA (up to cap) and external funds.
     const externalTaxThisYear = year.taxesPaidExternally ?? 0;
-    if (!capOverflowFired && externalTaxThisYear > 0) {
+    if (!isNoAnnuity && !capOverflowFired && externalTaxThisYear > 0) {
       capOverflowFired = true;
       const internalTaxThisYear = year.taxesPaidFromIRA ?? 0;
       storyEntries.push({

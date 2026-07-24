@@ -23,6 +23,7 @@ import {
   ALL_PRODUCTS,
   isFieldLocked,
   isGuaranteedIncomeProduct,
+  isNoAnnuityProduct,
   type FormulaType,
 } from "@/lib/config/products";
 import { GI_PRODUCT_DATA } from "@/lib/config/gi-product-data";
@@ -310,6 +311,9 @@ export function NewAccountSection() {
   const isProductLocked = isFieldLocked("productName", formulaType, customProductId);
   const isBonusLocked = isFieldLocked("bonus", formulaType, customProductId);
   const isGI = isGuaranteedIncomeProduct(formulaType);
+  // "No Annuity" preset — hide every annuity-specific input (bonus, anniversary,
+  // surrender schedule, rider) so the form reads as a plain Roth conversion.
+  const isNoAnnuity = isNoAnnuityProduct(formulaType);
 
   // Get product-specific GI data for conditional fields
   const giData = isGI ? GI_PRODUCT_DATA[formulaType as GuaranteedIncomeFormulaType] : null;
@@ -527,7 +531,8 @@ export function NewAccountSection() {
         <FieldError errors={[form.formState.errors.product_name]} />
       </Field>
 
-      {/* Bonus % */}
+      {/* Bonus % — annuity-only, hidden in No Annuity mode */}
+      {!isNoAnnuity && (
       <Controller
         name="bonus_percent"
         control={form.control}
@@ -549,9 +554,10 @@ export function NewAccountSection() {
           </Field>
         )}
       />
+      )}
 
       {/* Anniversary Bonus - Locked display for products with phased bonus */}
-      {form.watch("anniversary_bonus_percent") != null && form.watch("anniversary_bonus_years") != null && (
+      {!isNoAnnuity && form.watch("anniversary_bonus_percent") != null && form.watch("anniversary_bonus_years") != null && (
         <Field>
           <FieldLabel className="flex items-center gap-1.5">
             Anniversary Bonus
@@ -567,7 +573,7 @@ export function NewAccountSection() {
       )}
 
       {/* Surrender Schedule - Collapsible to save form real estate */}
-      {form.watch("surrender_schedule") != null && (
+      {!isNoAnnuity && form.watch("surrender_schedule") != null && (
         <Controller
           name="surrender_schedule"
           control={form.control}

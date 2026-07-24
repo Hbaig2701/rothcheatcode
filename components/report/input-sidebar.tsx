@@ -309,6 +309,14 @@ export function InputSidebar({ client }: InputSidebarProps) {
         form.setValue("surrender_years", product.defaults.surrenderYears);
         form.setValue("penalty_free_percent", product.defaults.penaltyFreePercent);
         form.setValue("rate_of_return", product.defaults.rateOfReturn);
+        // Clear the anniversary-bonus + surrender-schedule to the new preset's
+        // values — otherwise switching FROM a phased-bonus product leaves stale
+        // annuity data the growth engine still applies (silent annuity leak,
+        // especially wrong for the "No Annuity" preset). Mirrors the client
+        // builder's handleFormulaTypeChange (new-account.tsx).
+        form.setValue("anniversary_bonus_percent", product.defaults.anniversaryBonus ?? null);
+        form.setValue("anniversary_bonus_years", product.defaults.anniversaryBonusYears ?? null);
+        form.setValue("surrender_schedule", product.defaults.surrenderSchedule ?? null);
     };
 
     const customGrowth = customProducts.filter((p) => p.category === "growth");

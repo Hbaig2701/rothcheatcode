@@ -1,7 +1,7 @@
 // Product preset configuration for Product Preset dropdown
 // This file ONLY defines UI presets - it does NOT modify any calculation formulas
 
-export type GrowthFormulaType = 'fia' | 'short-term-cap-growth' | 'phased-bonus-growth' | 'vesting-bonus-growth' | 'high-bonus-long-term-growth' | 'high-bonus-medium-term-growth';
+export type GrowthFormulaType = 'none' | 'fia' | 'short-term-cap-growth' | 'phased-bonus-growth' | 'vesting-bonus-growth' | 'high-bonus-long-term-growth' | 'high-bonus-medium-term-growth';
 
 export type GuaranteedIncomeFormulaType =
   | 'generic-income'
@@ -53,6 +53,29 @@ export const LOCKABLE_FIELDS = [
 ] as const;
 
 export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
+  // "No Annuity" — a plain Roth-conversion illustration with NO product wrapper.
+  // Runs on the growth engine (isGrowthProduct('none') === true) but every
+  // annuity mechanic is a no-op at these settings: bonus 0 (×1.0), no surrender
+  // period (so no surrender charge, no rider fee, and the growth rate stays
+  // rate_of_return — see growth-formula.ts), penalty-free cap off. The UI hides
+  // all annuity fields/result lines/terminology when this is selected
+  // (isNoAnnuityProduct). Mark Nichols request 2026-07.
+  'none': {
+    id: 'none',
+    label: 'No Annuity (Roth Conversion Only)',
+    category: 'Growth',
+    description: 'Plain Roth conversion vs. do-nothing — no annuity product, bonus, or surrender schedule.',
+    lockedFields: ['bonus', 'surrenderYears', 'penaltyFreePercent'],
+    defaults: {
+      carrierName: 'none',
+      productName: 'No Annuity',
+      bonus: 0,
+      surrenderYears: 0,
+      penaltyFreePercent: 0,
+      rateOfReturn: 6,
+    },
+  },
+
   'fia': {
     id: 'fia',
     label: 'Generic Growth Product',
@@ -252,6 +275,15 @@ export function isGuaranteedIncomeProduct(formulaType: FormulaType): boolean {
 // Check if a formula type is a growth FIA product
 export function isGrowthProduct(formulaType: FormulaType): boolean {
   return formulaType in GROWTH_PRODUCTS;
+}
+
+// "No Annuity" mode — a plain Roth-conversion illustration with no product
+// wrapper. Runs on the growth engine (see the 'none' entry in GROWTH_PRODUCTS)
+// but the UI must hide every annuity-specific input, result line, column, and
+// piece of terminology when this is the selected preset. Gate all such UI on
+// this helper. (Mark Nichols request 2026-07.)
+export function isNoAnnuityProduct(formulaType: FormulaType | string | null | undefined): boolean {
+  return formulaType === 'none';
 }
 
 // Utility function to check if a field should be locked.

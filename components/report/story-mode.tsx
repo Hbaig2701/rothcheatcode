@@ -5,6 +5,7 @@ import { X, ArrowLeft, Rocket, TrendingUp, MapPin, AlertTriangle, Target, Flag, 
 import type { Client } from "@/lib/types/client";
 import type { Projection } from "@/lib/types/projection";
 import { generateStory, type StoryEntry, type StoryIcon, type StorySentiment } from "@/lib/calculations/story-generator";
+import { isNoAnnuityProduct } from "@/lib/config/products";
 import { cn } from "@/lib/utils";
 
 interface StoryModeProps {
@@ -139,11 +140,12 @@ export function StoryMode({ client, projection, onExit }: StoryModeProps) {
             </p>
           </div>
 
-          {/* Disclaimer */}
+          {/* Disclaimer — annuity "carrier product" language dropped in No Annuity mode */}
           <div className="text-center mb-10 px-4">
             <p className="text-text-dim text-xs italic leading-relaxed">
-              The following illustration uses generic product archetypes to demonstrate potential outcomes.
-              This is not a representation of any specific carrier&apos;s product. Actual features and results will vary.
+              {isNoAnnuityProduct(client.blueprint_type)
+                ? "The following illustration is a Roth conversion projection at an assumed rate of return, for educational purposes only. Actual results will vary."
+                : "The following illustration uses generic product archetypes to demonstrate potential outcomes. This is not a representation of any specific carrier’s product. Actual features and results will vary."}
             </p>
           </div>
 

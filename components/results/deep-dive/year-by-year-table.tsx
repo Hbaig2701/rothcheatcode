@@ -37,6 +37,9 @@ interface YearByYearTableProps {
    */
   widowAnalysis?: boolean;
   widowDeathAge?: number | null;
+  // "No Annuity" mode — hide the annuity-only 'product' columns (product bonus,
+  // surrender charge %, surrender value) from the picker and the rendered table.
+  isNoAnnuity?: boolean;
 }
 
 /**
@@ -56,6 +59,7 @@ export function YearByYearTable({
   filingStatus,
   widowAnalysis = false,
   widowDeathAge = null,
+  isNoAnnuity = false,
 }: YearByYearTableProps) {
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -153,7 +157,10 @@ export function YearByYearTable({
     const resolved = selectedColumns
       .filter((id) => isMarried || id !== "spouseAge")
       .map((id) => defMap.get(id))
-      .filter(Boolean) as typeof COLUMN_DEFINITIONS;
+      .filter(Boolean)
+      // No Annuity mode: never render the annuity-only 'product' columns, even
+      // if a saved preference had one toggled on.
+      .filter((c) => !(isNoAnnuity && c?.category === 'product')) as typeof COLUMN_DEFINITIONS;
     const frozen = resolved.filter((c) => c.frozen);
     const nonFrozen = resolved.filter((c) => !c.frozen);
     return [...frozen, ...nonFrozen];
@@ -245,6 +252,7 @@ export function YearByYearTable({
         selectedColumns={selectedColumns}
         onSave={handleSaveColumns}
         productType={productType}
+        isNoAnnuity={isNoAnnuity}
       />
 
       {/* Empty state — clicked "Apply my favourite columns" with no favourite set. */}

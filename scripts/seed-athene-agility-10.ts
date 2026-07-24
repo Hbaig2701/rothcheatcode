@@ -137,6 +137,9 @@ const product = {
       // down pro-rata as income/withdrawals reduce the account value. Verified to
       // the dollar (yr1 income $465k × (1 − 23,250/300,000) = $428,963).
       benefit_base_draws_down: true,
+      // Increasing income tracks credited interest (0% floor) — the carrier
+      // mechanic, not a flat ~2%. Matches the illustration's increasing LPA.
+      increasing_income_basis: "credited_rate" as const,
       roll_up_rate: 10, // superseded by roll_up_interest_multiple; fallback only
       roll_up_split_rate: false,
       roll_up_rate_years_1_5: null,

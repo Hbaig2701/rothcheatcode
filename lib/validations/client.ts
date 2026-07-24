@@ -59,6 +59,7 @@ export const taxSourceEnum = z.enum(["from_ira", "from_taxable"]);
 export const rmdTreatmentEnum = z.enum(["spent", "reinvested", "cash"]);
 
 export const formulaTypeEnum = z.enum([
+  "none",
   "fia",
   "short-term-cap-growth",
   "phased-bonus-growth",
@@ -591,7 +592,7 @@ export type ClientFullFormData = z.infer<typeof clientFullSchema>;
 // Explicit form type with all fields required for form defaultValues
 export type ClientFormData = {
   // Product Preset
-  blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth" | "high-bonus-long-term-growth" | "high-bonus-medium-term-growth"
+  blueprint_type: "none" | "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth" | "high-bonus-long-term-growth" | "high-bonus-medium-term-growth"
     | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income" | "generic-income";
   // Custom product reference (when set, blueprint_type holds the engine_preset)
   custom_product_id?: string | null;

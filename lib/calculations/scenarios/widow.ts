@@ -117,7 +117,11 @@ export function runWidowScenario(
     const grossIncome = rmdAmount + ssResult.taxableAmount + pensionIncome + otherIncome;
 
     // Deductions - SINGLE FILER (smaller deduction) + advisor-entered additional deductions
-    const deductions = getEffectiveDeduction('single', age, undefined, undefined, client.additional_deductions);
+    // A (deduction isolation): the widow scenario is the do-nothing SURVIVOR
+    // (baseline-derived), so it must not receive the strategy-only
+    // additional_deductions — only the single-filer standard/senior deduction.
+    // Keeps it consistent with the main baseline (Mark Nichols audit 2026-07).
+    const deductions = getEffectiveDeduction('single', age, undefined, undefined, null);
     const taxableIncome = calculateTaxableIncome(grossIncome, deductions);
 
     // Federal tax - SINGLE BRACKETS (compressed)

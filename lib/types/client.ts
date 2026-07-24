@@ -57,7 +57,7 @@ export interface Client {
   updated_at: string;
 
   // ===== Product Preset =====
-  blueprint_type: "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth" | "high-bonus-long-term-growth" | "high-bonus-medium-term-growth"
+  blueprint_type: "none" | "fia" | "short-term-cap-growth" | "phased-bonus-growth" | "vesting-bonus-growth" | "high-bonus-long-term-growth" | "high-bonus-medium-term-growth"
     | "simple-rollup-income" | "compound-rollup-income" | "flat-rate-compound-income" | "generic-income";
   // Reference to custom product (null for system presets). When set, blueprint_type holds the engine_preset.
   custom_product_id: string | null;

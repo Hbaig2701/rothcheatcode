@@ -225,3 +225,33 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 **Demand signal:** Gerald Shaw (Jul 2 2026), and latent for every "income + legacy" client (retirees drawing living expenses from the accounts). The gross-only limitation also produced a bad support back-and-forth (my own wrong "just bump it to $85-90K" suggestion, which the shared-schedule breaks).
 
 **Estimated effort:** ~1.5–2 days (per-scenario net→gross solver reusing the existing gross-up iteration, a schedule toggle, PDF/label updates). Display of gross withdrawals is now correct (Dist IRA/Dist Roth fix, Jul 2 2026) — this builds the net mode on top.
+
+---
+
+## Per-spouse IRA modeling & dual conversion timelines (MFJ)
+
+**The pitch:** A married couple often wants *each spouse's* IRA fully converted by *that spouse's* own deadline — e.g., husband (66, $2.4M) done by his age 75, wife (60, $3.6M) done by her age 75, ~6 years apart. Today the app models the household as a **single combined `qualified_account_value`** on **one** conversion timeline (`start_age → end_age`) with RMDs off a **single** primary birth year. There's no per-spouse IRA bucket, no per-spouse RMD age, and no way to set two different conversion completion deadlines. (Surfaced by Dan Fisher, July 2026.)
+
+**Today's workaround:** Model as one MFJ household with the combined IRA and pace the conversion with a **fixed annual amount** sized to finish by the later deadline (taxes joint anyway, so this is actually *more* tax-accurate than running two separate single illustrations, which miss joint-bracket stacking in overlap years). Cannot show the two distinct per-spouse glidepaths or per-spouse RMD timing.
+
+**Requires:** second IRA balance + second RMD birth year + per-bucket conversion schedule; joint tax stays combined. Non-trivial — touches client schema, both growth + standard engines, and the input UI.
+
+**Demand:** ≥1 advisor (Dan Fisher) with a large ($6M) case; likely recurring for age-gap couples.
+
+**Effort:** **~1–2 weeks** (schema + dual-bucket conversion/RMD loop + UI).
+
+---
+
+## Per-year custom conversion schedule (enter each year's amount)
+
+**The pitch:** Advisors want to type a **different Roth conversion amount for each year** instead of the four current modes (Optimized = fill-to-bracket, Fixed = same $ every year, Partial = optimized up to a total, Full = dump year one). Real plans vary the amount year to year — e.g., delay year 1, convert up to the carrier's penalty-free limit in year 2, then adjust remaining years to the client's actual tax situation. (Surfaced by Lori @mtwentyone.com, July 2026; same underlying need Dan Fisher hit.)
+
+**Related engine gap found while investigating — NOW FIXED (pending deploy):** the Athene Performance Elite Plus "cumulative" penalty-free rule (10% yr1 → **20% yr2 if yr1 skipped**) was **not modeled** — `config.withdrawals.cumulative_withdrawal` / `cumulative_percent` were read by nothing in `lib/calculations/`. Implemented July 2026: new `getEffectiveCumulativePenaltyFree` resolver + a `penaltyFreeCarryPct` carry-forward in `growth-formula.ts` that feeds both the tax cap and the outflow cap. Test: `scripts/test-cumulative-penalty-free.ts` (year-2 room 10%→20%, byte-identical when the cap toggle is off, audit suite green). The bigger per-year-schedule ask below is still open.
+
+**Today's partial workaround:** "Defer conversion 1 year" + "Fixed Amount" gives a delayed, *flat* conversion from year 2 on — but no per-year variation.
+
+**Requires:** a per-year conversion-amount input (array, like the existing voluntary-withdrawals array) threaded through both engines; optionally wire the cumulative penalty-free config into the cap so the auto-modes respect 10%→20%.
+
+**Demand:** ≥2 advisors (Lori, Dan Fisher). Recurring conversion-flexibility theme.
+
+**Effort:** **~1 week** for the per-year input; **+1–2 days** to wire cumulative penalty-free into the cap.

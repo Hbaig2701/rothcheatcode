@@ -14,7 +14,7 @@ import { transformToChartData } from "@/lib/calculations/transforms";
 import { ChevronDown, ChevronUp, Info, X, Settings2, Loader2 } from "lucide-react";
 import { useUpdateClient } from "@/lib/queries/clients";
 import { cn } from "@/lib/utils";
-import { ALL_PRODUCTS, type FormulaType } from "@/lib/config/products";
+import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from "@/lib/config/products";
 import { computeMarginalRMDTax } from "@/lib/calculations/marginal-rmd-tax";
 import { computeHeldBackRmdMarginalTax } from "@/lib/calculations/utils/held-back-ira";
 import { getClientRMDStartAge } from "@/lib/calculations/utils/age";
@@ -131,10 +131,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
     || client.filing_status === "married_filing_separately";
   const orderedColumns = (() => {
     const defMap = new Map(COLUMN_DEFINITIONS.map((c) => [c.id, c]));
+    const noAnnuity = isNoAnnuityProduct(client.blueprint_type);
     const resolved = selectedColumns
       .filter((id) => isMarriedFiler || id !== "spouseAge")
       .map((id) => defMap.get(id))
-      .filter(Boolean) as typeof COLUMN_DEFINITIONS;
+      .filter(Boolean)
+      // No Annuity mode: never render annuity-only 'product' columns.
+      .filter((c) => !(noAnnuity && c?.category === 'product')) as typeof COLUMN_DEFINITIONS;
     const frozen = resolved.filter((c) => c.frozen);
     const nonFrozen = resolved.filter((c) => !c.frozen);
     return [...frozen, ...nonFrozen];
@@ -162,6 +165,9 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
   // Get product config
   const productConfig = ALL_PRODUCTS[client.blueprint_type as FormulaType];
+  // "No Annuity" preset — suppress every annuity-specific result line, card,
+  // column, and disclaimer so the report reads as a plain Roth-conversion story.
+  const isNoAnnuity = isNoAnnuityProduct(client.blueprint_type);
 
   // ===== Calculate metrics =====
 
@@ -380,7 +386,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const widowDeathAge = client.widow_death_age ?? null;
 
   // ===== Anniversary bonus =====
-  const hasAnniversaryBonus = client.anniversary_bonus_percent != null
+  const hasAnniversaryBonus = !isNoAnnuity
+    && client.anniversary_bonus_percent != null
     && client.anniversary_bonus_years != null
     && client.anniversary_bonus_percent > 0;
 
@@ -616,6 +623,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 hasNonSsiIncome={hasNonSsiIncome}
                 postContractRate={postContractRate}
                 surrenderRateDiffers={surrenderRateDiffers}
+                isNoAnnuity={isNoAnnuity}
               />
             }
           />
@@ -925,7 +933,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 <span className="text-sm text-text-muted">Starting Balance{aumActive ? ' (annuity portion)' : ''}</span>
                 <span className="text-base font-mono text-foreground">{toUSD(rothSidePortion)}</span>
               </div>
-              {(client.bonus_percent ?? 0) > 0 && (
+              {!isNoAnnuity && (client.bonus_percent ?? 0) > 0 && (
                 <>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-text-muted">+ {client.bonus_percent}% Premium Bonus</span>
@@ -952,7 +960,9 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             </div>
           </div>
 
-          {/* Product Details */}
+          {/* Product Details — annuity metadata (carrier, product, surrender period,
+              free-withdrawal allowance). Hidden in No Annuity mode where none apply. */}
+          {!isNoAnnuity && (
           <div className="bg-bg-card border border-border-default rounded-[14px] p-6">
             <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-5 font-medium">
               Product Details
@@ -992,6 +1002,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               </div>
             </div>
           </div>
+          )}
         </div>
 
         {/* Section 6: Year-by-Year Table */}
@@ -1098,6 +1109,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           selectedColumns={selectedColumns}
           onSave={handleSaveColumns}
           productType="growth"
+          isNoAnnuity={isNoAnnuity}
         />
 
         {/* Empty state — clicked "Apply my favourite columns" with no favourite set. */}
@@ -1140,7 +1152,14 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             doesn't depend on this gate. */}
         {false && <AdvancedFeaturesSection client={client} chartData={chartData} />}
 
-        {/* Section 8: Disclaimer */}
+        {/* Section 8: Disclaimer — annuity carrier language dropped in No Annuity mode */}
+        {isNoAnnuity ? (
+        <p className="text-sm text-text-dim italic text-center max-w-[900px] mx-auto py-6">
+          Projections use an assumed average annual return of {client.rate_of_return}% and do not represent guaranteed performance.
+          Actual returns will vary based on market conditions. This illustration is for educational purposes only and should not
+          be considered tax or investment advice. Consult a qualified professional before making financial decisions.
+        </p>
+        ) : (
         <p className="text-sm text-text-dim italic text-center max-w-[900px] mx-auto py-6">
           Projections use an assumed average annual return of {client.rate_of_return}% and do not represent guaranteed performance.
           Actual index-linked interest will vary based on market conditions and is subject to caps, participation rates, or spreads
@@ -1148,6 +1167,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           Surrender charges apply during the surrender period. This illustration is for educational purposes only and should not
           be considered tax or investment advice. Consult a qualified professional before making financial decisions.
         </p>
+        )}
       </div>
     </div>
   );
@@ -1403,6 +1423,7 @@ function LifetimeWealthInfo({
   hasNonSsiIncome,
   postContractRate,
   surrenderRateDiffers,
+  isNoAnnuity,
 }: {
   client: Client;
   projection: Projection;
@@ -1454,6 +1475,7 @@ function LifetimeWealthInfo({
   hasNonSsiIncome: boolean;
   postContractRate: number;
   surrenderRateDiffers: boolean;
+  isNoAnnuity: boolean;
 }) {
   const heirTaxPct = Math.round(heirTaxRate * 100);
   // The premium bonus applies only to the slice that actually funds the annuity.
@@ -1694,9 +1716,13 @@ function LifetimeWealthInfo({
         variant="gold"
       >
         <p className="text-xs text-text-dim leading-relaxed mb-2">
-          Your {toUSD(startingBalance)} + {client.bonus_percent}% premium bonus ({toUSD(bonusAmount)}) ={' '}
+          {isNoAnnuity ? (
+            <>Your {toUSD(startingBalance)} starting balance</>
+          ) : (
+            <>Your {toUSD(startingBalance)} + {client.bonus_percent}% premium bonus ({toUSD(bonusAmount)}) ={' '}
           {toUSD(startingWithBonus)} starting balance
-          {hasAnniversaryBonus && <>, plus {client.anniversary_bonus_percent}% anniversary bonus at end of years 1–{client.anniversary_bonus_years}</>}
+          {hasAnniversaryBonus && <>, plus {client.anniversary_bonus_percent}% anniversary bonus at end of years 1–{client.anniversary_bonus_years}</>}</>
+          )}
           {aumActive
             ? <>. Roth-conversion side runs on {toUSD(rothSidePortion)} ({100 - (client.aum_allocation_percent ?? 0)}%); the remaining {toUSD(aumStartingPortion)} ({client.aum_allocation_percent}%) is pulled from the IRA into a managed brokerage account.</>
             : isNoConversion
@@ -1807,7 +1833,9 @@ function LifetimeWealthInfo({
         </p>
         {wealthDiff > 0 && !isNoConversion && (
           <ul className="list-disc pl-5 space-y-1.5 mt-3 text-sm text-foreground/85 leading-relaxed">
+            {!isNoAnnuity && (client.bonus_percent ?? 0) > 0 && (
             <li><strong className="text-foreground">{client.bonus_percent}% premium bonus</strong> adding {toUSD(bonusAmount)} upfront{hasAnniversaryBonus && <> + <strong className="text-foreground">{client.anniversary_bonus_percent}% anniversary bonus</strong> for {client.anniversary_bonus_years} years</>}</li>
+            )}
             <li><strong className="text-foreground">Tax-free Roth growth</strong> at {client.rate_of_return}% for {projectionYears} years</li>
             <li><strong className="text-foreground">No heir taxes</strong> on {toUSD(blueFinalRoth)} Roth balance (vs {heirTaxPct}% on Traditional)</li>
             <li><strong className="text-foreground">No forced RMDs</strong> keeping money invested longer</li>

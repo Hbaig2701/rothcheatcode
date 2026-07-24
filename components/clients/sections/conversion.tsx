@@ -6,7 +6,7 @@ import { FormSection } from "@/components/clients/form-section";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CurrencyInput } from "@/components/ui/currency-input";
-import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
+import { isGuaranteedIncomeProduct, isNoAnnuityProduct, type FormulaType } from "@/lib/config/products";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
@@ -22,6 +22,9 @@ export function ConversionSection() {
   const form = useFormContext<ClientFormData>();
   const formulaType = form.watch("blueprint_type") as FormulaType;
   const conversionType = form.watch("conversion_type");
+  // "No Annuity" preset — Protect Initial Premium is an annuity principal-
+  // protection rider concept; hide it for a plain Roth conversion.
+  const isNoAnnuity = isNoAnnuityProduct(formulaType);
 
   // Hide for GI products - they use gi_conversion_years and gi_conversion_bracket instead
   if (isGuaranteedIncomeProduct(formulaType)) {
@@ -116,7 +119,9 @@ export function ConversionSection() {
       {/* Protect Initial Premium spans the full section grid row
           (sm:col-span-2 lg:col-span-3) so the description has room. We
           bypass Field here because its variants force [&>*]:w-full on direct
-          children, which fights the flex-row [checkbox] [label] layout. */}
+          children, which fights the flex-row [checkbox] [label] layout.
+          Annuity-only (principal-protection rider) — hidden in No Annuity mode. */}
+      {!isNoAnnuity && (
       <Controller
         name="protect_initial_premium"
         control={form.control}
@@ -143,6 +148,7 @@ export function ConversionSection() {
           </div>
         )}
       />
+      )}
 
       {/* Respect Contract Penalty-Free Limit lives under Tax Payment Source
           in Section 4 (tax-data.tsx). It only applies when tax is paid from

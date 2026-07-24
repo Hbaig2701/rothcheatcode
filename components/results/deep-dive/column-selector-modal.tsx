@@ -26,6 +26,9 @@ interface ColumnSelectorModalProps {
   selectedColumns: string[];
   onSave: (columns: string[]) => void;
   productType: 'growth' | 'gi';
+  // "No Annuity" mode — hide the annuity-only 'product' columns (premium/product
+  // bonus, surrender charge %, surrender value) from the available list.
+  isNoAnnuity?: boolean;
 }
 
 const CATEGORY_LABELS: Record<ColumnCategory, string> = {
@@ -48,6 +51,7 @@ export function ColumnSelectorModal({
   selectedColumns,
   onSave,
   productType,
+  isNoAnnuity = false,
 }: ColumnSelectorModalProps) {
   const [tempSelection, setTempSelection] = useState<string[]>(selectedColumns);
   const [searchQuery, setSearchQuery] = useState('');
@@ -77,19 +81,21 @@ export function ColumnSelectorModal({
     () =>
       COLUMN_DEFINITIONS.filter(
         (col) =>
-          col.visibleForProducts.includes(productType) ||
-          col.visibleForProducts.includes('all')
+          (col.visibleForProducts.includes(productType) ||
+            col.visibleForProducts.includes('all')) &&
+          // No Annuity mode: drop the annuity-only 'product' columns entirely.
+          !(isNoAnnuity && col.category === 'product')
       ),
-    [productType]
+    [productType, isNoAnnuity]
   );
 
   const matchesSearch = (col: ColumnDefinition, query: string) => {
     if (!query) return true;
     const q = query.toLowerCase();
-    return (
-      col.label.toLowerCase().includes(q) ||
-      !!col.description?.toLowerCase().includes(q)
-    );
+    // Match the column TITLE only — NOT the description. Searching "tax" should
+    // return columns literally named with "tax", not every column that merely
+    // mentions tax in its help text (which surfaced irrelevant fields).
+    return col.label.toLowerCase().includes(q);
   };
 
   // Selected columns in the user-chosen order. Frozen first so they render at the top.
