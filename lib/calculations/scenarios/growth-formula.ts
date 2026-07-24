@@ -895,8 +895,16 @@ export function runGrowthFormulaScenario(
     // Silesky: a 5-year schedule trailing $28 / $1 conversions into years 7–8).
     // Once only a small residual remains after a conversion, fold it into that
     // year's conversion so the schedule finishes cleanly instead of trailing.
+    // The crumb scales with the conversion (it's the gross-down solver's
+    // convergence gap), so the threshold must be RELATIVE — a flat dollar cutoff
+    // misses by a hair on larger schedules (Guillermo Silesky: a $5,109 residual
+    // slipped past a $5,000 cutoff and trailed $4k into year 6). Sweep when the
+    // leftover is under 10% of the year's conversion, floored at $5k so small
+    // schedules still sweep, and hard-capped at $25k so a cap-limited year (IRMAA
+    // / penalty-free) never folds a materially large balance back in.
+    const residualSweepLimit = Math.min(2500000, Math.max(500000, Math.round(conversionAmount * 0.10)));
     if ((conversionType === 'fixed_amount' || conversionType === 'full_conversion')
-        && conversionAmount > 0 && iraAfterConversion > 0 && iraAfterConversion <= 500000) {
+        && conversionAmount > 0 && iraAfterConversion > 0 && iraAfterConversion <= residualSweepLimit) {
       conversionAmount += iraAfterConversion;
       iraAfterConversion = 0;
     }
