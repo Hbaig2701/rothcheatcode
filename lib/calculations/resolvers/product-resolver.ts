@@ -387,3 +387,37 @@ export function getEffectiveCumulativePenaltyFree(
   const maxPercent = on && Number.isFinite(parsed) && parsed > 0 ? Math.min(parsed, 100) : 0;
   return { enabled: on && maxPercent > 0, maxPercent };
 }
+
+/**
+ * Per-year variable growth-rate schedule for a product (backend-only).
+ *
+ * Some products (e.g. Delaware Momentum Growth / VersaGain) don't credit a flat
+ * rate — the illustration's account value follows a lumpy year-by-year path. This
+ * lets such a product carry `config.rate_schedule`: an array of DECIMAL annual
+ * returns (0.1193 = +11.93%, -0.15 = −15%), one per contract year, that overrides
+ * the flat assumed rate for the annuity buckets. Absent/empty ⇒ null ⇒ the engine
+ * uses the scalar rate exactly as before (opt-in; zero effect on every other
+ * product). Values are coerced + finiteness-guarded so bad JSON can't NaN-poison
+ * a balance.
+ */
+export function getEffectiveRateSchedule(
+  customProduct?: CustomProductRow | null
+): number[] | null {
+  const raw = (customProduct?.config as { rate_schedule?: unknown } | undefined)?.rate_schedule;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const cleaned = raw.map(Number).filter((n) => Number.isFinite(n));
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+/**
+ * The growth rate for a given contract year (0-indexed) from a schedule. Within
+ * the schedule's length, returns that year's rate. Beyond it, repeats the trailing
+ * cycle (up to the last 15 entries) — mirroring how carrier illustrations "repeat
+ * the most recent 15-year cycle" for horizons longer than the data.
+ */
+export function rateFromSchedule(schedule: number[], yearOffset: number): number {
+  if (yearOffset < schedule.length) return schedule[yearOffset];
+  const cycle = Math.min(15, schedule.length);
+  const tailStart = schedule.length - cycle;
+  return schedule[tailStart + ((yearOffset - schedule.length) % cycle)];
+}

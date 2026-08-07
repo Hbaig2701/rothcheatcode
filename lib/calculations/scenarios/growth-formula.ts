@@ -18,7 +18,7 @@ import {
 } from '../tax-helpers';
 import { calculateRMD } from '../modules/rmd';
 import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from '@/lib/config/products';
-import { getEffectiveGrowthRiderFee, getEffectiveCumulativePenaltyFree } from '../resolvers/product-resolver';
+import { getEffectiveGrowthRiderFee, getEffectiveCumulativePenaltyFree, getEffectiveRateSchedule, rateFromSchedule } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import type { CustomProductRow } from '@/lib/products/types';
 
@@ -211,6 +211,12 @@ export function runGrowthFormulaScenario(
   const cumulativePF = isNoAnnuity
     ? { enabled: false, maxPercent: 0 }
     : getEffectiveCumulativePenaltyFree(customProduct);
+  // Per-year variable growth schedule (e.g. Delaware Momentum Growth / VersaGain):
+  // when the product carries one, each year's annuity + Roth growth follows the
+  // schedule instead of the flat contract rate. null ⇒ flat-rate behavior, exactly
+  // as before (opt-in, product-scoped). Applied on both strategy and baseline sides
+  // so the comparison isolates the tax decision, not a return difference.
+  const rateSchedule = isNoAnnuity ? null : getEffectiveRateSchedule(customProduct);
   // Extra percentage-points that can accumulate ABOVE the base penalty-free % —
   // e.g. base 10% + room 10% = 20% ceiling. Generalizes to multi-year products
   // (base 10%, ceiling 30% ⇒ room 20%): the carry can grow to `cumulativeRoom`,
@@ -999,11 +1005,16 @@ export function runGrowthFormulaScenario(
     // Roth is not part of the annuity — once converted, money lives in a
     // standard Roth IRA and should always grow at the main `rate_of_return`,
     // regardless of where the annuity is in its lifecycle.
-    const iraGrowthRate = surrenderYears === 0 || yearOffset < surrenderYears
+    // When the product carries a per-year schedule, both the annuity and the
+    // (in-annuity Roth) money follow that year's rate; otherwise the flat contract
+    // / rate_of_return as before. rateSchedule is null for all non-scheduled
+    // products, so this is byte-identical when the feature is off.
+    const scheduledRate = rateSchedule ? rateFromSchedule(rateSchedule, yearOffset) : null;
+    const iraGrowthRate = scheduledRate ?? (surrenderYears === 0 || yearOffset < surrenderYears
       ? contractRate
-      : postContractRate;
+      : postContractRate);
     const iraInterest = Math.round(iraAfterConversion * iraGrowthRate);
-    const rothGrowthRate = (client.rate_of_return ?? 7) / 100;
+    const rothGrowthRate = scheduledRate ?? ((client.rate_of_return ?? 7) / 100);
     const rothInterest = Math.round(rothAfterConversion * rothGrowthRate);
 
     // Update balances
