@@ -198,6 +198,12 @@ export interface ProductConfigPayload {
   form_defaults?: {
     rate_of_return?: number;
   } | null;
+  // Backend-only: per-year variable growth schedule (DECIMAL annual returns, e.g.
+  // 0.1193 = +11.93%). When present, the growth engine follows this path for the
+  // annuity buckets instead of the flat rate_of_return — used to reproduce a
+  // carrier illustration's lumpy year-by-year account value (e.g. Delaware
+  // Momentum Growth / VersaGain). Absent ⇒ flat-rate behavior, unchanged.
+  rate_schedule?: number[] | null;
 }
 
 // ---------------------------------------------------------------------------
