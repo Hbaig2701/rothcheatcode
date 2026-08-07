@@ -13,9 +13,10 @@ export function SummarySection({ metrics }: SummarySectionProps) {
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
-      {/* Baseline card - no highlight */}
+      {/* Baseline card - no highlight. After-tax net legacy (heir tax netted off
+          the remaining Traditional IRA), matching the main report + PDF. */}
       <StatCard
-        title="Baseline Ending Wealth"
+        title="Baseline Net Legacy (After-Tax)"
         value={metrics.baselineEndWealth}
         prefix="$"
         className="border-gray-300"
@@ -23,7 +24,7 @@ export function SummarySection({ metrics }: SummarySectionProps) {
 
       {/* Strategy card - highlighted with blue border */}
       <StatCard
-        title="Strategy Ending Wealth"
+        title="Strategy Net Legacy (After-Tax)"
         value={metrics.formulaEndWealth}
         prefix="$"
         trend={metrics.difference >= 0 ? 'up' : 'down'}

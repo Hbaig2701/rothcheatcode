@@ -206,13 +206,24 @@ export function transformToChartData(data: Projection | SimulationResult, heirTa
  * Extract summary metrics from projection for stat cards
  * Accepts either database Projection or in-memory SimulationResult
  */
-export function extractSummaryMetrics(data: Projection | SimulationResult): SummaryMetrics {
+export function extractSummaryMetrics(
+  data: Projection | SimulationResult,
+  // Heir income-tax rate on the remaining Traditional IRA at death. The ending-
+  // wealth cards are an AFTER-TAX "net legacy" (netWorth − heirTax × traditional),
+  // matching the main report (growth-report-dashboard) + PDF. Without this, the
+  // cards compared a PRE-TAX Traditional IRA against an already-taxed Roth, so a
+  // Roth strategy could read as "down" purely because its tax was already paid —
+  // especially at high growth. Default 0.40 mirrors the app-wide fallback.
+  heirTaxRate: number = 0.40
+): SummaryMetrics {
   if (isProjection(data)) {
     // Database Projection - uses pre-calculated final values
+    const baselineNetLegacy = data.baseline_final_net_worth - Math.round((data.baseline_final_traditional ?? 0) * heirTaxRate);
+    const formulaNetLegacy = data.blueprint_final_net_worth - Math.round((data.blueprint_final_traditional ?? 0) * heirTaxRate);
     return {
-      baselineEndWealth: data.baseline_final_net_worth,
-      formulaEndWealth: data.blueprint_final_net_worth,
-      difference: data.blueprint_final_net_worth - data.baseline_final_net_worth,
+      baselineEndWealth: baselineNetLegacy,
+      formulaEndWealth: formulaNetLegacy,
+      difference: formulaNetLegacy - baselineNetLegacy,
       totalTaxSavings: data.total_tax_savings,
       breakEvenAge: data.break_even_age,
       heirBenefit: data.heir_benefit,
@@ -221,11 +232,13 @@ export function extractSummaryMetrics(data: Projection | SimulationResult): Summ
     // In-memory SimulationResult - extract from arrays
     const lastBaseline = data.baseline[data.baseline.length - 1];
     const lastFormula = data.formula[data.formula.length - 1];
+    const baselineNetLegacy = (lastBaseline.netWorth ?? 0) - Math.round((lastBaseline.traditionalBalance ?? 0) * heirTaxRate);
+    const formulaNetLegacy = (lastFormula.netWorth ?? 0) - Math.round((lastFormula.traditionalBalance ?? 0) * heirTaxRate);
 
     return {
-      baselineEndWealth: lastBaseline.netWorth,
-      formulaEndWealth: lastFormula.netWorth,
-      difference: lastFormula.netWorth - lastBaseline.netWorth,
+      baselineEndWealth: baselineNetLegacy,
+      formulaEndWealth: formulaNetLegacy,
+      difference: formulaNetLegacy - baselineNetLegacy,
       totalTaxSavings: data.totalTaxSavings,
       breakEvenAge: data.breakEvenAge,
       heirBenefit: data.heirBenefit,
