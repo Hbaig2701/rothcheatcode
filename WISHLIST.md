@@ -255,3 +255,49 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 **Demand:** ≥2 advisors (Lori, Dan Fisher). Recurring conversion-flexibility theme.
 
 **Effort:** **~1 week** for the per-year input; **+1–2 days** to wire cumulative penalty-free into the cap.
+
+---
+
+## Chained-bonus multi-annuity ("bonus stacking") + LTC bonus offset — Dr. Sunil Patel
+
+**The pitch:** Model **two annuities at once** and the money flowing between them. Premium goes into annuity A (Athene Performance Elite 10 Plus, 24–26% premium bonus). Each year the client takes A's **10% penalty-free withdrawal** and moves it to annuity B (North American), where it counts as **new premium and earns B's 25% bonus again**. Repeat ~3 years. Optionally the A→B transfer is done **as a Roth conversion**, so B is a Roth annuity and B's bonus offsets the conversion tax. Third leg: pull a lump from A (or A+B) **before** converting to fund an **asset-based LTC policy** that pays a 25% bonus, amortized ~1/10 per year as cash to help pay conversion taxes.
+
+**His numbers (write-up, verified):** 742,000 × 24% = 920,080. Withdraw 10%/yr, ~0.958% annual rider fee, **no growth**: 92,008 / 82,014 / 73,105 = 247,127 transferred; 25% NA bonus on each = 61,782; total 308,909 (matches his 308,900). Wants 3–9%/yr growth added on top.
+
+**What already exists:** the 10%/yr transfer cap (`respect_penalty_free_limit` + `penalty_free_percent`), rider fees, state bonus overrides, surrender schedules, the mirrored-Roth-annuity concept with `anniversaryBonusFollowsConversion`, and the AUM split as the architectural precedent for a second bucket.
+
+**What's missing:** a client can only have ONE product (`carrier_name` / `product_name` / `bonus_percent` / `surrender_schedule` are scalar on `Client`). No bonus-on-new-premium-added-mid-contract (all bonus logic is at-issue or anniversary-on-balance). No LTC concept anywhere in the codebase. Report/PDF/chat ui-map all assume one annuity.
+
+**⚠️ Blocking engine gap this strategy sits directly on top of:** `vesting_years` / `vesting_schedule` are validated in `lib/products/validators.ts` but **consumed by no engine** — the full premium bonus is credited at issue and withdrawals are never haircut for unvested bonus (same root cause as [surrender-value bonus recapture](#)). Athene PE 10 Plus vests its bonus over the 10-year charge period, so pulling 10%/yr in **years 1–3** — exactly this strategy — is where recapture bites hardest. Building bonus-stacking on today's engine would overstate the result three times over. **Vesting/recapture must be modeled first or this feature illustrates money that isn't there.**
+
+**Compliance note:** the pitch's headline ("they literally paid nothing out of their pocket for long-term care") would render into a client-facing PDF over our name. LTC leverage is underwritten (age/health/gender), not a flat 25%, and funding LTC from qualified money is a fully taxable distribution plus a surrender charge above the 10% free amount.
+
+**Demand:** 1 advisor (Dr. Sunil Patel, 702-813-3545). Leg 1 (second annuity + chained bonus) generalizes to any FIA advisor and overlaps [Partial Annuity Deposit](#partial-annuity-deposit-split-ira-annuity--remaining-tax-deferred-ira). Leg 3 (LTC) is bespoke.
+
+**Effort:** vesting/recapture prerequisite **~3–5 days**; second-annuity bucket **~2–3 weeks** (schema + engine + resolver + form + report/PDF + tests + golden re-lock); LTC leg **~1–1.5 weeks** once the product mechanics are pinned down.
+
+---
+
+## Multi-annuity income ladder / cash-flow roadmap (income stacking)
+
+**The pitch:** Advisors (ShieldFirst/Jim Billington) build hand-drawn "retirement roadmaps" that stack MULTIPLE annuities into a guaranteed monthly-income floor — e.g. $2M Midland ($12.5k/mo life) + $1.5M Corebridge ($9.8k/mo life) + American National ($9.5k/mo for 5yr, period-certain) + $1M North American ($6.5k/mo life) + pension + SS, each turning on at a different date, building a running ~$36–46k/mo income timeline. The app can't represent this: **one product per client** (`custom_product_id` singular), **one `income_start_age`**, GI engine is **lifetime roll-up only (no period-certain / fixed-term)**, and there's no month-by-month combined cash-flow timeline view. The one slice we DO handle is the accumulation-to-Roth piece (grow $1M tax-free to replace the income-annuity capital).
+
+**Requires:** multiple products per client with independent premiums/start-dates/payout types (lifetime AND period-certain), plus a combined income-cash-flow timeline artifact. Large — a new "income stack" model + view, distinct from the Roth-conversion engine.
+
+**Demand:** ShieldFirst (Rick Eason) roadmaps; Jim Billington. Recurring for income-planning advisors.
+
+**Effort:** **Multi-week / new module.** Not an extension of the conversion engine.
+
+---
+
+## Per-year credited-rate schedule (laddered / staggered-term crediting)
+
+**The pitch:** Let an advisor enter a **different credited rate for each contract year** instead of one flat `rate_of_return` (plus the existing `post_contract_rate` for the renewal period). Surfaced by the North American Secure Horizon Accelerator, whose headline **Performance Strategy Ladder** splits premium into five 20% buckets on staggered 1-, 2-, 3-, 4- and 5-year terms. Each bucket rolls into a new 5-year term at its first term end, then into whatever length fills out the 10-year ladder period. Because only some buckets are at a term end in any given year, the carrier illustrates a lumpy year-by-year rate — 1.00%, 4.90%, 4.26% ... 15.66% in year 10, then alternating **0% / 25.30%** once everything converts to the 2-year point-to-point. Advisors want to type those numbers in and see them come back. (Surfaced August 2026 via the Secure Horizon Accelerator community-product request.)
+
+**Today's workaround:** a single contract rate + `post_contract_rate` for the post-surrender years. Compounded totals track fine if the assumed average is right — the multi-year trajectory that actually drives a Roth conversion decision is unaffected — but the annual shape is smoothed: front years overstated, back years understated relative to the ladder. Documented in both Secure Horizon community-product descriptions.
+
+**Requires:** an optional per-year rate array on the client (same shape as the existing voluntary-withdrawals array) read by `growth-formula.ts` where it resolves `iraGrowthRate` (currently the contract-rate / post-contract-rate branch at ~line 1002), falling back to the flat rate when absent. Input UI for entering/pasting a schedule. Should also flow into the report/PDF so the illustrated rates are visible.
+
+**Demand:** 1 advisor so far, but it generalizes — staggered-term / laddered crediting is a growing FIA design (this is marketed as "first-of-its-kind" but competitors will copy it), and the same input would let any advisor paste a carrier illustration's actual year-by-year rates for any product.
+
+**Effort:** **~2-3 days** (engine branch + client field + input UI); +1 day to surface in the report/PDF.
