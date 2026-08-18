@@ -1,7 +1,8 @@
 "use client";
 
 import { use, useState, useMemo } from "react";
-import { useClient } from "@/lib/queries/clients";
+import { useRouter } from "next/navigation";
+import { useClient, useDuplicateClient } from "@/lib/queries/clients";
 import { useProjection } from "@/lib/queries/projections";
 import { InputDrawer } from "@/components/report/input-drawer";
 import { ReportDashboard } from "@/components/report/report-dashboard";
@@ -32,6 +33,29 @@ export default function ResultsPage({ params }: ResultsPageProps) {
   const [storyMode, setStoryMode] = useState(false);
   const [annotateMode, setAnnotateMode] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+
+  // Duplicate this scenario. Same mutation the scenario list on the client
+  // detail page uses (POST /api/clients/[id]/duplicate) — this button used to
+  // be a stub that only closed the Actions menu, so clicking it did nothing
+  // at all. On success we navigate to the copy's own results page so the
+  // action has a visible outcome. (Harlan Endelman, Aug 2026.)
+  const router = useRouter();
+  const duplicateScenario = useDuplicateClient();
+
+  const handleDuplicate = () => {
+    if (duplicateScenario.isPending) return;
+    setDuplicateError(null);
+    duplicateScenario.mutate(id, {
+      onSuccess: (copy) => {
+        setActionsOpen(false);
+        router.push(`/clients/${copy.id}/results`);
+      },
+      onError: (err) => {
+        setDuplicateError(err instanceof Error ? err.message : "Failed to duplicate scenario");
+      },
+    });
+  };
 
   // Calculate percentage change from projection data
   const percentChange = useMemo(() => {
@@ -256,12 +280,22 @@ export default function ResultsPage({ params }: ResultsPageProps) {
                     Export as PDF
                   </button>
                   <button
-                    onClick={() => setActionsOpen(false)}
-                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-text-muted hover:bg-secondary rounded-lg transition-colors text-left"
+                    onClick={handleDuplicate}
+                    disabled={duplicateScenario.isPending}
+                    className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-text-muted hover:bg-secondary rounded-lg transition-colors text-left disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Copy className="h-4 w-4" />
-                    Duplicate
+                    {duplicateScenario.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                    {duplicateScenario.isPending ? "Duplicating…" : "Duplicate"}
                   </button>
+                  {duplicateError && (
+                    <p className="px-3.5 py-2 text-xs text-red" role="alert">
+                      {duplicateError}
+                    </p>
+                  )}
                   <button
                     onClick={() => {
                       setAnnotateMode(true);
