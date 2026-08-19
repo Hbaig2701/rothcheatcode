@@ -2,6 +2,7 @@ import type { Client } from '@/lib/types/client';
 import type { SimulationInput, SimulationResult, YearlyResult } from './types';
 import { runBaselineScenario } from './scenarios/baseline';
 import { runGrowthFormulaScenario } from './scenarios/growth-formula';
+import { getEffectiveRateSchedule } from './resolvers/product-resolver';
 
 /**
  * Default heir tax rate (40%)
@@ -82,8 +83,14 @@ export function runGrowthSimulation(input: SimulationInput): SimulationResult {
   const { client, startYear, endYear, customProduct } = input;
   const projectionYears = endYear - startYear + 1;
 
+  // Product-scoped per-year growth schedule (e.g. Delaware Momentum Growth).
+  // Passed to BOTH sides so the do-nothing baseline and the conversion strategy
+  // ride the same annuity path — the comparison isolates the tax decision, not a
+  // return difference. null for every non-scheduled product ⇒ unchanged behavior.
+  const rateSchedule = getEffectiveRateSchedule(customProduct);
+
   // Baseline uses the STANDARD baseline with RMDs (same as legacy engine)
-  const baseline = runBaselineScenario(client, startYear, projectionYears);
+  const baseline = runBaselineScenario(client, startYear, projectionYears, rateSchedule);
   // Formula uses the growth formula with anniversary bonus support.
   // customProduct overrides the system preset's rider fee when present.
   const formula = runGrowthFormulaScenario(client, startYear, projectionYears, customProduct);

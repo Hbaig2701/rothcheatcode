@@ -8,6 +8,7 @@ import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
+import { rateFromSchedule } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA, netIraTargetForYear } from '../utils/withdrawals';
 import { getMarginalBracket, computeTaxableIncomeWithSS, computeIrmaaMagi } from '../tax-helpers';
 
@@ -32,7 +33,13 @@ import { getMarginalBracket, computeTaxableIncomeWithSS, computeIrmaaMagi } from
 export function runBaselineScenario(
   client: Client,
   startYear: number,
-  projectionYears: number
+  projectionYears: number,
+  // Per-year variable growth schedule for the annuity buckets (backend-only,
+  // product-scoped). Passed by the growth engine when the product carries a
+  // rate_schedule; undefined for every other caller (standard/GI/widow), which
+  // keeps their behavior byte-identical. Applies to the IRA + Roth buckets, NOT
+  // the reinvested-RMD brokerage (that stays at the market growthRate).
+  rateSchedule?: number[] | null
 ): YearlyResult[] {
   const results: YearlyResult[] = [];
 
@@ -321,9 +328,13 @@ export function runBaselineScenario(
     // Distribution = max(rmdRequired, iraWithdrawal); see note above on the
     // RMD-satisfaction rule.
     const iraAfterDistribution = boyIRA - effectiveIraDistribution;
-    const iraInterest = Math.round(iraAfterDistribution * growthRate);
+    // Annuity buckets (IRA + Roth) follow the product's per-year schedule when
+    // present, else the flat baseline rate. The brokerage (below) always uses the
+    // market rate — reinvested RMD cash isn't in the annuity.
+    const annuityRate = rateSchedule ? rateFromSchedule(rateSchedule, yearOffset) : growthRate;
+    const iraInterest = Math.round(iraAfterDistribution * annuityRate);
     const rothAfterWithdrawal = boyRoth - rothWithdrawal;
-    const rothInterest = Math.round(rothAfterWithdrawal * growthRate);
+    const rothInterest = Math.round(rothAfterWithdrawal * annuityRate);
 
     // Taxable interest only applies in 'reinvested' mode
     const taxableInterest = rmdTreatment === 'reinvested'
