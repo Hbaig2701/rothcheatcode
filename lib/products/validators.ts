@@ -148,6 +148,16 @@ export const productConfigSchema = z.object({
   form_defaults: z.object({
     rate_of_return: z.number().min(0).max(30).optional(),
   }).nullable().optional(),
+  // Backend-only per-year growth schedule (DECIMAL returns, e.g. 0.1193 = +11.93%).
+  // Declared on ProductConfigPayload in lib/products/types.ts and consumed by the
+  // growth engine (getEffectiveRateSchedule / rateFromSchedule), but it was missing
+  // here — and Zod strips unknown keys by default, so PUT /api/products/[id] parsed
+  // it away and repository.ts replaced the whole config column with the stripped
+  // copy. One save from the product form silently reverted a scheduled product to
+  // flat-rate crediting, changing the illustration with no error shown. Values are
+  // NOT range-clamped on purpose: an illustration can carry a negative or >100%
+  // year (Delaware Momentum Growth has a +49.5% year), unlike rate_of_return.
+  rate_schedule: z.array(z.number()).nullable().optional(),
 });
 
 export const aiSourceSchema = z.object({
