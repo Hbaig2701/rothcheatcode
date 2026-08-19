@@ -878,6 +878,7 @@ export function runFormulaScenario(
       magi,
       agi: taxInfoFinal.agi,
       standardDeduction: deductions,
+      seniorBonusDeduction: taxInfoFinal.seniorBonusDeduction,
       taxableIncome: taxInfoFinal.taxableIncome,
       federalTaxBracket,
       irmaaTier,

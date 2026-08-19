@@ -567,6 +567,7 @@ function runGIStrategyScenario(
       const totalIncome = grossIncomeWithConversion + ssIncome;
       const agi = convPhaseTaxInfo.agi;
       const taxableIncome = convPhaseTaxInfo.taxableIncome;
+      const seniorBonusDeduction = convPhaseTaxInfo.seniorBonusDeduction;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = irmaaTierFromLookback;
 
@@ -604,6 +605,7 @@ function runGIStrategyScenario(
         magi,
         agi,
         standardDeduction: deductions,
+        seniorBonusDeduction,
         taxableIncome,
         federalTaxBracket,
         irmaaTier,
@@ -744,6 +746,7 @@ function runGIStrategyScenario(
       const totalIncome = otherIncome + ssIncome;
       const agi = purchaseTaxInfo.agi;
       const taxableIncome = purchaseTaxInfo.taxableIncome;
+      const seniorBonusDeduction = purchaseTaxInfo.seniorBonusDeduction;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = irmaaTierFromLookback;
 
@@ -784,6 +787,7 @@ function runGIStrategyScenario(
         magi,
         agi,
         standardDeduction: deductions,
+        seniorBonusDeduction,
         taxableIncome,
         federalTaxBracket,
         irmaaTier,
@@ -908,6 +912,7 @@ function runGIStrategyScenario(
       const totalIncome = otherIncome + ssIncome;
       const agi = strategyDeferralTaxInfo.agi;
       const taxableIncome = strategyDeferralTaxInfo.taxableIncome;
+      const seniorBonusDeduction = strategyDeferralTaxInfo.seniorBonusDeduction;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = irmaaTierFromLookback;
 
@@ -945,6 +950,7 @@ function runGIStrategyScenario(
         magi,
         agi,
         standardDeduction: deductions,
+        seniorBonusDeduction,
         taxableIncome,
         federalTaxBracket,
         irmaaTier,
@@ -1091,6 +1097,7 @@ function runGIStrategyScenario(
       const totalIncome = grossGI + otherIncome + ssIncome;
       const agi = strategyIncomeTaxInfo.agi;
       const taxableIncome = strategyIncomeTaxInfo.taxableIncome;
+      const seniorBonusDeduction = strategyIncomeTaxInfo.seniorBonusDeduction;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = irmaaTierFromLookback;
 
@@ -1147,6 +1154,7 @@ function runGIStrategyScenario(
         magi,
         agi,
         standardDeduction: deductions,
+        seniorBonusDeduction,
         taxableIncome,
         federalTaxBracket,
         irmaaTier,
@@ -1446,6 +1454,7 @@ function runGIBaselineScenario(
       const totalIncome = otherIncome + iraWithdrawalW + rmdAmount + ssIncome;
       const agi = waitingTaxInfo.agi;
       const taxableIncome = waitingTaxInfo.taxableIncome;
+      const seniorBonusDeduction = waitingTaxInfo.seniorBonusDeduction;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = irmaaTierFromLookback;
 
@@ -1483,6 +1492,7 @@ function runGIBaselineScenario(
         magi,
         agi,
         standardDeduction: deductions,
+        seniorBonusDeduction,
         taxableIncome,
         federalTaxBracket,
         irmaaTier,
@@ -1607,6 +1617,7 @@ function runGIBaselineScenario(
       const totalIncome = otherIncome + ssIncome;
       const agi = baselinePurchaseTaxInfo.agi;
       const taxableIncome = baselinePurchaseTaxInfo.taxableIncome;
+      const seniorBonusDeduction = baselinePurchaseTaxInfo.seniorBonusDeduction;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = irmaaTierFromLookback;
 
@@ -1648,6 +1659,7 @@ function runGIBaselineScenario(
         magi,
         agi,
         standardDeduction: deductions,
+        seniorBonusDeduction,
         taxableIncome,
         federalTaxBracket,
         irmaaTier,
@@ -1815,6 +1827,7 @@ function runGIBaselineScenario(
       const totalIncome = otherIncome + rmdAmount + ssIncome;
       const agi = baselineDeferralTaxInfo.agi;
       const taxableIncome = baselineDeferralTaxInfo.taxableIncome;
+      const seniorBonusDeduction = baselineDeferralTaxInfo.seniorBonusDeduction;
       const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
       const irmaaTier = irmaaTierFromLookback;
 
@@ -1852,6 +1865,7 @@ function runGIBaselineScenario(
         magi,
         agi,
         standardDeduction: deductions,
+        seniorBonusDeduction,
         taxableIncome,
         federalTaxBracket,
         irmaaTier,
@@ -1929,6 +1943,7 @@ function runGIBaselineScenario(
         taxYear: year,
       });
       const taxableIncome = baselineIncomeTaxInfo.taxableIncome;
+      const seniorBonusDeduction = baselineIncomeTaxInfo.seniorBonusDeduction;
 
       const federalResult = calculateFederalTax({
         taxableIncome,
@@ -2059,6 +2074,7 @@ function runGIBaselineScenario(
         magi,
         agi,
         standardDeduction: deductions,
+        seniorBonusDeduction,
         taxableIncome,
         federalTaxBracket,
         irmaaTier,

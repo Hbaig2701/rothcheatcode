@@ -454,6 +454,7 @@ export function runBaselineScenario(
       magi,
       agi,
       standardDeduction: deductions,
+      seniorBonusDeduction: taxInfo.seniorBonusDeduction,
       taxableIncome,
       federalTaxBracket,
       irmaaTier,

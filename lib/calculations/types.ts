@@ -201,6 +201,21 @@ export interface YearlyResult {
   magi?: number; // Modified Adjusted Gross Income
   agi?: number; // Adjusted Gross Income
   standardDeduction?: number;
+  /**
+   * OBBA senior bonus deduction applied this year ($6k/person 65+, 2025–2028,
+   * phased out at 6% of MAGI above $75k single / $150k joint).
+   *
+   * Kept SEPARATE from standardDeduction because the two have different
+   * lifetimes and phase-out behaviour, and because the standard deduction is
+   * also used as a plain bracket input elsewhere. Any display that shows a
+   * deduction line must surface BOTH, or the table stops reconciling:
+   * AGI − standardDeduction − seniorBonusDeduction = taxableIncome.
+   *
+   * (Jason Beyer / Jainarayn Singh ticket, Aug 2026: advisor reported a "$712
+   * shortfall" that was exactly this phased-out deduction, invisible on the
+   * year-by-year table.)
+   */
+  seniorBonusDeduction?: number;
   taxableIncome?: number;
   federalTaxBracket?: number; // Marginal bracket as percentage (e.g., 22 for 22%)
   irmaaTier?: number; // 0-5 (0 = standard, 5 = highest)

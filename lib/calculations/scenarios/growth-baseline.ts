@@ -131,6 +131,7 @@ export function runGrowthBaselineScenario(
       magi: computeIrmaaMagi(growthBaselineTaxInfo.agi, 0),
       agi: growthBaselineTaxInfo.agi,
       standardDeduction: growthBaselineDeductions,
+      seniorBonusDeduction: growthBaselineTaxInfo.seniorBonusDeduction,
       taxableIncome: growthBaselineTaxInfo.taxableIncome,
       federalTaxBracket: 0,
       irmaaTier: 0,
