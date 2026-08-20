@@ -82,11 +82,18 @@ Touches the conversion engine, RMD logic, and the baseline comparator — needs 
 
 **What it requires:** wire a birth-year (or DOB) input into the live client form, and have the engine prefer it over age-derived birth year for RMD timing. Small — the engine already supports DOB; mostly a form/UX change + deciding precedence.
 
-**Note:** the RMD *calculation* and all displays now correctly apply 73/75 based on the derived birth year (fixed June 2026, Lori ticket) — so this is a precision/override convenience, not a correctness gap.
+**⚠️ UPGRADED Aug 2026 — this IS a correctness gap, not just a convenience.** The note below was too generous. Two distinct failures, both silent:
 
-**Demand signal:** Lori Avant (mtwentyone.com), Jun 22 2026 — "would be helpful to be able to edit this based on birth year."
+1. **RMD timing is a year late for anyone whose birthday hasn't passed yet.** The engine ages clients as `age + yearOffset`, so a client entered at their *current* age reaches the RMD age one calendar year later than reality. RMDs are owed for the year you **attain** the age, not from your birthday. Jason Beyer / Jainarayn Singh (Aug 2026): 72 now, turns 73 next month, so 2026 is his first RMD year at ~$76K — the projection showed nothing until 2027, which materially changed his conversion sizing. This is wrong for roughly **half of all clients** — anyone whose birthday falls after the day the record was created.
+2. **The 1959/1960 boundary is a TWO-year error.** Born Nov 1959, entered Aug 2026 at current age 66 → derived birth year `2026 − 66 = 1960` → `getRMDStartAge` returns **75** instead of **73**. Anyone born Oct–Dec 1959 (and Oct–Dec 1950 on the 72/73 line) is affected.
 
-**Estimated effort:** **1–2 days** (form field + engine precedence + tests).
+**Today's workaround:** enter the age the client will be on **Dec 31 of the current year**. That fixes both failures at once, because the derived birth year then comes out right. It is documented nowhere in the UI — advisors have to be told. Caveat: every other age input (conversion start/end, SS claim age) shares the convention and shifts with it, so the conversion **end age must be bumped by one** to keep the same calendar horizon.
+
+**The DOB field is an active decoy.** `personal-info.tsx:51-59` renders a "Date of Birth" input, but `client-form.tsx:254-257` unconditionally overwrites `date_of_birth` with `${currentYear - data.age}-01-01` on every save. Anything typed there is discarded — so it looks like the fix and isn't. Either wire it up or remove it. Note this also means **every stored `date_of_birth` is synthesized** (`YYYY-01-01`) and can't be trusted for a backfill.
+
+**Demand signal:** Lori Avant (mtwentyone.com), Jun 22 2026 — "would be helpful to be able to edit this based on birth year." Jason Beyer (wealthbridgesolutions.com), Aug 2026 — hit the RMD-timing failure directly on a live client.
+
+**Estimated effort:** **1–2 days** (form field + engine precedence + tests); +half a day to re-prompt existing clients, whose synthesized DOBs are unusable.
 
 ---
 
@@ -305,3 +312,4 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 **Demand:** 1 advisor so far, but it generalizes — staggered-term / laddered crediting is a growing FIA design (this is marketed as "first-of-its-kind" but competitors will copy it), and the same input would let any advisor paste a carrier illustration's actual year-by-year rates for any product.
 
 **Effort:** **~1-2 days** for the product-form input (engine already done); +1 day to surface the schedule in the report/PDF.
+
