@@ -214,6 +214,43 @@ export function checkPartialCap(r: Reporter, fixture: string, formula: YearlyRes
   if (total > cap + TOL) {
     r.record({ fixture, scenario: 'formula', check: 'partial-cap', field: 'sum(conversionAmount)', expected: cap, actual: total, delta: total - cap, note: 'total conversions exceed target_partial_amount' });
   }
+  // Two-sided. This check used to test only the OVER case, which is why a real
+  // under-conversion bug survived: target_partial_amount was applied to the GROSS
+  // IRA withdrawal (conversion + tax_from_IRA) while progress was tracked on the
+  // NET conversion, so a from_ira client converted ~(1 − effective rate) of what
+  // it should each year. The total still landed on the cap eventually, so the
+  // one-sided check passed. (Jorge Tola / Mela Desai, Aug 2026.)
+  //
+  // Only a breach when money was actually left to convert — a genuinely exhausted
+  // IRA, or a horizon too short to reach the cap, is legitimate under-conversion.
+  const last = formula[formula.length - 1];
+  const traditionalLeft = last?.traditionalBalance ?? 0;
+  if (total < cap - TOL && traditionalLeft > TOL) {
+    r.record({ fixture, scenario: 'formula', check: 'partial-cap-under', field: 'sum(conversionAmount)', expected: cap, actual: total, delta: total - cap, note: `converted less than target_partial_amount while $${Math.round(traditionalLeft / 100).toLocaleString()} of traditional balance remained` });
+  }
+}
+
+// ----------------------------------------------------------------------------
+// INVARIANT: a partial_amount target must be reached in a sane number of years.
+// The units bug above did reach the cap, just far too slowly — six years for a
+// target the bracket could absorb in two. Pacing is what advisors actually see
+// on the year-by-year table, so assert it directly.
+// ----------------------------------------------------------------------------
+export function checkPartialPacing(r: Reporter, fixture: string, formula: YearlyResult[], cap: number, maxYears: number) {
+  r.ran();
+  let running = 0;
+  let yearsUsed = 0;
+  for (const y of formula) {
+    const c = y.conversionAmount ?? 0;
+    if (c > 0) yearsUsed++;
+    running += c;
+    if (running >= cap - TOL) break;
+  }
+  if (running >= cap - TOL && yearsUsed > maxYears) {
+    // Years go in the note, not the numeric fields — the reporter formats those
+    // as cents, so a raw year count renders as "$0".
+    r.record({ fixture, scenario: 'formula', check: 'partial-pacing', field: 'years to reach target', note: `partial target reached in ${yearsUsed} years, expected at most ${maxYears} — spread over more years than the brackets require` });
+  }
 }
 
 // ----------------------------------------------------------------------------

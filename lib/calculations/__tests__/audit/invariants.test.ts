@@ -18,6 +18,7 @@ import {
   checkSymmetry,
   checkFullConversionDrains,
   checkPartialCap,
+  checkPartialPacing,
   checkTotalTaxComposition,
   checkNetWorthComposition,
 } from './assertions';
@@ -28,6 +29,7 @@ interface Fixture {
   symmetric?: boolean; // expect baseline ≡ formula
   fullConversion?: boolean;
   partialCap?: number;
+  partialMaxYears?: number;
 }
 
 const fixtures: Fixture[] = [
@@ -70,6 +72,33 @@ const fixtures: Fixture[] = [
     name: 'std/partial-200k/single/TX',
     client: makeClient({ conversion_type: 'partial_amount', target_partial_amount: 20_000_000 }),
     partialCap: 20_000_000,
+  },
+  {
+    // The factory defaults to tax_payment_source:'from_taxable', so until this
+    // fixture existed NO test ever exercised the from_ira planner path — which
+    // is exactly where the partial target was being applied to the gross
+    // withdrawal instead of the net conversion. (Jorge Tola, Aug 2026.)
+    name: 'std/partial-200k/from-ira/single/TX',
+    client: makeClient({
+      conversion_type: 'partial_amount',
+      target_partial_amount: 8_000_000,
+      tax_payment_source: 'from_ira',
+    }),
+    partialCap: 8_000_000,
+    partialMaxYears: 1,
+  },
+  {
+    name: 'growth/partial-300k/from-ira/MFJ/VA',
+    client: makeClient({
+      blueprint_type: 'high-bonus-medium-term-growth',
+      bonus_percent: 23, surrender_years: 10,
+      conversion_type: 'partial_amount',
+      target_partial_amount: 15_000_000,
+      tax_payment_source: 'from_ira',
+      filing_status: 'married_filing_jointly', spouse_age: 69, state: 'VA',
+    }),
+    partialCap: 15_000_000,
+    partialMaxYears: 1,
   },
   {
     name: 'std/optimized/MFJ/CA/dual-SS',
@@ -129,6 +158,7 @@ for (const fx of fixtures) {
   if (fx.symmetric) checkSymmetry(r, fx.name, baseline, formula);
   if (fx.fullConversion) checkFullConversionDrains(r, fx.name, formula);
   if (fx.partialCap != null) checkPartialCap(r, fx.name, formula, fx.partialCap);
+  if (fx.partialCap != null && fx.partialMaxYears != null) checkPartialPacing(r, fx.name, formula, fx.partialCap, fx.partialMaxYears);
 }
 
 r.print('Phase 1 — Invariants');

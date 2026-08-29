@@ -595,9 +595,31 @@ export function runGrowthFormulaScenario(
           : Number.POSITIVE_INFINITY;
 
         // Cap the iraBalance fed into the planner by the remaining cap AND the
-        // carrier penalty-free cap. The planner returns the bracket-optimal amount
-        // within whatever balance we hand it, so capping the input is sufficient.
-        const cappedIra = Math.min(effectiveIraForConversion, partialRemaining);
+        // carrier penalty-free cap.
+        //
+        // UNITS: `partialRemaining` is a NET target — the Roth dollars still owed
+        // against target_partial_amount, which is what `cumulativeConverted`
+        // tracks. But the value handed to the planner is a GROSS withdrawal
+        // budget: when tax is paid from the IRA, the planner splits it into
+        // conversion + tax_from_IRA (both land on the 1099-R). Passing the net
+        // target straight through therefore spent the target on tax as well as
+        // conversion, so each year converted only ~(1 − effective rate) of what
+        // it should and the target took many extra years to reach.
+        // (Jorge Tola / Mela Desai: a $300k target converted $207,430 in year 1
+        // instead of $259,434 — 300,000 × (1 − 0.3086) — then dribbled out over
+        // six years instead of finishing in two.)
+        //
+        // Gross the remaining net target up by the effective rate so the planner
+        // receives a budget whose CONVERSION portion is the target. When tax is
+        // paid from a taxable account there is no split, the planner's output is
+        // the conversion, and the divisor is 1 — byte-identical to before.
+        const partialGrossUpDivisor = payTaxFromIRA
+          ? Math.max(0.1, 1 - (maxTaxRate / 100 + stateTaxRateDecimal))
+          : 1;
+        const partialBudget = Number.isFinite(partialRemaining)
+          ? partialRemaining / partialGrossUpDivisor
+          : Number.POSITIVE_INFINITY;
+        const cappedIra = Math.min(effectiveIraForConversion, partialBudget);
 
         if (cappedIra <= 0) {
           // Cap exhausted — no conversion this year
@@ -673,6 +695,18 @@ export function runGrowthFormulaScenario(
             age,
             spouseAge: currentSpouseAgeForDeduction,
           });
+        }
+
+        // Belt-and-braces: never convert past the remaining net target. With the
+        // gross-up above the planner should land at or under it (a bracket-room
+        // limit only ever produces LESS), but clamp anyway so target_partial_amount
+        // is a hard ceiling on Roth dollars regardless of which branch ran. Scale
+        // the tax with the conversion so the pair stays self-consistent.
+        if (conversionType === 'partial_amount' && conversionAmount > partialRemaining) {
+          const scale = conversionAmount > 0 ? partialRemaining / conversionAmount : 0;
+          conversionAmount = partialRemaining;
+          federalTax = Math.round(federalTax * scale);
+          stateTax = Math.round(stateTax * scale);
         }
       }
 

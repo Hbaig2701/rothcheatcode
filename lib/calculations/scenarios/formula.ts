@@ -456,7 +456,21 @@ export function runFormulaScenario(
         const partialRemaining = conversionType === 'partial_amount'
           ? Math.max(0, targetPartialAmount - cumulativeConverted)
           : Number.POSITIVE_INFINITY;
-        const cappedIra = Math.min(effectiveIraForConversion, partialRemaining);
+        // UNITS: partialRemaining is a NET target (Roth dollars still owed, which
+        // is what cumulativeConverted tracks), but this value is handed to the
+        // planner as a GROSS withdrawal budget — when tax is paid from the IRA the
+        // planner splits it into conversion + tax_from_IRA. Passing the net target
+        // straight through spent it on tax as well as conversion, converting only
+        // ~(1 − effective rate) of the intended amount each year and stretching the
+        // target over many extra years. Mirror of the growth-formula.ts fix.
+        // (Jorge Tola / Mela Desai, Aug 2026.)
+        const partialGrossUpDivisor = payTaxFromIRA
+          ? Math.max(0.1, 1 - (maxTaxRate / 100 + stateTaxRateDecimal))
+          : 1;
+        const partialBudget = Number.isFinite(partialRemaining)
+          ? partialRemaining / partialGrossUpDivisor
+          : Number.POSITIVE_INFINITY;
+        const cappedIra = Math.min(effectiveIraForConversion, partialBudget);
 
         if (cappedIra <= 0) {
           // Cap exhausted — no conversion this year.
@@ -574,6 +588,17 @@ export function runFormulaScenario(
             spouseAge: spouseAge ?? undefined,
           });
           totalIRAWithdrawal = conversionAmount;
+        }
+
+        // Belt-and-braces: target_partial_amount is a hard ceiling on Roth
+        // dollars. The gross-up above should land at or under it, but clamp
+        // regardless of which branch ran, scaling the tax to stay consistent.
+        if (conversionType === 'partial_amount' && conversionAmount > partialRemaining) {
+          const scale = conversionAmount > 0 ? partialRemaining / conversionAmount : 0;
+          conversionAmount = partialRemaining;
+          federalConversionTax = Math.round(federalConversionTax * scale);
+          stateConversionTax = Math.round(stateConversionTax * scale);
+          totalIRAWithdrawal = Math.round(totalIRAWithdrawal * scale);
         }
       }
 
