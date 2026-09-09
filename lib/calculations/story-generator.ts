@@ -389,30 +389,41 @@ export function generateStory(
       totalTaxPaid += taxPaidThisYear;
       totalConversionOnlyTax += conversionOnlyTax;
 
-      // Only add story entries for every other year if many conversions, to avoid clutter
-      if (totalConversionYears <= 5 || conversionYearCount % 2 === 0) {
-        storyEntries.push({
-          year: year.year,
-          age: year.age,
-          trigger: 'conversion_year',
-          headline: `Year ${conversionYearCount} of ${totalConversionYears}`,
-          body: `We convert another ${formatCurrency(year.conversionAmount)} this year, adding ${formatCurrency(conversionOnlyTax)} in conversion tax at the ${targetBracket}% bracket. Your Roth balance grows to ${formatCurrency(year.rothBalance)}.`,
-          metrics: [
-            { label: 'Converted', value: formatCurrency(year.conversionAmount) },
-            { label: 'Tax on Conversion', value: formatCurrency(conversionOnlyTax) },
-            { label: 'Total Tax This Year', value: formatCurrency(taxPaidThisYear) },
-            { label: 'Roth Balance', value: formatCurrency(year.rothBalance) },
-          ],
-          runningTotals: {
-            totalConverted: formatCurrency(totalConverted),
-            totalTaxPaid: formatCurrency(totalTaxPaid),
-            rothBalance: formatCurrency(year.rothBalance),
-            iraBalance: formatCurrency(year.traditionalBalance),
-          },
-          icon: 'progress',
-          sentiment: 'neutral',
-        });
-      }
+      // Every conversion year gets its own card.
+      //
+      // This used to emit only even-numbered middle years once a schedule ran
+      // past 5 ("to avoid clutter"). But the headline is numbered — "Year 3 of
+      // 6" — so skipping left visible holes: Story Mode jumped from "Year 2 of
+      // 6" straight to "Year 4 of 6" and stopped agreeing with the year-by-year
+      // table and the PDF. (Terry King ticket, Sep 2026: "Why does year 3 not
+      // show up on Story Mode?" — his 6-year schedule silently lost years 3 and
+      // 5, one of which existed only because a $28k residual crumb pushed him
+      // from 5 conversion years to 6.)
+      //
+      // Roughly half of client scenarios run 6+ conversion years, so the skip
+      // was hitting the common case, not an edge case. A long schedule is merely
+      // verbose; a numbered gap reads as broken software.
+      storyEntries.push({
+        year: year.year,
+        age: year.age,
+        trigger: 'conversion_year',
+        headline: `Year ${conversionYearCount} of ${totalConversionYears}`,
+        body: `We convert another ${formatCurrency(year.conversionAmount)} this year, adding ${formatCurrency(conversionOnlyTax)} in conversion tax at the ${targetBracket}% bracket. Your Roth balance grows to ${formatCurrency(year.rothBalance)}.`,
+        metrics: [
+          { label: 'Converted', value: formatCurrency(year.conversionAmount) },
+          { label: 'Tax on Conversion', value: formatCurrency(conversionOnlyTax) },
+          { label: 'Total Tax This Year', value: formatCurrency(taxPaidThisYear) },
+          { label: 'Roth Balance', value: formatCurrency(year.rothBalance) },
+        ],
+        runningTotals: {
+          totalConverted: formatCurrency(totalConverted),
+          totalTaxPaid: formatCurrency(totalTaxPaid),
+          rothBalance: formatCurrency(year.rothBalance),
+          iraBalance: formatCurrency(year.traditionalBalance),
+        },
+        icon: 'progress',
+        sentiment: 'neutral',
+      });
     } else {
       // Non-conversion year - still update totals
       totalConverted += year.conversionAmount || 0;
