@@ -486,7 +486,17 @@ async function runGetYearBreakdown(
     if (!row) return null;
     const out: Record<string, string> = {};
     for (const col of columns) {
-      out[col.label] = col.formatter((row as Record<string, unknown>)[col.id]);
+      // Honor the column's accessor, exactly as the table does
+      // (resizable-table.tsx renderCell). Computed columns — "Tax on Conversion"
+      // (federal + state) and "Other Income" (net of the external-RMD breakout) —
+      // have no field of their own on the row, so reading row[col.id] returned
+      // undefined and the assistant reported $0 for numbers the advisor could see
+      // on screen. That silently broke the single-source-of-truth guarantee this
+      // function exists to provide.
+      const raw = col.accessor
+        ? col.accessor(row as Record<string, unknown>)
+        : (row as Record<string, unknown>)[col.id];
+      out[col.label] = col.formatter(raw);
     }
     return out;
   };
