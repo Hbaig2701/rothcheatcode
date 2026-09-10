@@ -97,6 +97,13 @@ interface YearRow {
   boyCombined: string;
   distIra: string;
   taxesIra: string;
+  // Federal + state tax attributable to the conversion, regardless of which
+  // account pays it. Distinct from taxesIra, which is only the dollars pulled
+  // OUT of the IRA to cover tax — that is $0 for a client paying from a taxable
+  // account, so before this the strategy page could show a large conversion with
+  // no tax anywhere on it. Mirrors the "Tax on Conversion" table column and
+  // Story Mode, which sum the same two engine fields. Strategy page only.
+  taxOnConversion: string;
   bracket: string;
   converted: string;
   distRoth: string;
@@ -137,6 +144,7 @@ interface ConversionDetail {
 interface AccountValuesTotalsRow {
   distIra: string;
   taxesIra: string;
+  taxOnConversion: string;
   riderFeeAmount: string;
   converted: string;
   distRoth: string;
@@ -364,6 +372,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
   // Only flow-type columns are summed (distributions, taxes, conversions,
   // interest, income flows); balances and rates are not.
   let totDistIra = 0, totTaxesIra = 0, totRiderFee = 0, totConverted = 0, totDistRoth = 0, totInterest = 0;
+  let totTaxOnConversion = 0;
   let totSsi = 0, totTaxableSs = 0, totTaxableNonSsi = 0, totExemptNonSsi = 0, totAgi = 0, totDeduction = 0, totTaxableIncome = 0;
   let totNetIncome = 0;
 
@@ -483,6 +492,10 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
         ? formatCurrency(year.totalTax)
         : formatCurrency(year.taxesPaidFromIRA ?? 0),
       bracket: formatPercent(bracket),
+      // Baseline never converts, so this is $0 there by construction.
+      taxOnConversion: formatCurrency(
+        (year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0)
+      ),
       converted: formatCurrency(year.conversionAmount),
       distRoth: formatCurrency(rothWithdrawal),
       interest: formatCurrency(interest),
@@ -517,6 +530,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       taxesIra: '',
       bracket: '',
       converted: '',
+      taxOnConversion: '',
       distRoth: '',
       interest: '',
       eoyCombined: '',
@@ -548,6 +562,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       taxesIra: '',
       bracket: '',
       converted: '',
+      taxOnConversion: '',
       distRoth: '',
       interest: '',
       eoyCombined: '',
@@ -576,6 +591,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
       taxesIra: '',
       bracket: '',
       converted: formatCurrency(year.conversionAmount),
+      taxOnConversion: '',
       distRoth: formatCurrency(rothWithdrawal),
       interest: '',
       eoyCombined: '',
@@ -602,6 +618,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     totTaxesIra += scenario === 'baseline'
       ? (year.totalTax ?? 0)
       : (year.taxesPaidFromIRA ?? 0);
+    totTaxOnConversion += (year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0);
     totRiderFee += year.riderFee ?? 0;
     totConverted += year.conversionAmount ?? 0;
     totDistRoth += rothWithdrawal; // voluntary Roth withdrawals (income the client takes)
@@ -624,6 +641,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     accountValuesTotals: {
       distIra: formatCurrency(totDistIra),
       taxesIra: formatCurrency(totTaxesIra),
+      taxOnConversion: formatCurrency(totTaxOnConversion),
       riderFeeAmount: formatCurrency(totRiderFee),
       converted: formatCurrency(totConverted),
       distRoth: formatCurrency(totDistRoth),

@@ -821,6 +821,11 @@
         {{#if riderFee}}<th>Rider Fee</th>{{/if}}
         <th>Bracket</th>
         <th>Converted</th>
+        <!-- Federal + state tax attributable to the conversion, whoever pays it.
+             "Tax from IRA" above counts only dollars pulled OUT of the IRA, so it
+             reads $0 for a client paying from a taxable account — leaving a large
+             conversion with no tax shown anywhere on this page. -->
+        <th>Tax on Conversion</th>
         <th>Dist. (Roth)</th>
         <th>Interest</th>
         <th>E.O.Y. (Combined)</th>
@@ -835,6 +840,7 @@
         {{#if ../riderFee}}<td class="{{redUnlessZero this.riderFeeAmount}}">{{this.riderFeeAmount}}</td>{{/if}}
         <td>{{this.bracket}}</td>
         <td>{{this.converted}}</td>
+        <td class="{{redUnlessZero this.taxOnConversion}}">{{this.taxOnConversion}}</td>
         <td>{{this.distRoth}}</td>
         <td>{{this.interest}}</td>
         <td>{{this.eoyCombined}}</td>
@@ -848,6 +854,7 @@
         {{#if riderFee}}<td class="tax-value">{{strategy.accountValuesTotals.riderFeeAmount}}</td>{{/if}}
         <td>—</td>
         <td>{{strategy.accountValuesTotals.converted}}</td>
+        <td class="tax-value">{{strategy.accountValuesTotals.taxOnConversion}}</td>
         <td>{{strategy.accountValuesTotals.distRoth}}</td>
         <td>{{strategy.accountValuesTotals.interest}}</td>
         <td>—</td>
