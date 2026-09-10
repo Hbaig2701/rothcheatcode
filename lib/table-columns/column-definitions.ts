@@ -335,7 +335,12 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     description: 'Total tax attributable to the Roth conversion this year — federal plus state. This is the same figure Story Mode shows as "Tax on Conversion". In a state with no income tax it equals the "Fed Tax (Conversions)" column; elsewhere it is higher. Note: when tax is paid from the IRA, the tax on the gross-up dollars is not included here — see "Total Fed Tax on IRA W/D" for the all-in number.',
     formatter: formatCurrency,
     defaultVisible: true,
-    visibleForProducts: ['all'],
+    // Growth only. GI already ships 'giConversionTax' ("Conversion Tax"), which
+    // the GI engine sets to federalConversionTax + stateConversionTax — the exact
+    // value this accessor computes. Verified identical across 137 year-rows on
+    // four live GI clients, so exposing both would put two same-named, same-valued
+    // columns in one table, with this one on by default.
+    visibleForProducts: ['growth'],
     defaultWidth: 160,
     minWidth: 130,
     accessor: (row) =>
