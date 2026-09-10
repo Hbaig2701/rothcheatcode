@@ -322,6 +322,26 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     minWidth: 110,
   },
   {
+    // Combined federal + state tax attributable to the conversion. Deliberately
+    // mirrors Story Mode's "Tax on Conversion", which sums exactly these two
+    // engine fields (story-generator.ts) — so the table and the story can never
+    // disagree. The pre-existing 'federalTaxOnConversions' column is federal
+    // ONLY and there was no column at all for the state half, so an advisor in a
+    // taxed state reading that column saw a conversion cost well below the real
+    // one (e.g. CA at 9.3%). Requested by Greg Stopp, Aug 2026.
+    id: 'taxOnConversions',
+    label: 'Tax on Conversion',
+    category: 'distributions',
+    description: 'Total tax attributable to the Roth conversion this year — federal plus state. This is the same figure Story Mode shows as "Tax on Conversion". In a state with no income tax it equals the "Fed Tax (Conversions)" column; elsewhere it is higher. Note: when tax is paid from the IRA, the tax on the gross-up dollars is not included here — see "Total Fed Tax on IRA W/D" for the all-in number.',
+    formatter: formatCurrency,
+    defaultVisible: true,
+    visibleForProducts: ['all'],
+    defaultWidth: 160,
+    minWidth: 130,
+    accessor: (row) =>
+      (Number(row.federalTaxOnConversions) || 0) + (Number(row.stateTaxOnConversions) || 0),
+  },
+  {
     id: 'totalIRAWithdrawal',
     label: 'Total IRA Withdrawal',
     category: 'distributions',
