@@ -163,6 +163,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // Calculate break-even from chart data (lifetime wealth trajectory, not raw netWorth)
   const chartBreakEvenAge = chartData.find(d => d.formula > d.baseline)?.age ?? null;
 
+  // Age the "Final ..." figures in Account Summary are stated as of. Taken from
+  // the LAST projected row rather than client.end_age: projectionYears is
+  // (end_age - age) and rows run age … age+n-1, so end_age overstates the final
+  // age by one. chartData maps 1:1 over the same projection these totals come
+  // from, so the label can't disagree with the numbers beside it.
+  // (Greg Stopp, Aug 2026 — "(as of age 95)" so clients see the timeframe.)
+  const finalProjectedAge = chartData.length > 0 ? chartData[chartData.length - 1].age : null;
+  const asOfAge = finalProjectedAge != null ? ` (as of age ${finalProjectedAge})` : '';
+
   // Get product config
   const productConfig = ALL_PRODUCTS[client.blueprint_type as FormulaType];
   // "No Annuity" preset — suppress every annuity-specific result line, card,
@@ -946,15 +955,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 </>
               )}
               <div className="flex justify-between items-center">
-                <span className="text-sm text-text-muted">Final Traditional IRA</span>
+                <span className="text-sm text-text-muted">Final Traditional IRA<span className="text-text-dim font-normal">{asOfAge}</span></span>
                 <span className="text-base font-mono text-text-dim">{toUSD(blueFinalTraditional)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-text-muted">Final Roth IRA</span>
+                <span className="text-sm text-text-muted">Final Roth IRA<span className="text-text-dim font-normal">{asOfAge}</span></span>
                 <span className="text-base font-mono text-green">{toUSD(blueFinalRoth)}</span>
               </div>
               <div className="pt-3 border-t border-border-default flex justify-between items-center">
-                <span className="text-sm text-text-dim font-medium">Total Portfolio</span>
+                <span className="text-sm text-text-dim font-medium">Total Portfolio<span className="text-text-dim font-normal">{asOfAge}</span></span>
                 <span className="text-lg font-mono font-medium text-foreground">{toUSD(blueFinalTraditional + blueFinalRoth)}</span>
               </div>
             </div>
