@@ -313,3 +313,57 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 
 **Effort:** **~1-2 days** for the product-form input (engine already done); +1 day to surface the schedule in the report/PDF.
 
+
+---
+
+## Guardrail: warn when the strategy converts $0
+
+**The pitch:** An advisor can build a complete scenario, hit Calculate, and get a strategy column that converted **nothing** — with no warning anywhere. The report renders normally; baseline and strategy are identical; it just looks broken.
+
+**How it happens:** `Max Tax Rate` is a dropdown whose **first** option is `0% (fill to standard deduction only)`. Pick it on a client whose ordinary income already exceeds the standard deduction and the optimizer has zero headroom every year, so `conversionAmount === 0` for the whole projection. Nothing in `components/report/` checks for this.
+
+**What it requires:** a dashboard notice when `conversion_type` is a converting type (`optimized_amount` / `fixed_amount` / `partial_amount` / `full_conversion`) but `sum(conversionAmount) === 0`, naming the likely cause (bracket ceiling below current income, deferral past end age, zero balance). Cheap — one derived check plus a notice component alongside `tax-funding-notice.tsx`.
+
+**Demand signal:** Airinhos Serradas (ticket Sep 11 2026, "Please look at PDF", filed **critical / unable to model scenario**). His Max Tax Rate was `0` against $104,600 of dividend income — the engine correctly converted $0 and he read it as the software failing. He was 1 day into his trial.
+
+**Estimated effort:** **half a day.**
+
+---
+
+## New York City (and other local) income tax
+
+**The pitch:** NYC residents pay city income tax on top of NY State — roughly 3.9% at the top. We model state tax only (`lib/data/state-brackets.ts`), so an NYC conversion illustration understates the real cost by about a sixth. Same gap applies to Yonkers, and to local income taxes in OH / PA / MD / MI / IN / KY.
+
+**Today's workaround:** the `State Tax Rate` field is an override that replaces the progressive state brackets with a **flat** rate, so an advisor can type a blended state+city figure (NY 6.85% + NYC 3.876% ≈ 10.7%). It is a real workaround, but it flattens the progression, so low-income years are overtaxed and the advisor has to compute the blend themselves.
+
+**What it requires:** an optional locality field with its own bracket table, applied alongside state tax and broken out on the report. The engine already threads `stateTax` per year, so the plumbing is mostly display.
+
+**Demand signal:** Airinhos Serradas (ticket Sep 11 2026) — NYC client, explicitly asked to see "Federal Tax, NY State Tax, NY City Tax" as separate numbers.
+
+**Estimated effort:** **2–3 days** for NYC/Yonkers; longer if we generalise to every locality.
+
+---
+
+## Escalating income entries (growth % on the Recurring bulk-fill)
+
+**The pitch:** The `Recurring` button on the Non-SSI Income table fills the **same** annual amount from a start age to an end age (`components/clients/income-table.tsx`). Real income streams grow — dividends, rent, COLA'd pensions. Today the advisor either accepts a flat figure for 25 years or types every row by hand.
+
+**What it requires:** one `Annual increase %` input on the recurring panel, compounded per row on apply. Rows stay individually editable afterwards, so nothing about the data model changes.
+
+**Demand signal:** Airinhos Serradas (ticket Sep 11 2026) — "$105K in dividends annually which keep increasing annually". He entered 34 flat rows.
+
+**Estimated effort:** **half a day.**
+
+---
+
+## Blended conversion-tax funding (part from IRA, part from taxable)
+
+**The pitch:** `tax_payment_source` is binary — `from_taxable` or `from_ira`. Advisors with clients who intend to split the bill ("some non-qualified cash, some withheld from the IRA") can only illustrate the two extremes and eyeball the middle.
+
+**Related:** see the known limitation that `payTaxFromIRA` is a boolean gate rather than a drawdown — any taxable balance ≥$1 funds unlimited conversion tax externally.
+
+**What it requires:** a percentage split, threaded through the four engine sites that branch on `payTaxFromIRA`, plus baseline accounting so the taxable bucket is debited for exactly its share.
+
+**Demand signal:** Airinhos Serradas (ticket Sep 11 2026) — "may be a blend of Non-Q $$ and Directly from SEP-IRA, need to model both." Modelling them separately answers the immediate need; a true blend does not exist.
+
+**Estimated effort:** **2–3 days.**
