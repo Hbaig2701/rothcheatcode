@@ -209,6 +209,11 @@ export function generateStory(
   // point at any single line during a meeting.
   const setupDetails: StoryMetric[] = [];
 
+  // First year the projection actually converts — drives the deferral row and
+  // the framing sentence below, so neither can promise a year the timeline
+  // doesn't deliver. undefined when the scenario never converts.
+  const firstConversionEntry = years.find(y => y.conversionAmount > 0);
+
   // Conversion plan — one line summarizing the chosen type + parameters.
   switch (conversionType) {
     case 'no_conversion':
@@ -227,10 +232,22 @@ export function generateStory(
       setupDetails.push({ label: 'Conversion plan', value: `Optimized to fill the ${targetBracket}% bracket` });
   }
 
+  // The deferral setting is a FLOOR, not a schedule: it means "no conversions
+  // before this age". Whether one actually happens that year depends on there
+  // being bracket room — a one-off income spike, RMDs already filling the
+  // bracket, or a spouse's wages can all push the first conversion later.
+  // Quoting the configured age as the start date made this card contradict the
+  // timeline printed directly beneath it (Bill Duggan, ticket 2026-09-16: card
+  // read "starts age 65", first conversion landed at 66 because a $240k income
+  // row filled the 24% bracket in the deferred-to year). Report the age the
+  // projection ACTUALLY converts at; fall back to the floor when nothing converts.
   if (yearsToDefer > 0) {
+    const deferUnit = yearsToDefer === 1 ? 'year' : 'years';
     setupDetails.push({
       label: 'Deferred',
-      value: `${yearsToDefer} ${yearsToDefer === 1 ? 'year' : 'years'} — starts age ${(client.age ?? 62) + yearsToDefer}`,
+      value: firstConversionEntry
+        ? `${yearsToDefer} ${deferUnit} — first conversion age ${firstConversionEntry.age}`
+        : `${yearsToDefer} ${deferUnit} — no conversions before age ${(client.age ?? 62) + yearsToDefer}`,
     });
   }
 
@@ -270,7 +287,7 @@ export function generateStory(
   // Detail rows do the heavy lifting underneath.
   const setupBody = aumActive || conversionType === 'no_conversion' || hasScheduledWithdrawals || widowAnalysisActive
     ? "Here's how this scenario is configured. Each line below is a parameter the advisor chose that drives the numbers in the rest of the timeline."
-    : `Here's the plan. Roth conversions over ${totalConversionYears} ${totalConversionYears === 1 ? 'year' : 'years'} starting at age ${(client.age ?? 62) + yearsToDefer}, paid for from ${taxPaymentSource === 'from_ira' ? 'the IRA itself' : 'outside funds'}.`;
+    : `Here's the plan. Roth conversions over ${totalConversionYears} ${totalConversionYears === 1 ? 'year' : 'years'} starting at age ${firstConversionEntry?.age ?? (client.age ?? 62) + yearsToDefer}, paid for from ${taxPaymentSource === 'from_ira' ? 'the IRA itself' : 'outside funds'}.`;
 
   storyEntries.push({
     year: years[0]?.year ?? new Date().getFullYear(),
