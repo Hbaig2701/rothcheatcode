@@ -282,6 +282,10 @@ interface TemplateData {
   riderFee: number;
   rateOfReturn: number;
   rateOfReturnPercent: string;
+  // True when an AUM account grows at a different rate from the baseline —
+  // the glossary must then state both rates rather than claim they match.
+  aumGrowthDiffers: boolean;
+  aumGrowthRatePercent: string;
   maxTaxRate: number;
   state: string;
   stateTaxRate: number;
@@ -1090,6 +1094,11 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     riderFee: productRiderFee,
     rateOfReturn: client.rate_of_return ?? 7,
     rateOfReturnPercent: String(client.rate_of_return ?? 7),
+    aumGrowthDiffers:
+      (client.aum_allocation_percent ?? 0) > 0 &&
+      client.aum_growth_rate != null &&
+      Math.abs(client.aum_growth_rate - (client.rate_of_return ?? 7)) > 0.01,
+    aumGrowthRatePercent: String(client.aum_growth_rate ?? client.rate_of_return ?? 7),
     maxTaxRate: client.max_tax_rate ?? 24,
     state: client.state ?? 'CA',
     stateTaxRate: client.state_tax_rate ?? 0,

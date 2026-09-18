@@ -1219,12 +1219,24 @@
     </div>
 
     <div class="glossary-entry">
+      {{#if aumGrowthDiffers}}
+      <div class="glossary-term">Growth Rates ({{rateOfReturnPercent}}% and {{aumGrowthRatePercent}}% AUM)</div>
+      <div class="glossary-def">
+        The baseline and the IRA side of the strategy grow at {{rateOfReturnPercent}}% a year.
+        The managed (AUM) account in the strategy grows at {{aumGrowthRatePercent}}% a year.
+        Because the two scenarios assume different returns, part of the difference
+        between them comes from the higher assumed return rather than from tax
+        planning. This is a deterministic projection — actual returns will vary
+        with market conditions.
+      </div>
+      {{else}}
       <div class="glossary-term">Growth Rate ({{rateOfReturnPercent}}%)</div>
       <div class="glossary-def">
         The flat annual return assumed for both the strategy and baseline. This
         is a deterministic projection — actual returns will vary with market
         conditions. Both scenarios use the same rate so the comparison is fair.
       </div>
+      {{/if}}
     </div>
 
     <div class="glossary-entry">
