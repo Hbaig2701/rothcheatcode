@@ -27,6 +27,7 @@ import { Lock, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
+import { QLAC_MIN_INCOME_START_AGE, QLAC_MAX_INCOME_START_AGE, QLAC_DEFAULT_INCOME_START_AGE } from "@/lib/data/qlac-limits";
 
 // Only two active values now. 'none' and 'fixed_amount' were dead code
 // (engine never read them — collapsed identically to 'bracket_ceiling'),
@@ -650,7 +651,7 @@ export function TaxDataSection() {
             const on = checked === true;
             setQlacManualOpen(on);
             if (on) {
-              if (!form.getValues("qlac_income_start_age")) form.setValue("qlac_income_start_age", 85, { shouldDirty: true });
+              if (!form.getValues("qlac_income_start_age")) form.setValue("qlac_income_start_age", QLAC_DEFAULT_INCOME_START_AGE, { shouldDirty: true });
               if (!form.getValues("qlac_death_benefit")) form.setValue("qlac_death_benefit", "return_of_premium", { shouldDirty: true });
             } else {
               form.setValue("qlac_premium", null, { shouldDirty: true });
@@ -730,8 +731,8 @@ export function TaxDataSection() {
             <Input
               id="qlac_income_start_age"
               type="number"
-              min={50}
-              max={85}
+              min={QLAC_MIN_INCOME_START_AGE}
+              max={QLAC_MAX_INCOME_START_AGE}
               {...form.register("qlac_income_start_age", {
                 setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
               })}

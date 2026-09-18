@@ -1,8 +1,9 @@
-import type { Client, NonSSIIncomeEntry } from '@/lib/types/client';
+import type { Client } from '@/lib/types/client';
 import type { YearlyResult, FilingStatus } from '@/lib/calculations/types';
 import { getAgeAtYearOffset } from '@/lib/calculations/utils/age';
-import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '@/lib/calculations/utils/income';
+import { mergeIncomeScheduleIntoClient, projectionYearsFor } from '@/lib/calculations/utils/income';
 import { afterTaxHeldBackRmd } from '@/lib/calculations/utils/held-back-ira';
+import { QLAC_DEFAULT_INCOME_START_AGE } from '@/lib/data/qlac-limits';
 
 /**
  * QLAC — Qualified Longevity Annuity Contract.
@@ -44,11 +45,7 @@ import { afterTaxHeldBackRmd } from '@/lib/calculations/utils/held-back-ira';
  * later year is not supported yet.
  */
 
-/** IRS QLAC premium cap, cents. 2026: $210,000 (IRS Notice 2025-67). */
-export const QLAC_PREMIUM_LIMIT_CENTS = 21_000_000;
-/** Latest permitted income start age (month after the 85th birthday). */
-export const QLAC_MAX_INCOME_START_AGE = 85;
-export const QLAC_DEFAULT_INCOME_START_AGE = 85;
+export { QLAC_PREMIUM_LIMIT_CENTS, QLAC_MAX_INCOME_START_AGE, QLAC_DEFAULT_INCOME_START_AGE } from '@/lib/data/qlac-limits';
 
 export function isQlacActive(client: Client): boolean {
   return (client.qlac_premium ?? 0) > 0 && (client.qualified_account_value ?? 0) > 0;
@@ -66,12 +63,6 @@ export function getQlacIncomeStartAge(client: Client): number {
 
 export function hasQlacReturnOfPremium(client: Client): boolean {
   return (client.qlac_death_benefit ?? 'return_of_premium') === 'return_of_premium';
-}
-
-function projectionYearsFor(client: Client): number {
-  return client.age && client.end_age
-    ? client.end_age - client.age
-    : (client.projection_years ?? 30);
 }
 
 /**
@@ -108,34 +99,44 @@ export function computeQlacPayoutSchedule(client: Client): Map<number, number> {
 export function applyQlacToClient(client: Client): Client {
   const premium = getQlacPremium(client);
   if (premium <= 0) return client;
-
-  const currentYear = new Date().getFullYear();
-  const clientAge = client.age && client.age > 0 ? client.age : 62;
-  const projectionYears = projectionYearsFor(client);
-  const payouts = computeQlacPayoutSchedule(client);
-
-  const merged: NonSSIIncomeEntry[] = [];
-  for (let offset = 0; offset < projectionYears; offset++) {
-    const year = currentYear + offset;
-    const payout = payouts.get(year) ?? 0;
-    const existingGross = getNonSSIIncomeForYear(client, year);
-    const existingExempt = getTaxExemptIncomeForYear(client, year);
-    if (existingGross === 0 && existingExempt === 0 && payout === 0) continue;
-    merged.push({
-      year,
-      age: getAgeAtYearOffset(clientAge, offset),
-      gross_taxable: existingGross + payout,
-      tax_exempt: existingExempt,
-    });
-  }
-
   return {
-    ...client,
+    ...mergeIncomeScheduleIntoClient(client, computeQlacPayoutSchedule(client)),
     qualified_account_value: (client.qualified_account_value ?? 0) - premium,
-    non_ssi_income: merged,
-    gross_taxable_non_ssi: 0,
-    tax_exempt_non_ssi: 0,
   };
+}
+
+/**
+ * Which client each side of the comparison runs on. Strategy always holds the
+ * QLAC; the do-nothing baseline only when the client already owns it
+ * (qlac_in_baseline). `qlacStrategyOnly` tells the caller the two sides start
+ * from different IRAs and the baseline must be simulated on its own inputs.
+ * Pass the client AFTER any held-back-IRA overlay so both income streams land
+ * in the same non-SSI table. Both routes (projections, analysis) use this.
+ */
+export function resolveQlacSides(client: Client): { baselineClient: Client; strategyClient: Client; qlacStrategyOnly: boolean } {
+  const qlacStrategyOnly = isQlacActive(client) && !client.qlac_in_baseline;
+  const strategyClient = applyQlacToClient(client);
+  return { baselineClient: qlacStrategyOnly ? client : strategyClient, strategyClient, qlacStrategyOnly };
+}
+
+/**
+ * Post-sim overlay for a full simulation result: strategy rows always, baseline
+ * rows only when the client holds the QLAC on both sides, plus the heirBenefit
+ * delta (the unrecovered premium is inherited pre-tax like a Traditional
+ * balance, so the side holding it owes heir tax on it). Applied as a DELTA on
+ * top of each engine's own figure — the GI engine deliberately taxes its
+ * Roth-annuity strategy side at $0 (that value is mapped into
+ * traditionalBalance), so recomputing from balances would be wrong there.
+ * No-op without a QLAC. `client` is the RAW client (pre-carve-out).
+ */
+export function applyQlacToResult(client: Client, result: { baseline: YearlyResult[]; formula: YearlyResult[]; heirBenefit: number }): void {
+  if (!isQlacActive(client)) return;
+  applyQlacOverlay(client, result.formula);
+  if (client.qlac_in_baseline) applyQlacOverlay(client, result.baseline);
+  const heirRate = (client.heir_tax_rate ?? 40) / 100;
+  const baselineQlacHeirTax = Math.round(finalQlacDeathBenefit(result.baseline) * heirRate);
+  const strategyQlacHeirTax = Math.round(finalQlacDeathBenefit(result.formula) * heirRate);
+  result.heirBenefit += baselineQlacHeirTax - strategyQlacHeirTax;
 }
 
 /**

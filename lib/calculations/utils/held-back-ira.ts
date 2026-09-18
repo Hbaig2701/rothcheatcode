@@ -1,9 +1,9 @@
-import type { Client, NonSSIIncomeEntry } from '@/lib/types/client';
+import type { Client } from '@/lib/types/client';
 import type { SimulationResult, YearlyResult, FilingStatus } from '@/lib/calculations/types';
 import { calculateRMD } from '@/lib/calculations/modules/rmd';
 import { calculateConversionFederalTax } from '@/lib/calculations/modules/federal-tax';
 import { getBirthYear, getBirthYearFromAge, getAgeAtYearOffset } from '@/lib/calculations/utils/age';
-import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '@/lib/calculations/utils/income';
+import { mergeIncomeScheduleIntoClient } from '@/lib/calculations/utils/income';
 
 /**
  * Held-back Traditional IRA — income-only overlay.
@@ -88,43 +88,16 @@ export function applyHeldBackIraRmd(client: Client): Client {
   const startBalance = client.held_back_ira_balance ?? 0;
   if (startBalance <= 0) return client;
 
-  const currentYear = new Date().getFullYear();
-  const clientAge = client.age && client.age > 0 ? client.age : 62;
-  const projectionYears = client.age && client.end_age
-    ? client.end_age - client.age
-    : (client.projection_years ?? 30);
-
   const rmdByYear = computeHeldBackRmdSchedule(client);
   if (rmdByYear.size === 0) return client;
 
-  // Merge into a full per-year non-SSI income table, preserving the client's
-  // existing income (flat field OR table — getNonSSIIncomeForYear handles both)
-  // and adding the held-back RMD on top. Building the table folds in the flat
-  // field so nothing is dropped (the table takes priority over the flat field).
-  const merged: NonSSIIncomeEntry[] = [];
-  for (let offset = 0; offset < projectionYears; offset++) {
-    const year = currentYear + offset;
-    const rmd = rmdByYear.get(year) ?? 0;
-    const existingGross = getNonSSIIncomeForYear(client, year);
-    const existingExempt = getTaxExemptIncomeForYear(client, year);
-    if (existingGross === 0 && existingExempt === 0 && rmd === 0) continue;
-    merged.push({
-      year,
-      age: getAgeAtYearOffset(clientAge, offset),
-      gross_taxable: existingGross + rmd,
-      tax_exempt: existingExempt,
-    });
-  }
-  // Table now carries everything; clear the flat fields so they aren't summed
-  // twice (they wouldn't be — table wins — but keep it unambiguous). Also
-  // override rmds_handled_externally back to false so the converting slice keeps
+  // Fold the held-back RMDs into the per-year non-SSI income table (shared
+  // merge — same table shape as the QLAC overlay). Also override
+  // rmds_handled_externally back to false so the converting slice keeps
   // modeling its own RMDs (see the header comment) — the held-back overlay is
   // now what represents the external RMDs.
   return {
-    ...client,
-    non_ssi_income: merged,
-    gross_taxable_non_ssi: 0,
-    tax_exempt_non_ssi: 0,
+    ...mergeIncomeScheduleIntoClient(client, rmdByYear),
     rmds_handled_externally: false,
   };
 }

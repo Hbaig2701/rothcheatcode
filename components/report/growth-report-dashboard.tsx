@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from "@/lib/config/products";
 import { computeMarginalRMDTax } from "@/lib/calculations/marginal-rmd-tax";
 import { computeHeldBackRmdMarginalTax } from "@/lib/calculations/utils/held-back-ira";
-import { getQlacPremium } from "@/lib/calculations/utils/qlac";
+import { getQlacPremium, isQlacActive } from "@/lib/calculations/utils/qlac";
 import { getClientRMDStartAge } from "@/lib/calculations/utils/age";
 import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
 import { ResizableComparisonTable } from "@/components/results/deep-dive/resizable-comparison-table";
@@ -299,8 +299,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // QLAC premium comes off the top of the IRA before the AUM split (mirrors
   // the projections route), so the annuity + AUM slices are cut from the rest.
   const qlacPremium = getQlacPremium(client);
-  const qlacActive = qlacPremium > 0;
-  const blueFinalQlacDeathBenefit = projection.blueprint_final_qlac_death_benefit ?? 0;
+  const qlacActive = isQlacActive(client);
+  const blueFinalQlacDeathBenefit = blueFinalQlac;
   const qlacTotalPaid = sum(projection.blueprint_years, "qlacPayout");
   const iraAfterQlac = (client.qualified_account_value ?? 0) - qlacPremium;
   const aumStartingPortion = Math.round(iraAfterQlac * ((client.aum_allocation_percent ?? 0) / 100));

@@ -104,7 +104,7 @@ function generateGIStory(client: Client, projection: Projection): StoryEntry[] {
   const qlacStartAge = getQlacIncomeStartAge(client);
   const qlacAnnualIncome = client.qlac_annual_income ?? 0;
   const qlacRop = hasQlacReturnOfPremium(client);
-  const blueprintByYear = new Map((projection.blueprint_years ?? []).map((y) => [y.year, y]));
+  const blueprintByYear = qlacActive ? new Map((projection.blueprint_years ?? []).map((y) => [y.year, y])) : null;
   let qlacIncomeFired = false;
 
   for (let i = 0; i < giYearlyData.length; i++) {
@@ -158,7 +158,7 @@ function generateGIStory(client: Client, projection: Projection): StoryEntry[] {
         runningTotals,
       });
     }
-    const qlacRow = qlacActive ? blueprintByYear.get(row.year) : undefined;
+    const qlacRow = blueprintByYear?.get(row.year);
     if (qlacRow && !qlacIncomeFired && (qlacRow.qlacPayout ?? 0) > 0) {
       qlacIncomeFired = true;
       entries.push({

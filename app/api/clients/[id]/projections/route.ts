@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { runSimulation, createSimulationInput, runGuaranteedIncomeSimulation, runGrowthSimulation, runAumScenario } from '@/lib/calculations';
 import { requestedFromQualifiedForYear } from '@/lib/calculations/utils/withdrawals';
 import { applyHeldBackIraRmd, computeHeldBackRmdSchedule, applyHeldBackResidualToStrategy } from '@/lib/calculations/utils/held-back-ira';
-import { applyQlacToClient, applyQlacOverlay, isQlacActive, finalQlacDeathBenefit } from '@/lib/calculations/utils/qlac';
+import { resolveQlacSides, applyQlacToResult, isQlacActive, finalQlacDeathBenefit } from '@/lib/calculations/utils/qlac';
 import type { Client } from '@/lib/types/client';
 import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projection';
 import type { SimulationResult, YearlyResult } from '@/lib/calculations';
@@ -460,29 +460,6 @@ function buildRothSideClient(client: Client): Client {
 }
 
 /**
- * QLAC post-sim overlay: stamp the per-year payout / death-benefit breakout and
- * bank the after-tax payouts + return-of-premium value into net worth on every
- * side that holds the contract — the strategy always, the baseline only when
- * qlac_in_baseline. Runs on the combined (post-AUM) formula. No-op without a
- * QLAC. `client` is the RAW client (pre-carve-out).
- */
-function applyQlacOverlays(client: Client, result: SimulationResult): void {
-  if (!isQlacActive(client)) return;
-  applyQlacOverlay(client, result.formula);
-  if (client.qlac_in_baseline) applyQlacOverlay(client, result.baseline);
-  // Adjust heirBenefit (baseline heir tax − strategy heir tax) for the QLAC:
-  // the unrecovered premium is inherited pre-tax exactly like a Traditional
-  // balance, so the side holding it owes heir tax on it too. Applied as a
-  // DELTA on top of each engine's own figure — the GI engine deliberately
-  // taxes its strategy side at $0 (the Roth annuity's value is mapped into
-  // traditionalBalance), so recomputing from the balances would be wrong there.
-  const heirRate = (client.heir_tax_rate ?? 40) / 100;
-  const baselineQlacHeirTax = Math.round(finalQlacDeathBenefit(result.baseline) * heirRate);
-  const strategyQlacHeirTax = Math.round(finalQlacDeathBenefit(result.formula) * heirRate);
-  result.heirBenefit += baselineQlacHeirTax - strategyQlacHeirTax;
-}
-
-/**
  * Conversion-tax funding fallback for the PARTIAL-taxable case.
  *
  * The engines already fund conversion tax from the IRA when the taxable account
@@ -613,12 +590,10 @@ export async function GET(
     // when the client already owns the contract (qlac_in_baseline). No-op
     // without a QLAC. Runs AFTER the held-back overlay so both income streams
     // land in the same table.
-    const qlacStrategyOnly = isQlacActive(typedClient) && !typedClient.qlac_in_baseline;
-    const baselineClient = qlacStrategyOnly ? clientForSim : applyQlacToClient(clientForSim);
     // Strategy-side base: the QLAC premium comes off the top BEFORE the AUM
     // split, so both the Roth-side slice and the AUM slice are cut from the
     // remaining IRA (runAumOverlay must see this same client).
-    const strategyClient = applyQlacToClient(clientForSim);
+    const { baselineClient, strategyClient, qlacStrategyOnly } = resolveQlacSides(clientForSim);
     const rothSideClient = buildRothSideClient(strategyClient);
     // The baseline must be re-run on its own inputs whenever the strategy's
     // starting IRA differs from the do-nothing IRA (AUM split, strategy-only QLAC).
@@ -643,7 +618,7 @@ export async function GET(
       // advantage on the held-back IRA into the strategy net worth. No-op when
       // there's no held-back balance. Runs on the combined (post-AUM) formula.
       applyHeldBackResidualToStrategy(typedClient, finalResult);
-      applyQlacOverlays(typedClient, finalResult);
+      applyQlacToResult(typedClient, finalResult);
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giSplitResult.giMetrics, aumYears);
     } else if (isGrowthProduct(formulaType)) {
       let splitResult = runGrowthSimulation(rothSimInput);
@@ -658,7 +633,7 @@ export async function GET(
       // advantage on the held-back IRA into the strategy net worth. No-op when
       // there's no held-back balance. Runs on the combined (post-AUM) formula.
       applyHeldBackResidualToStrategy(typedClient, finalResult);
-      applyQlacOverlays(typedClient, finalResult);
+      applyQlacToResult(typedClient, finalResult);
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     } else {
       let splitResult = runSimulation(rothSimInput);
@@ -673,7 +648,7 @@ export async function GET(
       // advantage on the held-back IRA into the strategy net worth. No-op when
       // there's no held-back balance. Runs on the combined (post-AUM) formula.
       applyHeldBackResidualToStrategy(typedClient, finalResult);
-      applyQlacOverlays(typedClient, finalResult);
+      applyQlacToResult(typedClient, finalResult);
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     }
 
@@ -762,12 +737,10 @@ export async function POST(
     // when the client already owns the contract (qlac_in_baseline). No-op
     // without a QLAC. Runs AFTER the held-back overlay so both income streams
     // land in the same table.
-    const qlacStrategyOnly = isQlacActive(typedClient) && !typedClient.qlac_in_baseline;
-    const baselineClient = qlacStrategyOnly ? clientForSim : applyQlacToClient(clientForSim);
     // Strategy-side base: the QLAC premium comes off the top BEFORE the AUM
     // split, so both the Roth-side slice and the AUM slice are cut from the
     // remaining IRA (runAumOverlay must see this same client).
-    const strategyClient = applyQlacToClient(clientForSim);
+    const { baselineClient, strategyClient, qlacStrategyOnly } = resolveQlacSides(clientForSim);
     const rothSideClient = buildRothSideClient(strategyClient);
     // The baseline must be re-run on its own inputs whenever the strategy's
     // starting IRA differs from the do-nothing IRA (AUM split, strategy-only QLAC).
@@ -789,7 +762,7 @@ export async function POST(
       // advantage on the held-back IRA into the strategy net worth. No-op when
       // there's no held-back balance. Runs on the combined (post-AUM) formula.
       applyHeldBackResidualToStrategy(typedClient, finalResult);
-      applyQlacOverlays(typedClient, finalResult);
+      applyQlacToResult(typedClient, finalResult);
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giSplitResult.giMetrics, aumYears);
     } else if (isGrowthProduct(formulaType)) {
       let splitResult = runGrowthSimulation(rothSimInput);
@@ -804,7 +777,7 @@ export async function POST(
       // advantage on the held-back IRA into the strategy net worth. No-op when
       // there's no held-back balance. Runs on the combined (post-AUM) formula.
       applyHeldBackResidualToStrategy(typedClient, finalResult);
-      applyQlacOverlays(typedClient, finalResult);
+      applyQlacToResult(typedClient, finalResult);
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     } else {
       let splitResult = runSimulation(rothSimInput);
@@ -819,7 +792,7 @@ export async function POST(
       // advantage on the held-back IRA into the strategy net worth. No-op when
       // there's no held-back balance. Runs on the combined (post-AUM) formula.
       applyHeldBackResidualToStrategy(typedClient, finalResult);
-      applyQlacOverlays(typedClient, finalResult);
+      applyQlacToResult(typedClient, finalResult);
       projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, undefined, aumYears);
     }
 

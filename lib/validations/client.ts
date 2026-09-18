@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { QLAC_PREMIUM_LIMIT_CENTS, QLAC_MIN_INCOME_START_AGE, QLAC_MAX_INCOME_START_AGE } from "@/lib/data/qlac-limits";
 
 // ============================================================================
 // Enum Schemas
@@ -66,14 +67,12 @@ export const qlacDeathBenefitEnum = z.enum(["return_of_premium", "none"]);
 // cross-field check below rather than here). 0/null = feature off.
 const qlacFields = {
   qlac_premium: z.number().int().min(0).optional().nullable().default(null),
-  qlac_income_start_age: z.number().int().min(50).max(85).optional().nullable().default(null),
+  qlac_income_start_age: z.number().int().min(QLAC_MIN_INCOME_START_AGE).max(QLAC_MAX_INCOME_START_AGE).optional().nullable().default(null),
   qlac_annual_income: z.number().int().min(0).optional().nullable().default(null),
   qlac_death_benefit: qlacDeathBenefitEnum.optional().nullable().default(null),
   qlac_in_baseline: z.boolean().optional().nullable().default(null),
 };
 
-/** Cents. IRS QLAC premium cap per person, 2026 (Notice 2025-67). */
-export const QLAC_PREMIUM_LIMIT_CENTS = 21_000_000;
 
 type QlacRefineData = {
   qlac_premium?: number | null;
