@@ -109,7 +109,8 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   }
 
   // Heir tax only applies to traditional IRA portion (the GI account value)
-  const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
+  // + the QLAC's unrecovered premium, inherited pre-tax the same way.
+  const baseHeirTax = Math.round((baseFinalTraditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
   // Net legacy = final net worth (includes taxable where income accumulates) minus heir taxes
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
   // Lifetime wealth = net legacy (income already accumulated in taxableBalance within net_worth)
@@ -135,7 +136,9 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
   // blueprint_final_traditional for chart compatibility, but taxing it at the
   // heir rate (old behavior) erased the GI Roth legacy advantage (audit F17, P0).
   // Baseline (traditional annuity) above is still correctly taxed.
-  const blueHeirTax = 0;
+  // The QLAC (if any) sits OUTSIDE the Roth annuity — its return-of-premium
+  // value is still pre-tax to heirs.
+  const blueHeirTax = Math.round((projection.blueprint_final_qlac_death_benefit ?? 0) * heirTaxRate);
   // Net legacy = final net worth (includes taxable where GI payments accumulate) minus heir taxes
   const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
   // Lifetime wealth = net legacy (taxes already deducted in engine)

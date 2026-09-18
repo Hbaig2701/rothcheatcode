@@ -887,7 +887,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const baseIrmaa = sum(projection.baseline_years, 'irmaaSurcharge');
   const baseFinalTraditional = projection.baseline_final_traditional;
   // Heir tax only applies to traditional IRA portion (Roth and taxable are already taxed)
-  const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
+  // — plus the QLAC's unrecovered premium, inherited pre-tax the same way.
+  const baseHeirTax = Math.round((baseFinalTraditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
   // Net legacy = final net worth (includes taxable account) minus heir taxes on traditional
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
   // Cumulative after-tax distributions — kept for the Distributions row in
@@ -927,8 +928,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     sum(projection.blueprint_years, 'stateTaxOnConversions');
   const blueIrmaa = sum(projection.blueprint_years, 'irmaaSurcharge');
   const blueFinalTraditional = projection.blueprint_final_traditional;
-  // Heir tax only applies to remaining traditional IRA (if any)
-  const blueHeirTax = Math.round(blueFinalTraditional * heirTaxRate);
+  // Heir tax only applies to remaining traditional IRA (if any) + QLAC death benefit
+  const blueHeirTax = Math.round((blueFinalTraditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
   // Net legacy = final net worth minus heir taxes on traditional
   const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
   // Lifetime wealth = net legacy (conversion taxes/IRMAA already deducted from taxable in engine)

@@ -64,6 +64,11 @@ export function InputSidebar({ client }: InputSidebarProps) {
             additional_deductions: client?.additional_deductions ?? null,
             held_back_ira_balance: client?.held_back_ira_balance ?? null,
             held_back_ira_growth_rate: client?.held_back_ira_growth_rate ?? null,
+            qlac_premium: client?.qlac_premium ?? null,
+            qlac_income_start_age: client?.qlac_income_start_age ?? null,
+            qlac_annual_income: client?.qlac_annual_income ?? null,
+            qlac_death_benefit: client?.qlac_death_benefit ?? null,
+            qlac_in_baseline: client?.qlac_in_baseline ?? null,
             tax_credits: client?.tax_credits ?? null,
 
             ssi_payout_age: client?.ssi_payout_age ?? 67,

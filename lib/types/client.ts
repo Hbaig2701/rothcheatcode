@@ -35,6 +35,13 @@ export interface NonSSIIncomeEntry {
  *              strategy uses the Roth bucket the conversions built up.
  */
 export type WithdrawalSource = 'ira' | 'roth' | 'auto';
+
+/**
+ * QLAC death-benefit form. 'return_of_premium' (cash refund — the usual
+ * rider) pays heirs the premium less any income already received; 'none'
+ * (life-only) pays nothing after death in exchange for a higher payout.
+ */
+export type QlacDeathBenefit = 'return_of_premium' | 'none';
 export interface WithdrawalEntry {
   year: number;
   age: number | string;  // for display only — engine uses year
@@ -191,6 +198,28 @@ export interface Client {
   // net-worth totals (it's a wash on the comparison delta). Default 0 = off.
   held_back_ira_balance?: number | null;      // In cents. 0/null = feature off.
   held_back_ira_growth_rate?: number | null;  // Percent; falls back to rate_of_return.
+
+  // ===== QLAC (Qualified Longevity Annuity Contract) =====
+  // A slice of the IRA (IRS cap $210K/person for 2026, indexed) moved into a
+  // deferred income annuity at the START of the projection. Mechanics:
+  //   - the premium leaves the IRA before anything else happens: it is excluded
+  //     from the RMD base, earns no visible account value, gets no premium bonus,
+  //     and can't be converted;
+  //   - from qlac_income_start_age (≤ 85) the contract pays qlac_annual_income
+  //     every year, taxed as ordinary income (brackets, SS torpedo, IRMAA), with
+  //     the after-tax proceeds routed per rmd_treatment like any other forced
+  //     distribution;
+  //   - with a return-of-premium death benefit the unrecovered premium
+  //     (premium − payouts received) is an heir-taxable asset like a Traditional
+  //     balance; life-only leaves nothing to heirs.
+  // Strategy-side only by default (the do-nothing baseline keeps the full IRA);
+  // qlac_in_baseline puts it on both sides for a client who already owns one.
+  // See lib/calculations/utils/qlac.ts. 0/null premium = feature off.
+  qlac_premium?: number | null;                          // In cents. 0/null = off.
+  qlac_income_start_age?: number | null;                 // ≤ 85; null → 85.
+  qlac_annual_income?: number | null;                    // In cents/yr, from the carrier quote.
+  qlac_death_benefit?: QlacDeathBenefit | null;          // null → 'return_of_premium'.
+  qlac_in_baseline?: boolean | null;                     // null → false (strategy only).
 
   // ===== AUM Split Allocation =====
   // When aum_allocation_percent > 0, the engine splits the IRA balance: the

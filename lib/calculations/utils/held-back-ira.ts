@@ -147,7 +147,7 @@ export function applyHeldBackIraRmd(client: Client): Client {
  * stacking) instead of inflating its rate in conversion/RMD overlap years. State is the
  * flat marginal rate. Inherits the engine's inflation-indexed brackets and filing status.
  */
-function afterTaxHeldBackRmd(
+export function afterTaxHeldBackRmd(
   row: YearlyResult | undefined,
   rmd: number,
   filingStatus: FilingStatus,

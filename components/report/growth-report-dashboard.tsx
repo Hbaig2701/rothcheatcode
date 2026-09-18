@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from "@/lib/config/products";
 import { computeMarginalRMDTax } from "@/lib/calculations/marginal-rmd-tax";
 import { computeHeldBackRmdMarginalTax } from "@/lib/calculations/utils/held-back-ira";
+import { getQlacPremium } from "@/lib/calculations/utils/qlac";
 import { getClientRMDStartAge } from "@/lib/calculations/utils/age";
 import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
 import { ResizableComparisonTable } from "@/components/results/deep-dive/resizable-comparison-table";
@@ -221,7 +222,9 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const baseFinalTraditional = projection.baseline_final_traditional;
   const baseFinalRoth = projection.baseline_final_roth;
   // Heir tax only applies to traditional IRA portion (Roth and taxable are already taxed)
-  const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
+  // — plus the QLAC's unrecovered premium, which is inherited pre-tax the same way.
+  const baseFinalQlac = projection.baseline_final_qlac_death_benefit ?? 0;
+  const baseHeirTax = Math.round((baseFinalTraditional + baseFinalQlac) * heirTaxRate);
   // Net legacy = final net worth (includes taxable account) minus heir taxes on traditional
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
 
@@ -261,8 +264,10 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const blueEarlyPenalty = sum(projection.blueprint_years, "earlyWithdrawalPenalty");
   const blueFinalTraditional = projection.blueprint_final_traditional;
   const blueFinalRoth = projection.blueprint_final_roth;
-  // Heir tax only applies to remaining traditional IRA (if any)
-  const blueHeirTax = Math.round(blueFinalTraditional * heirTaxRate);
+  // Heir tax only applies to remaining traditional IRA (if any) + the QLAC's
+  // unrecovered premium (return-of-premium death benefit, inherited pre-tax).
+  const blueFinalQlac = projection.blueprint_final_qlac_death_benefit ?? 0;
+  const blueHeirTax = Math.round((blueFinalTraditional + blueFinalQlac) * heirTaxRate);
   // Net legacy = final net worth minus heir taxes on traditional
   const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
   // Lifetime wealth = net legacy (conversion taxes/IRMAA already deducted from taxable in engine)
@@ -291,12 +296,19 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // tax was paid on the transfer, what's the bucket worth at death").
   const aumActive = (client.aum_allocation_percent ?? 0) > 0 && !!projection.aum_years;
   const aumYears = projection.aum_years ?? [];
-  const aumStartingPortion = Math.round((client.qualified_account_value ?? 0) * ((client.aum_allocation_percent ?? 0) / 100));
+  // QLAC premium comes off the top of the IRA before the AUM split (mirrors
+  // the projections route), so the annuity + AUM slices are cut from the rest.
+  const qlacPremium = getQlacPremium(client);
+  const qlacActive = qlacPremium > 0;
+  const blueFinalQlacDeathBenefit = projection.blueprint_final_qlac_death_benefit ?? 0;
+  const qlacTotalPaid = sum(projection.blueprint_years, "qlacPayout");
+  const iraAfterQlac = (client.qualified_account_value ?? 0) - qlacPremium;
+  const aumStartingPortion = Math.round(iraAfterQlac * ((client.aum_allocation_percent ?? 0) / 100));
   const aumTotalWithdrawnFromIra = aumYears.reduce((s, y) => s + (y.iraWithdrawal ?? 0), 0);
   const aumTotalTaxPaid = aumYears.reduce((s, y) => s + y.totalTax, 0);
   const aumEarlyWithdrawalPenalty = aumYears.reduce((s, y) => s + (y.earlyWithdrawalPenalty ?? 0), 0);
   const aumFinalBalance = projection.aum_final_balance ?? 0;
-  const rothSidePortion = (client.qualified_account_value ?? 0) - aumStartingPortion;
+  const rothSidePortion = iraAfterQlac - aumStartingPortion;
 
   // ===== Voluntary withdrawal metrics =====
   // The withdrawal schedule is independent from RMDs/conversions. Surface the
@@ -610,6 +622,10 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 aumFinalBalance={aumFinalBalance}
                 rothSidePortion={rothSidePortion}
                 heldBackResidual={blueHeldBackResidual}
+                qlacActive={qlacActive}
+                qlacPremium={qlacPremium}
+                qlacTotalPaid={qlacTotalPaid}
+                blueFinalQlacDeathBenefit={blueFinalQlacDeathBenefit}
                 conversionType={conversionType}
                 conversionTypeDescription={conversionTypeDescription}
                 hasVoluntaryWithdrawals={hasVoluntaryWithdrawals}
@@ -654,6 +670,10 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 blueHeirTax={blueHeirTax}
                 blueNetLegacy={blueNetLegacy}
                 heldBackResidual={blueHeldBackResidual}
+                qlacActive={qlacActive}
+                qlacPremium={qlacPremium}
+                qlacTotalPaid={qlacTotalPaid}
+                blueFinalQlacDeathBenefit={blueFinalQlacDeathBenefit}
                 heirTaxRate={heirTaxRate}
                 aumActive={aumActive}
                 aumFinalBalance={aumFinalBalance}
@@ -938,8 +958,14 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   starting balance must reflect that slice. rothSidePortion equals
                   the full balance when there's no AUM split, so this is correct
                   in every case. */}
+              {qlacActive && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-muted">QLAC Premium (out of RMD base)</span>
+                  <span className="text-base font-mono text-text-dim">{toUSD(qlacPremium)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
-                <span className="text-sm text-text-muted">Starting Balance{aumActive ? ' (annuity portion)' : ''}</span>
+                <span className="text-sm text-text-muted">Starting Balance{aumActive || qlacActive ? ' (annuity portion)' : ''}</span>
                 <span className="text-base font-mono text-foreground">{toUSD(rothSidePortion)}</span>
               </div>
               {!isNoAnnuity && (client.bonus_percent ?? 0) > 0 && (
@@ -962,9 +988,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 <span className="text-sm text-text-muted">Final Roth IRA<span className="text-text-dim font-normal">{asOfAge}</span></span>
                 <span className="text-base font-mono text-green">{toUSD(blueFinalRoth)}</span>
               </div>
+              {qlacActive && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-muted">QLAC Death Benefit<span className="text-text-dim font-normal">{asOfAge}</span></span>
+                  <span className="text-base font-mono text-text-dim">{toUSD(blueFinalQlacDeathBenefit)}</span>
+                </div>
+              )}
               <div className="pt-3 border-t border-border-default flex justify-between items-center">
                 <span className="text-sm text-text-dim font-medium">Total Portfolio<span className="text-text-dim font-normal">{asOfAge}</span></span>
-                <span className="text-lg font-mono font-medium text-foreground">{toUSD(blueFinalTraditional + blueFinalRoth)}</span>
+                <span className="text-lg font-mono font-medium text-foreground">{toUSD(blueFinalTraditional + blueFinalRoth + blueFinalQlacDeathBenefit)}</span>
               </div>
             </div>
           </div>
@@ -1410,6 +1442,10 @@ function LifetimeWealthInfo({
   aumFinalBalance,
   rothSidePortion,
   heldBackResidual,
+  qlacActive,
+  qlacPremium,
+  qlacTotalPaid,
+  blueFinalQlacDeathBenefit,
   conversionType,
   conversionTypeDescription,
   hasVoluntaryWithdrawals,
@@ -1462,6 +1498,10 @@ function LifetimeWealthInfo({
   aumFinalBalance: number;
   rothSidePortion: number;
   heldBackResidual: number;
+  qlacActive: boolean;
+  qlacPremium: number;
+  qlacTotalPaid: number;
+  blueFinalQlacDeathBenefit: number;
   conversionType: string;
   conversionTypeDescription: string;
   hasVoluntaryWithdrawals: boolean;
@@ -1807,9 +1847,16 @@ function LifetimeWealthInfo({
             note={<>The held-back IRA&apos;s RMDs are taxed at a lower marginal rate under the strategy (no forced RMDs on the converted slice stacking underneath), so the client keeps more after tax. Reinvested and grown.</>}
           />
         )}
+        {qlacActive && (
+          <TipRow
+            label="QLAC death benefit (return of premium)"
+            value={toUSD(blueFinalQlacDeathBenefit)}
+            note={<>{toUSD(qlacPremium)} premium less the {toUSD(qlacTotalPaid)} of QLAC income paid out; the after-tax income itself sits in the taxable account above. Heirs inherit this pre-tax.</>}
+          />
+        )}
         <TipDivider />
         <TipRow label="Gross estate" value={toUSD(projection.blueprint_final_net_worth)} />
-        <TipRow label={`− Heir tax on Traditional (${heirTaxPct}%)`} value={toUSD(blueHeirTax)} variant="negative" />
+        <TipRow label={`− Heir tax on Traditional${qlacActive ? ' + QLAC' : ''} (${heirTaxPct}%)`} value={toUSD(blueHeirTax)} variant="negative" />
         <TipDivider />
         <TipRow label="Strategy lifetime wealth" value={toUSD(blueLifetimeWealth)} variant="total" />
         <TipNote>
@@ -1882,6 +1929,10 @@ function LegacyToHeirsInfo({
   blueHeirTax,
   blueNetLegacy,
   heldBackResidual,
+  qlacActive,
+  qlacPremium,
+  qlacTotalPaid,
+  blueFinalQlacDeathBenefit,
   heirTaxRate,
   aumActive,
   aumFinalBalance,
@@ -1900,6 +1951,10 @@ function LegacyToHeirsInfo({
   blueHeirTax: number;
   blueNetLegacy: number;
   heldBackResidual: number;
+  qlacActive: boolean;
+  qlacPremium: number;
+  qlacTotalPaid: number;
+  blueFinalQlacDeathBenefit: number;
   heirTaxRate: number;
   aumActive: boolean;
   aumFinalBalance: number;
@@ -1933,6 +1988,13 @@ function LegacyToHeirsInfo({
 
       <TipSection label="Strategy Inheritance" variant="gold">
         <TipRow label="Traditional IRA balance" value={toUSD(blueFinalTraditional)} />
+        {qlacActive && (
+          <TipRow
+            label="+ QLAC death benefit (pre-tax)"
+            value={toUSD(blueFinalQlacDeathBenefit)}
+            note={<>Return of premium: {toUSD(qlacPremium)} paid in, less {toUSD(qlacTotalPaid)} of income received. Taxed to heirs like an inherited IRA.</>}
+          />
+        )}
         <TipRow label={`− Heir's income tax (${heirTaxPct}%)`} value={toUSD(blueHeirTax)} variant="negative" />
         <TipRow label="+ Roth IRA (tax-free)" value={toUSD(blueFinalRoth)} variant="positive" />
         {aumActive ? (

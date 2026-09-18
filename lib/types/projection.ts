@@ -99,6 +99,12 @@ export interface Projection {
   // Null when AUM allocation is off (current behavior).
   aum_years: YearlyResult[] | null;
   aum_final_balance: number | null;
+
+  // QLAC return-of-premium value in the final year of each side (cents).
+  // Heir-taxable like a Traditional balance — add to *_final_traditional when
+  // computing heir tax. Null/0 without a QLAC on that side.
+  baseline_final_qlac_death_benefit?: number | null;
+  blueprint_final_qlac_death_benefit?: number | null;
 }
 
 export type ProjectionInsert = Omit<Projection, 'id' | 'created_at'>;

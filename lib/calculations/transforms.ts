@@ -218,8 +218,9 @@ export function extractSummaryMetrics(
 ): SummaryMetrics {
   if (isProjection(data)) {
     // Database Projection - uses pre-calculated final values
-    const baselineNetLegacy = data.baseline_final_net_worth - Math.round((data.baseline_final_traditional ?? 0) * heirTaxRate);
-    const formulaNetLegacy = data.blueprint_final_net_worth - Math.round((data.blueprint_final_traditional ?? 0) * heirTaxRate);
+    // Heir tax on the Traditional remainder + the QLAC's unrecovered premium (inherited pre-tax).
+    const baselineNetLegacy = data.baseline_final_net_worth - Math.round(((data.baseline_final_traditional ?? 0) + (data.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+    const formulaNetLegacy = data.blueprint_final_net_worth - Math.round(((data.blueprint_final_traditional ?? 0) + (data.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     return {
       baselineEndWealth: baselineNetLegacy,
       formulaEndWealth: formulaNetLegacy,

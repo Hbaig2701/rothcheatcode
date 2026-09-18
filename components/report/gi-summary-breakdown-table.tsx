@@ -23,7 +23,7 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
     const baseFinalRoth = projection.baseline_final_roth;
     const baseAfterTaxDist = baseRMDs - baseTax;
     // Heir tax only applies to Traditional IRA portion (taxable already taxed)
-    const baseLegacyTax = Math.round(baseFinalTraditional * heirTaxRate);
+    const baseLegacyTax = Math.round((baseFinalTraditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     // Net legacy = final net worth (includes taxable) minus heir taxes on traditional
     const baseNetLegacy = projection.baseline_final_net_worth - baseLegacyTax;
 
@@ -49,7 +49,7 @@ export function GISummaryBreakdownTable({ projection }: GISummaryBreakdownTableP
     const giTaxOnPayments = giTotalGross - giTotalNet;
 
     // Heir tax only on remaining traditional (annuity account value)
-    const blueLegacyTax = Math.round(blueFinalTraditional * heirTaxRate);
+    const blueLegacyTax = Math.round((blueFinalTraditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     // Net legacy = final net worth (includes taxable where GI accumulates) minus heir taxes
     const blueNetLegacy = projection.blueprint_final_net_worth - blueLegacyTax;
 

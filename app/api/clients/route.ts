@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false }),
     supabase
       .from("projections")
-      .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, gi_tax_free_wealth_created, baseline_final_traditional, blueprint_final_traditional, baseline_years")
+      .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, gi_tax_free_wealth_created, baseline_final_traditional, blueprint_final_traditional, baseline_final_qlac_death_benefit, blueprint_final_qlac_death_benefit, baseline_years")
       .in("user_id", visibleUserIds)
       .order("created_at", { ascending: false }),
   ]);
@@ -100,11 +100,11 @@ export async function GET(request: NextRequest) {
             const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
 
             // Baseline
-            const baseHeirTax = Math.round(p.baseline_final_traditional * heirTaxRate);
+            const baseHeirTax = Math.round((p.baseline_final_traditional + (p.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
             const baseLifetime = p.baseline_final_net_worth - baseHeirTax;
 
             // Strategy
-            const blueHeirTax = Math.round(p.blueprint_final_traditional * heirTaxRate);
+            const blueHeirTax = Math.round((p.blueprint_final_traditional + (p.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
             const blueLifetime = p.blueprint_final_net_worth - blueHeirTax;
             
             const diff = blueLifetime - baseLifetime;

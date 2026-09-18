@@ -1,4 +1,5 @@
 import type { YearlyResult } from './types';
+import { isQlacActive, getQlacPremium, getQlacIncomeStartAge, hasQlacReturnOfPremium, finalQlacDeathBenefit } from './utils/qlac';
 import type { Client } from '@/lib/types/client';
 import type { Projection } from '@/lib/types/projection';
 // (Story "Tax on Conversion" now reads the engine's conversion-attributable
@@ -20,6 +21,8 @@ export type StoryTrigger =
   | 'widow_first_death'     // NEW: widow_death_age reached
   | 'early_withdrawal_penalty' // NEW: 10% penalty incurred under 59½
   | 'carrier_cap_overflow'  // NEW: penalty-free cap binding, conversion tax overflow paid externally
+  | 'qlac_purchase'         // NEW: QLAC premium carved out of the IRA in year 1
+  | 'qlac_income_start'     // NEW: QLAC payouts begin
   | 'social_security_start'
   | 'spouse_ss_start'
   | 'rmd_age'
@@ -178,6 +181,17 @@ export function generateStory(
   const widowAnalysisActive = client.widow_analysis === true;
   const widowDeathAge = client.widow_death_age ?? null;
 
+  // QLAC context. The premium leaves the IRA in year 1 (strategy side; both
+  // sides when qlac_in_baseline), so the strategy's Traditional balance and
+  // RMDs are net of it from the start. Payouts show up in qlacPayout.
+  const qlacActive = isQlacActive(client);
+  const qlacPremium = getQlacPremium(client);
+  const qlacStartAge = getQlacIncomeStartAge(client);
+  const qlacAnnualIncome = client.qlac_annual_income ?? 0;
+  const qlacRop = hasQlacReturnOfPremium(client);
+  const qlacInBaseline = client.qlac_in_baseline === true;
+  let qlacIncomeStartFired = false;
+
   // Voluntary withdrawals — the advisor's hand-scheduled pulls. Engine writes
   // these into the projection's iraWithdrawal/rothWithdrawal fields. In the
   // combined blueprint_years, the AUM transfer also lands in iraWithdrawal,
@@ -267,6 +281,13 @@ export function generateStory(
     });
   }
 
+  if (qlacActive) {
+    setupDetails.push({
+      label: 'QLAC',
+      value: `${formatCurrency(qlacPremium)} premium · ${formatCurrency(qlacAnnualIncome)}/yr from age ${qlacStartAge} · ${qlacRop ? 'return of premium' : 'life only'}${qlacInBaseline ? ' · already owned (both scenarios)' : ''}`,
+    });
+  }
+
   if (hasScheduledWithdrawals) {
     setupDetails.push({
       label: 'Voluntary withdrawals',
@@ -285,7 +306,7 @@ export function generateStory(
 
   // Short framing sentence — cards above the timeline orient the advisor.
   // Detail rows do the heavy lifting underneath.
-  const setupBody = aumActive || conversionType === 'no_conversion' || hasScheduledWithdrawals || widowAnalysisActive
+  const setupBody = aumActive || conversionType === 'no_conversion' || hasScheduledWithdrawals || widowAnalysisActive || qlacActive
     ? "Here's how this scenario is configured. Each line below is a parameter the advisor chose that drives the numbers in the rest of the timeline."
     : `Here's the plan. Roth conversions over ${totalConversionYears} ${totalConversionYears === 1 ? 'year' : 'years'} starting at age ${firstConversionEntry?.age ?? (client.age ?? 62) + yearsToDefer}, paid for from ${taxPaymentSource === 'from_ira' ? 'the IRA itself' : 'outside funds'}.`;
 
@@ -739,6 +760,72 @@ export function generateStory(
       });
     }
 
+    // QLAC PURCHASE — year 1. The premium comes off the top of the IRA before
+    // the bonus, the conversion plan, or any RMD: it's out of the RMD base for
+    // good, and it's what makes the strategy's Traditional balance start below
+    // the "Starting IRA" on the setup card.
+    if (qlacActive && index === 0) {
+      const remainingIra = originalIRA - qlacPremium;
+      const ropClause = qlacRop
+        ? ` If you pass away before the income has repaid the premium, your heirs receive the difference (${formatCurrency(qlacPremium)} today) — taxed as inherited IRA money.`
+        : ' This is a life-only contract: it pays for as long as you live and leaves nothing to heirs, which is why the income is higher.';
+      storyEntries.push({
+        year: year.year,
+        age: year.age,
+        trigger: 'qlac_purchase',
+        headline: 'QLAC Purchased — Premium Leaves the RMD Calculation',
+        body: `At age ${year.age}, ${formatCurrency(qlacPremium)} of your ${formatCurrency(originalIRA)} IRA buys a Qualified Longevity Annuity Contract. The IRS stops counting that money for RMDs — so the RMDs on the remaining ${formatCurrency(remainingIra)} are smaller from the first RMD year at ${rmdStartAge} — and in exchange it pays a guaranteed ${formatCurrency(qlacAnnualIncome)} a year for life starting at age ${qlacStartAge}. It isn't converted, has no cash value, and ${isNoAnnuity ? 'earns no visible account value' : 'earns no premium bonus'} while it waits.${ropClause}`,
+        metrics: [
+          { label: 'QLAC Premium', value: formatCurrency(qlacPremium) },
+          { label: 'Income From Age', value: String(qlacStartAge) },
+          { label: 'Guaranteed Income', value: `${formatCurrency(qlacAnnualIncome)}/yr` },
+        ],
+        comparison: qlacInBaseline
+          ? 'Both scenarios hold this QLAC, so the comparison isolates the Roth conversion itself.'
+          : `Baseline scenario: the full ${formatCurrency(originalIRA)} stays in the Traditional IRA and every dollar of it counts toward RMDs at ${rmdStartAge}.`,
+        runningTotals: {
+          totalConverted: formatCurrency(totalConverted),
+          totalTaxPaid: formatCurrency(totalTaxPaid),
+          rothBalance: formatCurrency(year.rothBalance),
+          iraBalance: formatCurrency(year.traditionalBalance),
+        },
+        icon: 'milestone',
+        sentiment: 'neutral',
+      });
+    }
+
+    // QLAC INCOME START — first year a payout lands. It's ordinary income, so
+    // call out the bracket/IRMAA effect the advisor is managing around it.
+    if (qlacActive && !qlacIncomeStartFired && (year.qlacPayout ?? 0) > 0) {
+      qlacIncomeStartFired = true;
+      const irmaaClause = (year.irmaaSurcharge ?? 0) > 0
+        ? ` It counts toward IRMAA too — this year's surcharge is ${formatCurrency(year.irmaaSurcharge)}.`
+        : ' It counts toward IRMAA as well, so watch the tier in the years that follow.';
+      const ropClause = qlacRop
+        ? ` Each payment also reduces the return-of-premium death benefit; it reaches $0 once ${formatCurrency(qlacPremium)} has been paid out.`
+        : '';
+      storyEntries.push({
+        year: year.year,
+        age: year.age,
+        trigger: 'qlac_income_start',
+        headline: 'QLAC Income Begins',
+        body: `At age ${year.age}, the QLAC starts paying ${formatCurrency(year.qlacPayout ?? 0)} a year — guaranteed for life, no matter how long you live. Every dollar is taxed as ordinary income at your bracket, on top of Social Security and any other income that year.${irmaaClause}${ropClause}`,
+        metrics: [
+          { label: 'QLAC Income', value: `${formatCurrency(year.qlacPayout ?? 0)}/yr` },
+          { label: 'Taxable Income', value: formatCurrency(year.taxableIncome ?? 0) },
+          { label: 'IRMAA Tier', value: String(year.irmaaTier ?? 0) },
+        ],
+        runningTotals: {
+          totalConverted: formatCurrency(totalConverted),
+          totalTaxPaid: formatCurrency(totalTaxPaid),
+          rothBalance: formatCurrency(year.rothBalance),
+          iraBalance: formatCurrency(year.traditionalBalance),
+        },
+        icon: 'milestone',
+        sentiment: 'neutral',
+      });
+    }
+
     // SOCIAL SECURITY START
     if (!ssStarted && year.age >= primarySsStartAge && primarySsAmount > 0) {
       ssStarted = true;
@@ -807,15 +894,22 @@ export function generateStory(
       const stillConverting = sliceStrat > 0;
       let headline: string;
       let body: string;
+      // QLAC: the premium is out of the RMD base, so the strategy's RMD is on a
+      // smaller IRA than the baseline's (unless the baseline holds it too). Quote
+      // the reduction where an RMD actually exists on the strategy side.
+      const qlacRmdCut = qlacActive && !qlacInBaseline && sliceStrat > 0 ? Math.max(0, (baselineYear?.rmdAmount ?? 0) - sliceStrat) : 0;
+      const qlacRmdClause = qlacRmdCut > 0
+        ? ` Because ${formatCurrency(qlacPremium)} sits in the QLAC and doesn't count toward RMDs, this year's RMD is ${formatCurrency(qlacRmdCut)} lower than it would be on the full IRA.`
+        : '';
       if (isNoConversion) {
-        headline = 'RMDs Start Now';
-        body = `At age ${year.age}, the IRS forces you to start withdrawing from your Traditional IRA — whether you need the income or not. This year's RMD is ${formatCurrency(strategyRMD)}, and it grows every year as the IRS divisor shrinks. Every dollar is taxed at your bracket and counts toward your IRMAA tier.`;
+        headline = qlacRmdCut > 0 ? 'RMDs Start — Reduced by the QLAC' : 'RMDs Start Now';
+        body = `At age ${year.age}, the IRS forces you to start withdrawing from your Traditional IRA — whether you need the income or not. This year's RMD is ${formatCurrency(strategyRMD)}, and it grows every year as the IRS divisor shrinks. Every dollar is taxed at your bracket and counts toward your IRMAA tier.${qlacRmdClause}`;
       } else if (stillConverting) {
         headline = 'RMDs Start — Reduced by Conversion';
         const heldBackClause = externalStrat > 0
           ? `, plus ${formatCurrency(externalStrat)} from the held-back Traditional IRA`
           : '';
-        body = `At age ${year.age}, RMDs begin. You haven't finished converting yet, so the part of your IRA not yet converted still takes an RMD — ${formatCurrency(sliceStrat)} this year${heldBackClause}. But these shrink each year as the conversion finishes, and money already in Roth never has an RMD — while doing nothing keeps RMDs on the full balance for life.`;
+        body = `At age ${year.age}, RMDs begin. You haven't finished converting yet, so the part of your IRA not yet converted still takes an RMD — ${formatCurrency(sliceStrat)} this year${heldBackClause}. But these shrink each year as the conversion finishes, and money already in Roth never has an RMD — while doing nothing keeps RMDs on the full balance for life.${qlacRmdClause}`;
       } else if (externalStrat > 0) {
         headline = 'RMDs Would Start Now';
         body = `At age ${year.age}, RMDs begin. The money you converted to Roth has NO RMDs — but the held-back Traditional IRA still requires ${formatCurrency(externalStrat)} this year, taxed at their bracket. The strategy eliminates RMDs on everything that gets converted.`;
@@ -905,13 +999,24 @@ export function generateStory(
   // versions summed roth + traditional only and missed that cost, producing
   // numbers $200K+ higher than the dashboard for clients paying tax from
   // taxable accounts.
+  // The QLAC's unrecovered premium (return-of-premium death benefit) is
+  // inherited pre-tax like a Traditional balance, so it's heir-taxed too.
   const finalYear = years[years.length - 1];
   const baseFinalTraditional = projection.baseline_final_traditional;
-  const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
+  const baseQlacDeathBenefit = finalQlacDeathBenefit(baselineYears);
+  const baseHeirTax = Math.round((baseFinalTraditional + baseQlacDeathBenefit) * heirTaxRate);
   const baselineNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
-  const strategyHeirTax = Math.round(finalYear.traditionalBalance * heirTaxRate);
+  const strategyQlacDeathBenefit = finalQlacDeathBenefit(years);
+  const strategyHeirTax = Math.round((finalYear.traditionalBalance + strategyQlacDeathBenefit) * heirTaxRate);
   const strategyLegacy = projection.blueprint_final_net_worth - strategyHeirTax;
   const difference = strategyLegacy - baselineNetLegacy;
+  const qlacLegacyClause = qlacActive
+    ? strategyQlacDeathBenefit > 0
+      ? ` The QLAC's remaining return-of-premium benefit of ${formatCurrency(strategyQlacDeathBenefit)} passes to heirs as well, taxed like inherited IRA money.`
+      : qlacRop
+        ? ' The QLAC has paid out more than its premium by now, so its death benefit is exhausted — the income it delivered is already in the taxable account above.'
+        : ' The life-only QLAC leaves nothing to heirs by design; the income it paid is already in the taxable account above.'
+    : '';
 
   // Tailor the body so the legacy story reflects what's actually in the
   // estate: Roth alone if no split, Roth + AUM when AUM is on, or — for
@@ -921,7 +1026,7 @@ export function generateStory(
     ? `When you pass, your heirs inherit a Traditional IRA of ${formatCurrency(finalYear.traditionalBalance)}. Under SECURE Act, non-spouse heirs must drain it within 10 years and pay ordinary income tax on every dollar. At the ${Math.round(heirTaxRate * 100)}% rate assumed here, that's ${formatCurrency(strategyHeirTax)} of income tax — leaving ${formatCurrency(strategyLegacy)} net.`
     : aumActive
       ? `When you pass, your heirs receive ${formatCurrency(strategyLegacy)}. The Roth IRA (${formatCurrency(finalYear.rothBalance)}) passes completely tax-free, and the AUM brokerage (${formatCurrency(aumFinalBalance)}) gets a step-up in basis at death — heirs owe nothing on the unrealized gains accumulated during life.`
-      : `When you pass, your heirs receive ${formatCurrency(strategyLegacy)} — your Roth IRA passes completely tax-free, with no income tax, no waiting, no complications.`;
+      : `When you pass, your heirs receive ${formatCurrency(strategyLegacy)} — your Roth IRA passes completely tax-free, with no income tax, no waiting, no complications.${qlacLegacyClause}`;
 
   storyEntries.push({
     year: finalYear.year,
@@ -985,15 +1090,17 @@ function getTrigggerPriority(trigger: StoryTrigger): number {
     'fully_converted': 9,
     'early_withdrawal_penalty': 10,
     'carrier_cap_overflow': 11,     // Same-year as conversion_year typically
-    'break_even': 12,
-    'roth_exceeds_original': 13,
-    'social_security_start': 14,
-    'spouse_ss_start': 15,
-    'widow_first_death': 16,
-    'rmd_age': 17,
-    'decade_snapshot': 18,
-    'projection_end': 19,
-    'death_legacy': 20,
+    'qlac_purchase': 12,            // Year 1, right after the setup + first-conversion cards
+    'break_even': 13,
+    'roth_exceeds_original': 14,
+    'social_security_start': 15,
+    'spouse_ss_start': 16,
+    'qlac_income_start': 17,        // Reads as an income event alongside SS
+    'widow_first_death': 18,
+    'rmd_age': 19,
+    'decade_snapshot': 20,
+    'projection_end': 21,
+    'death_legacy': 22,
   };
   return priorities[trigger] ?? 99;
 }

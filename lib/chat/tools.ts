@@ -351,7 +351,7 @@ async function runGetProjectionSummary(
   const { data: projectionRaw, error } = await ctx.supabase
     .from("projections")
     .select(
-      "client_id, break_even_age, total_tax_savings, heir_benefit, baseline_final_traditional, baseline_final_roth, baseline_final_taxable, baseline_final_net_worth, blueprint_final_traditional, blueprint_final_roth, blueprint_final_taxable, blueprint_final_net_worth, strategy, projection_years"
+      "client_id, break_even_age, total_tax_savings, heir_benefit, baseline_final_traditional, baseline_final_roth, baseline_final_taxable, baseline_final_net_worth, blueprint_final_traditional, blueprint_final_roth, blueprint_final_taxable, blueprint_final_net_worth, baseline_final_qlac_death_benefit, blueprint_final_qlac_death_benefit, strategy, projection_years"
     )
     .eq("client_id", clientId)
     .order("created_at", { ascending: false })
@@ -378,6 +378,8 @@ async function runGetProjectionSummary(
     blueprint_final_roth: number;
     blueprint_final_taxable: number;
     blueprint_final_net_worth: number;
+    baseline_final_qlac_death_benefit: number | null;
+    blueprint_final_qlac_death_benefit: number | null;
     strategy: string;
     projection_years: number;
   };
@@ -400,8 +402,9 @@ async function runGetProjectionSummary(
     ? heirRow.heir_tax_rate
     : (heirRow?.heir_bracket ? (parseInt(heirRow.heir_bracket, 10) || 40) : 40);
   const heirTaxRate = heirRatePct / 100;
-  const baseHeirTax = Math.round(projection.baseline_final_traditional * heirTaxRate);
-  const blueHeirTax = Math.round(projection.blueprint_final_traditional * heirTaxRate);
+  // Heir tax on the Traditional remainder + the QLAC's unrecovered premium (inherited pre-tax).
+  const baseHeirTax = Math.round((projection.baseline_final_traditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+  const blueHeirTax = Math.round((projection.blueprint_final_traditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
   const baseLifetimeWealth = projection.baseline_final_net_worth - baseHeirTax;
   const blueLifetimeWealth = projection.blueprint_final_net_worth - blueHeirTax;
 
@@ -421,6 +424,7 @@ async function runGetProjectionSummary(
       final_roth_dollars: Math.round(projection.blueprint_final_roth / 100),
       final_taxable_dollars: Math.round(projection.blueprint_final_taxable / 100),
       final_net_worth_dollars: Math.round(projection.blueprint_final_net_worth / 100),
+      qlac_death_benefit_dollars: Math.round((projection.blueprint_final_qlac_death_benefit ?? 0) / 100),
       heir_tax_dollars: Math.round(blueHeirTax / 100),
       lifetime_wealth_dollars: Math.round(blueLifetimeWealth / 100),
     },
