@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { Client } from '@/lib/types/client';
+import { applyQlacToClient, applyQlacOverlay, isQlacActive } from '@/lib/calculations/utils/qlac';
 import { analyzeBreakEven } from '@/lib/calculations/analysis/breakeven';
 import { runSensitivityAnalysis } from '@/lib/calculations/analysis/sensitivity';
 import { analyzeWidowPenalty, analyzeWidowPenaltyFromProjection } from '@/lib/calculations/analysis/widow-penalty';
@@ -62,16 +63,33 @@ export async function GET(
   const customProduct = typedClient.custom_product_id
     ? await getCustomProduct(user.id, typedClient.custom_product_id)
     : null;
-  const simulationInput = createSimulationInput(typedClient, customProduct);
   const formulaType = typedClient.blueprint_type as FormulaType;
   const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
   const isGrowth = formulaType && isGrowthProduct(formulaType);
 
-  const baseResult = isGI
-    ? runGuaranteedIncomeSimulation(simulationInput)
-    : isGrowth
-      ? runGrowthSimulation(simulationInput)
-      : runSimulation(simulationInput);
+  const runEngine = (client: Client) => {
+    const input = createSimulationInput(client, customProduct);
+    return isGI
+      ? runGuaranteedIncomeSimulation(input)
+      : isGrowth
+        ? runGrowthSimulation(input)
+        : runSimulation(input);
+  };
+
+  // QLAC: same carve-out + overlay as the projections route, so breakeven and
+  // the widow re-price see the strategy the report shows (premium out of the
+  // IRA, payouts in ordinary income). Strategy side always; the baseline only
+  // when the client already owns it — otherwise the do-nothing side is re-run
+  // on the full IRA. No-op without a QLAC.
+  const qlacStrategyOnly = isQlacActive(typedClient) && !typedClient.qlac_in_baseline;
+  const strategyResult = runEngine(applyQlacToClient(typedClient));
+  const baseResult = qlacStrategyOnly
+    ? { ...strategyResult, baseline: runEngine(typedClient).baseline }
+    : strategyResult;
+  if (isQlacActive(typedClient)) {
+    applyQlacOverlay(typedClient, baseResult.formula);
+    if (typedClient.qlac_in_baseline) applyQlacOverlay(typedClient, baseResult.baseline);
+  }
 
   const response: AnalysisResponse = {
     breakeven: null,

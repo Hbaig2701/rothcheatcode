@@ -52,9 +52,11 @@ function isProjection(input: Projection | SimulationResult): input is Projection
 function calculateFormulaLegacyToHeirs(years: YearlyResult[], heirTaxRate: number = 0.40): number[] {
   return years.map(year => {
     const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    // QLAC return-of-premium value is inherited pre-tax, like the Traditional.
+    const qlacToHeirs = Math.round((year.qlacDeathBenefit ?? 0) * (1 - heirTaxRate));
     const rothToHeirs = year.rothBalance;
     const cashToHeirs = year.taxableBalance || 0;
-    return traditionalToHeirs + rothToHeirs + cashToHeirs;
+    return traditionalToHeirs + qlacToHeirs + rothToHeirs + cashToHeirs;
   });
 }
 
@@ -72,9 +74,11 @@ function calculateFormulaLegacyToHeirs(years: YearlyResult[], heirTaxRate: numbe
 function calculateBaselineLegacyToHeirs(years: YearlyResult[], heirTaxRate: number = 0.40): number[] {
   return years.map(year => {
     const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    // QLAC return-of-premium value is inherited pre-tax, like the Traditional.
+    const qlacToHeirs = Math.round((year.qlacDeathBenefit ?? 0) * (1 - heirTaxRate));
     const rothToHeirs = year.rothBalance;
     const cashToHeirs = year.taxableBalance || 0;
-    return traditionalToHeirs + rothToHeirs + cashToHeirs;
+    return traditionalToHeirs + qlacToHeirs + rothToHeirs + cashToHeirs;
   });
 }
 
@@ -233,8 +237,8 @@ export function extractSummaryMetrics(
     // In-memory SimulationResult - extract from arrays
     const lastBaseline = data.baseline[data.baseline.length - 1];
     const lastFormula = data.formula[data.formula.length - 1];
-    const baselineNetLegacy = (lastBaseline.netWorth ?? 0) - Math.round((lastBaseline.traditionalBalance ?? 0) * heirTaxRate);
-    const formulaNetLegacy = (lastFormula.netWorth ?? 0) - Math.round((lastFormula.traditionalBalance ?? 0) * heirTaxRate);
+    const baselineNetLegacy = (lastBaseline.netWorth ?? 0) - Math.round(((lastBaseline.traditionalBalance ?? 0) + (lastBaseline.qlacDeathBenefit ?? 0)) * heirTaxRate);
+    const formulaNetLegacy = (lastFormula.netWorth ?? 0) - Math.round(((lastFormula.traditionalBalance ?? 0) + (lastFormula.qlacDeathBenefit ?? 0)) * heirTaxRate);
 
     return {
       baselineEndWealth: baselineNetLegacy,

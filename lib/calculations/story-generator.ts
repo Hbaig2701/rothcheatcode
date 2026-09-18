@@ -895,12 +895,21 @@ export function generateStory(
       let headline: string;
       let body: string;
       // QLAC: the premium is out of the RMD base, so the strategy's RMD is on a
-      // smaller IRA than the baseline's (unless the baseline holds it too). Quote
-      // the reduction where an RMD actually exists on the strategy side.
-      const qlacRmdCut = qlacActive && !qlacInBaseline && sliceStrat > 0 ? Math.max(0, (baselineYear?.rmdAmount ?? 0) - sliceStrat) : 0;
+      // smaller IRA than the baseline's (unless the baseline holds it too). The
+      // baseline-vs-strategy gap is ONLY attributable to the QLAC when nothing
+      // is being converted; while converting, the gap is mostly the conversion,
+      // so quote the dollar cut in the no-conversion branch and a plain
+      // "outside the RMD calculation" clause otherwise.
+      // (bonusAmount === 0 too: an FIA premium bonus inflates the strategy's
+      // RMD base and would mask or even reverse the QLAC's cut.)
+      const qlacRmdCut = qlacActive && !qlacInBaseline && isNoConversion && bonusAmount === 0 && sliceStrat > 0
+        ? Math.max(0, (baselineYear?.rmdAmount ?? 0) - sliceStrat)
+        : 0;
       const qlacRmdClause = qlacRmdCut > 0
         ? ` Because ${formatCurrency(qlacPremium)} sits in the QLAC and doesn't count toward RMDs, this year's RMD is ${formatCurrency(qlacRmdCut)} lower than it would be on the full IRA.`
-        : '';
+        : qlacActive && sliceStrat > 0
+          ? ` The ${formatCurrency(qlacPremium)} in the QLAC sits outside this calculation entirely.`
+          : '';
       if (isNoConversion) {
         headline = qlacRmdCut > 0 ? 'RMDs Start — Reduced by the QLAC' : 'RMDs Start Now';
         body = `At age ${year.age}, the IRS forces you to start withdrawing from your Traditional IRA — whether you need the income or not. This year's RMD is ${formatCurrency(strategyRMD)}, and it grows every year as the IRS divisor shrinks. Every dollar is taxed at your bracket and counts toward your IRMAA tier.${qlacRmdClause}`;
@@ -1023,7 +1032,7 @@ export function generateStory(
   // no_conversion — a Traditional inheritance with income tax due as heirs
   // drain it under SECURE Act's 10-year window.
   const legacyBody = isNoConversion
-    ? `When you pass, your heirs inherit a Traditional IRA of ${formatCurrency(finalYear.traditionalBalance)}. Under SECURE Act, non-spouse heirs must drain it within 10 years and pay ordinary income tax on every dollar. At the ${Math.round(heirTaxRate * 100)}% rate assumed here, that's ${formatCurrency(strategyHeirTax)} of income tax — leaving ${formatCurrency(strategyLegacy)} net.`
+    ? `When you pass, your heirs inherit a Traditional IRA of ${formatCurrency(finalYear.traditionalBalance)}${strategyQlacDeathBenefit > 0 ? ` plus the QLAC's remaining ${formatCurrency(strategyQlacDeathBenefit)} return-of-premium benefit` : ''}. Under SECURE Act, non-spouse heirs must drain it within 10 years and pay ordinary income tax on every dollar. At the ${Math.round(heirTaxRate * 100)}% rate assumed here, that's ${formatCurrency(strategyHeirTax)} of income tax — leaving ${formatCurrency(strategyLegacy)} net.${strategyQlacDeathBenefit > 0 ? '' : qlacLegacyClause}`
     : aumActive
       ? `When you pass, your heirs receive ${formatCurrency(strategyLegacy)}. The Roth IRA (${formatCurrency(finalYear.rothBalance)}) passes completely tax-free, and the AUM brokerage (${formatCurrency(aumFinalBalance)}) gets a step-up in basis at death — heirs owe nothing on the unrealized gains accumulated during life.`
       : `When you pass, your heirs receive ${formatCurrency(strategyLegacy)} — your Roth IRA passes completely tax-free, with no income tax, no waiting, no complications.${qlacLegacyClause}`;
@@ -1042,6 +1051,7 @@ export function generateStory(
     metrics: isNoConversion
       ? [
           { label: 'Traditional Inherited', value: formatCurrency(finalYear.traditionalBalance) },
+          ...(strategyQlacDeathBenefit > 0 ? [{ label: 'QLAC Death Benefit', value: formatCurrency(strategyQlacDeathBenefit) }] : []),
           { label: 'Heir Income Tax', value: formatCurrency(strategyHeirTax) },
           { label: 'Net to Heirs', value: formatCurrency(strategyLegacy) },
         ]

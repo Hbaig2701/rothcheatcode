@@ -94,8 +94,11 @@ export function TaxDataSection() {
   const [isManualEdit, setIsManualEdit] = useState(false);
 
   // QLAC block reveal. UI-only: the engine keys the feature off qlac_premium,
-  // so a saved premium opens the block and unchecking clears the fields.
-  const [qlacOpen, setQlacOpen] = useState<boolean>((form.getValues("qlac_premium") ?? 0) > 0);
+  // so a saved premium always shows the block (also after a form reset when the
+  // sidebar switches scenarios), and the checkbox only adds "opened but not yet
+  // filled in". Unchecking clears the fields, which closes it.
+  const [qlacManualOpen, setQlacManualOpen] = useState(false);
+  const qlacOpen = qlacManualOpen || (form.watch("qlac_premium") ?? 0) > 0;
 
   // Check on mount if the current value differs from preset (indicates manual edit)
   useEffect(() => {
@@ -645,7 +648,7 @@ export function TaxDataSection() {
           checked={qlacOpen}
           onCheckedChange={(checked) => {
             const on = checked === true;
-            setQlacOpen(on);
+            setQlacManualOpen(on);
             if (on) {
               if (!form.getValues("qlac_income_start_age")) form.setValue("qlac_income_start_age", 85, { shouldDirty: true });
               if (!form.getValues("qlac_death_benefit")) form.setValue("qlac_death_benefit", "return_of_premium", { shouldDirty: true });

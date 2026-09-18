@@ -470,17 +470,16 @@ function applyQlacOverlays(client: Client, result: SimulationResult): void {
   if (!isQlacActive(client)) return;
   applyQlacOverlay(client, result.formula);
   if (client.qlac_in_baseline) applyQlacOverlay(client, result.baseline);
-  // Re-price heirBenefit (baseline heir tax − strategy heir tax): the engines
-  // computed it on the Traditional balances alone — and, for a strategy-only
-  // QLAC, against the carved-out split baseline rather than the full one — but
-  // the unrecovered QLAC premium is inherited pre-tax exactly like a
-  // Traditional balance, so the side holding it owes heir tax on it too.
+  // Adjust heirBenefit (baseline heir tax − strategy heir tax) for the QLAC:
+  // the unrecovered premium is inherited pre-tax exactly like a Traditional
+  // balance, so the side holding it owes heir tax on it too. Applied as a
+  // DELTA on top of each engine's own figure — the GI engine deliberately
+  // taxes its strategy side at $0 (the Roth annuity's value is mapped into
+  // traditionalBalance), so recomputing from the balances would be wrong there.
   const heirRate = (client.heir_tax_rate ?? 40) / 100;
-  const lastBaseline = result.baseline[result.baseline.length - 1];
-  const lastFormula = result.formula[result.formula.length - 1];
-  const baselineHeirTax = Math.round((lastBaseline.traditionalBalance + finalQlacDeathBenefit(result.baseline)) * heirRate);
-  const strategyHeirTax = Math.round((lastFormula.traditionalBalance + finalQlacDeathBenefit(result.formula)) * heirRate);
-  result.heirBenefit = baselineHeirTax - strategyHeirTax;
+  const baselineQlacHeirTax = Math.round(finalQlacDeathBenefit(result.baseline) * heirRate);
+  const strategyQlacHeirTax = Math.round(finalQlacDeathBenefit(result.formula) * heirRate);
+  result.heirBenefit += baselineQlacHeirTax - strategyQlacHeirTax;
 }
 
 /**

@@ -5,6 +5,7 @@ import { ArrowLeft, Rocket, TrendingUp, MapPin, Shield, Target, Flag, DollarSign
 import { cn } from "@/lib/utils";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
+import { isQlacActive, getQlacPremium, getQlacIncomeStartAge, hasQlacReturnOfPremium } from "@/lib/calculations/utils/qlac";
 
 interface GIStoryModeProps {
   client: Client;
@@ -96,6 +97,16 @@ function generateGIStory(client: Client, projection: Projection): StoryEntry[] {
   let startingIncomeBase = 0;
   let currentIncomeBase = 0;
 
+  // QLAC context — the overlay fields live on blueprint_years (keyed by year),
+  // not on the GI phase rows this loop walks.
+  const qlacActive = isQlacActive(client);
+  const qlacPremium = getQlacPremium(client);
+  const qlacStartAge = getQlacIncomeStartAge(client);
+  const qlacAnnualIncome = client.qlac_annual_income ?? 0;
+  const qlacRop = hasQlacReturnOfPremium(client);
+  const blueprintByYear = new Map((projection.blueprint_years ?? []).map((y) => [y.year, y]));
+  let qlacIncomeFired = false;
+
   for (let i = 0; i < giYearlyData.length; i++) {
     const row = giYearlyData[i];
     const prevRow = i > 0 ? giYearlyData[i - 1] : null;
@@ -124,6 +135,48 @@ function generateGIStory(client: Client, projection: Projection): StoryEntry[] {
       incomeBase: toUSD(currentIncomeBase),
       cumulativeIncome: toUSD(cumulativeIncome),
     };
+
+    // QLAC beats — independent of the phase chain below so they never
+    // suppress an existing milestone in the same year.
+    if (qlacActive && i === 0) {
+      entries.push({
+        year: row.year,
+        age: row.age,
+        trigger: "qlac_purchase",
+        headline: "QLAC Purchased — Premium Leaves the RMD Calculation",
+        body: `Before anything else, ${toUSD(qlacPremium)} of the IRA buys a Qualified Longevity Annuity Contract. The IRS stops counting that money for RMDs, it isn't converted and earns no bonus, and in exchange it pays a guaranteed ${toUSD(qlacAnnualIncome)} a year for life from age ${qlacStartAge}.${qlacRop ? ` Die before the income has repaid the premium and your heirs receive the difference, taxed as inherited IRA money.` : ` It's life-only: nothing passes to heirs, which is why the income is higher.`}`,
+        icon: "shield",
+        sentiment: "neutral",
+        metrics: [
+          { label: "QLAC Premium", value: toUSD(qlacPremium) },
+          { label: "Income From Age", value: String(qlacStartAge) },
+          { label: "Guaranteed Income", value: `${toUSD(qlacAnnualIncome)}/yr` },
+        ],
+        comparison: client.qlac_in_baseline
+          ? "Both scenarios hold this QLAC, so the comparison isolates the Roth strategy itself."
+          : `Baseline scenario: the full IRA stays Traditional and every dollar of it counts toward RMDs.`,
+        runningTotals,
+      });
+    }
+    const qlacRow = qlacActive ? blueprintByYear.get(row.year) : undefined;
+    if (qlacRow && !qlacIncomeFired && (qlacRow.qlacPayout ?? 0) > 0) {
+      qlacIncomeFired = true;
+      entries.push({
+        year: row.year,
+        age: row.age,
+        trigger: "qlac_income_start",
+        headline: "QLAC Income Begins",
+        body: `At age ${row.age}, the QLAC starts paying ${toUSD(qlacRow.qlacPayout ?? 0)} a year — guaranteed for life. Unlike the Roth annuity's income, every dollar is taxed as ordinary income and counts toward IRMAA${(qlacRow.irmaaSurcharge ?? 0) > 0 ? ` (this year's surcharge: ${toUSD(qlacRow.irmaaSurcharge)})` : ""}.${qlacRop ? ` Each payment also reduces the return-of-premium death benefit until ${toUSD(qlacPremium)} has been paid out.` : ""}`,
+        icon: "income",
+        sentiment: "neutral",
+        metrics: [
+          { label: "QLAC Income", value: `${toUSD(qlacRow.qlacPayout ?? 0)}/yr` },
+          { label: "Taxable Income", value: toUSD(qlacRow.taxableIncome ?? 0) },
+          { label: "IRMAA Tier", value: String(qlacRow.irmaaTier ?? 0) },
+        ],
+        runningTotals,
+      });
+    }
 
     // CONVERSION START
     if (row.phase === "conversion" && conversionYearCount === 1) {

@@ -298,7 +298,7 @@ async function runGetClientDetails(
   const { data, error } = await ctx.supabase
     .from("clients")
     .select(
-      "id, name, age, spouse_name, spouse_age, filing_status, state, state_tax_rate, qualified_account_value, roth_ira, taxable_accounts, blueprint_type, custom_product_id, carrier_name, product_name, bonus_percent, rate_of_return, baseline_comparison_rate, conversion_type, fixed_conversion_amount, target_partial_amount, constraint_type, tax_rate, max_tax_rate, tax_payment_source, ssi_payout_age, ssi_annual_amount, spouse_ssi_payout_age, spouse_ssi_annual_amount, end_age, heir_tax_rate, widow_analysis, widow_death_age, rmd_treatment, aum_allocation_percent, respect_penalty_free_limit, penalty_free_scope, penalty_free_percent, surrender_years"
+      "id, name, age, spouse_name, spouse_age, filing_status, state, state_tax_rate, qualified_account_value, roth_ira, taxable_accounts, blueprint_type, custom_product_id, carrier_name, product_name, bonus_percent, rate_of_return, baseline_comparison_rate, conversion_type, fixed_conversion_amount, target_partial_amount, constraint_type, tax_rate, max_tax_rate, tax_payment_source, ssi_payout_age, ssi_annual_amount, spouse_ssi_payout_age, spouse_ssi_annual_amount, end_age, heir_tax_rate, widow_analysis, widow_death_age, rmd_treatment, aum_allocation_percent, respect_penalty_free_limit, penalty_free_scope, penalty_free_percent, surrender_years, qlac_premium, qlac_income_start_age, qlac_annual_income, qlac_death_benefit, qlac_in_baseline"
     )
     .eq("id", clientId)
     .single();
@@ -327,6 +327,12 @@ async function runGetClientDetails(
       d.target_partial_amount != null
         ? Math.round((d.target_partial_amount as number) / 100)
         : null,
+    // QLAC (null premium = none). Premium leaves the IRA + RMD base in year 1;
+    // annual income is taxable from the start age (default 85).
+    qlac_premium_dollars:
+      (d.qlac_premium as number | null) ? Math.round((d.qlac_premium as number) / 100) : null,
+    qlac_annual_income_dollars:
+      (d.qlac_annual_income as number | null) ? Math.round((d.qlac_annual_income as number) / 100) : null,
   };
   // Drop the raw cents fields we just normalized so the model doesn't
   // double-count or get confused.
@@ -337,6 +343,8 @@ async function runGetClientDetails(
   delete norm.spouse_ssi_annual_amount;
   delete norm.fixed_conversion_amount;
   delete norm.target_partial_amount;
+  delete norm.qlac_premium;
+  delete norm.qlac_annual_income;
 
   return JSON.stringify(norm, null, 0);
 }
