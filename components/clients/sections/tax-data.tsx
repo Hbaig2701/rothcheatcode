@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
@@ -22,7 +22,8 @@ import { PercentInput } from "@/components/ui/percent-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { US_STATES, getDefaultStateTaxRate } from "@/lib/data/states";
+import { US_STATES } from "@/lib/data/states";
+import { useStateTaxPreset } from "@/hooks/use-state-tax-preset";
 import { Lock, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FieldHelp } from "@/components/clients/field-help";
@@ -83,16 +84,15 @@ const TAX_BRACKET_OPTIONS = [
 
 export function TaxDataSection() {
   const form = useFormContext<ClientFormData>();
-  const state = form.watch("state");
-  const currentStateTaxRate = form.watch("state_tax_rate");
   const formulaType = form.watch("blueprint_type") as FormulaType;
   const isGI = isGuaranteedIncomeProduct(formulaType);
   // "No Annuity" preset — the carrier penalty-free-limit toggle (and its
   // scope sub-option) are annuity-contract concepts; hide for a plain conversion.
   const isNoAnnuity = isNoAnnuityProduct(formulaType);
 
-  // Track if user is manually editing state tax
-  const [isManualEdit, setIsManualEdit] = useState(false);
+  // State Tax lock/unlock + preset sync. Never overwrites a saved custom rate
+  // on load — see hooks/use-state-tax-preset.ts for the bug this replaced.
+  const { isManualEdit, handleManualEdit, handleUsePreset } = useStateTaxPreset(form);
 
   // QLAC block reveal. UI-only: the engine keys the feature off qlac_premium,
   // so a saved premium always shows the block (also after a form reset when the
@@ -100,36 +100,6 @@ export function TaxDataSection() {
   // filled in". Unchecking clears the fields, which closes it.
   const [qlacManualOpen, setQlacManualOpen] = useState(false);
   const qlacOpen = qlacManualOpen || (form.watch("qlac_premium") ?? 0) > 0;
-
-  // Check on mount if the current value differs from preset (indicates manual edit)
-  useEffect(() => {
-    if (state && state.length === 2 && currentStateTaxRate !== null && currentStateTaxRate !== undefined) {
-      const presetRate = getDefaultStateTaxRate(state);
-      if (Math.abs(currentStateTaxRate - presetRate) > 0.01) {
-        setIsManualEdit(true);
-      }
-    }
-  }, []); // Only run on mount
-
-  // Auto-update state tax rate when state changes (only if not in manual edit mode)
-  useEffect(() => {
-    if (!isManualEdit && state && state.length === 2) {
-      const defaultRate = getDefaultStateTaxRate(state);
-      form.setValue("state_tax_rate", defaultRate);
-    }
-  }, [state, form, isManualEdit]);
-
-  const handleManualEdit = () => {
-    setIsManualEdit(true);
-  };
-
-  const handleUsePreset = () => {
-    setIsManualEdit(false);
-    if (state && state.length === 2) {
-      const defaultRate = getDefaultStateTaxRate(state);
-      form.setValue("state_tax_rate", defaultRate);
-    }
-  };
 
   // Watch constraint_type so the IRMAA target dropdown can show/hide.
   // Watch as a known union so old DB rows with legacy values ('none' |
