@@ -61,6 +61,11 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
 
   const validateFile = (f: File): boolean => {
     setFileError('');
+    const ext = f.name.includes('.') ? f.name.slice(f.name.lastIndexOf('.')).toLowerCase() : '';
+    if (!ALLOWED_EXTENSIONS.split(',').includes(ext)) {
+      setFileError('File must be MP4, MP3, WAV, M4A, or WebM');
+      return false;
+    }
     if (f.size > MAX_SIZE_BYTES) {
       setFileError(`File must be under ${MAX_SIZE_MB}MB`);
       return false;
@@ -84,14 +89,13 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
   const handleSubmitUpload = async () => {
     if (!file) return;
 
-    const formData = new FormData();
-    formData.append('file', file);
-    if (title) formData.append('title', title);
-    if (callDate) formData.append('call_date', new Date(callDate).toISOString());
-    if (notes) formData.append('notes', notes);
-
     try {
-      const result = await uploadMutation.mutateAsync(formData);
+      const result = await uploadMutation.mutateAsync({
+        file,
+        title: title || undefined,
+        call_date: callDate ? new Date(callDate).toISOString() : undefined,
+        notes: notes || undefined,
+      });
       resetForm();
       onOpenChange(false);
       router.push(`/sales-calls/${result.id}`);
