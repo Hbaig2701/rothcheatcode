@@ -202,6 +202,14 @@
       font-size: 14pt;
     }
 
+    /* Plain-English note under a metric row (Lifetime Wealth Before/After) */
+    .metric-note {
+      font-size: 8.5pt;
+      color: #888;
+      margin: -4px 0 6px 0;
+      line-height: 1.3;
+    }
+
     /* Summary Tables */
     .summary-tables {
       display: grid;
@@ -486,10 +494,12 @@
           <span class="metric-label">Lifetime Wealth Before</span>
           <span class="metric-value">{{lifetimeWealthBefore}}</span>
         </div>
+        <div class="metric-note">Without a Roth conversion, after all taxes</div>
         <div class="metric-row">
           <span class="metric-label">Lifetime Wealth After</span>
           <span class="metric-value highlight">{{lifetimeWealthAfter}}</span>
         </div>
+        <div class="metric-note">With the Roth conversion, after all taxes</div>
         <div class="metric-row">
           <span class="metric-label">Increase</span>
           <span class="metric-value {{wealthIncreaseClass}}">{{wealthIncreaseDisplay}}%</span>
