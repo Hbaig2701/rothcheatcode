@@ -112,11 +112,11 @@ export default function ClientDetailPage({ params }: ClientDetailPageProps) {
     const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
 
     // Baseline: heir tax only on traditional portion
-    const baseHeirTax = Math.round(projection.baseline_final_traditional * heirTaxRate);
+    const baseHeirTax = Math.round((projection.baseline_final_traditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     const baseLifetime = projection.baseline_final_net_worth - baseHeirTax;
 
     // Strategy
-    const blueHeirTax = Math.round(projection.blueprint_final_traditional * heirTaxRate);
+    const blueHeirTax = Math.round((projection.blueprint_final_traditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     const blueLifetime = projection.blueprint_final_net_worth - blueHeirTax;
 
     const diff = blueLifetime - baseLifetime;

@@ -272,12 +272,13 @@ export function checkTotalTaxComposition(r: Reporter, fixture: string, scenario:
 }
 
 // ----------------------------------------------------------------------------
-// INVARIANT: netWorth == traditional + roth + taxable. The headline number must
-// equal the sum of its parts on every row.
+// INVARIANT: netWorth == traditional + roth + taxable (+ the QLAC's
+// return-of-premium bucket when a QLAC overlay has been applied). The headline
+// number must equal the sum of its parts on every row.
 // ----------------------------------------------------------------------------
 export function checkNetWorthComposition(r: Reporter, fixture: string, scenario: 'baseline' | 'formula', years: YearlyResult[]) {
   for (const y of years) {
-    const sum = y.traditionalBalance + y.rothBalance + y.taxableBalance;
+    const sum = y.traditionalBalance + y.rothBalance + y.taxableBalance + (y.qlacDeathBenefit ?? 0);
     r.ran();
     if (Math.abs(sum - y.netWorth) > TOL) {
       r.record({ fixture, scenario, check: 'networth-composition', year: y.year, age: y.age, field: 'netWorth', expected: sum, actual: y.netWorth, delta: y.netWorth - sum });

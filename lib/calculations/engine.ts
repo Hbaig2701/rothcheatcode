@@ -1,4 +1,5 @@
 import type { Client } from '@/lib/types/client';
+import { resolveHeirTaxRate } from './utils/heir-rate';
 import type { SimulationInput, SimulationResult, YearlyResult } from './types';
 import { runBaselineScenario } from './scenarios/baseline';
 import { runFormulaScenario } from './scenarios/formula';
@@ -102,15 +103,9 @@ function calculateHeirBenefit(
   const lastBaseline = baseline[baseline.length - 1];
   const lastFormula = formula[formula.length - 1];
 
-  // Use heir_tax_rate if available, otherwise parse heir_bracket, default to 40%
-  let heirRate: number;
-  if (heirTaxRate !== undefined && heirTaxRate > 0) {
-    heirRate = heirTaxRate / 100;
-  } else if (heirBracket) {
-    heirRate = parseInt(heirBracket, 10) / 100 || DEFAULT_HEIR_TAX_RATE / 100;
-  } else {
-    heirRate = DEFAULT_HEIR_TAX_RATE / 100;
-  }
+  // heir_tax_rate if set, else the legacy heir_bracket, else 40% — shared with
+  // the post-engine overlays (QLAC) via resolveHeirTaxRate so they agree.
+  const heirRate = resolveHeirTaxRate({ heir_tax_rate: heirTaxRate, heir_bracket: heirBracket });
 
   // Baseline legacy calculation
   // All traditional IRA balance is taxed to heirs
@@ -260,6 +255,22 @@ function calculateSummaryMetrics(
 /**
  * Run full simulation comparing Baseline vs Formula scenarios
  */
+/**
+ * Headline metrics for an arbitrary (baseline, formula) pair — see
+ * computeGrowthSummaryMetrics for why the projections route recomputes them.
+ */
+export function computeStandardSummaryMetrics(
+  client: Client,
+  baseline: YearlyResult[],
+  formula: YearlyResult[],
+): Pick<SimulationResult, 'breakEvenAge' | 'totalTaxSavings' | 'heirBenefit'> {
+  return {
+    breakEvenAge: calculateBreakEvenAge(baseline, formula),
+    totalTaxSavings: calculateTaxSavings(baseline, formula),
+    heirBenefit: calculateHeirBenefit(baseline, formula, client.heir_tax_rate, client.heir_bracket),
+  };
+}
+
 export function runSimulation(input: SimulationInput): SimulationResult {
   const { client, startYear, endYear } = input;
   const projectionYears = endYear - startYear + 1;
@@ -267,13 +278,7 @@ export function runSimulation(input: SimulationInput): SimulationResult {
   const baseline = runBaselineScenario(client, startYear, projectionYears);
   const formula = runFormulaScenario(client, startYear, projectionYears);
 
-  return {
-    baseline,
-    formula,
-    breakEvenAge: calculateBreakEvenAge(baseline, formula),
-    totalTaxSavings: calculateTaxSavings(baseline, formula),
-    heirBenefit: calculateHeirBenefit(baseline, formula, client.heir_tax_rate, client.heir_bracket)
-  };
+  return { baseline, formula, ...computeStandardSummaryMetrics(client, baseline, formula) };
 }
 
 /**

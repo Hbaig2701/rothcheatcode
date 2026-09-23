@@ -917,6 +917,22 @@ export function runGrowthFormulaScenario(
         conversionAmount = Math.min(conversionAmount, effectiveIraForConversion);
       }
 
+      // Residual sweep, external-tax path. Same rule as the post-tax sweep
+      // below (see its comment for the why and the thresholds), but it has to
+      // run BEFORE the conversion tax is priced: when the tax is paid from the
+      // taxable account, the account is debited for the tax on the conversion
+      // as priced here, so a sweep that enlarges the conversion afterwards
+      // leaves the tax on the swept dollars recognised in totalTax but never
+      // paid by anyone (~$5.8K on a $20K sweep at 24%+5%). With no tax pulled
+      // from the IRA there is no gross-down gap, so the residual is known now.
+      if (!payTaxFromIRA
+          && (conversionType === 'fixed_amount' || conversionType === 'full_conversion')
+          && conversionAmount > 0) {
+        const residualNow = Math.max(0, iraAfterDistribution - conversionAmount);
+        const sweepLimitNow = Math.min(2500000, Math.max(500000, Math.round(conversionAmount * 0.10)));
+        if (residualNow > 0 && residualNow <= sweepLimitNow) conversionAmount += residualNow;
+      }
+
       // Calculate marginal taxes on conversion (SS-aware delta). Skip when the
       // planner already produced authoritative tax numbers — in that path, the
       // tax is computed against the full (conversion + tax-from-IRA) distribution,
@@ -984,6 +1000,10 @@ export function runGrowthFormulaScenario(
     // leftover is under 10% of the year's conversion, floored at $5k so small
     // schedules still sweep, and hard-capped at $25k so a cap-limited year (IRMAA
     // / penalty-free) never folds a materially large balance back in.
+    // (External-tax path already swept above, before the tax was priced; here
+    // this only fires for tax-from-IRA, where the crumb is the gross-down
+    // solver's convergence gap. Known gap: the tax on THAT crumb is recognised
+    // in totalTax but the emptied IRA can't fund it — bounded by the $25K cap.)
     const residualSweepLimit = Math.min(2500000, Math.max(500000, Math.round(conversionAmount * 0.10)));
     if ((conversionType === 'fixed_amount' || conversionType === 'full_conversion')
         && conversionAmount > 0 && iraAfterConversion > 0 && iraAfterConversion <= residualSweepLimit) {

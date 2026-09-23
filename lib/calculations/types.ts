@@ -330,6 +330,22 @@ export interface YearlyResult {
   // running to the end of the projection. Absent/zero when no held-back balance.
   heldBackResidual?: number;
 
+  // QLAC (see lib/calculations/utils/qlac.ts). All cents; absent when no QLAC.
+  // qlacPayout — this year's gross QLAC income. Display-only breakout: it is
+  //   already inside otherIncome (folded into non-SSI income before the sim), so
+  //   it's taxed in the right brackets and counts toward IRMAA/SS torpedo there.
+  // qlacDeathBenefit — end-of-year return-of-premium value (premium − payouts
+  //   received, floored at 0; always 0 for life-only). Heir-taxable like a
+  //   Traditional balance. Added to netWorth as its own bucket: the netWorth
+  //   invariant is traditional + roth + taxable + qlacDeathBenefit.
+  // qlacReinvested — running balance of the after-tax QLAC payouts banked per
+  //   rmd_treatment (reinvested grows, cash accumulates flat, spent → 0). Folded
+  //   into this year's taxableBalance + netWorth so the strategy isn't penalized
+  //   the premium it turned into income.
+  qlacPayout?: number;
+  qlacDeathBenefit?: number;
+  qlacReinvested?: number;
+
   // Guaranteed Income-specific (optional, for GI products)
   incomeRiderValue?: number; // Income benefit base (in cents)
   accumulationValue?: number; // Account accumulation value (in cents)

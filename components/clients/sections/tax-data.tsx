@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { PercentInput } from "@/components/ui/percent-input";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { US_STATES } from "@/lib/data/states";
 import { useStateTaxPreset } from "@/hooks/use-state-tax-preset";
@@ -27,6 +28,7 @@ import { Lock, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
+import { QLAC_MIN_INCOME_START_AGE, QLAC_MAX_INCOME_START_AGE, QLAC_DEFAULT_INCOME_START_AGE } from "@/lib/data/qlac-limits";
 
 // Only two active values now. 'none' and 'fixed_amount' were dead code
 // (engine never read them — collapsed identically to 'bracket_ceiling'),
@@ -52,6 +54,11 @@ const IRMAA_TARGET_TIER_OPTIONS = [
 const TAX_SOURCE_OPTIONS = [
   { value: "from_taxable", label: "External (from taxable accounts)" },
   { value: "from_ira", label: "Internal (from IRA)" },
+] as const;
+
+const QLAC_DEATH_BENEFIT_OPTIONS = [
+  { value: "return_of_premium", label: "Return of Premium", description: "Heirs receive premium minus income already paid" },
+  { value: "none", label: "Life Only", description: "Higher income; nothing to heirs after death" },
 ] as const;
 
 const RMD_TREATMENT_OPTIONS = [
@@ -86,6 +93,13 @@ export function TaxDataSection() {
   // State Tax lock/unlock + preset sync. Never overwrites a saved custom rate
   // on load — see hooks/use-state-tax-preset.ts for the bug this replaced.
   const { isManualEdit, handleManualEdit, handleUsePreset } = useStateTaxPreset(form);
+
+  // QLAC block reveal. UI-only: the engine keys the feature off qlac_premium,
+  // so a saved premium always shows the block (also after a form reset when the
+  // sidebar switches scenarios), and the checkbox only adds "opened but not yet
+  // filled in". Unchecking clears the fields, which closes it.
+  const [qlacManualOpen, setQlacManualOpen] = useState(false);
+  const qlacOpen = qlacManualOpen || (form.watch("qlac_premium") ?? 0) > 0;
 
   // Watch constraint_type so the IRMAA target dropdown can show/hide.
   // Watch as a known union so old DB rows with legacy values ('none' |
@@ -588,6 +602,167 @@ export function TaxDataSection() {
                 </FieldDescription>
                 <FieldError errors={[fieldState.error]} />
               </Field>
+            )}
+          />
+        </div>
+      )}
+
+      {/* QLAC — a slice of the IRA (≤ $210K, IRS 2026 cap) moved into a deferred
+          income annuity at projection start. Excluded from the RMD base, no
+          bonus, never converted; pays a level taxable income from the chosen
+          start age (≤ 85). The engine keys the feature off qlac_premium alone,
+          so the reveal checkbox is UI state and unchecking clears every field
+          (same reasoning as the held-back block above). */}
+      <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
+        <Checkbox
+          id="qlac_enabled"
+          checked={qlacOpen}
+          onCheckedChange={(checked) => {
+            const on = checked === true;
+            setQlacManualOpen(on);
+            if (on) {
+              if (!form.getValues("qlac_income_start_age")) form.setValue("qlac_income_start_age", QLAC_DEFAULT_INCOME_START_AGE, { shouldDirty: true });
+              if (!form.getValues("qlac_death_benefit")) form.setValue("qlac_death_benefit", "return_of_premium", { shouldDirty: true });
+            } else {
+              form.setValue("qlac_premium", null, { shouldDirty: true });
+              form.setValue("qlac_income_start_age", null, { shouldDirty: true });
+              form.setValue("qlac_annual_income", null, { shouldDirty: true });
+              form.setValue("qlac_death_benefit", null, { shouldDirty: true });
+              form.setValue("qlac_in_baseline", null, { shouldDirty: true });
+            }
+          }}
+          className="mt-0.5 shrink-0"
+        />
+        <div className="flex-1 min-w-0">
+          <label
+            htmlFor="qlac_enabled"
+            className="inline-flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+          >
+            QLAC (Qualified Longevity Annuity Contract)
+            <FieldHelp {...FIELD_HELP.qlac_enabled} />
+          </label>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Move up to $210,000 of the IRA into a QLAC at the start of the plan. That premium leaves the
+            RMD calculation, isn&apos;t converted, and pays a guaranteed taxable income from the start age you
+            choose (no later than 85). Enter the figures from the carrier&apos;s QLAC quote.
+          </p>
+        </div>
+      </div>
+
+      {qlacOpen && (
+        <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-primary/30 bg-accent/50 p-4">
+          <Controller
+            name="qlac_premium"
+            control={form.control}
+            render={({ field: { ref, ...field }, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="qlac_premium" className="flex items-center gap-1.5">
+                  QLAC Premium
+                  <FieldHelp {...FIELD_HELP.qlac_premium} />
+                </FieldLabel>
+                <CurrencyInput
+                  {...field}
+                  value={field.value ?? undefined}
+                  aria-invalid={fieldState.invalid}
+                />
+                <FieldDescription>
+                  Amount moved from the IRA into the QLAC. IRS limit $210,000 per person (2026).
+                </FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+          <Controller
+            name="qlac_annual_income"
+            control={form.control}
+            render={({ field: { ref, ...field }, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="qlac_annual_income" className="flex items-center gap-1.5">
+                  QLAC Annual Income
+                  <FieldHelp {...FIELD_HELP.qlac_annual_income} />
+                </FieldLabel>
+                <CurrencyInput
+                  {...field}
+                  value={field.value ?? undefined}
+                  aria-invalid={fieldState.invalid}
+                />
+                <FieldDescription>
+                  Per year. Carrier quotes are usually monthly — multiply by 12 (e.g. $5,304.64/mo → $63,655.68). Taxed as ordinary income from the start age.
+                </FieldDescription>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+          <Field data-invalid={!!form.formState.errors.qlac_income_start_age}>
+            <FieldLabel htmlFor="qlac_income_start_age" className="flex items-center gap-1.5">
+              Income Start Age
+              <FieldHelp {...FIELD_HELP.qlac_income_start_age} />
+            </FieldLabel>
+            <Input
+              id="qlac_income_start_age"
+              type="number"
+              min={QLAC_MIN_INCOME_START_AGE}
+              max={QLAC_MAX_INCOME_START_AGE}
+              {...form.register("qlac_income_start_age", {
+                setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+              })}
+            />
+            <FieldDescription>Age payments begin — no later than 85 (IRS rule).</FieldDescription>
+            <FieldError errors={[form.formState.errors.qlac_income_start_age]} />
+          </Field>
+          <Controller
+            name="qlac_death_benefit"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="qlac_death_benefit" className="flex items-center gap-1.5">
+                  Death Benefit
+                  <FieldHelp {...FIELD_HELP.qlac_death_benefit} />
+                </FieldLabel>
+                <Select value={field.value ?? "return_of_premium"} onValueChange={field.onChange}>
+                  <SelectTrigger id="qlac_death_benefit" aria-invalid={fieldState.invalid}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {QLAC_DEATH_BENEFIT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        <div className="flex flex-col">
+                          <span>{opt.label}</span>
+                          <span className="text-xs text-muted-foreground">{opt.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+          <Controller
+            name="qlac_in_baseline"
+            control={form.control}
+            render={({ field }) => (
+              <div className="sm:col-span-2 flex flex-row items-start gap-3">
+                <Checkbox
+                  id="qlac_in_baseline"
+                  checked={field.value === true}
+                  onCheckedChange={(checked) => field.onChange(checked === true)}
+                  className="mt-0.5 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <label
+                    htmlFor="qlac_in_baseline"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+                  >
+                    Client already owns this QLAC
+                    <FieldHelp {...FIELD_HELP.qlac_in_baseline} />
+                  </label>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Apply the QLAC to the do-nothing baseline too, so the comparison isolates the Roth
+                    conversion. Leave off when the QLAC is part of the plan you&apos;re proposing.
+                  </p>
+                </div>
+              </div>
             )}
           />
         </div>

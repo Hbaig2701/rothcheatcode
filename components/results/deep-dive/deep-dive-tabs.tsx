@@ -77,7 +77,7 @@ export function DeepDiveTabs({ projection, client }: DeepDiveTabsProps) {
   const noAnnuity = isNoAnnuityProduct(client.blueprint_type);
 
   // Extract summary metrics for Summary tab
-  const metrics = extractSummaryMetrics(projection);
+  const metrics = extractSummaryMetrics(projection, (client.heir_tax_rate ?? 40) / 100);
 
   return (
     <Tabs value={currentTab} onValueChange={handleTabChange}>

@@ -25,7 +25,7 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     // Baseline: RMDs are actual distributions received (now tracked in taxable account)
     const baseAfterTaxDist = baseRMDs - baseTax;
     // Heir tax only applies to Traditional IRA portion (Roth and taxable already taxed)
-    const baseLegacyTax = Math.round(baseFinalTraditional * heirTaxRate);
+    const baseLegacyTax = Math.round((baseFinalTraditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     const baseNetLegacy = baseFinalBalance - baseLegacyTax;
 
     // --- Formula Metrics ---
@@ -36,7 +36,7 @@ export function SummaryComparisonTable({ projection }: SummaryComparisonTablePro
     const blueFinalTraditional = projection.blueprint_final_traditional;
 
     // Formula: Heir tax only on remaining Traditional (most/all should be Roth)
-    const blueLegacyTax = Math.round(blueFinalTraditional * heirTaxRate);
+    const blueLegacyTax = Math.round((blueFinalTraditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     const blueNetLegacy = blueFinalBalance - blueLegacyTax;
 
     // --- Lifetime Wealth Calculation (must match report-dashboard.tsx) ---

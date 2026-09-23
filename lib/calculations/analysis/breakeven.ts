@@ -143,8 +143,8 @@ export function analyzeBreakEven(
   const lastFormula = formula[formula.length - 1];
   const heirTaxSavings =
     lastBaseline && lastFormula
-      ? Math.round(lastBaseline.traditionalBalance * heirRate)
-        - Math.round(lastFormula.traditionalBalance * heirRate)
+      ? Math.round((lastBaseline.traditionalBalance + (lastBaseline.qlacDeathBenefit ?? 0)) * heirRate)
+        - Math.round((lastFormula.traditionalBalance + (lastFormula.qlacDeathBenefit ?? 0)) * heirRate)
       : 0;
 
   return {

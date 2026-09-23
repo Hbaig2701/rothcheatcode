@@ -107,6 +107,11 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       rmds_handled_externally: client?.rmds_handled_externally ?? false,
       held_back_ira_balance: client?.held_back_ira_balance ?? null,
       held_back_ira_growth_rate: client?.held_back_ira_growth_rate ?? null,
+      qlac_premium: client?.qlac_premium ?? null,
+      qlac_income_start_age: client?.qlac_income_start_age ?? null,
+      qlac_annual_income: client?.qlac_annual_income ?? null,
+      qlac_death_benefit: client?.qlac_death_benefit ?? null,
+      qlac_in_baseline: client?.qlac_in_baseline ?? null,
       fixed_conversion_amount: client?.fixed_conversion_amount ?? null,
       target_partial_amount: client?.target_partial_amount ?? null,
       // AUM split-allocation defaults — 0 means feature off.

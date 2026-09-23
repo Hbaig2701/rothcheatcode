@@ -79,6 +79,27 @@ function calculateHeirBenefit(
  * - Baseline: Standard "do nothing" — Traditional IRA with RMDs starting at 73 (same as legacy)
  * - Formula: Growth FIA with upfront bonus, anniversary bonuses, and strategic Roth conversions
  */
+/**
+ * Headline metrics for an arbitrary (baseline, formula) pair. The projections
+ * route swaps in a full-IRA baseline (AUM split, strategy-only QLAC) and
+ * combines the AUM overlay AFTER runGrowthSimulation returns, so it recomputes
+ * these on the rows it actually stores — otherwise heir_benefit /
+ * total_tax_savings / break_even_age describe the carved baseline the report
+ * never shows.
+ */
+export function computeGrowthSummaryMetrics(
+  client: Client,
+  baseline: YearlyResult[],
+  formula: YearlyResult[],
+): Pick<SimulationResult, 'breakEvenAge' | 'totalTaxSavings' | 'heirBenefit'> {
+  const heirTaxRate = client.heir_tax_rate ?? DEFAULT_HEIR_TAX_RATE;
+  return {
+    breakEvenAge: calculateBreakEvenAge(baseline, formula),
+    totalTaxSavings: calculateTaxSavings(baseline, formula),
+    heirBenefit: calculateHeirBenefit(baseline, formula, heirTaxRate),
+  };
+}
+
 export function runGrowthSimulation(input: SimulationInput): SimulationResult {
   const { client, startYear, endYear, customProduct } = input;
   const projectionYears = endYear - startYear + 1;
@@ -95,13 +116,5 @@ export function runGrowthSimulation(input: SimulationInput): SimulationResult {
   // customProduct overrides the system preset's rider fee when present.
   const formula = runGrowthFormulaScenario(client, startYear, projectionYears, customProduct);
 
-  const heirTaxRate = client.heir_tax_rate ?? DEFAULT_HEIR_TAX_RATE;
-
-  return {
-    baseline,
-    formula,
-    breakEvenAge: calculateBreakEvenAge(baseline, formula),
-    totalTaxSavings: calculateTaxSavings(baseline, formula),
-    heirBenefit: calculateHeirBenefit(baseline, formula, heirTaxRate)
-  };
+  return { baseline, formula, ...computeGrowthSummaryMetrics(client, baseline, formula) };
 }

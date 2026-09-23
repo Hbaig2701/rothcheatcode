@@ -218,7 +218,7 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     id: 'netWorth',
     label: 'Net Worth',
     category: 'balances',
-    description: 'Total net worth across all accounts (Traditional + Roth + Taxable). This is the combined value your client controls at end of year.',
+    description: 'Total net worth across all accounts (Traditional + Roth + Taxable, plus the QLAC death benefit when the client holds a QLAC). This is the combined value your client controls at end of year.',
     formatter: formatCurrency,
     defaultVisible: true,
     visibleForProducts: ['all'],
@@ -298,6 +298,39 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     visibleForProducts: ['all'],
     defaultWidth: 120,
     minWidth: 90,
+  },
+  {
+    id: 'qlacPayout',
+    label: 'QLAC Income',
+    category: 'distributions',
+    description: "Gross income paid this year by the client's QLAC (Qualified Longevity Annuity Contract). Starts at the QLAC income start age (no later than 85). It's already included in this year's taxable income and taxed in the correct brackets (and counts toward IRMAA); this column breaks it out. Only on the side that holds the QLAC — the strategy, or both sides when \"Client already owns this QLAC\" is on.",
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['all'],
+    defaultWidth: 130,
+    minWidth: 100,
+  },
+  {
+    id: 'qlacDeathBenefit',
+    label: 'QLAC Death Benefit',
+    category: 'balances',
+    description: "End-of-year return-of-premium value of the QLAC: the premium minus all income paid so far (floored at $0; always $0 for a Life Only contract). Heirs inherit this pre-tax, so it's taxed at the heir rate like a Traditional balance. Included in Net Worth as its own bucket.",
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['all'],
+    defaultWidth: 150,
+    minWidth: 110,
+  },
+  {
+    id: 'qlacReinvested',
+    label: 'QLAC Income Banked',
+    category: 'balances',
+    description: "Running balance of the QLAC's after-tax income kept per the RMD Treatment setting (Reinvested grows at the comparison rate, Cash accumulates flat, Spent stays $0). Already folded into this year's Taxable Balance and Net Worth — shown here so you can see how much of the taxable account came from QLAC payouts.",
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['all'],
+    defaultWidth: 150,
+    minWidth: 110,
   },
   {
     id: 'externalRmd',
@@ -443,7 +476,8 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     // Subtract the external-RMD breakout so RMDs (internal AND external) never
     // appear in Other Income — the external RMD has its own "RMD (External)"
     // column, matching how internal RMDs live only in the RMD column.
-    accessor: (row) => (Number(row.otherIncome) || 0) - (Number(row.externalRmd) || 0),
+    // Same for the QLAC payout — it has its own "QLAC Income" column.
+    accessor: (row) => (Number(row.otherIncome) || 0) - (Number(row.externalRmd) || 0) - (Number(row.qlacPayout) || 0),
     label: 'Other Income (All)',
     category: 'income',
     description: 'Total of all non-SSI income for this year (pension, rental, dividends, capital gains, wages, etc. combined). This is the aggregate used in tax calculations.',

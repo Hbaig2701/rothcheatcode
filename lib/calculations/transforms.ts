@@ -52,9 +52,11 @@ function isProjection(input: Projection | SimulationResult): input is Projection
 function calculateFormulaLegacyToHeirs(years: YearlyResult[], heirTaxRate: number = 0.40): number[] {
   return years.map(year => {
     const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    // QLAC return-of-premium value is inherited pre-tax, like the Traditional.
+    const qlacToHeirs = Math.round((year.qlacDeathBenefit ?? 0) * (1 - heirTaxRate));
     const rothToHeirs = year.rothBalance;
     const cashToHeirs = year.taxableBalance || 0;
-    return traditionalToHeirs + rothToHeirs + cashToHeirs;
+    return traditionalToHeirs + qlacToHeirs + rothToHeirs + cashToHeirs;
   });
 }
 
@@ -72,9 +74,11 @@ function calculateFormulaLegacyToHeirs(years: YearlyResult[], heirTaxRate: numbe
 function calculateBaselineLegacyToHeirs(years: YearlyResult[], heirTaxRate: number = 0.40): number[] {
   return years.map(year => {
     const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    // QLAC return-of-premium value is inherited pre-tax, like the Traditional.
+    const qlacToHeirs = Math.round((year.qlacDeathBenefit ?? 0) * (1 - heirTaxRate));
     const rothToHeirs = year.rothBalance;
     const cashToHeirs = year.taxableBalance || 0;
-    return traditionalToHeirs + rothToHeirs + cashToHeirs;
+    return traditionalToHeirs + qlacToHeirs + rothToHeirs + cashToHeirs;
   });
 }
 
@@ -131,6 +135,9 @@ function calculateGIFormulaLifetimeWealth(
       // Fallback
       netLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + year.rothBalance;
     }
+    // QLAC return-of-premium value sits outside the annuity and is inherited
+    // pre-tax, like a Traditional balance (the baseline series counts it too).
+    netLegacy += Math.round((year.qlacDeathBenefit ?? 0) * (1 - heirTaxRate));
 
     return cumulativeNetGI + netLegacy - cumulativeConversionTaxes - cumulativeIRMAA;
   });
@@ -218,8 +225,9 @@ export function extractSummaryMetrics(
 ): SummaryMetrics {
   if (isProjection(data)) {
     // Database Projection - uses pre-calculated final values
-    const baselineNetLegacy = data.baseline_final_net_worth - Math.round((data.baseline_final_traditional ?? 0) * heirTaxRate);
-    const formulaNetLegacy = data.blueprint_final_net_worth - Math.round((data.blueprint_final_traditional ?? 0) * heirTaxRate);
+    // Heir tax on the Traditional remainder + the QLAC's unrecovered premium (inherited pre-tax).
+    const baselineNetLegacy = data.baseline_final_net_worth - Math.round(((data.baseline_final_traditional ?? 0) + (data.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+    const formulaNetLegacy = data.blueprint_final_net_worth - Math.round(((data.blueprint_final_traditional ?? 0) + (data.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     return {
       baselineEndWealth: baselineNetLegacy,
       formulaEndWealth: formulaNetLegacy,
@@ -232,8 +240,8 @@ export function extractSummaryMetrics(
     // In-memory SimulationResult - extract from arrays
     const lastBaseline = data.baseline[data.baseline.length - 1];
     const lastFormula = data.formula[data.formula.length - 1];
-    const baselineNetLegacy = (lastBaseline.netWorth ?? 0) - Math.round((lastBaseline.traditionalBalance ?? 0) * heirTaxRate);
-    const formulaNetLegacy = (lastFormula.netWorth ?? 0) - Math.round((lastFormula.traditionalBalance ?? 0) * heirTaxRate);
+    const baselineNetLegacy = (lastBaseline.netWorth ?? 0) - Math.round(((lastBaseline.traditionalBalance ?? 0) + (lastBaseline.qlacDeathBenefit ?? 0)) * heirTaxRate);
+    const formulaNetLegacy = (lastFormula.netWorth ?? 0) - Math.round(((lastFormula.traditionalBalance ?? 0) + (lastFormula.qlacDeathBenefit ?? 0)) * heirTaxRate);
 
     return {
       baselineEndWealth: baselineNetLegacy,

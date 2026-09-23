@@ -1,5 +1,6 @@
 'use client';
 
+import { useClient } from '@/lib/queries/clients';
 import { useProjection } from '@/lib/queries/projections';
 import { transformToChartData, extractSummaryMetrics } from '@/lib/calculations/transforms';
 import { SummarySection } from './summary-section';
@@ -16,6 +17,7 @@ interface ResultsSummaryProps {
 
 export function ResultsSummary({ clientId, clientName }: ResultsSummaryProps) {
   const { data, isLoading, isError, error, refetch } = useProjection(clientId);
+  const { data: client } = useClient(clientId);
 
   // Loading state
   if (isLoading) {
@@ -90,8 +92,9 @@ export function ResultsSummary({ clientId, clientName }: ResultsSummaryProps) {
 
   // Transform data for display
   const { projection, cached } = data;
-  const chartData = transformToChartData(projection);
-  const metrics = extractSummaryMetrics(projection);
+  const heirTaxRate = (client?.heir_tax_rate ?? 40) / 100;
+  const chartData = transformToChartData(projection, heirTaxRate);
+  const metrics = extractSummaryMetrics(projection, heirTaxRate);
 
   return (
     <div className="space-y-6">

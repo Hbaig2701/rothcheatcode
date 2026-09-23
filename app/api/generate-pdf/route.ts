@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { splitStartingIra } from '@/lib/calculations/utils/ira-split';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import Handlebars from 'handlebars';
@@ -386,7 +387,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const boyTraditional = prevYear
       ? prevYear.traditionalBalance
       : scenario === 'formula'
-        ? Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100))
+        ? splitStartingIra(client).strategyStartingTraditional
         : (client.qualified_account_value ?? 0);
     const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
     const boyCombined = boyTraditional + boyRoth;
@@ -891,7 +892,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const baseIrmaa = sum(projection.baseline_years, 'irmaaSurcharge');
   const baseFinalTraditional = projection.baseline_final_traditional;
   // Heir tax only applies to traditional IRA portion (Roth and taxable are already taxed)
-  const baseHeirTax = Math.round(baseFinalTraditional * heirTaxRate);
+  // — plus the QLAC's unrecovered premium, inherited pre-tax the same way.
+  const baseHeirTax = Math.round((baseFinalTraditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
   // Net legacy = final net worth (includes taxable account) minus heir taxes on traditional
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
   // Cumulative after-tax distributions — kept for the Distributions row in
@@ -931,8 +933,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     sum(projection.blueprint_years, 'stateTaxOnConversions');
   const blueIrmaa = sum(projection.blueprint_years, 'irmaaSurcharge');
   const blueFinalTraditional = projection.blueprint_final_traditional;
-  // Heir tax only applies to remaining traditional IRA (if any)
-  const blueHeirTax = Math.round(blueFinalTraditional * heirTaxRate);
+  // Heir tax only applies to remaining traditional IRA (if any) + QLAC death benefit
+  const blueHeirTax = Math.round((blueFinalTraditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
   // Net legacy = final net worth minus heir taxes on traditional
   const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
   // Lifetime wealth = net legacy (conversion taxes/IRMAA already deducted from taxable in engine)
@@ -969,7 +971,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     const prevYear = originalIndex > 0 ? projection.blueprint_years[originalIndex - 1] : null;
     const boyTraditional = prevYear
       ? prevYear.traditionalBalance
-      : Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100));
+      : splitStartingIra(client).strategyStartingTraditional;
     const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
     const boyCombined = boyTraditional + boyRoth;
     const eoyCombined = year.traditionalBalance + year.rothBalance;
@@ -1048,9 +1050,11 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   // to subtract — guard here too, or a stale bonus_percent would silently reduce
   // the strategy's "Net Out-of-Pocket Tax" below "Tax on Conversions" with the
   // explanatory "Premium Bonus Received" row hidden, breaking reconciliation.
-  const premiumBonusDollars = isNoAnnuityProduct(client.blueprint_type)
-    ? 0
-    : Math.round((client.qualified_account_value ?? 0) * ((client.bonus_percent ?? 0) / 100));
+  // Credited on the slice that funds the annuity — net of any QLAC premium and
+  // AUM allocation — exactly as the engine applies it (and as the dashboard's
+  // Account Summary shows); the full IRA would overstate it.
+  const iraSplit = splitStartingIra(client);
+  const premiumBonusDollars = iraSplit.bonusDollars;
   // Net out-of-pocket tax: event-attributable tax (RMDs for baseline,
   // conversions for strategy) less the premium bonus. This is the honest
   // "what does this strategy cost me" figure for client presentations.
@@ -1084,12 +1088,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     // with bonus applied" alongside the raw deposit — matches what the
     // engine actually starts year 1 with and what the in-app Account
     // Summary displays.
-    bonusAmount: formatCurrency(
-      Math.round((client.qualified_account_value ?? 0) * ((client.bonus_percent ?? 0) / 100))
-    ),
-    startingWithBonus: formatCurrency(
-      Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100))
-    ),
+    bonusAmount: formatCurrency(iraSplit.bonusDollars),
+    startingWithBonus: formatCurrency(iraSplit.rothSidePortion + iraSplit.bonusDollars),
     hasBonus: (client.bonus_percent ?? 0) > 0,
     riderFee: productRiderFee,
     rateOfReturn: client.rate_of_return ?? 7,

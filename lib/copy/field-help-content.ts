@@ -191,6 +191,36 @@ export const FIELD_HELP = {
     body: "Turn ON when you're modeling only PART of the client's total IRA in this software and RMDs are being taken from a separate bucket (e.g., a different custodian) that's not modeled here. The engine will skip RMD calculation entirely on this bucket for both the strategy AND the baseline — keeping the comparison fair. If you want the full tax picture, manually add the external RMD amount as an entry in Section 5 (Taxable Income).",
     example: "Client has $2.5M total IRA — $1.3M moves to an Athene FIA for Roth conversion, $1.2M stays at Fidelity as Traditional. You're modeling only the $1.3M bucket here and taking real-world RMDs from Fidelity. Toggle ON → engine won't eat into your $1.3M conversion target with phantom RMDs.",
   },
+  qlac_enabled: {
+    title: "QLAC (Qualified Longevity Annuity Contract)",
+    body: "Moves up to $210,000 (the 2026 IRS per-person limit) of the IRA into a deferred income annuity at the start of the plan. That premium leaves the RMD calculation entirely — so RMDs on the rest of the IRA drop from the first RMD year — earns no premium bonus, can't be converted, and has no cash value. From the income start age you pick (no later than 85) the contract pays the carrier's quoted annual income for life, taxed as ordinary income (it counts toward the bracket, Social Security taxation, and IRMAA that year). The strategy side holds the QLAC; the do-nothing baseline keeps the full IRA — tick 'Client already owns this QLAC' to put it on both sides instead.",
+    example: "$1.7M IRA at 63, 32% bracket. $210K into a QLAC paying $60K/yr from 85 → RMDs at 75 fall ~$17K, IRMAA drops a tier in the early 80s, then $60K/yr of taxable income starts at 85.",
+  },
+  qlac_premium: {
+    title: "QLAC Premium",
+    body: "The amount moved from the IRA into the QLAC, in dollars. IRS lifetime cap is $210,000 per person for 2026 (a married couple can hold one each, funded from each spouse's own IRA). Bought in year 1 of the projection.",
+    example: "$210,000 for a client who wants the maximum RMD deferral.",
+  },
+  qlac_income_start_age: {
+    title: "QLAC Income Start Age",
+    body: "The age payments begin. The IRS requires income to start no later than the month after the 85th birthday; most clients pick 80–85 so the payout is largest and the RMD deferral longest. We count the full annual amount in the year the client reaches this age.",
+    example: "85 → maximum deferral. 80 → income starts five years earlier at a lower annual amount.",
+  },
+  qlac_annual_income: {
+    title: "QLAC Annual Income",
+    body: "The level annual income from the carrier's QLAC quote for this premium, start age, and death-benefit option. Taxed as ordinary income each year from the start age through the end of the plan. Use the actual quoted figure — payouts vary a lot by carrier, sex, and deferral length.",
+    example: "Global Atlantic ForeCertain quotes $5,304.64/month from age 80 on a $210K premium → enter $63,655.68 (× 12).",
+  },
+  qlac_death_benefit: {
+    title: "QLAC Death Benefit",
+    body: "Return of Premium (cash refund) pays heirs the premium less any income already received — we carry that unrecovered amount as a heir-taxable asset in the strategy's net worth, so buying the QLAC doesn't erase $210K of legacy. Life Only pays nothing after death in exchange for a higher annual income; the premium is gone from the estate.",
+    example: "$210K premium, $60K/yr from 85, client dies at 87 → heirs receive $90K (taxed as inherited IRA money) under Return of Premium, $0 under Life Only.",
+  },
+  qlac_in_baseline: {
+    title: "Client Already Owns This QLAC",
+    body: "By default the QLAC is part of the strategy, so the comparison shows QLAC + Roth conversion versus doing nothing. Tick this when the client already holds the QLAC regardless — it's then applied to the do-nothing baseline too, and the comparison isolates the Roth conversion alone.",
+    example: "Client bought a QLAC last year → ON. You're proposing the QLAC as part of this plan → OFF.",
+  },
   state: {
     title: "State of Residence",
     body: "The state the client lives in for tax purposes. Drives the State Tax rate (auto-filled when you select a state) and triggers any state-specific product availability or bonus overrides.",

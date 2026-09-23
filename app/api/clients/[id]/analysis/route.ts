@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { Client } from '@/lib/types/client';
+import { resolveQlacSides, applyQlacToResult } from '@/lib/calculations/utils/qlac';
+import { applyHeldBackIraRmd } from '@/lib/calculations/utils/held-back-ira';
 import { analyzeBreakEven } from '@/lib/calculations/analysis/breakeven';
 import { runSensitivityAnalysis } from '@/lib/calculations/analysis/sensitivity';
 import { analyzeWidowPenalty, analyzeWidowPenaltyFromProjection } from '@/lib/calculations/analysis/widow-penalty';
@@ -62,16 +64,32 @@ export async function GET(
   const customProduct = typedClient.custom_product_id
     ? await getCustomProduct(user.id, typedClient.custom_product_id)
     : null;
-  const simulationInput = createSimulationInput(typedClient, customProduct);
   const formulaType = typedClient.blueprint_type as FormulaType;
   const isGI = formulaType && isGuaranteedIncomeProduct(formulaType);
   const isGrowth = formulaType && isGrowthProduct(formulaType);
 
-  const baseResult = isGI
-    ? runGuaranteedIncomeSimulation(simulationInput)
-    : isGrowth
-      ? runGrowthSimulation(simulationInput)
-      : runSimulation(simulationInput);
+  const runEngine = (client: Client) => {
+    const input = createSimulationInput(client, customProduct);
+    return isGI
+      ? runGuaranteedIncomeSimulation(input)
+      : isGrowth
+        ? runGrowthSimulation(input)
+        : runSimulation(input);
+  };
+
+  // Same pre-sim overlays as the projections route (held-back IRA RMDs into
+  // ordinary income, then the QLAC carve-out + payouts) so breakeven and the
+  // widow re-price see the strategy the report shows. Strategy side always
+  // holds the QLAC; the baseline only when the client already owns it —
+  // otherwise the do-nothing side is re-run on the full IRA. No-ops without
+  // either feature.
+  const clientForSim = applyHeldBackIraRmd(typedClient);
+  const { baselineClient, strategyClient, qlacStrategyOnly } = resolveQlacSides(clientForSim);
+  const strategyResult = runEngine(strategyClient);
+  const baseResult = qlacStrategyOnly
+    ? { ...strategyResult, baseline: runEngine(baselineClient).baseline }
+    : strategyResult;
+  applyQlacToResult(typedClient, baseResult);
 
   const response: AnalysisResponse = {
     breakeven: null,

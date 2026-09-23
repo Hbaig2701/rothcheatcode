@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { QLAC_PREMIUM_LIMIT_CENTS, QLAC_MIN_INCOME_START_AGE, QLAC_MAX_INCOME_START_AGE } from "@/lib/data/qlac-limits";
 
 // ============================================================================
 // Enum Schemas
@@ -57,6 +58,65 @@ export const withdrawalTypeEnum = z.enum([
 export const taxSourceEnum = z.enum(["from_ira", "from_taxable"]);
 
 export const rmdTreatmentEnum = z.enum(["spent", "reinvested", "cash"]);
+
+export const qlacDeathBenefitEnum = z.enum(["return_of_premium", "none"]);
+
+// QLAC inputs, shared by both client schemas. Premium in cents — bounded by
+// the IRS per-person cap ($210K for 2026; a joint filer can hold one per
+// spouse, each funded from that spouse's own IRA, so allow 2× for MFJ in the
+// cross-field check below rather than here). 0/null = feature off.
+const qlacFields = {
+  qlac_premium: z.number().int().min(0).optional().nullable().default(null),
+  qlac_income_start_age: z.number().int().min(QLAC_MIN_INCOME_START_AGE).max(QLAC_MAX_INCOME_START_AGE).optional().nullable().default(null),
+  qlac_annual_income: z.number().int().min(0).optional().nullable().default(null),
+  qlac_death_benefit: qlacDeathBenefitEnum.optional().nullable().default(null),
+  qlac_in_baseline: z.boolean().optional().nullable().default(null),
+};
+
+
+type QlacRefineData = {
+  qlac_premium?: number | null;
+  qlac_income_start_age?: number | null;
+  qlac_annual_income?: number | null;
+  filing_status?: string;
+  age?: number;
+  qualified_account_value?: number;
+};
+
+/** Cross-field QLAC checks — only enforced once a premium is entered. */
+function refineQlac(data: QlacRefineData, ctx: z.RefinementCtx) {
+  const premium = data.qlac_premium ?? 0;
+  if (premium <= 0) return;
+  const cap = QLAC_PREMIUM_LIMIT_CENTS * (data.filing_status === "married_filing_jointly" ? 2 : 1);
+  if (premium > cap) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `QLAC premium can't exceed the IRS limit of $${(cap / 100).toLocaleString()}${data.filing_status === "married_filing_jointly" ? " ($210,000 per spouse)" : ""}`,
+      path: ["qlac_premium"],
+    });
+  }
+  if (data.qualified_account_value != null && premium > data.qualified_account_value) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "QLAC premium can't exceed the qualified account balance",
+      path: ["qlac_premium"],
+    });
+  }
+  if ((data.qlac_annual_income ?? 0) <= 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Enter the carrier's quoted annual QLAC income",
+      path: ["qlac_annual_income"],
+    });
+  }
+  if (data.age != null && data.qlac_income_start_age != null && data.qlac_income_start_age <= data.age) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "QLAC income must start after the client's current age",
+      path: ["qlac_income_start_age"],
+    });
+  }
+}
 
 export const formulaTypeEnum = z.enum([
   "none",
@@ -291,6 +351,9 @@ export const clientFormulaBaseSchema = z.object({
   held_back_ira_balance: z.number().int().min(0).optional().nullable().default(null),
   held_back_ira_growth_rate: z.number().min(0).max(30).optional().nullable().default(null),
 
+  // QLAC (see lib/calculations/utils/qlac.ts). Cross-field checks in superRefine.
+  ...qlacFields,
+
   // AUM split-allocation. 0 means feature is off — preserves existing flow.
   aum_allocation_percent: z.number().min(0).max(100).default(0),
   aum_fee_percent: z.number().min(0).max(10).default(1),
@@ -367,6 +430,8 @@ export const clientFormulaSchema = clientFormulaBaseSchema.superRefine((data, ct
   // already handled — and it's required for Story Mode to NOT announce
   // "Social Security Begins" for a client who's been collecting for years.
   // Intentionally no validation issue here; the only bounds are 62..100.
+
+  refineQlac(data, ctx);
 });
 
 // Partial schema for updates
@@ -545,6 +610,9 @@ export const clientFullBaseSchema = z.object({
   held_back_ira_balance: z.number().int().min(0).optional().nullable().default(null),
   held_back_ira_growth_rate: z.number().min(0).max(30).optional().nullable().default(null),
 
+  // QLAC — mirrored from the base schema.
+  ...qlacFields,
+
   // AUM split-allocation (mirrored from clientFormulaBaseSchema; the legacy
   // schema is what the PUT /api/clients/[id] handler validates against).
   aum_allocation_percent: z.number().min(0).max(100).default(0),
@@ -584,6 +652,8 @@ export const clientFullSchema = clientFullBaseSchema.superRefine((data, ctx) => 
       path: ["end_age"],
     });
   }
+
+  refineQlac(data, ctx);
 });
 
 // Infer full form data type from schema
@@ -694,6 +764,13 @@ export type ClientFormData = {
   // Held-back Traditional IRA (income overlay)
   held_back_ira_balance?: number | null;
   held_back_ira_growth_rate?: number | null;
+
+  // QLAC
+  qlac_premium?: number | null;
+  qlac_income_start_age?: number | null;
+  qlac_annual_income?: number | null;
+  qlac_death_benefit?: "return_of_premium" | "none" | null;
+  qlac_in_baseline?: boolean | null;
 
   // AUM split-allocation
   aum_allocation_percent: number;
