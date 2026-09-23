@@ -687,7 +687,7 @@ export function TaxDataSection() {
                   aria-invalid={fieldState.invalid}
                 />
                 <FieldDescription>
-                  Level annual payout from the carrier quote, taxed as ordinary income from the start age.
+                  Per year. Carrier quotes are usually monthly — multiply by 12 (e.g. $5,304.64/mo → $63,655.68). Taxed as ordinary income from the start age.
                 </FieldDescription>
                 <FieldError errors={[fieldState.error]} />
               </Field>

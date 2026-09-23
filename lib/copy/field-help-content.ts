@@ -209,7 +209,7 @@ export const FIELD_HELP = {
   qlac_annual_income: {
     title: "QLAC Annual Income",
     body: "The level annual income from the carrier's QLAC quote for this premium, start age, and death-benefit option. Taxed as ordinary income each year from the start age through the end of the plan. Use the actual quoted figure — payouts vary a lot by carrier, sex, and deferral length.",
-    example: "Carrier quotes $5,000/month from age 85 → enter $60,000.",
+    example: "Global Atlantic ForeCertain quotes $5,304.64/month from age 80 on a $210K premium → enter $63,655.68 (× 12).",
   },
   qlac_death_benefit: {
     title: "QLAC Death Benefit",

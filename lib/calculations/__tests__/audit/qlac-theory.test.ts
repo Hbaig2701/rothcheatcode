@@ -229,5 +229,51 @@ for (const g of grid) {
   check(name, 'formula', strategyClient.qualified_account_value === 129_000_000, { check: 'carve-after-held-back', expected: 129_000_000, actual: strategyClient.qualified_account_value });
 }
 
+// ---------------------------------------------------------------------------
+// 8. Carrier golden: Global Atlantic ForeCertain (Forethought) QLAC quotes for
+//    Mazhar Ahson, 2026-09-18 — $210K, Single Life w/ Cash Refund, cost basis
+//    $0 (fully taxable), level payments. Two start ages, same premium:
+//      D77W1D  income 01/01/2038 (age 75)  $2,768.84/mo = $33,226.08/yr
+//      D77W5H  income 01/01/2043 (age 80)  $5,304.64/mo = $63,655.68/yr
+//    Cumulative-payment table from page 3 of each quote; refund left = max(0,
+//    $210K − cumulative). Payments begin Jan 1 of the start-age year, so the
+//    first year carries a full annual amount — matching the overlay.
+// ---------------------------------------------------------------------------
+{
+  const QUOTES = [
+    { id: 'D77W1D', startAge: 75, annual: 3_322_608, firstYear: 2038, cumulative: [3322608, 6645216, 9967824, 13290432, 16613040, 19935648, 23258256, 26580864, 29903472, 33226080, 36548688] },
+    { id: 'D77W5H', startAge: 80, annual: 6_365_568, firstYear: 2043, cumulative: [6365568, 12731136, 19096704, 25462272, 31827840, 38193408, 44558976, 50924544, 57290112, 63655680, 70021248] },
+  ];
+  for (const q of QUOTES) {
+    const name = `forecertain/${q.id}`;
+    const raw = makeClient({
+      filing_status: 'single', state: 'VA', state_tax_rate: 5.75, date_of_birth: '1962-12-31', age: 63, end_age: 100,
+      qualified_account_value: 170_000_000, blueprint_type: 'vesting-bonus-growth', bonus_percent: 0,
+      rate_of_return: 5, growth_rate: 5, baseline_comparison_rate: 5, conversion_type: 'no_conversion', rmd_treatment: 'reinvested',
+      qlac_premium: 21_000_000, qlac_income_start_age: q.startAge, qlac_annual_income: q.annual, qlac_death_benefit: 'return_of_premium',
+    });
+    const { formula, baseline } = runWithQlac(raw);
+    for (const y of formula.filter((row) => row.age < q.startAge)) {
+      check(name, 'formula', (y.qlacPayout ?? 0) === 0 && y.qlacDeathBenefit === 21_000_000, { check: 'pre-commencement', year: y.year, age: y.age, expected: 21_000_000, actual: y.qlacDeathBenefit });
+    }
+    const first = formula.find((row) => row.age === q.startAge);
+    check(name, 'formula', first?.year === q.firstYear, { check: 'commencement-year', expected: q.firstYear, actual: first?.year });
+    let cum = 0;
+    q.cumulative.forEach((expectedCum, i) => {
+      const y = formula.find((row) => row.age === q.startAge + i)!;
+      cum += y.qlacPayout ?? 0;
+      check(name, 'formula', cum === expectedCum, { check: 'cumulative-payments', year: y.year, age: y.age, expected: expectedCum, actual: cum });
+      const expectedDb = Math.max(0, 21_000_000 - expectedCum);
+      check(name, 'formula', y.qlacDeathBenefit === expectedDb, { check: 'cash-refund-remaining', year: y.year, age: y.age, expected: expectedDb, actual: y.qlacDeathBenefit });
+      check(name, 'formula', (y.otherIncome ?? 0) >= q.annual, { check: 'payout-fully-taxable', year: y.year, age: y.age, expected: q.annual, actual: y.otherIncome });
+    });
+    // Carve-out to the dollar: strategy IRA at the first RMD year = (IRA − premium) grown at the same rate as the baseline's full IRA.
+    const rmdYear = formula.find((row) => row.rmdAmount > 0)!;
+    const baseRmd = baseline.find((row) => row.year === rmdYear.year)!;
+    const expectedRmd = Math.round(baseRmd.rmdAmount * (170_000_000 - 21_000_000) / 170_000_000);
+    check(name, 'formula', Math.abs(rmdYear.rmdAmount - expectedRmd) <= TOL, { check: 'rmd-base-excludes-premium', year: rmdYear.year, age: rmdYear.age, expected: expectedRmd, actual: rmdYear.rmdAmount });
+  }
+}
+
 r.print('QLAC overlay — mechanics + theory');
 process.exit(r.breaches.length > 0 ? 1 : 0);
