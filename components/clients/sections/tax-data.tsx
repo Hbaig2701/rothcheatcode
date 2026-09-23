@@ -721,7 +721,9 @@ export function TaxDataSection() {
                 </FieldLabel>
                 <Select value={field.value ?? "return_of_premium"} onValueChange={field.onChange}>
                   <SelectTrigger id="qlac_death_benefit" aria-invalid={fieldState.invalid}>
-                    <SelectValue />
+                    <SelectValue placeholder="Select death benefit">
+                      {QLAC_DEATH_BENEFIT_OPTIONS.find((o) => o.value === (field.value ?? "return_of_premium"))?.label ?? "Select death benefit"}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {QLAC_DEATH_BENEFIT_OPTIONS.map((opt) => (
