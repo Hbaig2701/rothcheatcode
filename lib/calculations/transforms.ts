@@ -135,6 +135,9 @@ function calculateGIFormulaLifetimeWealth(
       // Fallback
       netLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + year.rothBalance;
     }
+    // QLAC return-of-premium value sits outside the annuity and is inherited
+    // pre-tax, like a Traditional balance (the baseline series counts it too).
+    netLegacy += Math.round((year.qlacDeathBenefit ?? 0) * (1 - heirTaxRate));
 
     return cumulativeNetGI + netLegacy - cumulativeConversionTaxes - cumulativeIRMAA;
   });

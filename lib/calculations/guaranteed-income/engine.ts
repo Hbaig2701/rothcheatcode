@@ -161,13 +161,22 @@ export function runGuaranteedIncomeSimulation(
     baselineYearlyData: baselineGIYearlyData,
   };
 
+  return { baseline, formula, ...computeGISummaryMetrics(client, baseline, formula), giMetrics };
+}
+
+/**
+ * Headline metrics for an arbitrary (baseline, formula) pair — see
+ * computeGrowthSummaryMetrics for why the projections route recomputes them.
+ */
+export function computeGISummaryMetrics(
+  client: Client,
+  baseline: YearlyResult[],
+  formula: YearlyResult[],
+): Pick<SimulationResult, 'breakEvenAge' | 'totalTaxSavings' | 'heirBenefit'> {
   return {
-    baseline,
-    formula,
     breakEvenAge: calculateBreakEvenAge(baseline, formula),
     totalTaxSavings: calculateTaxSavings(baseline, formula),
     heirBenefit: calculateHeirBenefit(baseline, formula, client.heir_tax_rate ?? 40),
-    giMetrics,
   };
 }
 

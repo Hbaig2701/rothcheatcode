@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { splitStartingIra } from '@/lib/calculations/utils/ira-split';
 import puppeteer from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
 import Handlebars from 'handlebars';
@@ -386,7 +387,7 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     const boyTraditional = prevYear
       ? prevYear.traditionalBalance
       : scenario === 'formula'
-        ? Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100))
+        ? splitStartingIra(client).strategyStartingTraditional
         : (client.qualified_account_value ?? 0);
     const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
     const boyCombined = boyTraditional + boyRoth;
@@ -970,7 +971,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     const prevYear = originalIndex > 0 ? projection.blueprint_years[originalIndex - 1] : null;
     const boyTraditional = prevYear
       ? prevYear.traditionalBalance
-      : Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100));
+      : splitStartingIra(client).strategyStartingTraditional;
     const boyRoth = prevYear ? prevYear.rothBalance : (client.roth_ira ?? 0);
     const boyCombined = boyTraditional + boyRoth;
     const eoyCombined = year.traditionalBalance + year.rothBalance;
@@ -1049,9 +1050,11 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   // to subtract — guard here too, or a stale bonus_percent would silently reduce
   // the strategy's "Net Out-of-Pocket Tax" below "Tax on Conversions" with the
   // explanatory "Premium Bonus Received" row hidden, breaking reconciliation.
-  const premiumBonusDollars = isNoAnnuityProduct(client.blueprint_type)
-    ? 0
-    : Math.round((client.qualified_account_value ?? 0) * ((client.bonus_percent ?? 0) / 100));
+  // Credited on the slice that funds the annuity — net of any QLAC premium and
+  // AUM allocation — exactly as the engine applies it (and as the dashboard's
+  // Account Summary shows); the full IRA would overstate it.
+  const iraSplit = splitStartingIra(client);
+  const premiumBonusDollars = iraSplit.bonusDollars;
   // Net out-of-pocket tax: event-attributable tax (RMDs for baseline,
   // conversions for strategy) less the premium bonus. This is the honest
   // "what does this strategy cost me" figure for client presentations.
@@ -1085,12 +1088,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     // with bonus applied" alongside the raw deposit — matches what the
     // engine actually starts year 1 with and what the in-app Account
     // Summary displays.
-    bonusAmount: formatCurrency(
-      Math.round((client.qualified_account_value ?? 0) * ((client.bonus_percent ?? 0) / 100))
-    ),
-    startingWithBonus: formatCurrency(
-      Math.round((client.qualified_account_value ?? 0) * (1 + (client.bonus_percent ?? 0) / 100))
-    ),
+    bonusAmount: formatCurrency(iraSplit.bonusDollars),
+    startingWithBonus: formatCurrency(iraSplit.rothSidePortion + iraSplit.bonusDollars),
     hasBonus: (client.bonus_percent ?? 0) > 0,
     riderFee: productRiderFee,
     rateOfReturn: client.rate_of_return ?? 7,

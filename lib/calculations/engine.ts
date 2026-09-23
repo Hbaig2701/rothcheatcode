@@ -260,6 +260,22 @@ function calculateSummaryMetrics(
 /**
  * Run full simulation comparing Baseline vs Formula scenarios
  */
+/**
+ * Headline metrics for an arbitrary (baseline, formula) pair — see
+ * computeGrowthSummaryMetrics for why the projections route recomputes them.
+ */
+export function computeStandardSummaryMetrics(
+  client: Client,
+  baseline: YearlyResult[],
+  formula: YearlyResult[],
+): Pick<SimulationResult, 'breakEvenAge' | 'totalTaxSavings' | 'heirBenefit'> {
+  return {
+    breakEvenAge: calculateBreakEvenAge(baseline, formula),
+    totalTaxSavings: calculateTaxSavings(baseline, formula),
+    heirBenefit: calculateHeirBenefit(baseline, formula, client.heir_tax_rate, client.heir_bracket),
+  };
+}
+
 export function runSimulation(input: SimulationInput): SimulationResult {
   const { client, startYear, endYear } = input;
   const projectionYears = endYear - startYear + 1;
@@ -267,13 +283,7 @@ export function runSimulation(input: SimulationInput): SimulationResult {
   const baseline = runBaselineScenario(client, startYear, projectionYears);
   const formula = runFormulaScenario(client, startYear, projectionYears);
 
-  return {
-    baseline,
-    formula,
-    breakEvenAge: calculateBreakEvenAge(baseline, formula),
-    totalTaxSavings: calculateTaxSavings(baseline, formula),
-    heirBenefit: calculateHeirBenefit(baseline, formula, client.heir_tax_rate, client.heir_bracket)
-  };
+  return { baseline, formula, ...computeStandardSummaryMetrics(client, baseline, formula) };
 }
 
 /**

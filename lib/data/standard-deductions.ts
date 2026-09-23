@@ -55,6 +55,9 @@ export function getSeniorBonusDeduction(
   year: number
 ): number {
   if (year < OBBA_FIRST_YEAR || year > OBBA_LAST_YEAR) return 0;
+  // IRC §151(d)(5)(B)(iii): a married individual must file jointly to claim
+  // the deduction — married filing separately gets nothing.
+  if (filingStatus === 'married_filing_separately') return 0;
 
   const isJoint = filingStatus === 'married_filing_jointly';
 

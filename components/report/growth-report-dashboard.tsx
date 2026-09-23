@@ -18,6 +18,7 @@ import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from "@/lib/config
 import { computeMarginalRMDTax } from "@/lib/calculations/marginal-rmd-tax";
 import { computeHeldBackRmdMarginalTax } from "@/lib/calculations/utils/held-back-ira";
 import { getQlacPremium, isQlacActive } from "@/lib/calculations/utils/qlac";
+import { splitStartingIra } from "@/lib/calculations/utils/ira-split";
 import { getClientRMDStartAge } from "@/lib/calculations/utils/age";
 import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
 import { ResizableComparisonTable } from "@/components/results/deep-dive/resizable-comparison-table";
@@ -302,13 +303,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const qlacActive = isQlacActive(client);
   const blueFinalQlacDeathBenefit = blueFinalQlac;
   const qlacTotalPaid = sum(projection.blueprint_years, "qlacPayout");
-  const iraAfterQlac = (client.qualified_account_value ?? 0) - qlacPremium;
-  const aumStartingPortion = Math.round(iraAfterQlac * ((client.aum_allocation_percent ?? 0) / 100));
+  const iraSplit = splitStartingIra(client);
+  const aumStartingPortion = iraSplit.aumStartingPortion;
   const aumTotalWithdrawnFromIra = aumYears.reduce((s, y) => s + (y.iraWithdrawal ?? 0), 0);
   const aumTotalTaxPaid = aumYears.reduce((s, y) => s + y.totalTax, 0);
   const aumEarlyWithdrawalPenalty = aumYears.reduce((s, y) => s + (y.earlyWithdrawalPenalty ?? 0), 0);
   const aumFinalBalance = projection.aum_final_balance ?? 0;
-  const rothSidePortion = iraAfterQlac - aumStartingPortion;
+  const rothSidePortion = iraSplit.rothSidePortion;
 
   // ===== Voluntary withdrawal metrics =====
   // The withdrawal schedule is independent from RMDs/conversions. Surface the

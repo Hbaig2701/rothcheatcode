@@ -29,6 +29,9 @@ assert(getSeniorBonusDeduction('single', $(40000), 66, undefined, 2026) === $(60
 // Single under 65 → $0
 assert(getSeniorBonusDeduction('single', $(40000), 64, undefined, 2026) === 0,
   'single under 65 → $0');
+// MFS 65+ → $0 (must file jointly to claim — §151(d)(5)(B)(iii))
+assert(getSeniorBonusDeduction('married_filing_separately', $(40000), 68, undefined, 2026) === 0,
+  'MFS 65+ → $0');
 // MFJ both 65+ → $12,000
 assert(getSeniorBonusDeduction('married_filing_jointly', $(80000), 67, 68, 2026) === $(12000),
   'MFJ both 65+ → $12,000');

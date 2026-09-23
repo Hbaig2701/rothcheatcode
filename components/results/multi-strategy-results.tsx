@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, RefObject } from 'react';
+import { useClient } from '@/lib/queries/clients';
 import { useMultiStrategy } from '@/lib/hooks/use-multi-strategy';
 import { transformToChartData, extractSummaryMetrics } from '@/lib/calculations/transforms';
 import { StrategyComparisonTable } from './strategy-comparison';
@@ -22,6 +23,7 @@ interface MultiStrategyResultsProps {
 
 export function MultiStrategyResults({ clientId, clientName, wealthChartRef }: MultiStrategyResultsProps) {
   const { data, isLoading, isError, error, refetch } = useMultiStrategy({ clientId });
+  const { data: client } = useClient(clientId);
 
   // Selected strategy for detail view - defaults to best when data loads
   const [selectedStrategy, setSelectedStrategy] = useState<StrategyType | null>(null);
@@ -108,8 +110,9 @@ export function MultiStrategyResults({ clientId, clientName, wealthChartRef }: M
   const selectedResult = result.strategies[activeStrategy];
 
   // Transform selected strategy data for display
-  const chartData = transformToChartData(selectedResult);
-  const metrics = extractSummaryMetrics(selectedResult);
+  const heirTaxRate = (client?.heir_tax_rate ?? 40) / 100;
+  const chartData = transformToChartData(selectedResult, heirTaxRate);
+  const metrics = extractSummaryMetrics(selectedResult, heirTaxRate);
 
   return (
     <div className="space-y-8">
