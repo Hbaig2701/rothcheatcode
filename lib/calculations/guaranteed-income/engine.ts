@@ -101,9 +101,17 @@ function calculateHeirBenefit(
 // Main GI Simulation
 // ---------------------------------------------------------------------------
 
+/** Per-scenario GI metrics, kept on the result so the projections route can
+ *  re-pair a split-run strategy with a full-IRA baseline (see
+ *  recomputeGIComparison). Not persisted. */
+export interface GIScenarioInternals {
+  strategyMetrics: Parameters<typeof calculateComparisonMetrics>[0];
+  baselineMetrics: GIBaselineMetrics;
+}
+
 export function runGuaranteedIncomeSimulation(
   input: SimulationInput
-): SimulationResult & { giMetrics: GIMetrics } {
+): SimulationResult & { giMetrics: GIMetrics; giInternals: GIScenarioInternals } {
   const { client, startYear, endYear, customProduct } = input;
   const projectionYears = endYear - startYear + 1;
 
@@ -161,7 +169,35 @@ export function runGuaranteedIncomeSimulation(
     baselineYearlyData: baselineGIYearlyData,
   };
 
-  return { baseline, formula, ...computeGISummaryMetrics(client, baseline, formula), giMetrics };
+  return {
+    baseline,
+    formula,
+    ...computeGISummaryMetrics(client, baseline, formula),
+    giMetrics,
+    giInternals: { strategyMetrics, baselineMetrics },
+  };
+}
+
+/**
+ * Re-pair a split run's STRATEGY with a full-IRA run's BASELINE. The
+ * projections route swaps `baseline_years` for the full-IRA baseline whenever
+ * the strategy ran on a reduced slice (AUM split, strategy-only QLAC), but
+ * giMetrics.comparison / baselineYearlyData were still the split run's — so the
+ * GI dashboard's "baseline annual income" was sized on the carved IRA while
+ * the baseline chart showed the full one. Returns giMetrics whose baseline
+ * pieces describe the full-IRA baseline.
+ */
+export function recomputeGIComparison(
+  client: Client,
+  split: { giMetrics: GIMetrics; giInternals: GIScenarioInternals },
+  full: { giMetrics: GIMetrics; giInternals: GIScenarioInternals },
+): GIMetrics {
+  const endAge = client.end_age ?? 100;
+  return {
+    ...split.giMetrics,
+    comparison: calculateComparisonMetrics(split.giInternals.strategyMetrics, full.giInternals.baselineMetrics, endAge),
+    baselineYearlyData: full.giMetrics.baselineYearlyData,
+  };
 }
 
 /**

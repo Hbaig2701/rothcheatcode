@@ -29,7 +29,9 @@ import type { Client } from '../../../types/client';
 import type { YearlyResult } from '../../types';
 import { makeClient, dispatch } from './factory';
 import { Reporter } from './assertions';
-import { applyQlacToClient, applyQlacOverlay, getQlacPremium, computeQlacPayoutSchedule } from '../../utils/qlac';
+import { applyQlacToClient, applyQlacOverlay, getQlacPremium, computeQlacPayoutSchedule, QLAC_PREMIUM_LIMIT_CENTS } from '../../utils/qlac';
+import { runGuaranteedIncomeSimulation, recomputeGIComparison } from '../../guaranteed-income/engine';
+import { createSimulationInput } from '../../index';
 import { applyHeldBackIraRmd } from '../../utils/held-back-ira';
 
 const r = new Reporter();
@@ -273,6 +275,26 @@ for (const g of grid) {
     const expectedRmd = Math.round(baseRmd.rmdAmount * (170_000_000 - 21_000_000) / 170_000_000);
     check(name, 'formula', Math.abs(rmdYear.rmdAmount - expectedRmd) <= TOL, { check: 'rmd-base-excludes-premium', year: rmdYear.year, age: rmdYear.age, expected: expectedRmd, actual: rmdYear.rmdAmount });
   }
+}
+
+// ---------------------------------------------------------------------------
+// 9. Engine-level IRS cap (a direct API update bypasses the form refine) and
+//    GI comparison re-pairing (strategy-only QLAC: baseline annual income must
+//    be sized on the FULL IRA the baseline chart shows).
+// ---------------------------------------------------------------------------
+{
+  const single = makeClient({ ...base, filing_status: 'single', qualified_account_value: 200_000_000, qlac_premium: 50_000_000, qlac_annual_income: 6_000_000 });
+  check('cap/single', 'formula', getQlacPremium(single) === QLAC_PREMIUM_LIMIT_CENTS, { check: 'irs-cap-single', expected: QLAC_PREMIUM_LIMIT_CENTS, actual: getQlacPremium(single) });
+  const mfj = makeClient({ ...base, filing_status: 'married_filing_jointly', spouse_age: 63, qualified_account_value: 200_000_000, qlac_premium: 50_000_000, qlac_annual_income: 6_000_000 });
+  check('cap/mfj', 'formula', getQlacPremium(mfj) === 2 * QLAC_PREMIUM_LIMIT_CENTS, { check: 'irs-cap-mfj', expected: 2 * QLAC_PREMIUM_LIMIT_CENTS, actual: getQlacPremium(mfj) });
+
+  const gi = makeClient({ ...base, ...QLAC, blueprint_type: 'simple-rollup-income', income_start_age: 70, qlac_income_start_age: 85 });
+  const split = runGuaranteedIncomeSimulation(createSimulationInput(applyQlacToClient(gi)));
+  const full = runGuaranteedIncomeSimulation(createSimulationInput(gi));
+  const repaired = recomputeGIComparison(gi, split, full);
+  check('gi/repair', 'baseline', repaired.comparison.baselineAnnualIncomeNet === full.giMetrics.comparison.baselineAnnualIncomeNet, { check: 'baseline-income-from-full-run', expected: full.giMetrics.comparison.baselineAnnualIncomeNet, actual: repaired.comparison.baselineAnnualIncomeNet });
+  check('gi/repair', 'formula', repaired.annualIncomeNet === split.giMetrics.annualIncomeNet, { check: 'strategy-income-from-split-run', expected: split.giMetrics.annualIncomeNet, actual: repaired.annualIncomeNet });
+  check('gi/repair', 'baseline', split.giMetrics.comparison.baselineAnnualIncomeNet < full.giMetrics.comparison.baselineAnnualIncomeNet, { check: 'split-baseline-was-smaller', expected: full.giMetrics.comparison.baselineAnnualIncomeNet, actual: split.giMetrics.comparison.baselineAnnualIncomeNet });
 }
 
 r.print('QLAC overlay — mechanics + theory');

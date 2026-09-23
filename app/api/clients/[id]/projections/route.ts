@@ -6,7 +6,7 @@ import { applyHeldBackIraRmd, computeHeldBackRmdSchedule, applyHeldBackResidualT
 import { resolveQlacSides, applyQlacToResult, isQlacActive, finalQlacDeathBenefit } from '@/lib/calculations/utils/qlac';
 import { computeStandardSummaryMetrics } from '@/lib/calculations/engine';
 import { computeGrowthSummaryMetrics } from '@/lib/calculations/growth-engine';
-import { computeGISummaryMetrics } from '@/lib/calculations/guaranteed-income/engine';
+import { computeGISummaryMetrics, recomputeGIComparison } from '@/lib/calculations/guaranteed-income/engine';
 import type { Client } from '@/lib/types/client';
 import type { ProjectionInsert, ProjectionResponse } from '@/lib/types/projection';
 import type { SimulationResult, YearlyResult } from '@/lib/calculations';
@@ -611,9 +611,13 @@ export async function GET(
       // "do nothing" comparison stays honest.
       let giSplitResult = runGuaranteedIncomeSimulation(rothSimInput);
       giSplitResult = fundConvTaxFromIraIfShort(clientForSim, rothSideClient, customProduct, runGuaranteedIncomeSimulation, giSplitResult);
-      const baselineFull = needsOwnBaseline
-        ? runGuaranteedIncomeSimulation(baselineSimInput).baseline
-        : giSplitResult.baseline;
+      // With a full-IRA baseline, the GI comparison metrics (baseline annual
+      // income, baseline yearly data) must come from that run too — otherwise
+      // the GI dashboard sizes the baseline annuity on the carved IRA while
+      // baseline_years shows the full one.
+      const fullRun = needsOwnBaseline ? runGuaranteedIncomeSimulation(baselineSimInput) : null;
+      const baselineFull = fullRun ? fullRun.baseline : giSplitResult.baseline;
+      const giMetrics = fullRun ? recomputeGIComparison(clientForSim, giSplitResult, fullRun) : giSplitResult.giMetrics;
       const splitWithFullBaseline = { ...giSplitResult, baseline: baselineFull };
       const { combinedFormula, aumYears } = runAumOverlay(strategyClient, splitWithFullBaseline);
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
@@ -626,7 +630,7 @@ export async function GET(
       // there's no held-back balance. Runs on the combined (post-AUM) formula.
       applyHeldBackResidualToStrategy(typedClient, finalResult);
       applyQlacToResult(typedClient, finalResult);
-      projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giSplitResult.giMetrics, aumYears);
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giMetrics, aumYears);
     } else if (isGrowthProduct(formulaType)) {
       let splitResult = runGrowthSimulation(rothSimInput);
       splitResult = fundConvTaxFromIraIfShort(clientForSim, rothSideClient, customProduct, runGrowthSimulation, splitResult);
@@ -767,9 +771,13 @@ export async function POST(
     if (isGI) {
       let giSplitResult = runGuaranteedIncomeSimulation(rothSimInput);
       giSplitResult = fundConvTaxFromIraIfShort(clientForSim, rothSideClient, customProduct, runGuaranteedIncomeSimulation, giSplitResult);
-      const baselineFull = needsOwnBaseline
-        ? runGuaranteedIncomeSimulation(baselineSimInput).baseline
-        : giSplitResult.baseline;
+      // With a full-IRA baseline, the GI comparison metrics (baseline annual
+      // income, baseline yearly data) must come from that run too — otherwise
+      // the GI dashboard sizes the baseline annuity on the carved IRA while
+      // baseline_years shows the full one.
+      const fullRun = needsOwnBaseline ? runGuaranteedIncomeSimulation(baselineSimInput) : null;
+      const baselineFull = fullRun ? fullRun.baseline : giSplitResult.baseline;
+      const giMetrics = fullRun ? recomputeGIComparison(clientForSim, giSplitResult, fullRun) : giSplitResult.giMetrics;
       const splitWithFullBaseline = { ...giSplitResult, baseline: baselineFull };
       const { combinedFormula, aumYears } = runAumOverlay(strategyClient, splitWithFullBaseline);
       const finalResult = { ...splitWithFullBaseline, formula: combinedFormula };
@@ -782,7 +790,7 @@ export async function POST(
       // there's no held-back balance. Runs on the combined (post-AUM) formula.
       applyHeldBackResidualToStrategy(typedClient, finalResult);
       applyQlacToResult(typedClient, finalResult);
-      projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giSplitResult.giMetrics, aumYears);
+      projectionInsert = simulationToProjection(clientId, user.id, typedClient, finalResult, inputHash, giMetrics, aumYears);
     } else if (isGrowthProduct(formulaType)) {
       let splitResult = runGrowthSimulation(rothSimInput);
       splitResult = fundConvTaxFromIraIfShort(clientForSim, rothSideClient, customProduct, runGrowthSimulation, splitResult);

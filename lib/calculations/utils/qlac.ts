@@ -3,7 +3,8 @@ import type { YearlyResult, FilingStatus } from '@/lib/calculations/types';
 import { getAgeAtYearOffset } from '@/lib/calculations/utils/age';
 import { mergeIncomeScheduleIntoClient, projectionYearsFor } from '@/lib/calculations/utils/income';
 import { afterTaxHeldBackRmd } from '@/lib/calculations/utils/held-back-ira';
-import { QLAC_DEFAULT_INCOME_START_AGE } from '@/lib/data/qlac-limits';
+import { QLAC_DEFAULT_INCOME_START_AGE, QLAC_PREMIUM_LIMIT_CENTS } from '@/lib/data/qlac-limits';
+import { resolveHeirTaxRate } from '@/lib/calculations/utils/heir-rate';
 
 /**
  * QLAC — Qualified Longevity Annuity Contract.
@@ -51,10 +52,16 @@ export function isQlacActive(client: Client): boolean {
   return (client.qlac_premium ?? 0) > 0 && (client.qualified_account_value ?? 0) > 0;
 }
 
-/** Premium actually carved out: the entered premium, capped at the IRA balance. */
+/**
+ * Premium actually carved out: the entered premium, capped at the IRA balance
+ * AND at the IRS per-person limit (× 2 for a joint return — each spouse may
+ * hold one). The form refuses a larger premium, but a direct API update is
+ * only partially validated, so the engine enforces the cap itself.
+ */
 export function getQlacPremium(client: Client): number {
   if (!isQlacActive(client)) return 0;
-  return Math.min(client.qlac_premium ?? 0, client.qualified_account_value ?? 0);
+  const persons = client.filing_status === 'married_filing_jointly' ? 2 : 1;
+  return Math.min(client.qlac_premium ?? 0, client.qualified_account_value ?? 0, QLAC_PREMIUM_LIMIT_CENTS * persons);
 }
 
 export function getQlacIncomeStartAge(client: Client): number {
@@ -133,7 +140,7 @@ export function applyQlacToResult(client: Client, result: { baseline: YearlyResu
   if (!isQlacActive(client)) return;
   applyQlacOverlay(client, result.formula);
   if (client.qlac_in_baseline) applyQlacOverlay(client, result.baseline);
-  const heirRate = (client.heir_tax_rate ?? 40) / 100;
+  const heirRate = resolveHeirTaxRate(client);
   const baselineQlacHeirTax = Math.round(finalQlacDeathBenefit(result.baseline) * heirRate);
   const strategyQlacHeirTax = Math.round(finalQlacDeathBenefit(result.formula) * heirRate);
   result.heirBenefit += baselineQlacHeirTax - strategyQlacHeirTax;

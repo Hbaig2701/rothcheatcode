@@ -87,9 +87,27 @@ adds the remaining death benefit.
 - `scripts/qlac-smoke.ts` (untracked) prints Ali's case: RMDs at 75 fall $17K, IRMAA
   drops a tier at 83–86, $60K/yr taxable income from 85.
 
-**Pending real-illustration check:** Mazhar is sending the carrier's QLAC illustration;
-verify the payout figure entered reproduces the illustration's income and that the ROP
-schedule matches the contract's cash-refund definition before announcing the feature.
+**Carrier verification (2026-09-23):** Mazhar's two Global Atlantic ForeCertain quotes
+(Forethought; $210K, Single Life w/ Cash Refund, cost basis $0 — D77W1D income from 75 at
+$2,768.84/mo, D77W5H from 80 at $5,304.64/mo) are locked as section 8 of
+`qlac-theory.test.ts`: cumulative payments and cash-refund run-off match to the cent,
+income starts in the quoted calendar year, every dollar is taxable, and the RMD base is
+exactly (IRA − $210K). This carrier begins payments on Jan 1 of the start-age year, so the
+overlay's full-first-year assumption is exact for it. Standalone:
+`scripts/qlac-verify-forecertain.ts`. Advisors enter the carrier's **monthly** figure × 12.
+
+## Known limitations
+
+- Level payouts only: no joint-life, period-certain or annual-increase (COLA) options;
+  income runs to the end of the projection regardless of a spouse's death.
+- Purchase is modeled in year 1 only.
+- `multi-strategy.ts` (unmounted) and `analysis/sensitivity.ts` (legacy engine only) run
+  the raw client — no QLAC or held-back overlay — same pre-existing pattern as held-back.
+- Held-back IRA + QLAC together: each overlay prices its own after-tax stream at the
+  bracket floor (assumes the other is stacked above it), so both after-tax banked figures
+  are slightly overstated in overlap years. Display/net-worth only; bounded.
+- The IRS cap is enforced by the form refine AND by `getQlacPremium` (× 2 for MFJ); a
+  direct API update with an over-cap premium is silently clamped rather than rejected.
 
 ## Deploy order
 
