@@ -3,26 +3,17 @@ import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEffectivePlan } from "@/lib/usage";
-import { salesCallTranscriptSchema } from "@/lib/validations/sales-call";
+import { salesCallTranscriptSchema, salesCallRecordingSchema } from "@/lib/validations/sales-call";
 import { transcribeAudio } from "@/lib/sales-calls/transcribe";
 import { analyzeTranscript } from "@/lib/sales-calls/analysis";
 
 export const dynamic = "force-dynamic";
+// Whisper needs 30–90s on a 25MB recording and runs inside after(), which
+// shares the route's budget; the default would cut it off mid-transcription.
+export const maxDuration = 120;
 
-const ALLOWED_AUDIO_TYPES = [
-  "video/mp4",
-  "audio/mpeg",
-  "audio/mp3",
-  "audio/wav",
-  "audio/x-wav",
-  "audio/mp4",
-  "audio/m4a",
-  "audio/x-m4a",
-  "audio/webm",
-  "video/webm",
-];
-
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+const SALES_CALLS_BUCKET = "sales-call-uploads";
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB — Whisper's ceiling
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -66,17 +57,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Subscription required" }, { status: 403 });
   }
 
-  const contentType = request.headers.get("content-type") || "";
-  const isFormData = contentType.includes("multipart/form-data");
-
-  if (isFormData) {
-    return handleFileUpload(request, user.id);
-  } else {
-    return handleTranscriptPaste(request, user.id);
-  }
-}
-
-async function handleTranscriptPaste(request: NextRequest, userId: string) {
   let body;
   try {
     body = await request.json();
@@ -84,6 +64,15 @@ async function handleTranscriptPaste(request: NextRequest, userId: string) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  // Both flows are JSON now: a recording arrives as a storage path (the
+  // browser uploads straight to the bucket), a transcript arrives inline.
+  if (typeof body?.storage_path === "string") {
+    return handleRecording(body, user.id);
+  }
+  return handleTranscriptPaste(body, user.id);
+}
+
+async function handleTranscriptPaste(body: unknown, userId: string) {
   const parsed = salesCallTranscriptSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -143,48 +132,50 @@ async function handleTranscriptPaste(request: NextRequest, userId: string) {
   return NextResponse.json(record, { status: 201 });
 }
 
-async function handleFileUpload(request: NextRequest, userId: string) {
-  let formData;
-  try {
-    formData = await request.formData();
-  } catch {
-    return NextResponse.json({ error: "Invalid form data" }, { status: 400 });
-  }
-
-  const file = formData.get("file") as File | null;
-  if (!file) {
-    return NextResponse.json({ error: "No file provided" }, { status: 400 });
-  }
-
-  if (!ALLOWED_AUDIO_TYPES.includes(file.type)) {
+async function handleRecording(body: unknown, userId: string) {
+  const parsed = salesCallRecordingSchema.safeParse(body);
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "File must be MP4, MP3, WAV, M4A, or WebM" },
+      { error: "Validation failed", details: parsed.error.flatten() },
       { status: 400 }
     );
   }
+  const { storage_path: storagePath, title, call_date, notes } = parsed.data;
 
-  if (file.size > MAX_FILE_SIZE) {
-    return NextResponse.json(
-      { error: "File must be under 25MB" },
-      { status: 400 }
-    );
+  // The bucket policy only lets an advisor write under their own uid folder;
+  // enforce the same here so a crafted path can't transcribe someone else's file.
+  if (!storagePath.startsWith(`${userId}/`) || storagePath.includes("..")) {
+    return NextResponse.json({ error: "Invalid storage path" }, { status: 400 });
   }
-
-  const title = (formData.get("title") as string) || `Sales Call - ${new Date().toLocaleDateString("en-US")}`;
-  const callDate = (formData.get("call_date") as string) || new Date().toISOString();
-  const notes = (formData.get("notes") as string) || null;
 
   const admin = createAdminClient();
 
-  // Create DB record first
+  // Confirm the object exists and is within Whisper's limit before creating
+  // a record. The bucket's own allowed_mime_types already gated the type.
+  const folder = storagePath.slice(0, storagePath.lastIndexOf("/"));
+  const objectName = storagePath.slice(storagePath.lastIndexOf("/") + 1);
+  const { data: objects, error: listError } = await admin.storage
+    .from(SALES_CALLS_BUCKET)
+    .list(folder, { search: objectName, limit: 1 });
+  const object = objects?.find((o) => o.name === objectName);
+  if (listError || !object) {
+    return NextResponse.json({ error: "Uploaded file not found" }, { status: 400 });
+  }
+  const size = (object.metadata as { size?: number } | null)?.size ?? 0;
+  if (size > MAX_FILE_SIZE) {
+    await admin.storage.from(SALES_CALLS_BUCKET).remove([storagePath]);
+    return NextResponse.json({ error: "File must be under 25MB" }, { status: 400 });
+  }
+  const mimeType = (object.metadata as { mimetype?: string } | null)?.mimetype || "audio/mpeg";
+
   const { data: record, error: insertError } = await admin
     .from("sales_calls")
     .insert({
       user_id: userId,
-      title,
+      title: title || `Sales Call - ${new Date().toLocaleDateString("en-US")}`,
       status: "transcribing",
-      call_date: callDate,
-      notes,
+      call_date: call_date || new Date().toISOString(),
+      notes: notes || null,
     })
     .select()
     .single();
@@ -194,17 +185,21 @@ async function handleFileUpload(request: NextRequest, userId: string) {
     return NextResponse.json({ error: "Failed to create record" }, { status: 500 });
   }
 
-  // Read file buffer for background processing
-  const fileBuffer = Buffer.from(await file.arrayBuffer());
-  const fileName = file.name;
-  const mimeType = file.type;
-
-  // Process transcription + analysis in background
+  // Download + transcribe + analyze after the response is sent. The recording
+  // is removed from the bucket either way — the transcript is what we keep.
   after(async () => {
     const bg = createAdminClient();
     try {
+      const { data: blob, error: downloadError } = await bg.storage
+        .from(SALES_CALLS_BUCKET)
+        .download(storagePath);
+      if (downloadError || !blob) {
+        throw new Error(downloadError?.message || "Could not read uploaded file");
+      }
+      const fileBuffer = Buffer.from(await blob.arrayBuffer());
+
       // Step 1: Transcribe
-      const { text, duration } = await transcribeAudio(fileBuffer, fileName, mimeType);
+      const { text, duration } = await transcribeAudio(fileBuffer, objectName, mimeType);
 
       await bg
         .from("sales_calls")
@@ -238,6 +233,8 @@ async function handleFileUpload(request: NextRequest, userId: string) {
           updated_at: new Date().toISOString(),
         })
         .eq("id", record.id);
+    } finally {
+      await bg.storage.from(SALES_CALLS_BUCKET).remove([storagePath]).catch(() => {});
     }
   });
 
