@@ -8,6 +8,7 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Plus, Trash2, Repeat, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { INCOME_TYPES, type IncomeType } from "@/lib/types/client";
+import { buildRecurringIncomeRows, inferGrowthPercent } from "@/lib/utils/recurring-income";
 
 export function IncomeTable() {
   const form = useFormContext<ClientFormData>();
@@ -34,10 +35,14 @@ export function IncomeTable() {
   const [recurringGross, setRecurringGross] = useState<number | null>(null);
   const [recurringExempt, setRecurringExempt] = useState<number | null>(null);
   const [recurringType, setRecurringType] = useState<IncomeType>("other");
+  // Annual increase applied when filling. "" / 0 keeps the old flat behaviour.
+  const [recurringGrowthStr, setRecurringGrowthStr] = useState("0");
   const [recurringError, setRecurringError] = useState<string | null>(null);
 
   const recurringStartAge = parseInt(recurringStartAgeStr) || 0;
   const recurringEndAge = parseInt(recurringEndAgeStr) || 0;
+  const recurringGrowth = Number.parseFloat(recurringGrowthStr);
+  const recurringGrowthPct = Number.isFinite(recurringGrowth) ? recurringGrowth : 0;
 
   // When opening the recurring panel, prefill with existing entry values so users
   // can see and adjust the current recurring amounts instead of starting blank
@@ -55,6 +60,17 @@ export function IncomeTable() {
             setRecurringStartAgeStr(String(firstAge));
           }
         }
+        // Infer the existing escalation from the first two rows of the same
+        // type, so reopening the panel and hitting Fill doesn't silently
+        // flatten a schedule that was already growing.
+        const secondEntry = fields.length > 1 ? form.getValues("non_ssi_income.1") : null;
+        const sameType = (secondEntry?.type ?? "other") === (firstEntry?.type ?? "other");
+        const consecutive = !!firstEntry?.year && !!secondEntry?.year && secondEntry.year === firstEntry.year + 1;
+        setRecurringGrowthStr(
+          sameType && consecutive
+            ? String(inferGrowthPercent(firstEntry?.gross_taxable ?? 0, secondEntry?.gross_taxable ?? 0))
+            : "0",
+        );
         const lastEntry = form.getValues(`non_ssi_income.${fields.length - 1}`);
         if (lastEntry?.year) {
           const lastAge = currentAge + (lastEntry.year - currentYear);
@@ -113,6 +129,10 @@ export function IncomeTable() {
       setRecurringError("Age cannot exceed 120");
       return;
     }
+    if (!Number.isFinite(recurringGrowth) || recurringGrowth < 0 || recurringGrowth > 20) {
+      setRecurringError("Annual increase must be between 0% and 20%");
+      return;
+    }
     setRecurringError(null);
 
     // Translate ages to years using the client's age-year relationship.
@@ -136,16 +156,19 @@ export function IncomeTable() {
           (entry.year < startYear || entry.year > endYear || (entry.type ?? "other") !== recurringType)
       );
 
-    const newEntries = [];
-    for (let year = startYear; year <= endYear; year++) {
-      newEntries.push({
-        year,
-        age: calculateAgeStr(year),
-        gross_taxable: gross,
-        tax_exempt: exempt,
-        type: recurringType,
-      });
-    }
+    const newEntries = buildRecurringIncomeRows({
+      startYear,
+      endYear,
+      grossCents: gross,
+      exemptCents: exempt,
+      growthPercent: recurringGrowthPct,
+    }).map((row) => ({
+      year: row.year,
+      age: calculateAgeStr(row.year),
+      gross_taxable: row.grossCents,
+      tax_exempt: row.exemptCents,
+      type: recurringType,
+    }));
 
     replace([...existingOutside, ...newEntries].sort((a, b) => a.year - b.year));
     setShowRecurring(false);
@@ -248,8 +271,9 @@ export function IncomeTable() {
             })()}
           </div>
           <p className="text-xs text-muted-foreground">
-            Fills the same annual amount from a start age through a target age — useful for
-            pensions, rental income, or part-time work.
+            Fills an annual amount from a start age through a target age — useful for
+            pensions, rental income, or part-time work. Add an annual increase to grow it
+            each year; leave it at 0% for a flat amount.
           </p>
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
@@ -299,7 +323,7 @@ export function IncomeTable() {
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1">
                 <label htmlFor="recurring-gross" className="text-xs text-muted-foreground">Annual Gross Taxable</label>
                 <CurrencyInput
@@ -314,6 +338,24 @@ export function IncomeTable() {
                   value={recurringExempt}
                   onChange={(v) => setRecurringExempt(v ?? null)}
                   className="h-9"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="recurring-growth" className="text-xs text-muted-foreground">Annual Increase (%)</label>
+                <Input
+                  id="recurring-growth"
+                  type="number"
+                  min={0}
+                  max={20}
+                  step={0.1}
+                  value={recurringGrowthStr}
+                  onChange={(e) => {
+                    setRecurringGrowthStr(e.target.value);
+                    setRecurringError(null);
+                  }}
+                  onFocus={(e) => e.currentTarget.select()}
+                  aria-invalid={!!recurringError && recurringError.toLowerCase().includes("increase")}
+                  className="h-9 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none aria-invalid:border-destructive aria-invalid:ring-destructive/20"
                 />
               </div>
             </div>
