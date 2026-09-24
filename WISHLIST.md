@@ -344,7 +344,7 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 
 ---
 
-## Escalating income entries (growth % on the Recurring bulk-fill)
+## ~~Escalating income entries (growth % on the Recurring bulk-fill)~~ — SHIPPED 2026-09-24
 
 **The pitch:** The `Recurring` button on the Non-SSI Income table fills the **same** annual amount from a start age to an end age (`components/clients/income-table.tsx`). Real income streams grow — dividends, rent, COLA'd pensions. Today the advisor either accepts a flat figure for 25 years or types every row by hand.
 
@@ -367,3 +367,78 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 **Demand signal:** Airinhos Serradas (ticket Sep 11 2026) — "may be a blend of Non-Q $$ and Directly from SEP-IRA, need to model both." Modelling them separately answers the immediate need; a true blend does not exist.
 
 **Estimated effort:** **2–3 days.**
+
+---
+
+## Conversion window — a hard start AND end date, with the bracket derived
+
+**The pitch:** Advisors work to real deadlines: finish before RMDs start, before a
+spouse's likely death changes the filing status, before a tax law sunsets. Today
+they can only say "start in N years" — there is no way to say "and be done by
+2031". The question they actually want answered is *"I have until this date, what
+does it cost me?"*, and we can't answer it at all.
+
+**Today:** `years_to_defer_conversion` sets a start; conversions then run until
+the projection ends. Both non-GI engines already have the gate — it's just wired
+to the wrong thing:
+
+```ts
+const conversionEndAge = client.end_age ?? 100;   // growth-formula.ts:198, formula.ts:104
+age >= conversionStartAge && age <= conversionEndAge   // the gate already exists
+```
+
+The GI engine already implements the whole idea and is the model to copy —
+`conversionEndAge = clientAge + conversionYears - 1` plus
+`fixedAnnualConversion = traditionalBalance / conversionYears`. One flaw to fix
+rather than inherit: it divides the OPENING balance once, so growth during the
+window leaves a stub. Re-solve annually on the remaining balance ÷ remaining years.
+
+**Don't derive a bracket ceiling — spread, and report the bracket.** A ceiling
+converts as fast as the bracket allows, and with seven brackets to choose from it
+overshoots the date. Measured on Kumar ($920K, age 61, "empty within 10 years"):
+
+| approach | result |
+|---|---|
+| cheapest ceiling that makes the deadline (24%) | finishes in **5** years, delta $7,009,155 |
+| even spread solved onto the deadline ($133,446/yr) | finishes in **10** years, peak bracket 24%, delta **$7,412,483** |
+
+Same peak bracket, lands on the date, **$403,328 better**. Overshooting pulls
+conversions forward at the same top rate for no benefit.
+
+**What it requires:**
+- A third `constraint_type` value alongside `bracket_ceiling` / `irmaa_threshold`
+  (the two dead values were retired 2026-06-05, so the enum is already curated).
+  Mutually exclusive with the IRMAA tier cap — you can't hold a date, a bracket
+  and a tier at once.
+- Start + end year inputs; engine spreads to land exactly on the end year.
+- **Max Tax Rate becomes an OUTPUT.** Disabled in the form reading "Set by the
+  conversion window", with the derived single number — "requires the 24% bracket"
+  — shown on the report where results live. It cannot appear at selection time:
+  the projection has to run first.
+- Staleness is already solved — projections are cached against `input_hash`
+  (projections route, written line 335, matched line 551). Show the derived
+  bracket in the form only while the stored projection matches current inputs;
+  otherwise "recalculate to update". The required bracket moves with income,
+  filing status and growth rate, so a stale number would quietly mislead.
+- **Do not compute it client-side.** Parts of `lib/calculations` already run in
+  the browser, but deriving it in the form means duplicating the server dispatch
+  (three engines plus AUM / QLAC / held-back-IRA overlays). Drift would show the
+  form saying 24% and the report saying 32%.
+
+**Guardrail that makes it responsible:** always report what the deadline costs —
+"finishing by 2036 needs the 24% bracket and leaves $402,000 less than filling to
+22% and taking until 2042." Both numbers are already in hand. Every case we've
+measured says a date-driven conversion usually loses: on Jain, 37% destroyed
+$1.2M vs doing nothing; on Kumar, a 22% ceiling beat 24%, 32% and 35% outright.
+Without the comparison this is a footgun.
+
+**Demand signal:** Airinhos Serradas (ticket 5feed754, Sep 2026) asked three
+separate ways — in his narrative ("a conversion to be done over a set number of
+years, capped by a set number of years"), point 3 ("a set hard and fast target
+date of conversion"), and point 8 ("a set conversion number of years from 2026 to
+2031 … and the tax implications of that conversion"). His client's window is
+driven by RMDs starting in 2032. Generalises well beyond him.
+
+**Estimated effort:** **2-3 days** — the window gate itself is small (the
+condition exists), the spread solve and the derived-bracket plumbing to the form
+and report are the bulk.
