@@ -19,6 +19,18 @@ export interface GlossaryEntry {
 }
 
 export const GLOSSARY = {
+  'baseline': {
+    title: 'Baseline',
+    body: 'The "do nothing" projection. The client keeps the Traditional IRA as it is, takes Required Minimum Distributions when they fall due, and pays tax on them each year. Every comparison in the report is measured against this.',
+  },
+  'strategy': {
+    title: 'Strategy',
+    body: 'The projection with the plan applied — Roth conversions, and any product, AUM allocation or QLAC configured for the client. Run on the same client, the same income and the same growth rate as the baseline, so the difference between them isolates the decision being illustrated.',
+  },
+  'comparison': {
+    title: 'Comparison',
+    body: 'Strategy minus baseline. Both sides run on identical assumptions so the gap reflects the planning decision rather than a difference in returns. Where the report shows a difference — lifetime wealth, legacy to heirs, total tax — it is this subtraction.',
+  },
   'roth-conversion': {
     title: 'Roth conversion',
     body: 'Moving dollars from a Traditional IRA to a Roth IRA. The converted amount is taxed as ordinary income in the year of conversion; from then on the dollars (and their growth) are tax-free.',

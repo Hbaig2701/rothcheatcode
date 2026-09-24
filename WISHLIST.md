@@ -344,7 +344,7 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 
 ---
 
-## ~~Escalating income entries (growth % on the Recurring bulk-fill)~~ — SHIPPED 2026-09-24
+## ~~Escalating income entries (growth % on the Recurring bulk-fill)~~ — SHIPPED 2026-09-25
 
 **The pitch:** The `Recurring` button on the Non-SSI Income table fills the **same** annual amount from a start age to an end age (`components/clients/income-table.tsx`). Real income streams grow — dividends, rent, COLA'd pensions. Today the advisor either accepts a flat figure for 25 years or types every row by hand.
 
