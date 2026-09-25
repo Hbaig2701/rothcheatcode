@@ -170,6 +170,23 @@
       margin-bottom: 14px;
     }
 
+    /* Advisor's own compliance disclosure (FINRA 2210). Escaped text with the
+       advisor's line breaks preserved; no markup permitted. */
+    .firm-disclosure {
+      font-size: 8pt;
+      color: #333;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      border-left: 3px solid #999;
+      padding: 8px 0 8px 12px;
+      margin: 24px 0 8px;
+    }
+    .firm-disclosure-heading {
+      font-size: 8.5pt;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 4px;
+    }
     .story-intro .disclaimer {
       font-size: 8.5pt;
       color: #888;
@@ -439,6 +456,12 @@
         </div>
       </div>
     {{/each}}
+
+    {{#if branding.reportDisclosure}}
+    <div class="firm-disclosure">
+      <div class="firm-disclosure-heading">Important Disclosures{{#if branding.companyName}} &mdash; {{branding.companyName}}{{/if}}</div>{{branding.reportDisclosure}}
+    </div>
+    {{/if}}
 
     {{{brandingFooter}}}
   </div>

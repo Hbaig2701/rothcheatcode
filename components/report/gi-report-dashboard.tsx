@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FirmDisclosure } from "@/components/report/firm-disclosure";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
 import type { YearlyResult } from "@/lib/calculations";
@@ -733,6 +734,9 @@ export function GIReportDashboard({ client, projection }: GIReportDashboardProps
         <p className="text-sm text-text-dim italic text-center max-w-[800px] mx-auto py-6">
           This optimized plan is for educational purposes only. Before making a Roth conversion or purchasing an annuity, discuss your final plan with a tax professional and licensed insurance agent.
         </p>
+        {/* Advisor's own broker-dealer / RIA disclosure. Renders nothing when
+            unset. See components/report/firm-disclosure.tsx. */}
+        <FirmDisclosure className="pb-6" />
       </div>
     </div>
   );

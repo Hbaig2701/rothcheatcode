@@ -596,6 +596,25 @@
     }
 
     /* Disclaimer */
+    /* Advisor's own compliance disclosure (FINRA 2210). Kept visually distinct
+       from our generic disclaimer so a compliance reviewer can tell whose
+       language is whose. white-space: pre-wrap preserves the advisor's line
+       breaks without allowing any markup. */
+    .firm-disclosure {
+      font-size: 8pt;
+      color: #333;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      border-left: 3px solid #999;
+      padding: 8px 0 8px 12px;
+      margin-bottom: 16px;
+    }
+    .firm-disclosure-heading {
+      font-size: 8.5pt;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 4px;
+    }
     .disclaimer {
       font-size: 8pt;
       color: #666;
@@ -1062,6 +1081,11 @@
     {{{pageHeader "Disclaimer"}}}
     <h1 class="section-title">Important Information</h1>
     <div class="disclaimer">
+      {{#if branding.reportDisclosure}}
+      <div class="firm-disclosure">
+        <div class="firm-disclosure-heading">Important Disclosures{{#if branding.companyName}} &mdash; {{branding.companyName}}{{/if}}</div>{{branding.reportDisclosure}}
+      </div>
+      {{/if}}
       <p>
         <strong>Hypothetical calculations only.</strong> This is an educational illustration only and is not intended to indicate actual performance nor predict future results. The hypothetical, non-guaranteed values shown are calculated based on user-defined assumptions and over a user-defined specified period. Please engage and rely on the advice of a properly licensed professional prior to making any financial decisions.
       </p>

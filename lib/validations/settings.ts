@@ -82,6 +82,10 @@ export const businessSchema = z.object({
     .nullable()
     .or(z.literal("")),
   address: z.string().max(500).optional().nullable(),
+  // Broker-dealer / RIA disclosure printed on client-facing reports. Generous
+  // cap: BD-approved language often runs to a full paragraph plus an advisory
+  // line. Authored by the advisor; we never supply a default.
+  report_disclosure: z.string().max(2000).optional().nullable(),
   primary_color: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "Must be a valid hex color"),

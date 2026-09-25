@@ -24,6 +24,7 @@ import { ResizableTable } from "@/components/results/deep-dive/resizable-table";
 import { ResizableComparisonTable } from "@/components/results/deep-dive/resizable-comparison-table";
 import { ColumnSelectorModal } from "@/components/results/deep-dive/column-selector-modal";
 import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
+import { FirmDisclosure } from "@/components/report/firm-disclosure";
 import { resolveColumnPreferences, saveColumnPreferences, getDefaultColumns, loadColumnPreferences, reconcileColumnPreferences, loadUserDefaultColumnPreferences, fetchColumnPreferenceFromDb, userDefaultScopeKey } from "@/lib/table-columns/storage";
 import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
 import { WidowSection } from "@/components/report/widow-section";
@@ -1210,6 +1211,10 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
           be considered tax or investment advice. Consult a qualified professional before making financial decisions.
         </p>
         )}
+
+        {/* Advisor's own broker-dealer / RIA disclosure. Renders nothing when
+            unset. See components/report/firm-disclosure.tsx. */}
+        <FirmDisclosure className="pb-6" />
       </div>
     </div>
   );

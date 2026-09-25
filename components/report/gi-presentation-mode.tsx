@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { FirmDisclosure } from "@/components/report/firm-disclosure";
 import { useProjection } from "@/lib/queries/projections";
 import { GIIncomeChart } from "@/components/results/gi-income-chart";
 import { transformToGIIncomeChartData } from "@/lib/calculations/transforms";
@@ -519,6 +520,9 @@ export function GIPresentationMode({ client, onExit }: GIPresentationModeProps) 
             ? 'This baseline projection is for educational purposes only. Discuss your retirement plan with a tax professional and licensed insurance agent before making decisions.'
             : 'This optimized plan is for educational purposes only. Before making a Roth conversion or purchasing an annuity, discuss your final plan with a tax professional and licensed insurance agent.'}
         </p>
+        {/* Advisor's own broker-dealer / RIA disclosure — presentation mode is
+            shown directly to clients. Renders nothing when unset. */}
+        <FirmDisclosure className="pb-8" />
       </div>
     </div>
   );

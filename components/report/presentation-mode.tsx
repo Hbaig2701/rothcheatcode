@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
+import { FirmDisclosure } from "@/components/report/firm-disclosure";
 import { useProjection } from "@/lib/queries/projections";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData, transformToGIChartData } from "@/lib/calculations/transforms";
@@ -305,6 +306,9 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
             ? 'This baseline projection is for educational purposes only. Discuss your retirement plan with a tax professional before making decisions.'
             : 'This optimized plan is for educational purposes only. Before making a Roth conversion, discuss your final plan with a tax professional.'}
         </p>
+        {/* Advisor's own broker-dealer / RIA disclosure — presentation mode is
+            shown directly to clients. Renders nothing when unset. */}
+        <FirmDisclosure className="pb-8" />
       </div>
     </div>
   );

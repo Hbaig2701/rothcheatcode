@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FirmDisclosure } from "@/components/report/firm-disclosure";
 import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
 import { WidowSection } from "@/components/report/widow-section";
@@ -208,6 +209,9 @@ export function GILegacyReportDashboard({ client, projection }: Props) {
           years (it is not a lump-sum cash value); availability and amounts vary by state. Confirm with the carrier
           illustration and a tax professional before acting.
         </p>
+        {/* Advisor's own broker-dealer / RIA disclosure. Renders nothing when
+            unset. See components/report/firm-disclosure.tsx. */}
+        <FirmDisclosure className="pb-6" />
       </div>
     </div>
   );

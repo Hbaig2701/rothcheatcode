@@ -32,6 +32,8 @@ interface BrandingData {
   website: string;
   primaryColor: string;
   secondaryColor: string;
+  /** Advisor's own compliance disclosure (FINRA 2210). Empty = block omitted. */
+  reportDisclosure: string;
 }
 
 // Branded header/footer helpers — same shapes as /api/generate-pdf so the
@@ -123,7 +125,7 @@ export async function POST(request: NextRequest) {
     // Load branding (mirrors generate-pdf).
     const { data: settings } = await supabase
       .from("user_settings")
-      .select("company_name, tagline, company_phone, company_email, company_website, logo_url, logo_light_url, primary_color, secondary_color")
+      .select("company_name, tagline, company_phone, company_email, company_website, logo_url, logo_light_url, primary_color, secondary_color, report_disclosure")
       .eq("user_id", user.id)
       .single();
 
@@ -137,6 +139,8 @@ export async function POST(request: NextRequest) {
       website: settings?.company_website || "",
       primaryColor: settings?.primary_color || "#D4AF37",
       secondaryColor: settings?.secondary_color || "#1a1a1a",
+      // Advisor-authored; rendered escaped with line breaks preserved.
+      reportDisclosure: (settings?.report_disclosure || "").trim(),
     };
 
     // Apply branding overrides (Pro / white-label).

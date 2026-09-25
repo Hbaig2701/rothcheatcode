@@ -54,6 +54,7 @@ export function BusinessTab({ settings }: BusinessTabProps) {
       company_email: settings.company_email ?? "",
       company_website: settings.company_website ?? "",
       address: settings.address ?? "",
+      report_disclosure: settings.report_disclosure ?? "",
       primary_color: settings.primary_color ?? "#1a3a5c",
       secondary_color: settings.secondary_color ?? "#14b8a6",
     },
@@ -188,6 +189,30 @@ export function BusinessTab({ settings }: BusinessTabProps) {
                   rows={2}
                   placeholder="123 Financial Plaza, Suite 400&#10;Los Angeles, CA 90001"
                   className="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-md border bg-transparent px-2.5 py-2 text-sm shadow-xs transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:outline-none"
+                />
+              </Field>
+
+              {/* Compliance disclosure. Required by FINRA Rule 2210 for
+                  securities-licensed reps — the built-in report disclaimer is
+                  insurance-producer language and does not cover them. Advisor
+                  authors it; we never supply or suggest wording. */}
+              <Field>
+                <FieldLabel>Compliance Disclosure (optional)</FieldLabel>
+                <textarea
+                  {...register("report_disclosure")}
+                  rows={5}
+                  maxLength={2000}
+                  placeholder="Securities offered through Example Financial Services, Member FINRA/SIPC. Advisory services offered through Example Advisors, a Registered Investment Adviser."
+                  className="dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 w-full rounded-md border bg-transparent px-2.5 py-2 text-sm shadow-xs transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:outline-none"
+                />
+                <FieldDescription>
+                  Your broker-dealer&apos;s or RIA&apos;s required disclosure language. Appears on
+                  every client-facing report and PDF, under your firm name. Paste exactly what
+                  your compliance department approved — line breaks are preserved. Leave blank
+                  if you don&apos;t need one.
+                </FieldDescription>
+                <FieldError
+                  errors={errors.report_disclosure ? [errors.report_disclosure] : undefined}
                 />
               </Field>
             </div>

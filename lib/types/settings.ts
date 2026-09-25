@@ -19,6 +19,8 @@ export interface UserSettings {
   address: string | null;
   logo_url: string | null;
   logo_light_url: string | null;
+  /** Advisor-authored compliance disclosure for client-facing reports. Per-user. */
+  report_disclosure: string | null;
   primary_color: string;
   secondary_color: string;
 
