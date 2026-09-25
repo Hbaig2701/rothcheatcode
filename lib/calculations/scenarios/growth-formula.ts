@@ -1435,6 +1435,11 @@ export function runGrowthFormulaScenario(
       magi,
       agi,
       standardDeduction,
+      // OBBA senior bonus is applied INSIDE computeTaxableIncomeWithSS but is not
+      // part of `deductions`/standardDeduction, so it must be surfaced separately
+      // or the report's AGI − Deduction won't equal Taxable Income (every other
+      // scenario already stamps it; this one was missed).
+      seniorBonusDeduction: finalTaxInfo.seniorBonusDeduction,
       taxableIncome: taxableIncomeForTax,
       federalTaxBracket,
       irmaaTier,
