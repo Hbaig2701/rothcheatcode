@@ -1849,6 +1849,9 @@ export async function POST(request: NextRequest) {
       if (brandingOverrides.logoUrl !== undefined) branding.logoUrl = brandingOverrides.logoUrl;
       if (brandingOverrides.primaryColor) branding.primaryColor = brandingOverrides.primaryColor;
       if (brandingOverrides.secondaryColor) branding.secondaryColor = brandingOverrides.secondaryColor;
+      // NOTE: reportDisclosure is intentionally absent. A compliance disclosure
+      // must come from the advisor's saved settings on every render — allowing
+      // a per-request override is how a report ships with the wrong one.
       if (brandingOverrides.phone !== undefined) branding.phone = brandingOverrides.phone;
       if (brandingOverrides.email !== undefined) branding.email = brandingOverrides.email;
       if (brandingOverrides.website !== undefined) branding.website = brandingOverrides.website;

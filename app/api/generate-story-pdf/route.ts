@@ -143,9 +143,15 @@ export async function POST(request: NextRequest) {
       reportDisclosure: (settings?.report_disclosure || "").trim(),
     };
 
-    // Apply branding overrides (Pro / white-label).
+    // Apply branding overrides (Pro / white-label). The compliance disclosure is
+    // deliberately NOT overridable per request: it is a regulatory attestation
+    // that must come from the advisor's saved settings every time, or a
+    // malformed request could silently ship a client-facing report with the
+    // wrong disclosure (or none). Mirrors the field-by-field handling in
+    // /api/generate-pdf, which never exposed it either.
     if (brandingOverrides && hasFeature(effectivePlan, "whiteLabel")) {
-      Object.assign(branding, brandingOverrides);
+      const { reportDisclosure: _ignored, ...safeOverrides } = brandingOverrides as Partial<BrandingData>;
+      Object.assign(branding, safeOverrides);
     }
 
     // Build story entries with the same generator the screen uses.
