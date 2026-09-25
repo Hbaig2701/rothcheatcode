@@ -34,9 +34,10 @@ export function FirmDisclosure({ className = "" }: { className?: string }) {
       <div className="text-xs font-semibold text-text-dim mb-1">
         Important Disclosures{firm ? ` — ${firm}` : ""}
       </div>
-      <p className="text-xs text-text-dim whitespace-pre-wrap leading-relaxed">
-        {text}
-      </p>
+      {/* Expression kept flush against the tags: with whitespace-pre-wrap, any
+          newline/indentation that survived JSX would render as visible blank
+          space. The PDF templates had exactly that bug. */}
+      <p className="text-xs text-text-dim whitespace-pre-wrap leading-relaxed">{text}</p>
     </div>
   );
 }

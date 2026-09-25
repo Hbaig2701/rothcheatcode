@@ -330,7 +330,6 @@
       font-size: 8pt;
       color: #333;
       line-height: 1.6;
-      white-space: pre-wrap;
       border-left: 3px solid #999;
       padding: 8px 0 8px 12px;
       margin-bottom: 16px;
@@ -340,6 +339,12 @@
       font-weight: 700;
       color: #222;
       margin-bottom: 4px;
+    }
+    /* pre-wrap lives on the TEXT NODE only. On the container it also preserved
+       the template's own source indentation, which rendered as ~34px of blank
+       space above the heading in the PDF. */
+    .firm-disclosure-body {
+      white-space: pre-wrap;
     }
     .disclaimer {
       font-size: 8pt;
@@ -1359,7 +1364,8 @@
     <div class="disclaimer">
       {{#if branding.reportDisclosure}}
       <div class="firm-disclosure">
-        <div class="firm-disclosure-heading">Important Disclosures{{#if branding.companyName}} &mdash; {{branding.companyName}}{{/if}}</div>{{branding.reportDisclosure}}
+        <div class="firm-disclosure-heading">Important Disclosures{{#if branding.companyName}} &mdash; {{branding.companyName}}{{/if}}</div>
+        <div class="firm-disclosure-body">{{branding.reportDisclosure}}</div>
       </div>
       {{/if}}
       <p>
