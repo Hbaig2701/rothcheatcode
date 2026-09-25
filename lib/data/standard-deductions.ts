@@ -1,5 +1,5 @@
 /**
- * 2026 Standard Deductions (Estimated)
+ * 2026 Standard Deductions — ACTUAL published figures (IRS Rev. Proc. 2025-32)
  * All values in cents
  *
  * Source: Retirement Expert Specification v1.0
@@ -10,8 +10,8 @@ export const STANDARD_DEDUCTIONS_2026: Record<string, number> = {
   married_filing_jointly: 3220000,    // $32,200
   married_filing_separately: 1610000, // $16,100
   head_of_household: 2415000,         // $24,150
-  senior_single_additional: 200000,   // $2,000 additional for 65+
-  senior_married_additional: 160000   // $1,600 per spouse 65+
+  senior_single_additional: 205000,   // $2,050 additional for 65+ (2026)
+  senior_married_additional: 165000   // $1,650 per spouse 65+ (2026)
 };
 
 // 3% annual inflation rate for deduction adjustments

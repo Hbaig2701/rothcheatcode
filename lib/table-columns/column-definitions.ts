@@ -618,7 +618,7 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     category: 'taxes',
     description: 'Extra deduction for taxpayers 65+ introduced by the One Big Beautiful Bill Act: $6,000 per qualifying person, available 2025–2028 only. It phases out above $75,000 of MAGI (single) or $150,000 (married filing jointly) at 6% of the excess, so higher earners see a reduced amount and it reaches $0 entirely. $0 for anyone under 65 or outside 2025–2028. This is deducted IN ADDITION to the standard deduction: AGI − Std Deduction − Senior Deduction = Taxable Income.',
     formatter: formatCurrency,
-    defaultVisible: false,
+    defaultVisible: true,
     visibleForProducts: ['all'],
     defaultWidth: 150,
     minWidth: 120,

@@ -1,78 +1,106 @@
 import { TaxBracket } from '@/lib/calculations/types';
 
 /**
- * 2026 Federal Tax Brackets (Estimated with ~3% inflation from 2024 base)
- * All threshold values in cents
- * Rates as percentages (e.g., 22 = 22%)
+ * 2026 Federal Tax Brackets — ACTUAL published figures.
+ * All threshold values in cents; rates as percentages (22 = 22%).
  *
- * Source: Retirement Expert Specification v1.0
+ * Source: IRS Rev. Proc. 2025-32 (tax year 2026).
+ * Cross-checked against Tax Foundation's 2026 bracket tables.
+ *
+ * Married filing separately is defined as half the joint thresholds (37%
+ * starts at $384,350); it therefore matches single except in the 35% band.
+ *
+ * HISTORY: this file previously held ESTIMATED brackets ("~3% inflation from a
+ * 2024 base") that were never replaced once the IRS published the real 2026
+ * numbers. The MFJ 12% ceiling read $96,950 instead of $100,800, so every
+ * bracket-filling conversion was sized ~4% short. Corrected 2026-09-25.
+ * When the 2027 figures publish, replace these and delete the inflation
+ * fallback below for that year.
  */
 export const FEDERAL_BRACKETS_2026: Record<string, TaxBracket[]> = {
   single: [
-    { lower: 0, upper: 1192500, rate: 10 },             // $0 - $11,925
-    { lower: 1192500, upper: 4847500, rate: 12 },       // $11,925 - $48,475
-    { lower: 4847500, upper: 10335000, rate: 22 },      // $48,475 - $103,350
-    { lower: 10335000, upper: 20177500, rate: 24 },     // $103,350 - $201,775
-    { lower: 20177500, upper: 25617500, rate: 32 },     // $201,775 - $256,175
-    { lower: 25617500, upper: 64147500, rate: 35 },     // $256,175 - $641,475
-    { lower: 64147500, upper: Infinity, rate: 37 }      // $641,475+
+    { lower: 0, upper: 1240000, rate: 10 },             // $0 - $12,400
+    { lower: 1240000, upper: 5040000, rate: 12 },       // $12,400 - $50,400
+    { lower: 5040000, upper: 10570000, rate: 22 },      // $50,400 - $105,700
+    { lower: 10570000, upper: 20177500, rate: 24 },     // $105,700 - $201,775
+    { lower: 20177500, upper: 25622500, rate: 32 },     // $201,775 - $256,225
+    { lower: 25622500, upper: 64060000, rate: 35 },     // $256,225 - $640,600
+    { lower: 64060000, upper: Infinity, rate: 37 }     // $640,600+
   ],
   married_filing_jointly: [
-    { lower: 0, upper: 2385000, rate: 10 },             // $0 - $23,850
-    { lower: 2385000, upper: 9695000, rate: 12 },       // $23,850 - $96,950
-    { lower: 9695000, upper: 20670000, rate: 22 },      // $96,950 - $206,700
-    { lower: 20670000, upper: 40355000, rate: 24 },     // $206,700 - $403,550
-    { lower: 40355000, upper: 51235000, rate: 32 },     // $403,550 - $512,350
-    { lower: 51235000, upper: 76845000, rate: 35 },     // $512,350 - $768,450
-    { lower: 76845000, upper: Infinity, rate: 37 }      // $768,450+
+    { lower: 0, upper: 2480000, rate: 10 },             // $0 - $24,800
+    { lower: 2480000, upper: 10080000, rate: 12 },      // $24,800 - $100,800
+    { lower: 10080000, upper: 21140000, rate: 22 },     // $100,800 - $211,400
+    { lower: 21140000, upper: 40355000, rate: 24 },     // $211,400 - $403,550
+    { lower: 40355000, upper: 51245000, rate: 32 },     // $403,550 - $512,450
+    { lower: 51245000, upper: 76870000, rate: 35 },     // $512,450 - $768,700
+    { lower: 76870000, upper: Infinity, rate: 37 }     // $768,700+
   ],
   married_filing_separately: [
-    { lower: 0, upper: 1192500, rate: 10 },             // $0 - $11,925
-    { lower: 1192500, upper: 4847500, rate: 12 },       // $11,925 - $48,475
-    { lower: 4847500, upper: 10335000, rate: 22 },      // $48,475 - $103,350
-    { lower: 10335000, upper: 20177500, rate: 24 },     // $103,350 - $201,775
-    { lower: 20177500, upper: 25617500, rate: 32 },     // $201,775 - $256,175
-    { lower: 25617500, upper: 38422500, rate: 35 },     // $256,175 - $384,225
-    { lower: 38422500, upper: Infinity, rate: 37 }      // $384,225+
+    { lower: 0, upper: 1240000, rate: 10 },             // $0 - $12,400
+    { lower: 1240000, upper: 5040000, rate: 12 },       // $12,400 - $50,400
+    { lower: 5040000, upper: 10570000, rate: 22 },      // $50,400 - $105,700
+    { lower: 10570000, upper: 20177500, rate: 24 },     // $105,700 - $201,775
+    { lower: 20177500, upper: 25622500, rate: 32 },     // $201,775 - $256,225
+    { lower: 25622500, upper: 38435000, rate: 35 },     // $256,225 - $384,350
+    { lower: 38435000, upper: Infinity, rate: 37 }     // $384,350+
   ],
   head_of_household: [
-    { lower: 0, upper: 1700000, rate: 10 },             // $0 - $17,000
-    { lower: 1700000, upper: 6475000, rate: 12 },       // $17,000 - $64,750
-    { lower: 6475000, upper: 10335000, rate: 22 },      // $64,750 - $103,350
-    { lower: 10335000, upper: 20177500, rate: 24 },     // $103,350 - $201,775
-    { lower: 20177500, upper: 25617500, rate: 32 },     // $201,775 - $256,175
-    { lower: 25617500, upper: 64147500, rate: 35 },     // $256,175 - $641,475
-    { lower: 64147500, upper: Infinity, rate: 37 }      // $641,475+
+    { lower: 0, upper: 1770000, rate: 10 },             // $0 - $17,700
+    { lower: 1770000, upper: 6745000, rate: 12 },       // $17,700 - $67,450
+    { lower: 6745000, upper: 10570000, rate: 22 },      // $67,450 - $105,700
+    { lower: 10570000, upper: 20177500, rate: 24 },     // $105,700 - $201,775
+    { lower: 20177500, upper: 25620000, rate: 32 },     // $201,775 - $256,200
+    { lower: 25620000, upper: 64060000, rate: 35 },     // $256,200 - $640,600
+    { lower: 64060000, upper: Infinity, rate: 37 }     // $640,600+
   ]
 };
 
 /**
- * Tax on lower brackets (cumulative tax at bracket floor)
- * Used for quick calculation: total_tax = tax_on_lower + (income_in_bracket * rate)
- * All values in cents
+ * Tax on lower brackets (cumulative tax at each bracket floor).
+ * total_tax = tax_on_lower[i] + (income − bracket.lower) × rate
+ * All values in cents. Derived from FEDERAL_BRACKETS_2026 above.
  */
 export const TAX_ON_LOWER_BRACKETS_2026: Record<string, number[]> = {
   single: [
-    0,           // 10% bracket floor
-    119250,      // $1,192.50 - tax at $11,925
-    557850,      // $5,578.50 - tax at $48,475
-    1765150,     // $17,651.50 - tax at $103,350
-    4127350,     // $41,273.50 - tax at $201,775
-    5868150,     // $58,681.50 - tax at $256,175
-    19351650     // $193,516.50 - tax at $641,475
+    0,              // $0 at $0
+    124000,         // $1,240 at $12,400
+    580000,         // $5,800 at $50,400
+    1796600,        // $17,966 at $105,700
+    4102400,        // $41,024 at $201,775
+    5844800,        // $58,448 at $256,225
+    19297925       // $192,979 at $640,600
   ],
   married_filing_jointly: [
-    0,           // 10% bracket floor
-    238500,      // $2,385.00 - tax at $23,850
-    1115700,     // $11,157.00 - tax at $96,950
-    3530200,     // $35,302.00 - tax at $206,700
-    8254600,     // $82,546.00 - tax at $403,550
-    11736200,    // $117,362.00 - tax at $512,350
-    20699700     // $206,997.00 - tax at $768,450
+    0,              // $0 at $0
+    248000,         // $2,480 at $24,800
+    1160000,        // $11,600 at $100,800
+    3593200,        // $35,932 at $211,400
+    8204800,        // $82,048 at $403,550
+    11689600,       // $116,896 at $512,450
+    20658350       // $206,584 at $768,700
+  ],
+  married_filing_separately: [
+    0,              // $0 at $0
+    124000,         // $1,240 at $12,400
+    580000,         // $5,800 at $50,400
+    1796600,        // $17,966 at $105,700
+    4102400,        // $41,024 at $201,775
+    5844800,        // $58,448 at $256,225
+    10329175       // $103,292 at $384,350
+  ],
+  head_of_household: [
+    0,              // $0 at $0
+    177000,         // $1,770 at $17,700
+    774000,         // $7,740 at $67,450
+    1615500,        // $16,155 at $105,700
+    3921300,        // $39,213 at $201,775
+    5662900,        // $56,629 at $256,200
+    19116900       // $191,169 at $640,600
   ]
 };
-
-// 3% annual inflation rate per specification
+// Fallback inflation for years beyond the published table. Real thresholds
+// track chained CPI (~2-3%/yr); replace with published figures as they land.
 const INFLATION_RATE = 0.03;
 
 /**

@@ -316,7 +316,7 @@ export function runFormulaScenario(
     // Self-consistent gross-up gate (mirrors growth-formula.ts): when the
     // conversion tax is paid fully from the IRA (no carrier penalty-free cap
     // routing overflow external, not the all-distributions outflow cap, and not
-    // the irmaa_threshold constraint whose later cap would invalidate the tax),
+    // irmaa_threshold, excluded here until 2026-09-25 — see growth-formula.ts):
     // the conversion tax must be computed on the FULL conversion-attributable
     // distribution (conversion + the extra pull), because the extra pull is
     // itself taxable. The old full/fixed solvers taxed only the conversion →
@@ -324,7 +324,16 @@ export function runFormulaScenario(
     const useSelfConsistent = payTaxFromIRA
       && taxCap === Number.POSITIVE_INFINITY
       && !useOutflowCap
-      && client.constraint_type !== 'irmaa_threshold';
+      // irmaa_threshold stays on the legacy path for the DRAINING conversion
+      // types only. full_conversion/fixed_amount size themselves to empty the
+      // IRA (conv + tax = balance); the IRMAA cap then claws the conversion
+      // back while the authoritative tax it set still assumes the full drain,
+      // so the IRA is emptied to pay tax on a conversion that never happened
+      // (Chris Cavanna: ending Roth $13.6M → $7.4M). The optimized/partial
+      // planner has no such coupling — it re-plans against the IRMAA ceiling —
+      // so those types DO use the self-consistent path (fixed 2026-09-25).
+      && !(client.constraint_type === 'irmaa_threshold'
+        && (conversionType === 'full_conversion' || conversionType === 'fixed_amount'));
     // Set when a full/fixed self-consistent branch ran, so the display
     // attribution can recompute the conversion-ONLY tax (the branch leaves
     // federalConversionTax = tax on the FULL distribution, which is the correct

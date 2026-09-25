@@ -17,8 +17,9 @@ const TOL = 100;
 
 // Independent 2026 brackets (inflation-indexed 3%/yr) + standard deduction.
 const BR: Record<string, { upTo: number; rate: number }[]> = {
-  single: [{ upTo: 1_192_500, rate: 10 }, { upTo: 4_847_500, rate: 12 }, { upTo: 10_335_000, rate: 22 }, { upTo: 20_177_500, rate: 24 }, { upTo: 25_617_500, rate: 32 }, { upTo: 64_147_500, rate: 35 }, { upTo: Infinity, rate: 37 }],
-  married_filing_jointly: [{ upTo: 2_385_000, rate: 10 }, { upTo: 9_695_000, rate: 12 }, { upTo: 20_670_000, rate: 22 }, { upTo: 40_355_000, rate: 24 }, { upTo: 51_235_000, rate: 32 }, { upTo: 76_845_000, rate: 35 }, { upTo: Infinity, rate: 37 }],
+  // 2026 per IRS Rev. Proc. 2025-32 — independent transcription (see recompute.test.ts).
+  single: [{ upTo: 1_240_000, rate: 10 }, { upTo: 5_040_000, rate: 12 }, { upTo: 10_570_000, rate: 22 }, { upTo: 20_177_500, rate: 24 }, { upTo: 25_622_500, rate: 32 }, { upTo: 64_060_000, rate: 35 }, { upTo: Infinity, rate: 37 }],
+  married_filing_jointly: [{ upTo: 2_480_000, rate: 10 }, { upTo: 10_080_000, rate: 12 }, { upTo: 21_140_000, rate: 22 }, { upTo: 40_355_000, rate: 24 }, { upTo: 51_245_000, rate: 32 }, { upTo: 76_870_000, rate: 35 }, { upTo: Infinity, rate: 37 }],
 };
 const DED: Record<string, number> = { single: 1_610_000, married_filing_jointly: 3_220_000 };
 function fed(ti: number, f: string, year: number) {
@@ -32,8 +33,8 @@ function ded(f: string, age: number, spouseAge: number | undefined, year: number
   const fac = year > 2026 ? Math.pow(1.03, year - 2026) : 1;
   const round = (c: number) => (year > 2026 ? Math.round(c * fac / 100) * 100 : c);
   let d = round(DED[f]);
-  if (f === 'married_filing_jointly') { if (age >= 65) d += round(160_000); if (spouseAge != null && spouseAge >= 65) d += round(160_000); }
-  else if (age >= 65) d += round(200_000);
+  if (f === 'married_filing_jointly') { if (age >= 65) d += round(165_000); if (spouseAge != null && spouseAge >= 65) d += round(165_000); }
+  else if (age >= 65) d += round(205_000);
   return d;
 }
 

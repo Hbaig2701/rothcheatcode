@@ -23,21 +23,21 @@ type Filing = Client['filing_status'];
 // 2026 ordinary brackets (cents). { upTo, rate }.
 const BRACKETS: Record<string, { upTo: number; rate: number }[]> = {
   single: [
-    { upTo: 1_192_500, rate: 10 }, { upTo: 4_847_500, rate: 12 }, { upTo: 10_335_000, rate: 22 },
-    { upTo: 20_177_500, rate: 24 }, { upTo: 25_617_500, rate: 32 }, { upTo: 64_147_500, rate: 35 }, { upTo: Infinity, rate: 37 },
+    { upTo: 1_240_000, rate: 10 }, { upTo: 5_040_000, rate: 12 }, { upTo: 10_570_000, rate: 22 },
+    { upTo: 20_177_500, rate: 24 }, { upTo: 25_622_500, rate: 32 }, { upTo: 64_060_000, rate: 35 }, { upTo: Infinity, rate: 37 },
   ],
   married_filing_jointly: [
-    { upTo: 2_385_000, rate: 10 }, { upTo: 9_695_000, rate: 12 }, { upTo: 20_670_000, rate: 22 },
-    { upTo: 40_355_000, rate: 24 }, { upTo: 51_235_000, rate: 32 }, { upTo: 76_845_000, rate: 35 }, { upTo: Infinity, rate: 37 },
+    { upTo: 2_480_000, rate: 10 }, { upTo: 10_080_000, rate: 12 }, { upTo: 21_140_000, rate: 22 },
+    { upTo: 40_355_000, rate: 24 }, { upTo: 51_245_000, rate: 32 }, { upTo: 76_870_000, rate: 35 }, { upTo: Infinity, rate: 37 },
   ],
 };
 BRACKETS.married_filing_separately = [
-  { upTo: 1_192_500, rate: 10 }, { upTo: 4_847_500, rate: 12 }, { upTo: 10_335_000, rate: 22 },
-  { upTo: 20_177_500, rate: 24 }, { upTo: 25_617_500, rate: 32 }, { upTo: 38_422_500, rate: 35 }, { upTo: Infinity, rate: 37 },
+  { upTo: 1_240_000, rate: 10 }, { upTo: 5_040_000, rate: 12 }, { upTo: 10_570_000, rate: 22 },
+  { upTo: 20_177_500, rate: 24 }, { upTo: 25_622_500, rate: 32 }, { upTo: 38_435_000, rate: 35 }, { upTo: Infinity, rate: 37 },
 ];
 BRACKETS.head_of_household = [
-  { upTo: 1_700_000, rate: 10 }, { upTo: 6_475_000, rate: 12 }, { upTo: 10_335_000, rate: 22 },
-  { upTo: 20_177_500, rate: 24 }, { upTo: 25_617_500, rate: 32 }, { upTo: 64_147_500, rate: 35 }, { upTo: Infinity, rate: 37 },
+  { upTo: 1_770_000, rate: 10 }, { upTo: 6_745_000, rate: 12 }, { upTo: 10_570_000, rate: 22 },
+  { upTo: 20_177_500, rate: 24 }, { upTo: 25_620_000, rate: 32 }, { upTo: 64_060_000, rate: 35 }, { upTo: Infinity, rate: 37 },
 ];
 
 // SS provisional-income thresholds (cents), NOT inflation-adjusted.
@@ -48,9 +48,10 @@ const SS_THRESH: Record<string, [number, number]> = {
   head_of_household: [2_500_000, 3_400_000],
 };
 
-// Federal brackets inflation-index forward at 3%/yr (SS thresholds do NOT — they
-// are statutory and frozen). Replicated here independently so the federal-tax
-// check is a true second-opinion bracket walk on the year-appropriate brackets.
+// 2026 brackets per IRS Rev. Proc. 2025-32, transcribed here independently of
+// lib/data/federal-brackets-2026.ts so this stays a true second opinion — if
+// the engine's table drifts from published law again, this check fails.
+// Inflation-indexed forward at 3%/yr (SS thresholds do NOT — statutory, frozen).
 const FED_INFLATION = 0.03;
 function fedTax(taxableIncome: number, filing: Filing, year: number): number {
   if (taxableIncome <= 0) return 0;

@@ -1,0 +1,30 @@
+import { createClient } from "@supabase/supabase-js";
+import { config } from "dotenv"; import { resolve } from "path";
+import { runGrowthSimulation, createSimulationInput } from "../lib/calculations";
+import type { Client } from "../lib/types/client";
+config({ path: resolve(process.cwd(), ".env.local") });
+const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } });
+const $=(c:number)=>"$"+(c/100).toLocaleString('en-US',{maximumFractionDigits:0});
+const sum=(a:any[],k:string)=>a.reduce((s,y)=>s+(Number(y[k])||0),0);
+(async()=>{
+  const {data}=await admin.from("clients").select("*").eq("id","cb7a54be-0098-4a87-b6da-e5b6b009a72c").single();
+  const c={...data, traditional_ira:100000000, qualified_account_value:100000000} as Client;
+  const hr=((data as any).heir_tax_rate??40)/100;
+  const lb=runGrowthSimulation(createSimulationInput(c,null)).baseline.slice(-1)[0] as any;
+  const baseNet=lb.netWorth-Math.round(lb.traditionalBalance*hr);
+  const run=(opts:any,label:string)=>{
+    const f=runGrowthSimulation(createSimulationInput({...c,...opts} as any,null)).formula as any[];
+    const lf=f[f.length-1];
+    const net=lf.netWorth-Math.round(lf.traditionalBalance*hr);
+    const y1=f.find(y=>y.year===2026), y2=f.find(y=>y.year===2027);
+    const early2=((y1?.conversionAmount||0)+(y2?.conversionAmount||0));
+    const earlyTax=((y1?.federalTaxOnConversions||0)+(y1?.stateTaxOnConversions||0)+(y2?.federalTaxOnConversions||0)+(y2?.stateTaxOnConversions||0));
+    console.log(`${label}`);
+    console.log(`   Yr1-2 converted: ${$(early2)} | Yr1-2 conv tax: ${$(earlyTax)}`);
+    console.log(`   Lifetime conv tax: ${$(sum(f,'federalTaxOnConversions')+sum(f,'stateTaxOnConversions'))}`);
+    console.log(`   NET TO HEIRS: ${$(net)}  (wins by ${$(net-baseNet)})\n`);
+  };
+  console.log("Baseline (do nothing) net to heirs:",$(baseNet),"\n");
+  run({conversion_type:'optimized_amount', respect_penalty_free_limit:true, penalty_free_scope:'all_distributions'}, "A) OPTIMIZED + 10% cap  (converts little yrs 1-2 = 'waits')");
+  run({conversion_type:'fixed_amount', respect_penalty_free_limit:true, penalty_free_scope:'all_distributions'}, "B) FIXED $150k + 10% cap (converts full 10% every yr = 'now')");
+})();

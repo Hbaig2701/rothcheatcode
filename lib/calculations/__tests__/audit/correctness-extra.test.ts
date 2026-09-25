@@ -15,7 +15,8 @@ const TOL = 100;
 
 // ---------------------------------------------------------------------------
 // (1) Standard deduction — independent: base (2026) × 1.03^(year-2026) rounded
-// to $100, + senior bonus ($2,000 single / $1,600 per 65+ spouse married).
+// to $100, + age-65 additional ($2,050 single / $1,650 per 65+ spouse married,
+// IRS Rev. Proc. 2025-32 for 2026 — transcribed independently of lib/data).
 // ---------------------------------------------------------------------------
 const BASE: Record<string, number> = { single: 1_610_000, married_filing_jointly: 3_220_000, married_filing_separately: 1_610_000, head_of_household: 2_415_000 };
 function dedIndependent(status: string, age: number, spouseAge: number | undefined, year: number): number {
@@ -24,8 +25,8 @@ function dedIndependent(status: string, age: number, spouseAge: number | undefin
   const infl = year > 2026 ? Math.pow(1.03, year - 2026) : 1;
   const round100 = (c: number) => (year > 2026 ? Math.round((c * infl) / 100) * 100 : c);
   const base = round100(BASE[status] ?? BASE.single);
-  const seniorSingle = round100(200_000);
-  const seniorMarried = round100(160_000);
+  const seniorSingle = round100(205_000);
+  const seniorMarried = round100(165_000);
   let bonus = 0;
   const married = status === 'married_filing_jointly' || status === 'married_filing_separately';
   if (married) {

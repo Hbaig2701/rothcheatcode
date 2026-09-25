@@ -11,6 +11,13 @@
  * invariant + recompute suites (the engine output is internally consistent and
  * its tax math matches an independent recompute). To intentionally update:
  * run, copy the printed actuals, and note the cause.
+ *
+ * RE-LOCKED 2026-09-25: the 2026 federal brackets were corrected from the old
+ * "~3% estimate" to the published Rev. Proc. 2025-32 figures (MFJ 12% ceiling
+ * $96,950 → $100,800, etc.), and the irmaa_threshold exclusion from the
+ * self-consistent gross-up was removed. Wider real brackets ⇒ more conversion
+ * room, less tax, higher ending wealth — every delta below moves in that
+ * direction.
  */
 
 import type { Client } from '../../../types/client';
@@ -60,13 +67,13 @@ const growth = summarize(makeClient({
 // 112,874,098; totalTax 44,576,110 → 43,921,577). Baseline is UNCHANGED (no
 // conversions, no rider). Verified: invariants 0 breaches.
 const GROWTH_EXPECTED = {
-  baseFinalNetWorth: 556_631_517,
+  baseFinalNetWorth: 556_827_203,
   baseFinalTraditional: 229_665_771,
-  formulaFinalNetWorth: 506_892_485,
-  formulaFinalRoth: 506_892_485,
-  totalConversions: 112_874_098,
-  totalTax: 43_921_577,
-  totalRiderFee: 23_900_823,
+  formulaFinalNetWorth: 507_778_178,
+  formulaFinalRoth: 507_778_178,
+  totalConversions: 113_073_067,
+  totalTax: 43_718_993,
+  totalRiderFee: 23_938_972,
 };
 
 // ---- GI master: compound roll-up income, single, deferral to 74 ----
@@ -95,13 +102,13 @@ const gi = summarize(makeClient({
 // 19,401,440 → 19,330,040) and a slightly higher do-nothing net worth
 // (355,548,789 → 355,783,006). Strategy net worth / conversions unchanged.
 const GI_EXPECTED = {
-  baseFinalNetWorth: 355_783_006,
+  baseFinalNetWorth: 356_949_101,
   baseFinalTraditional: 0,
-  formulaFinalNetWorth: 346_364_931,
+  formulaFinalNetWorth: 346_934_708,
   formulaFinalRoth: 0,
-  totalConversions: 81_459_692,
-  totalTax: 19_330_040,
-  totalRiderFee: 22_588_240,
+  totalConversions: 81_612_560,
+  totalTax: 19_199_774,
+  totalRiderFee: 22_625_399,
 };
 
 console.log('=== GROWTH actuals ===');

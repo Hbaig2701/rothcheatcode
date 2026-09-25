@@ -335,30 +335,30 @@ const FUCCI_EXPECTED = {
   // rose accordingly. Also fixes a PRE-EXISTING helper≠canonical failure in the
   // strategy taxOnRMDs (see blue note).
   base: {
-    finalNetWorth:        308_863_272,
+    finalNetWorth:        308_950_475,
     finalTraditional:      70_671_550,
     finalRoth:                      0,
-    finalTaxable:         238_191_722,
-    lifetimeWealth:       280_594_652,
+    finalTaxable:         238_278_925,
+    lifetimeWealth:       280_681_855,
     forcedDistributions:  132_258_417,
-    totalFedStateTax:       9_175_687,
-    taxOnRMDs:              9_175_687,
+    totalFedStateTax:       9_128_345,
+    taxOnRMDs:              9_128_345,
   },
   blue: {
-    finalNetWorth:        304_368_319,
+    finalNetWorth:        304_915_704,
     finalTraditional:               0,
     finalRoth:            205_852_525,
     finalTaxable:          98_199_012,
-    lifetimeWealth:       304_368_319,
-    taxOnConversions:      10_585_149,
-    totalFedStateTax:      11_840_484,
+    lifetimeWealth:       304_915_704,
+    taxOnConversions:      10_390_487,
+    totalFedStateTax:      11_635_023,
     // taxOnRMDs is now the MARGINAL RMD tax (conversion held in the no-RMD
     // baseline), matching the production computeMarginalRMDTax helper. The old
     // lock (12_324_519) was the buggy canonical value that folded conversion
     // tax into RMD tax — the helper never matched it (this assertion was
-    // failing pre-change). Now helper ≡ canonical = 6_287_679. The senior
-    // deduction itself moved the helper only ~$1,293 (6_454_022 → 6_287_679).
-    taxOnRMDs:              6_287_679,
+    // failing pre-change). Now helper ≡ canonical = 6_116_778. The senior
+    // deduction itself moved the helper only ~$1,293 (6_454_022 → 6_116_778).
+    taxOnRMDs:              6_116_778,
   },
 };
 
@@ -422,31 +422,31 @@ const PAUL_EXPECTED = {
   // worth/wealth rose accordingly. Also fixes the pre-existing helper≠canonical
   // strategy taxOnRMDs failure (see blue note).
   base: {
-    finalNetWorth:        177_758_154,
+    finalNetWorth:        177_852_383,
     finalTraditional:      34_875_030,
     finalRoth:                      0,
-    finalTaxable:         142_883_124,
-    lifetimeWealth:       163_808_142,
+    finalTaxable:         142_977_353,
+    lifetimeWealth:       163_902_371,
     forcedDistributions:   91_532_668,
-    totalFedStateTax:      13_534_537,
-    taxOnRMDs:             13_534_537,
+    totalFedStateTax:      13_481_687,
+    taxOnRMDs:             13_481_687,
   },
   blue: {
-    finalNetWorth:        205_693_685,
+    finalNetWorth:        206_376_663,
     finalTraditional:               0, // floored from -$14.72 (negative-IRA residual; see formula.ts iraAfterConversion floor)
-    finalRoth:            174_953_271,
+    finalRoth:            174_961_516,
     finalTaxable:          26_590_270,
-    lifetimeWealth:       205_693_685,
-    taxOnConversions:      16_630_495,
-    totalFedStateTax:      18_703_682,
+    lifetimeWealth:       206_376_663,
+    taxOnConversions:      16_378_781,
+    totalFedStateTax:      18_436_668,
     // taxOnRMDs is the MARGINAL RMD tax (conversion held in the no-RMD
     // baseline), matching the production computeMarginalRMDTax helper. It is
     // correctly LESS than totalFedStateTax (which includes conversion tax) — the
     // old lock (20_828_449, "== totalFedStateTax") was the buggy canonical that
     // folded conversion tax into RMD tax; the helper never matched it (this
-    // assertion was failing pre-change). Now helper ≡ canonical = 7_408_306. The
-    // senior deduction moved the helper only ~$1,479 (7_735_927 → 7_408_306).
-    taxOnRMDs:              7_408_306,
+    // assertion was failing pre-change). Now helper ≡ canonical = 7_170_508. The
+    // senior deduction moved the helper only ~$1,479 (7_735_927 → 7_170_508).
+    taxOnRMDs:              7_170_508,
   },
 };
 
@@ -537,14 +537,14 @@ const SPRENGEL_EXPECTED = {
     // IRMAA 2026 brackets corrected (Lori Avant). Sprengel's baseline MAGI stays
     // above the raised thresholds, so the higher 2026 surcharges add ~$2,340 of
     // lifetime IRMAA drag → net worth −$233,985 cents (648,268,744 → 648,034,759).
-    finalNetWorth:        648_034_759,
+    finalNetWorth:        649_008_532,
     finalTraditional:     401_190_516,
     finalRoth:                      0,
-    finalTaxable:         246_844_243,
-    lifetimeWealth:       487_558_553,
+    finalTaxable:         247_818_016,
+    lifetimeWealth:       488_532_326,
     forcedDistributions:  396_578_978,
-    totalFedStateTax:     191_368_364,
-    taxOnRMDs:            111_048_140,
+    totalFedStateTax:     189_248_915,
+    taxOnRMDs:            109_610_171,
   },
   blue: {
     // finalTraditional was -$22,971 (a NEGATIVE IRA balance) before the
@@ -558,13 +558,13 @@ const SPRENGEL_EXPECTED = {
     // self-consistent gross-up: paying conversion tax from the IRA now consumes
     // more IRA per dollar converted, so less reaches the Roth. finalTraditional
     // still floors to 0 (full conversion drains) and taxOnRMDs stays exactly 0.
-    finalNetWorth:        796_236_482,
+    finalNetWorth:        796_648_734,
     finalTraditional:               0,
-    finalRoth:            796_236_482,
+    finalRoth:            796_648_734,
     finalTaxable:                   0,
-    lifetimeWealth:       796_236_482,
-    taxOnConversions:      34_466_069,
-    totalFedStateTax:     121_898_664,
+    lifetimeWealth:       796_648_734,
+    taxOnConversions:      34_438_062,
+    totalFedStateTax:     121_664_353,
     // Full conversion drains the Traditional IRA before age 73, so there are
     // no RMDs in the strategy phase — marginal RMD tax must be exactly $0.
     // If this ever shows non-zero, full-conversion semantics broke.

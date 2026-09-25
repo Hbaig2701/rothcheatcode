@@ -12,6 +12,31 @@ without anyone noticing it would diverge from the year-by-year column.
 
 ---
 
+
+## Tax law data (2026)
+
+Federal brackets, the standard deduction and the age-65 additional deduction come
+from **IRS Rev. Proc. 2025-32** (tax year 2026), in `lib/data/federal-brackets-2026.ts`
+and `lib/data/standard-deductions.ts`. Key ceilings — MFJ 12% tops at **$100,800**,
+single 12% at **$50,400**, single 22% at **$105,700**. Standard deduction $32,200 MFJ /
+$16,100 single; age-65 additional $1,650 per married spouse / $2,050 single. The OBBA
+senior deduction ($6,000/person 65+, 2025–2028, phasing out above $150K MFJ / $75K other)
+is applied *on top* of those, so every report surface must satisfy:
+
+    AGI − Standard Deduction − Senior Deduction = Taxable Income
+
+Years beyond 2026 index forward at a 3% assumption until the IRS publishes real figures;
+replace the table when they do. **Correction history:** through 2026-09-25 this file held
+estimated brackets (MFJ 12% ceiling $96,950) that predated the published figures, which
+sized every bracket-filling conversion ~4% short. Corrected in cache version v80; the
+fixture values below moved at the same time, all in the direction of more conversion room
+and slightly less tax.
+
+The audit suite deliberately keeps its **own independent transcription** of these brackets
+(`__tests__/audit/recompute.test.ts`, `widow-theory.test.ts`, `correctness-credits.test.ts`,
+`correctness-extra.test.ts`). When the tables change, update both — the point is that a
+silent drift in one fails against the other.
+
 ## Audit window
 
 This audit covers the **Growth FIA** report path. The Guaranteed

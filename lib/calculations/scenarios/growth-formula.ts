@@ -447,13 +447,32 @@ export function runGrowthFormulaScenario(
     // extra pull to cover the tax), because the extra pull is itself a taxable
     // distribution (tax-on-the-tax). The prior full/fixed solvers taxed only the
     // conversion → over-converted and under-pulled the tax (James Cunningham:
-    // owed $415,930 but pulled $295,803). Excluded: the irmaa_threshold
-    // constraint, whose later cap would invalidate the tax we set here (rare and
-    // contradictory with a full conversion anyway) — it keeps the legacy path.
+    // owed $415,930 but pulled $295,803).
+    //
+    // irmaa_threshold was excluded here until 2026-09-25 on the theory that the
+    // later IRMAA cap would invalidate the tax set here. It doesn't: that cap
+    // runs AFTER this sizing and re-plans against its own ceiling, so IRMAA
+    // still binds. What the exclusion actually did was route those clients down
+    // the legacy path, which sizes conversion + the FULL tax to the bracket
+    // instead of funding the tax from the after-tax RMD first — the same
+    // RMD double-count the F6 fix removed everywhere else. Result: every
+    // IRMAA-constrained, tax-from-IRA client under-converted once RMDs began
+    // (Merrit Strunk / Teresa Barron, ticket 85f722c5). Verified after removal:
+    // IRMAA-binding and auto-clamp cases are byte-identical; only the
+    // IRMAA-not-binding case changes, and it now fills the bracket exactly.
     const useSelfConsistent = payTaxFromIRA
       && taxCap === Number.POSITIVE_INFINITY
       && !useOutflowCap
-      && client.constraint_type !== 'irmaa_threshold';
+      // irmaa_threshold stays on the legacy path for the DRAINING conversion
+      // types only. full_conversion/fixed_amount size themselves to empty the
+      // IRA (conv + tax = balance); the IRMAA cap then claws the conversion
+      // back while the authoritative tax it set still assumes the full drain,
+      // so the IRA is emptied to pay tax on a conversion that never happened
+      // (Chris Cavanna: ending Roth $13.6M → $7.4M). The optimized/partial
+      // planner has no such coupling — it re-plans against the IRMAA ceiling —
+      // so those types DO use the self-consistent path (fixed 2026-09-25).
+      && !(client.constraint_type === 'irmaa_threshold'
+        && (conversionType === 'full_conversion' || conversionType === 'fixed_amount'));
     // Set when full/fixed produced an authoritative self-consistent tax, so the
     // generic convTaxAt(conversion) recompute below doesn't clobber it.
     let selfConsistentTaxFromIra = false;
