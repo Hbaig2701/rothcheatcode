@@ -40,3 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 supabase/.temp/
+
+# Claude Code local session state (worktrees, agent output) — never commit
+.claude/
