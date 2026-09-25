@@ -94,9 +94,17 @@ export async function PUT(request: NextRequest) {
     );
   }
 
+  // A disclosure of only spaces/newlines is not a disclosure. Normalise it to
+  // NULL at the boundary so the DB never holds a "truthy but blank" value that
+  // would render an empty bordered block on every client-facing report.
+  const payload = { ...parsed.data } as Record<string, unknown>;
+  if (typeof payload.report_disclosure === "string" && payload.report_disclosure.trim() === "") {
+    payload.report_disclosure = null;
+  }
+
   const { data, error } = await supabase
     .from("user_settings")
-    .update(parsed.data)
+    .update(payload)
     .eq("user_id", user.id)
     .select()
     .single();
