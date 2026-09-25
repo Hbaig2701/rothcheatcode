@@ -32,7 +32,13 @@ export interface ColumnDefinition {
   // row[id] when absent, so cached rows lacking the extra field are unaffected.
   accessor?: (row: Record<string, any>) => any;
   frozen?: boolean;                        // Cannot be deselected (Year, Age)
-  defaultVisible: boolean;                 // Visible by default
+  /**
+   * NOT WIRED UP. The visible set comes from DEFAULT_PRESETS (presets.ts) via
+   * storage.ts's fallback chain (per-client saved → user default → preset).
+   * The only reader is getDefaultVisibleColumns() below, which has no callers.
+   * Changing this flag does NOT change what an advisor sees — edit the preset.
+   */
+  defaultVisible: boolean;
   visibleForProducts: ('growth' | 'gi' | 'all')[];
   defaultWidth?: number;                   // Default column width (px)
   minWidth?: number;                       // Minimum column width (px)
@@ -923,7 +929,9 @@ export function getColumnsForProduct(productType: 'growth' | 'gi'): ColumnDefini
 }
 
 /**
- * Get default visible columns for a product type
+ * Get default visible columns for a product type.
+ * UNUSED — kept for API compatibility. Real default visibility lives in
+ * DEFAULT_PRESETS (presets.ts); see the note on ColumnDefinition.defaultVisible.
  */
 export function getDefaultVisibleColumns(productType: 'growth' | 'gi'): string[] {
   return getColumnsForProduct(productType)

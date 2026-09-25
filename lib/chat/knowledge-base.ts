@@ -282,10 +282,14 @@ When the "Show Widow's Penalty" checkbox is on (in section "9. Advanced Data") a
 
 ## IRS data we use (2026)
 
-- **Federal brackets, single**: 10% to $11,925 → 12% to $48,475 → 22% to $103,350 → 24% to $201,775 → 32% to $256,175 → 35% to $641,475 → 37% above.
-- **Federal brackets, MFJ**: 10% to $23,850 → 12% to $96,950 → 22% to $206,700 → 24% to $403,550 → 32% to $512,350 → 35% to $768,450 → 37% above.
-- **Standard deduction (2026)**: $16,100 single / $32,200 MFJ / $24,150 HoH. Plus $2,000 per filer age 65+ if single; $1,600 per spouse age 65+ if married.
-- **RMD start age**: 73.
+- **Federal brackets, single** (IRS Rev. Proc. 2025-32): 10% to $12,400 → 12% to $50,400 → 22% to $105,700 → 24% to $201,775 → 32% to $256,225 → 35% to $640,600 → 37% above.
+- **Federal brackets, MFJ**: 10% to $24,800 → 12% to $100,800 → 22% to $211,400 → 24% to $403,550 → 32% to $512,450 → 35% to $768,700 → 37% above.
+- **Federal brackets, HoH**: 10% to $17,700 → 12% to $67,450 → 22% to $105,700 → 24% to $201,775 → 32% to $256,200 → 35% to $640,600 → 37% above.
+- **Federal brackets, MFS**: same as single except 35% tops at $384,350 (half the joint threshold).
+- Years after 2026 index forward at a 3% assumption until the IRS publishes real figures, so a bracket ceiling quoted for 2030 is an estimate.
+- **Standard deduction (2026)**: $16,100 single / $32,200 MFJ / $24,150 HoH. Plus the age-65 additional: $2,050 if single; $1,650 per spouse age 65+ if married.
+- **OBBA senior deduction**: a SEPARATE $6,000 per person 65+, 2025-2028 only, on top of the standard deduction. Phases out at 6% of MAGI above $75,000 (single) / $150,000 (MFJ). So the identity is AGI − Standard Deduction − Senior Deduction = Taxable Income; the year-by-year table has a "Senior Deduction" column for it.
+- **RMD start age**: 73 for those born 1951-1959, 75 for 1960+ (SECURE 2.0).
 - **Social Security taxability**: standard tier-1 ($25K provisional single / $32K joint) and tier-2 ($34K / $44K) - up to 85% of SS becomes taxable above tier-2.
 
 If an advisor asks "what brackets are you using?" - these are the numbers.

@@ -425,7 +425,14 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     // already reflects it via computeTaxableIncomeWithSS; standardDeduction does
     // not (it's the standard + additional deduction only), so add it back here.
     const stdDeduction = year.standardDeduction ?? getStandardDeduction(client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
-    const deduction = stdDeduction + getSeniorBonusDeduction(client.filing_status, agi, year.age, year.spouseAge ?? undefined, year.year);
+    // Prefer the engine's own figure: recomputing from the PDF's reconstructed
+    // `agi` lands on a different point of the OBBA phase-out whenever that agi
+    // differs from the engine's (QLAC/held-back rows, or pre-field projections),
+    // which breaks AGI − Deduction = Taxable Income by a few hundred dollars.
+    // Fall back to recomputing only for rows predating the field.
+    const seniorDeduction = year.seniorBonusDeduction
+      ?? getSeniorBonusDeduction(client.filing_status, agi, year.age, year.spouseAge ?? undefined, year.year);
+    const deduction = stdDeduction + seniorDeduction;
     const taxableIncomeVal = year.taxableIncome ?? Math.max(0, agi - deduction);
     const bracket = year.federalTaxBracket ?? determineTaxBracket(taxableIncomeVal, client.filing_status, year.year);
     const magi = year.magi ?? (agi + taxExemptNonSSI + (year.ssIncome - (year.taxableSS ?? 0)));
