@@ -7,7 +7,7 @@ import { clientFormulaSchema, type ClientFormData } from "@/lib/validations/clie
 import { useUpdateClient } from "@/lib/queries/clients";
 import { useRecalculateProjection } from "@/lib/queries/projections";
 import type { Client } from "@/lib/types/client";
-import { Loader2, X } from "lucide-react";
+import { Loader2, Maximize2, Minimize2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { GROWTH_PRODUCTS, GUARANTEED_INCOME_PRODUCTS, ALL_PRODUCTS, type FormulaType, type GuaranteedIncomeFormulaType } from "@/lib/config/products";
 import { useProducts } from "@/lib/queries/products";
@@ -29,9 +29,12 @@ import { AdvancedDataSection } from "@/components/clients/sections/advanced-data
 interface InputDrawerProps {
   client: Client;
   onClose: () => void;
+  /** Full-screen mode. The parent owns the state so it survives close/reopen. */
+  expanded?: boolean;
+  onToggleExpand?: () => void;
 }
 
-export function InputDrawer({ client, onClose }: InputDrawerProps) {
+export function InputDrawer({ client, onClose, expanded = false, onToggleExpand }: InputDrawerProps) {
   const updateClient = useUpdateClient();
   const recalculateProjection = useRecalculateProjection();
 
@@ -332,16 +335,33 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
   };
 
   return (
-    <div className="flex flex-col h-full text-foreground">
+    // Expanded: centre the form in a readable column instead of stretching
+    // every field across the whole viewport.
+    <div className={`flex flex-col h-full text-foreground ${expanded ? "mx-auto w-full max-w-4xl sm:border-x border-border-default" : ""}`}>
       {/* Drawer Header */}
       <div className="flex items-center justify-between px-7 py-5 border-b border-border-default shrink-0">
         <span className="text-base font-medium">Scenario Inputs</span>
-        <button
-          onClick={onClose}
-          className="text-text-dim hover:text-foreground transition-colors"
-        >
-          <X className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-3">
+          {onToggleExpand && (
+            <button
+              type="button"
+              onClick={onToggleExpand}
+              className="hidden sm:inline-flex text-text-dim hover:text-foreground transition-colors"
+              aria-label={expanded ? "Minimize to side panel" : "Expand to full screen"}
+              title={expanded ? "Minimize to side panel" : "Expand to full screen"}
+            >
+              {expanded ? <Minimize2 className="h-5 w-5" /> : <Maximize2 className="h-5 w-5" />}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-text-dim hover:text-foreground transition-colors"
+            aria-label="Close inputs"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
       </div>
 
       {/* Product Preset Selector */}
@@ -454,8 +474,8 @@ export function InputDrawer({ client, onClose }: InputDrawerProps) {
       {/* Footer */}
       <div className="px-7 py-5 border-t border-border-default shrink-0 space-y-3">
         {submitErrors.length > 0 && (
-          <div className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-300 space-y-1 max-h-32 overflow-y-auto">
-            <p className="font-medium text-red-200">Couldn&apos;t update scenario:</p>
+          <div className="rounded-md border border-red-400 bg-red-50 text-red-800 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-300 px-3 py-2 text-xs space-y-1 max-h-32 overflow-y-auto">
+            <p className="font-medium text-red-900 dark:text-red-200">Couldn&apos;t update scenario:</p>
             <ul className="list-disc pl-4 space-y-0.5">
               {submitErrors.map((m, i) => <li key={i}>{m}</li>)}
             </ul>

@@ -504,9 +504,20 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // X%" framing fits a bracket-ceiling / optimized strategy where the
   // engine deliberately caps fill; for a full_conversion, the rate is the
   // top bracket that got hit, not a ceiling the strategy stayed under.
+  // "Stay in" only when every conversion year sat in that top bracket. When
+  // years land in different brackets (other income pushes the early years to
+  // 35% while an IRMAA cap holds the rest at 22%), the figure is the highest
+  // bracket reached, not where the strategy stayed. (Dana Gibson ticket
+  // bfe75c2e: "Stay in the 35% bracket" with 10 of 13 years at 22%.)
+  const topConversionBracket = conversionYears.reduce(
+    (acc, y) => Math.max(acc, y.federalTaxBracket ?? 0),
+    0
+  );
   const targetBracketPrefix = client.conversion_type === 'full_conversion'
     ? 'Reaches the'
-    : 'Stay in the';
+    : conversionYears.some((y) => (y.federalTaxBracket ?? 0) !== topConversionBracket)
+      ? 'Up to the'
+      : 'Stay in the';
 
   return (
     <div className="flex flex-col h-full overflow-y-auto overflow-x-hidden">
@@ -521,11 +532,11 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             already above. Engine auto-clamped to "don't make it worse"
             (current-tier headroom) for those years. */}
         {irmaaTargetUnreachable && (
-          <div className="bg-amber-500/10 border border-amber-500/40 rounded-[14px] px-6 py-4">
-            <p className="text-sm font-medium text-amber-200">
+          <div className="bg-amber-50 border border-amber-400 dark:bg-amber-500/10 dark:border-amber-500/40 rounded-[14px] px-6 py-4">
+            <p className="text-sm font-medium text-amber-900 dark:text-amber-200">
               IRMAA target was below this client&apos;s actual income in {irmaaTargetUnreachableYears.length} year{irmaaTargetUnreachableYears.length === 1 ? "" : "s"}
             </p>
-            <p className="text-xs text-amber-300/80 mt-1.5 leading-relaxed">
+            <p className="text-xs text-amber-800 dark:text-amber-300/80 mt-1.5 leading-relaxed">
               You selected {targetIrmaaTierStr === 'standard' ? 'Standard (no surcharge)' : `Tier ${targetIrmaaTierIndex}`} as the IRMAA ceiling, but the client&apos;s baseline MAGI (from RMDs, Social Security, and other income) was already in a higher tier in those years. The engine fell back to capping at the client&apos;s actual current tier — conversions didn&apos;t push them HIGHER, but the IRMAA surcharge above the target was incurred regardless. To remove this warning, raise the target tier in the inputs to match what&apos;s actually achievable.
             </p>
           </div>

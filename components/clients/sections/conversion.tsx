@@ -11,10 +11,10 @@ import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
 
 const CONVERSION_TYPE_OPTIONS = [
-  { value: "optimized_amount", label: "Optimized Amount", help: "Each year, fill up to the target tax bracket. Continues until the IRA is empty or the projection ends." },
-  { value: "partial_amount", label: "Partial Amount", help: "Convert optimally each year, but stop once cumulative conversions reach a target total dollar amount." },
-  { value: "fixed_amount", label: "Fixed Amount", help: "Convert the same dollar amount every year (or remaining balance if less)." },
-  { value: "full_conversion", label: "Full Conversion", help: "Convert everything aggressively in the first year possible." },
+  { value: "optimized_amount", label: "Optimized Amount", help: "Each year, fill up to the target tax bracket. Continues until the IRA is empty or the projection ends. (Follows your Max Tax Rate and IRMAA limit chosen above.)" },
+  { value: "partial_amount", label: "Partial Amount", help: "Convert optimally each year, but stop once cumulative conversions reach a target total dollar amount. (Follows your Max Tax Rate and IRMAA limit chosen above.)" },
+  { value: "fixed_amount", label: "Fixed Amount", help: "Convert the same dollar amount every year (or remaining balance if less). (Ignores your Max Tax Rate — only the IRMAA limit above still applies.)" },
+  { value: "full_conversion", label: "Full Conversion", help: "Convert everything aggressively in the first year possible. (Ignores your Max Tax Rate — only the IRMAA limit above still applies.)" },
   { value: "no_conversion", label: "No Conversion", help: "Don't convert anything (baseline behavior)." },
 ] as const;
 

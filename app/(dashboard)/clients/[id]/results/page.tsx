@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useMemo } from "react";
+import { use, useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useClient, useDuplicateClient } from "@/lib/queries/clients";
 import { useProjection } from "@/lib/queries/projections";
@@ -28,6 +28,23 @@ export default function ResultsPage({ params }: ResultsPageProps) {
   const { data: client, isLoading: clientLoading } = useClient(id);
   const { data: projectionResponse, isLoading: projectionLoading } = useProjection(id);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Full-screen mode for the Inputs tray — the 600px side panel is cramped for
+  // the whole form (Dana Gibson ticket bfe75c2e). Kept across close/reopen so
+  // an advisor who prefers full screen gets it back. Escape minimizes.
+  const [drawerExpanded, setDrawerExpanded] = useState(false);
+  useEffect(() => {
+    if (!drawerOpen || !drawerExpanded) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      // Esc inside an open select / menu / dialog should only close that
+      // popup, not also minimize the tray.
+      const target = e.target as Element | null;
+      if (target?.closest?.('[role="listbox"],[role="menu"],[role="dialog"],[role="combobox"]')) return;
+      setDrawerExpanded(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerOpen, drawerExpanded]);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [presentMode, setPresentMode] = useState(false);
   const [storyMode, setStoryMode] = useState(false);
@@ -340,7 +357,13 @@ export default function ResultsPage({ params }: ResultsPageProps) {
             on narrow screens. Solid background + shadow so it doesn't read
             through the report behind it. */}
         {drawerOpen && (
-          <div className="absolute right-0 top-0 bottom-0 w-full sm:w-[600px] max-w-[95vw] shrink-0 border-l border-border-default bg-background shadow-[0_0_40px_rgba(0,0,0,0.4)] overflow-hidden z-30">
+          <div
+            className={
+              drawerExpanded
+                ? "fixed inset-0 z-50 bg-background overflow-hidden"
+                : "absolute right-0 top-0 bottom-0 w-full sm:w-[600px] max-w-[95vw] shrink-0 border-l border-border-default bg-background shadow-[0_0_40px_rgba(0,0,0,0.4)] overflow-hidden z-30"
+            }
+          >
             {/* Key on updated_at: InputDrawer seeds react-hook-form from `client`
                 via defaultValues (read once at mount), but useClient() is
                 stale-while-revalidate — so the drawer could open from a stale
@@ -348,7 +371,13 @@ export default function ResultsPage({ params }: ResultsPageProps) {
                 re-sync (gi_legacy_mode appearing to "randomly untick"). A newer
                 updated_at remounts it from fresh data; an unchanged one keeps
                 in-progress edits. Same fix as the full edit page. */}
-            <InputDrawer key={`${client.id}-${client.updated_at}`} client={client} onClose={() => setDrawerOpen(false)} />
+            <InputDrawer
+              key={`${client.id}-${client.updated_at}`}
+              client={client}
+              onClose={() => setDrawerOpen(false)}
+              expanded={drawerExpanded}
+              onToggleExpand={() => setDrawerExpanded((v) => !v)}
+            />
           </div>
         )}
       </div>
