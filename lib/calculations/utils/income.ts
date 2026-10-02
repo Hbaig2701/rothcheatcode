@@ -2,6 +2,33 @@ import type { Client, NonSSIIncomeEntry } from '@/lib/types/client';
 import { getAgeAtYearOffset } from '@/lib/calculations/utils/age';
 
 /**
+ * Income-row types taxed at the long-term capital gains rate rather than as
+ * ordinary income: realized capital gains and qualified dividends. These are
+ * EXCLUDED from getNonSSIIncomeForYear (ordinary income), returned by
+ * getPreferentialIncomeForYear, taxed at client.ltcg_rate in the engines, and
+ * counted toward MAGI (IRMAA) and Social Security provisional income by riding
+ * along with tax-exempt income in every MAGI/provisional path.
+ *
+ * "dividends" (labelled "Dividends & Interest") is deliberately NOT here — it
+ * mixes interest, which is ordinary — so existing rows keep their treatment.
+ */
+export const PREFERENTIAL_INCOME_TYPES: ReadonlySet<string> = new Set(['capital_gains', 'qualified_dividends']);
+export function isPreferentialIncomeType(type: string | undefined | null): boolean {
+  return !!type && PREFERENTIAL_INCOME_TYPES.has(type);
+}
+
+/**
+ * Sum of this year's capital-gains / qualified-dividend rows (cents). 0 when
+ * the client uses the flat legacy fields instead of the income table.
+ */
+export function getPreferentialIncomeForYear(client: Client, year: number): number {
+  if (!client.non_ssi_income || client.non_ssi_income.length === 0) return 0;
+  return client.non_ssi_income
+    .filter(e => e.year === year && isPreferentialIncomeType(e.type))
+    .reduce((sum, e) => sum + (e.gross_taxable ?? 0), 0);
+}
+
+/**
  * Get non-SSI other income for a specific year.
  *
  * Priority:
@@ -29,7 +56,7 @@ export function getNonSSIIncomeForYear(
   // If income table has entries, sum all rows for the year
   if (client.non_ssi_income && client.non_ssi_income.length > 0) {
     return client.non_ssi_income
-      .filter(e => e.year === year)
+      .filter(e => e.year === year && !isPreferentialIncomeType(e.type))
       .reduce((sum, e) => sum + (e.gross_taxable ?? 0), 0);
   }
 
@@ -86,15 +113,24 @@ export function mergeIncomeScheduleIntoClient(client: Client, byYear: Map<number
   for (let offset = 0; offset < projectionYears; offset++) {
     const year = currentYear + offset;
     const extra = byYear.get(year) ?? 0;
+    // Ordinary rows collapse into one merged row; preferential rows (capital
+    // gains / qualified dividends) keep their type so they stay out of ordinary
+    // income — their tax_exempt is carried on the preserved row, not here.
+    const rowsThisYear = (client.non_ssi_income ?? []).filter(e => e.year === year);
+    const preferentialRows = rowsThisYear.filter(e => isPreferentialIncomeType(e.type));
     const existingGross = getNonSSIIncomeForYear(client, year);
-    const existingExempt = getTaxExemptIncomeForYear(client, year);
-    if (existingGross === 0 && existingExempt === 0 && extra === 0) continue;
-    merged.push({
-      year,
-      age: getAgeAtYearOffset(clientAge, offset),
-      gross_taxable: existingGross + extra,
-      tax_exempt: existingExempt,
-    });
+    const existingExempt = rowsThisYear.length > 0
+      ? rowsThisYear.filter(e => !isPreferentialIncomeType(e.type)).reduce((sum, e) => sum + (e.tax_exempt ?? 0), 0)
+      : getTaxExemptIncomeForYear(client, year);
+    if (existingGross !== 0 || existingExempt !== 0 || extra !== 0) {
+      merged.push({
+        year,
+        age: getAgeAtYearOffset(clientAge, offset),
+        gross_taxable: existingGross + extra,
+        tax_exempt: existingExempt,
+      });
+    }
+    for (const row of preferentialRows) merged.push({ ...row });
   }
   return {
     ...client,

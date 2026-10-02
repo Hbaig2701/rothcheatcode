@@ -49,7 +49,7 @@ import {
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import type { CustomProductRow } from '@/lib/products/types';
-import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
+import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear, getPreferentialIncomeForYear } from '../utils/income';
 import { calculateMAGI, calculateAGI, getMarginalBracket, computeTaxableIncomeWithSS } from '../tax-helpers';
 
 // ---------------------------------------------------------------------------
@@ -389,8 +389,14 @@ function runGIStrategyScenario(
         : 0;
     }
     const ssIncome = primarySsIncome + spouseSsIncome;
-    const otherIncome = getNonSSIIncomeForYear(client, year);
+    // GI engine still taxes capital-gains / qualified-dividend rows as ordinary
+    // income (the flat-LTCG treatment lives in the growth/standard/baseline
+    // engines only, for now) — add them back so nothing is dropped.
+    const otherIncome = getNonSSIIncomeForYear(client, year) + getPreferentialIncomeForYear(client, year);
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
+    // AUM-bucket IRA pulls taxed in the other engine but part of this client's
+    // MAGI for the IRMAA lookback (utils/aum-magi.ts).
+    const externalMagiIncome = client.external_magi_income_by_year?.[year] ?? 0;
 
     // --- Standard deduction ---
     const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, client.additional_deductions);
@@ -554,7 +560,7 @@ function runGIStrategyScenario(
       // conversion tax withheld from the RMD is already inside the RMD.
       const grossIncomeWithConversion = otherIncome + conversionAmount + extraPullForTax + effectiveIraDistribution;
       const magi = grossIncomeWithConversion + taxExemptNonSSI + ssIncome;
-      incomeHistory.set(year, magi);
+      incomeHistory.set(year, magi + externalMagiIncome);
 
       // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
       // so the displayed tier matches the dollar surcharge on the same row.
@@ -764,7 +770,7 @@ function runGIStrategyScenario(
 
       // IRMAA tracking
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
-      incomeHistory.set(year, magi);
+      incomeHistory.set(year, magi + externalMagiIncome);
 
       // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
       // so the displayed tier matches the dollar surcharge on the same row.
@@ -930,7 +936,7 @@ function runGIStrategyScenario(
 
       // IRMAA
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
-      incomeHistory.set(year, magi);
+      incomeHistory.set(year, magi + externalMagiIncome);
 
       // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
       // so the displayed tier matches the dollar surcharge on the same row.
@@ -1114,7 +1120,7 @@ function runGIStrategyScenario(
 
       // IRMAA (GI from Roth doesn't count toward MAGI)
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
-      incomeHistory.set(year, magi);
+      incomeHistory.set(year, magi + externalMagiIncome);
 
       // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
       // so the displayed tier matches the dollar surcharge on the same row.
@@ -1393,8 +1399,14 @@ function runGIBaselineScenario(
         : 0;
     }
     const ssIncome = primarySsIncome + spouseSsIncome;
-    const otherIncome = getNonSSIIncomeForYear(client, year);
+    // GI engine still taxes capital-gains / qualified-dividend rows as ordinary
+    // income (the flat-LTCG treatment lives in the growth/standard/baseline
+    // engines only, for now) — add them back so nothing is dropped.
+    const otherIncome = getNonSSIIncomeForYear(client, year) + getPreferentialIncomeForYear(client, year);
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
+    // AUM-bucket IRA pulls taxed in the other engine but part of this client's
+    // MAGI for the IRMAA lookback (utils/aum-magi.ts).
+    const externalMagiIncome = client.external_magi_income_by_year?.[year] ?? 0;
 
     // --- Standard deduction ---
     // A (deduction isolation): GI BASELINE (do-nothing) — additional_deductions
@@ -1472,7 +1484,7 @@ function runGIBaselineScenario(
 
       // IRMAA. Voluntary IRA pulls + forced RMD feed into MAGI/income like ordinary income.
       const magi = otherIncome + iraWithdrawalW + rmdAmount + taxExemptNonSSI + ssIncome;
-      incomeHistory.set(year, magi);
+      incomeHistory.set(year, magi + externalMagiIncome);
 
       // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
       // so the displayed tier matches the dollar surcharge on the same row.
@@ -1635,7 +1647,7 @@ function runGIBaselineScenario(
 
       // IRMAA
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
-      incomeHistory.set(year, magi);
+      incomeHistory.set(year, magi + externalMagiIncome);
 
       // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
       // so the displayed tier matches the dollar surcharge on the same row.
@@ -1844,7 +1856,7 @@ function runGIBaselineScenario(
 
       // IRMAA (the RMD counts toward MAGI)
       const magi = otherIncome + rmdAmount + taxExemptNonSSI + ssIncome;
-      incomeHistory.set(year, magi);
+      incomeHistory.set(year, magi + externalMagiIncome);
 
       // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
       // so the displayed tier matches the dollar surcharge on the same row.
@@ -2005,7 +2017,7 @@ function runGIBaselineScenario(
 
       // IRMAA (Traditional GI income counts toward MAGI)
       const magi = grossTaxableIncome + taxExemptNonSSI + ssIncome;
-      incomeHistory.set(year, magi);
+      incomeHistory.set(year, magi + externalMagiIncome);
 
       // IRMAA surcharge + tier both come from the same 2-year-lookback MAGI
       // so the displayed tier matches the dollar surcharge on the same row.

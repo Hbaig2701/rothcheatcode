@@ -11,7 +11,7 @@ import { calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import { getStateTaxRate } from '@/lib/data/states';
-import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
+import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear, getPreferentialIncomeForYear } from '../utils/income';
 import {
   getMarginalBracket,
   computeTaxableIncomeWithSS,
@@ -190,7 +190,11 @@ export function runFormulaScenario(
 
     // Other taxable income (non-SSI) - year-specific from income table
     const otherIncome = getNonSSIIncomeForYear(client, year);
-    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
+    // Preferential income + external MAGI — see growth-formula.ts for the notes.
+    const preferentialIncome = getPreferentialIncomeForYear(client, year);
+    const ltcgTax = Math.round(preferentialIncome * ((client.ltcg_rate ?? 15) / 100));
+    const externalMagiIncome = client.external_magi_income_by_year?.[year] ?? 0;
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year) + preferentialIncome;
 
     // Standard deduction (age-adjusted) + any advisor-entered additional deductions
     const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, client.additional_deductions);
@@ -781,7 +785,7 @@ export function runFormulaScenario(
     // year were already computed above (before the conversion-tax split) so the
     // RMD-funds-tax math could use the surcharge — IRMAA's 2-year lookback never
     // reads the current year, so computing it earlier is equivalent.
-    incomeHistory.set(year, magi);
+    incomeHistory.set(year, magi + externalMagiIncome);
 
     // 10% early withdrawal penalty on the EXTRA pull to cover tax when under
     // 59.5 (RMDs are age 73+, so extraPullForTax == conversionTaxFromIRA
@@ -794,7 +798,7 @@ export function runFormulaScenario(
     // Total tax this year = full federal + full state + IRMAA + penalty.
     // (Previously this was conversionTax only, which silently zeroed out tax
     // on any non-conversion ordinary income or taxable SS.)
-    const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge + earlyWithdrawalPenalty;
+    const totalTax = federalResult.totalTax + ltcgTax + stateResult.totalTax + irmaaSurcharge + earlyWithdrawalPenalty;
 
     // End of Year balances
     iraBalance = iraAfterConversion + iraInterest;
@@ -894,7 +898,7 @@ export function runFormulaScenario(
       pensionIncome: 0,
       otherIncome,
       totalIncome,
-      federalTax: federalResult.totalTax,
+      federalTax: federalResult.totalTax + ltcgTax,
       stateTax: stateResult.totalTax,
       niitTax: 0,
       irmaaSurcharge,
@@ -916,11 +920,13 @@ export function runFormulaScenario(
       taxableIncome: taxInfoFinal.taxableIncome,
       federalTaxBracket,
       irmaaTier,
+      preferentialIncome,
+      ltcgTax,
       // Attribution: split the residual ordinary+SS tax by taxable-income share,
       // with the forced RMD counted as ordinary income (see ordinaryBaseline above).
       federalTaxOnSS: federalTaxOnSSVal,
       federalTaxOnConversions: dispFederalConvTax,
-      federalTaxOnOrdinaryIncome: federalTaxOnOrdinaryIncomeVal,
+      federalTaxOnOrdinaryIncome: federalTaxOnOrdinaryIncomeVal + ltcgTax,
       stateTaxOnSS: stateTaxOnSSVal,
       stateTaxOnConversions: dispStateConvTax,
       stateTaxOnOrdinaryIncome: stateTaxOnOrdinaryIncomeVal,

@@ -806,6 +806,26 @@ export function TaxDataSection() {
         }}
       />
 
+      {/* LTCG Rate — flat rate on income rows typed Capital Gains / Qualified
+          Dividends (and the AUM bucket's dividends + turnover). Same form field
+          as the one under 7. AUM Allocation; surfaced here so it's reachable
+          without an AUM split. */}
+      <Controller
+        name="ltcg_rate"
+        control={form.control}
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        render={({ field: { ref, ...field }, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor="ltcg_rate_tax" className="flex items-center gap-1.5">
+              LTCG Rate
+              <FieldHelp {...FIELD_HELP.ltcg_rate} />
+            </FieldLabel>
+            <PercentInput {...field} value={field.value ?? undefined} aria-invalid={fieldState.invalid} />
+            <FieldError errors={[fieldState.error]} />
+          </Field>
+        )}
+      />
+
       {/* State Tax Rate */}
       <Controller
         name="state_tax_rate"

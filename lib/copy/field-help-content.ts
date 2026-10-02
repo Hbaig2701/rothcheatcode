@@ -257,7 +257,7 @@ export const FIELD_HELP = {
   },
   non_ssi_income_table: {
     title: "Other Taxable Income Schedule",
-    body: "Year-by-year non-Social-Security income — pensions, rental income, RMDs from a non-modeled IRA, part-time wages, etc. Use 'Repeat' to fill a recurring amount across an age range. Only enter income that hasn't already been captured elsewhere in the form.",
+    body: "Year-by-year non-Social-Security income — pensions, rental income, RMDs from a non-modeled IRA, part-time wages, etc. Use 'Recurring' to fill a recurring amount across an age range. Only enter income that hasn't already been captured elsewhere in the form. Rows typed Capital Gains or Qualified Dividends are taxed at the LTCG rate (Tax Data) instead of as ordinary income, and still count toward IRMAA and Social Security taxation; 'Dividends & Interest' is taxed as ordinary income.",
     example: "Client has a $24,000/yr pension starting at age 65 for life → add one row, enter 65 in 'Start Age', a generous end age (e.g., 95), $24,000 amount, type 'Pension', click Repeat.",
   },
 
@@ -320,7 +320,7 @@ export const FIELD_HELP = {
   },
   ltcg_rate: {
     title: "LTCG Rate (%)",
-    body: "Long-term capital gains rate applied to dividends + realized turnover. Federal LTCG is 0/15/20% depending on income; add state if your state taxes LTCG as ordinary income.",
+    body: "Long-term capital gains rate applied to income rows typed Capital Gains or Qualified Dividends, and to the AUM bucket's dividends + realized turnover. Federal LTCG is 0/15/20% depending on income; add state if your state taxes LTCG as ordinary income.",
     example: "MFJ client in 22% bracket, no state LTCG → 15%. California client in top bracket → 15% federal + 13.3% state ≈ 28.3%.",
   },
 
