@@ -8,6 +8,7 @@ import type { Projection } from "@/lib/types/projection";
 import type { Client } from "@/lib/types/client";
 import { TaxFundingNotice } from "@/components/report/tax-funding-notice";
 import { StrategyLosingNotice } from "@/components/report/strategy-losing-notice";
+import { InfoTooltip } from "@/components/report/info-tooltip";
 import type { YearlyResult } from "@/lib/calculations";
 import { WealthChart } from "@/components/results/wealth-chart";
 import { transformToChartData } from "@/lib/calculations/transforms";
@@ -165,6 +166,42 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
 
   // Calculate break-even from chart data (lifetime wealth trajectory, not raw netWorth)
   const chartBreakEvenAge = chartData.find(d => d.formula > d.baseline)?.age ?? null;
+
+  // ── Breakeven milestones ──────────────────────────────────────────────
+  // Four ages that answer "does this conversion actually pay off, and when?".
+  // All four read the projection rows we already have — no engine work. Any of
+  // them can legitimately be null (conversions that never finish inside the
+  // horizon, a strategy that never catches up), and the card says so plainly
+  // rather than hiding the row: some cases genuinely don't pay, and the
+  // advisor needs to see that.
+  const blueprintYears = projection.blueprint_years ?? [];
+  const convYears = blueprintYears.filter((y) => (y.conversionAmount ?? 0) > 0);
+  const conversionsCompleteAge = convYears.length
+    ? convYears[convYears.length - 1].age
+    : null;
+  // First year the Roth is worth more than what's left in the Traditional IRA.
+  const rothOvertakesAge =
+    blueprintYears.find((y) => (y.rothBalance ?? 0) > (y.traditionalBalance ?? 0))?.age ?? null;
+  // Cumulative-tax payback: the strategy pays more tax up front, then recovers.
+  const taxPaybackAge = projection.break_even_age ?? null;
+  // "Stays ahead from age X" — the point after which the strategy is ahead for
+  // the REST of the projection, not merely the first year it noses in front.
+  // chartBreakEvenAge is a first-crossing marker, which is right for the chart
+  // (the lines really do cross there) but wrong as a claim: a plan can lead for
+  // one year when the IRA empties and heir tax drops to zero, then be overtaken
+  // and finish behind. Reporting that as "ahead from 65 onward" would put a
+  // number in front of a client that the projection doesn't support.
+  const sustainedAheadAge = (() => {
+    if (chartData.length === 0) return null;
+    const last = chartData[chartData.length - 1];
+    if (last.formula <= last.baseline) return null; // finishes behind
+    let idx = 0;
+    for (let i = chartData.length - 1; i >= 0; i--) {
+      if (chartData[i].formula <= chartData[i].baseline) { idx = i + 1; break; }
+    }
+    return chartData[idx]?.age ?? null;
+  })();
+
 
   // Age the "Final ..." figures in Account Summary are stated as of. Taken from
   // the LAST projected row rather than client.end_age: projectionYears is
@@ -955,6 +992,58 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               Strategy surpasses baseline at age {chartBreakEvenAge}
             </p>
           )}
+        </div>
+
+        {/* Section 4b: Breakeven Analysis */}
+        <div className="bg-bg-card border border-border-default rounded-[14px] p-7">
+          <p className="text-xs uppercase tracking-[1.5px] text-text-muted mb-5 font-medium">
+            Breakeven Analysis
+          </p>
+          <p className="text-lg text-foreground mb-6">
+            {sustainedAheadAge
+              ? <>This strategy is ahead from <span className="text-gold font-medium">age {sustainedAheadAge}</span> onward.</>
+              : <>This strategy does not finish ahead of doing nothing in this projection.</>}
+          </p>
+          <div className="space-y-3">
+            {[
+              {
+                label: 'Conversions complete',
+                age: conversionsCompleteAge,
+                none: 'Still converting at the end of the projection',
+                tip: 'The last year this plan converts anything \u2014 after it, the Traditional IRA is empty. Set by your Conversion Type and Max Tax Rate: a lower bracket ceiling converts smaller amounts over more years.',
+              },
+              {
+                label: 'Conversion tax paid back',
+                age: taxPaybackAge,
+                none: 'Not recovered within this projection',
+                tip: 'Converting costs extra tax up front. This is the age at which the strategy\u2019s running total of tax paid falls back below the do-nothing plan\u2019s, comparing every year\u2019s full bill (federal, state and IRMAA). If it never recovers, the plan can still finish ahead through tax-free growth \u2014 this measures tax alone, not wealth.',
+              },
+              {
+                label: 'Roth overtakes the IRA',
+                age: rothOvertakesAge,
+                none: 'Does not overtake within this projection',
+                tip: 'The first year the Roth balance is larger than what is left in the Traditional IRA \u2014 the point where most of the money has become tax-free. A progress marker, not a measure of benefit.',
+              },
+              {
+                label: 'Strategy stays ahead of doing nothing',
+                age: sustainedAheadAge,
+                none: 'Does not finish ahead in this projection',
+                tip: 'The age after which the strategy stays ahead for the rest of the projection. Compares net legacy on both sides: all account balances, minus the income tax heirs would owe on any Traditional IRA still left (at this client\u2019s heir tax rate). It requires a lasting lead on purpose \u2014 a plan can lead briefly in the year the IRA empties and then be overtaken.',
+              },
+            ].map((m) => (
+              <div key={m.label} className="flex justify-between items-center gap-4">
+                <span className="text-sm text-text-muted inline-flex items-center gap-1.5">
+                  {m.label}
+                  <InfoTooltip text={m.tip} />
+                </span>
+                {m.age != null ? (
+                  <span className="text-base font-mono text-foreground whitespace-nowrap">Age {m.age}</span>
+                ) : (
+                  <span className="text-sm text-text-dim text-right">{m.none}</span>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Section 5: Account & Liquidity Snapshot */}
