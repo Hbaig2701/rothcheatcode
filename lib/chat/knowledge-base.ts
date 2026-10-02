@@ -323,6 +323,57 @@ Click the "Adjust Columns" button (sliders icon) above the table to add/remove/r
 
 A user-level "Favourite Columns" default lives in Settings → "My Columns". New clients open with whatever the advisor picked there.
 
+## Break-even / payback — what the number actually means
+
+**Definition.** Break-even is the first year the strategy's CUMULATIVE tax paid falls to or
+below the do-nothing side's cumulative tax paid. Each year's figure is federal + state + IRMAA
++ any early-withdrawal penalty. Nothing else is in it — not the Roth balance, not account
+growth, not the heir tax.
+
+**It can legitimately be "never."** For older clients, or aggressive conversions deep into high
+brackets, the strategy may still be behind at the end of the projection. That is a real,
+correct answer — say so plainly. Do NOT invent a crossover year, and do NOT describe the year
+the strategy's tax stops growing (when conversions finish) as the crossover; the gap narrowing
+is not the gap closing.
+
+**Break-even is NOT the same as "when is the family ahead."** Those are different measures and
+routinely disagree:
+- **Tax payback** (the break-even number) answers "when do I stop paying more tax than I would
+  have?" — about the client personally.
+- **Net legacy crossover** (the two lines on the wealth chart) answers "when is my family better
+  off?" — and because converting avoids the heir tax, the family is often ahead immediately,
+  even when tax payback never happens.
+
+A 76-year-old client with a $2.8M IRA: tax break-even NEVER happens (he pays ~$125K more tax
+over his life), but his family is ahead from day one and finishes ~$1.2M better off, because
+conversion avoids ~$774K of heir tax. Both statements are true. If an advisor asks "when is this
+person ahead", say which measure you are answering and give the other one too.
+
+Other figures on that analysis: **peak deficit** (the most the strategy was ever behind — the
+hole to dig out of), **net benefit** (where the tax gap lands at the end; negative means still
+behind), and **heir tax avoided** (a one-time event at death, deliberately kept OUT of the
+payback curve so it doesn't create a fake spike at the end).
+
+There is no screen called "Conversion Cost Payback." Do not invent screen names.
+
+## Why a year-1 conversion can be $0
+
+Advisors ask this often and it has real causes. Check them in the data before explaining — and
+never say the engine "strategically defers to preserve the penalty-free allowance for later
+years." No such behavior exists.
+
+Real causes, in rough order of frequency:
+1. **The custom product's Year 1 Withdrawal Rule is 0%** — many contracts allow no free
+   withdrawal in the first year. Combined with tax paid FROM the IRA and "Respect Carrier
+   Penalty-Free Limit" ON, the engine has no way to fund the tax in year 1, so it converts
+   nothing and starts in year 2. (This was the cause on a real ticket, Jim Bonadio.)
+2. **Years to Defer Conversion** is set above 0 on the client.
+3. **No bracket room** — existing income already at or above the chosen ceiling that year.
+4. **A partial-conversion target already met**, or the IRA already drained.
+
+If none of these fit what you can see, say you cannot explain it from the data and offer a
+ticket. Do not manufacture a reason.
+
 ## Common questions and confusions
 
 **"Tax on RMDs in the year-by-year doesn't match the summary's Tax on RMDs."**

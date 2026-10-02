@@ -6,6 +6,7 @@ export const INCOME_TYPES = [
   { value: "rental", label: "Rental Income" },
   { value: "dividends", label: "Dividends & Interest" },
   { value: "capital_gains", label: "Capital Gains" },
+  { value: "qualified_dividends", label: "Qualified Dividends" },
   { value: "wages", label: "Part-Time Work / Wages" },
   { value: "annuity", label: "Annuity Income" },
   { value: "other", label: "Other" },
@@ -197,6 +198,13 @@ export interface Client {
   // held-back balance's own wealth/heir-tax are intentionally NOT added to the
   // net-worth totals (it's a wash on the comparison delta). Default 0 = off.
   held_back_ira_balance?: number | null;      // In cents. 0/null = feature off.
+
+  // Route-internal, never persisted: ordinary income taxed in ANOTHER engine
+  // (today: the AUM bucket's IRA pulls) that must still count toward this
+  // engine's MAGI — the IRMAA cap headroom and the 2-year lookback. Set by
+  // lib/calculations/utils/aum-magi.ts on the strategy side only. Keyed by
+  // calendar year, cents.
+  external_magi_income_by_year?: Record<number, number> | null;
   held_back_ira_growth_rate?: number | null;  // Percent; falls back to rate_of_return.
 
   // ===== QLAC (Qualified Longevity Annuity Contract) =====

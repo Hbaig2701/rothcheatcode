@@ -21,7 +21,7 @@ import { calculateFederalTax } from "./modules/federal-tax";
 import { calculateStateTax } from "./modules/state-tax";
 import { computeTaxableIncomeWithSS } from "./tax-helpers";
 import { getStandardDeduction } from "@/lib/data/standard-deductions";
-import { getTaxExemptIncomeForYear } from "./utils/income";
+import { getTaxExemptIncomeForYear, getPreferentialIncomeForYear } from "./utils/income";
 import type { YearlyResult } from "./types";
 
 interface ClientLike {
@@ -63,7 +63,9 @@ export function computeMarginalRMDTax(
     // still converting past age 73) wrongly attributes the conversion's tax to
     // "Tax on RMDs". Conversion is $0 on baseline_years, so those are unchanged.
     const conversionAmount = year.conversionAmount ?? 0;
-    const taxExemptNonSSI = getTaxExemptIncomeForYear(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const preferentialNonSSI = getPreferentialIncomeForYear(client as any, year.year);
+    const taxExemptNonSSI = preferentialNonSSI + getTaxExemptIncomeForYear(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       client as any,
       year.year,

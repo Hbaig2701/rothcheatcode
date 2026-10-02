@@ -159,7 +159,7 @@ export const nonSSIIncomeEntrySchema = z.object({
     (v) => v === undefined || v === null ? 0 : v,
     z.number({ error: "Amount must be a number" }).int().min(0, "Amount must be positive")
   ),
-  type: z.enum(["pension", "rental", "dividends", "capital_gains", "wages", "annuity", "other"]).optional(),
+  type: z.enum(["pension", "rental", "dividends", "capital_gains", "qualified_dividends", "wages", "annuity", "other"]).optional(),
 });
 
 // Voluntary IRA/Roth withdrawal schedule. See WithdrawalEntry in lib/types/client.ts.
@@ -716,7 +716,7 @@ export type ClientFormData = {
     age: number | string;
     gross_taxable: number;
     tax_exempt: number;
-    type?: "pension" | "rental" | "dividends" | "capital_gains" | "wages" | "annuity" | "other";
+    type?: "pension" | "rental" | "dividends" | "capital_gains" | "qualified_dividends" | "wages" | "annuity" | "other";
   }>;
   withdrawals: Array<{
     year: number;

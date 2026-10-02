@@ -6,7 +6,7 @@ import { calculateStateTax } from '../modules/state-tax';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import { getStateTaxRate } from '@/lib/data/states';
-import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
+import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear, getPreferentialIncomeForYear } from '../utils/income';
 import { calculateIRMAAWithLookback, calculateIRMAAHeadroom, calculateIRMAAHeadroomToTarget } from '../modules/irmaa';
 import {
   calculateMAGI,
@@ -268,7 +268,16 @@ export function runGrowthFormulaScenario(
     const otherIncome = getNonSSIIncomeForYear(client, year);
     // Tax-exempt non-SSI income (hoisted so it can be reused by the IRMAA
     // constraint block below without recomputing).
-    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
+    // Preferential income (capital gains / qualified dividends rows): already
+    // excluded from otherIncome; taxed below at the flat LTCG rate; counted
+    // toward MAGI + SS provisional income by riding along in taxExemptNonSSI,
+    // which every downstream MAGI/provisional path consumes.
+    const preferentialIncome = getPreferentialIncomeForYear(client, year);
+    const ltcgTax = Math.round(preferentialIncome * ((client.ltcg_rate ?? 15) / 100));
+    // Income taxed in another engine but part of this client's MAGI (AUM pulls —
+    // see utils/aum-magi.ts). Counts toward the IRMAA headroom + lookback only.
+    const externalMagiIncome = client.external_magi_income_by_year?.[year] ?? 0;
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year) + preferentialIncome;
 
     // Standard deduction (age-adjusted)
     const currentSpouseAgeForDeduction = initialSpouseAge !== null ? initialSpouseAge + yearOffset : undefined;
@@ -742,7 +751,7 @@ export function runGrowthFormulaScenario(
         const preConversionGrossTaxable = effectiveIraDistribution + otherIncome;
         const preConversionMagi =
           calculateMAGI(preConversionGrossTaxable, taxExemptNonSSI) +
-          primarySsIncome + spouseSsIncome;
+          primarySsIncome + spouseSsIncome + externalMagiIncome;
 
         // Two-stage headroom calculation:
         //
@@ -1290,7 +1299,7 @@ export function runGrowthFormulaScenario(
     // (before the conversion-tax split) so the RMD-funds-tax math could use the
     // surcharge — IRMAA's 2-year lookback never reads the current year, so
     // computing it earlier is equivalent.
-    incomeHistory.set(year, magi);
+    incomeHistory.set(year, magi + externalMagiIncome);
 
     // 10% early withdrawal penalty. Two distinct triggers, each on its own:
     //   1. tax paid from the IRA when under 59.5 — the conversion itself is
@@ -1309,6 +1318,9 @@ export function runGrowthFormulaScenario(
     const earlyWithdrawalPenalty = conversionTaxPenalty + voluntaryWithdrawalPenalty;
 
     // Taxes paid from external funds (may reduce taxable balance — see below)
+    // Flat LTCG tax on preferential income rides inside federalTax so lifetime
+    // tax totals and the ordinary-income breakdown pick it up.
+    federalTax += ltcgTax;
     const totalTax = federalTax + stateTax + irmaaSurcharge + earlyWithdrawalPenalty;
 
     // ---- Symmetric tax accounting between baseline and strategy ----
@@ -1462,6 +1474,8 @@ export function runGrowthFormulaScenario(
       taxableIncome: taxableIncomeForTax,
       federalTaxBracket,
       irmaaTier,
+      preferentialIncome,
+      ltcgTax,
       federalTaxOnSS,
       federalTaxOnConversions,
       federalTaxOnOrdinaryIncome,

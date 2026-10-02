@@ -296,6 +296,12 @@ export interface YearlyResult {
   aumTransfer?: number;
   aumTax?: number;
 
+  // Preferential income (capital gains / qualified dividends rows): excluded
+  // from otherIncome and taxable income, counted in MAGI, taxed at the flat
+  // client.ltcg_rate. ltcgTax is ALREADY inside federalTax on the row.
+  preferentialIncome?: number;
+  ltcgTax?: number;
+
   // AUM brokerage spending withdrawal — the portion of the user's scheduled
   // `client.withdrawals` that the Roth-side engine couldn't satisfy (because
   // the IRA balance was reduced by `aum_allocation_percent`) and that the

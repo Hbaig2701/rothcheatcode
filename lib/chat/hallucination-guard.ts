@@ -48,7 +48,12 @@ const NONEXISTENT_FORM_FIELDS: Array<{ pattern: RegExp; label: string }> = [
 // Numeric range claims on SSI payout age. The real range is 62-100. Any
 // other "max is N" / "min is N" / "limit is N" / "between A and B" claim
 // near "SSI" / "Social Security payout" / "payout age" is suspect.
-const SSI_RANGE_CLAIM = /\b(?:ssi|ss(?:\s+payout)?|social\s+security|payout\s+age)[\s\S]{0,80}?\b(?:max(?:imum)?|min(?:imum)?|between|range|limit|cap)[\s\S]{0,40}?\b(\d{2,3})\b/gi;
+// Tightened 2026-10: the 80/40-char windows spanned unrelated sentences, so an
+// answer that happened to mention Social Security and later said "35% bracket"
+// or "age 74 in California" was flagged as a fabricated SS age limit. Two false
+// positives in 852 production messages. The window is now short and the number
+// must be an AGE claim — a bare percentage or a different noun no longer counts.
+const SSI_RANGE_CLAIM = /\b(?:ssi|ss(?:\s+payout)?|social\s+security|payout\s+age)[\s\S]{0,60}?\b(?:max(?:imum)?|min(?:imum)?|range|limit|cap(?:ped)?|locked|allows?)\b[\s\S]{0,30}?\b(?:age\s+)?(\d{2,3})\b(?!\s*%)/gi;
 
 // "between A and B" framing for SSI age — catches "the platform allows
 // payout ages between 62 and 85" style fabrications. Real range is 62-100.
@@ -102,6 +107,17 @@ const IRC_CONTEXT = /\b(irc|internal\s+revenue\s+code|tax\s+code|statute|treas(?
 // The "inside" check is what the v1 version missed: when the negation is
 // embedded in the matched phrase rather than preceding it, the v1 hadNeg
 // returned false and the guard fired on a correct explanation.
+// "only" and "just" are in NEGATION_TOKENS because they soften claims about
+// form fields ("Section 2 only has..."). But for a RANGE claim they do the
+// opposite — "the platform only allows ages 62 to 85" is the fabrication we
+// are hunting, not a denial of it. Range patterns use this stricter set.
+const DENIAL_TOKENS = /\b(not|no|n't|never|doesn't|does not|don't|do not|isn't|won't|cannot|cant|without|absent|missing|lacks?)\b/i;
+
+function hasDenialNear(text: string, matchIndex: number, matchEnd: number): boolean {
+  const before = text.slice(Math.max(0, matchIndex - 40), matchIndex);
+  return DENIAL_TOKENS.test(before) || DENIAL_TOKENS.test(text.slice(matchIndex, matchEnd));
+}
+
 function hasNegationNear(text: string, matchIndex: number, matchEnd: number): boolean {
   const before = text.slice(Math.max(0, matchIndex - 40), matchIndex);
   const inside = text.slice(matchIndex, matchEnd);
@@ -125,6 +141,40 @@ function looksLikeIRCReference(text: string, matchIndex: number, sectionEnd: num
   if (IRC_CONTEXT.test(around)) return true;
   return false;
 }
+
+
+// ── Invented engine mechanisms ─────────────────────────────────────────────
+// The assistant told two different advisors the engine "strategically defers
+// year-1 conversions to preserve the penalty-free allowance for later years".
+// No such behavior exists. Real causes are in the KB ("Why a year-1 conversion
+// can be $0"); the leading one is a custom product with a 0% Year 1 Withdrawal
+// Rule. Also catches the invented "Conversion Cost Payback" screen.
+const INVENTED_MECHANISMS: { pattern: RegExp; label: string }[] = [
+  {
+    pattern: /\b(strategically|deliberately|intentionally)\s+(defer|defers|deferring|skip|skips|skipping)\b/i,
+    label: 'Claimed the engine "strategically defers/skips" conversions — no such behavior exists. See KB "Why a year-1 conversion can be $0".',
+  },
+  {
+    pattern: /\b(preserve|save|reserve)\s+(the\s+)?(penalty[- ]free|10%)\s+(allowance|cap|limit|room)\s+for\s+(later|future|year)/i,
+    label: 'Claimed the engine reserves penalty-free allowance for later years — invented mechanism.',
+  },
+  {
+    pattern: /\bconversion\s+cost\s+payback\s+(screen|page|tab|view)\b/i,
+    label: 'Referenced a "Conversion Cost Payback" screen — no such screen exists.',
+  },
+];
+
+// ── Break-even described with the wrong mechanic ───────────────────────────
+// Break-even = cumulative TAX paid, strategy vs baseline. It has nothing to do
+// with the Roth balance growing past the taxes paid.
+const BREAKEVEN_WRONG_MECHANIC =
+  /\b(break[- ]?even|payback)\b[^.]{0,120}\broth\s+(ira\s+)?balance\b[^.]{0,80}\b(exceed|exceeds|surpass|surpasses|crosses|grows?\s+(large|big)\s+enough)\b/i;
+
+// ── Federal brackets described as frozen ───────────────────────────────────
+// getFederalBrackets() indexes brackets forward 3%/yr past 2026, so quoting a
+// 2026 ceiling for a later year produces a phantom "overshoot".
+const BRACKETS_FROZEN =
+  /\bbrackets?\b[^.]{0,80}\b(are\s+not|aren.t|not)\s+(inflation[- ]?)?(indexed|adjusted)\b|\bbrackets?\s+(stay|remain|are\s+held)\s+(at|flat)\b[^.]{0,40}2026/i;
 
 export function scanAssistantTextForHallucinations(text: string): string[] {
   const flags: string[] = [];
@@ -155,13 +205,44 @@ export function scanAssistantTextForHallucinations(text: string): string[] {
     }
   }
 
+
+  // Pattern E: invented engine mechanisms / screen names.
+  for (const m of INVENTED_MECHANISMS) {
+    const g = new RegExp(m.pattern.source, m.pattern.flags.includes('g') ? m.pattern.flags : m.pattern.flags + 'g');
+    for (const hit of text.matchAll(g)) {
+      const idx = hit.index ?? 0;
+      if (hasNegationNear(text, idx, idx + hit[0].length)) continue;
+      flags.push(m.label);
+      break;
+    }
+  }
+
+  // Pattern F: break-even explained via the Roth balance rather than cumulative tax.
+  {
+    const hit = BREAKEVEN_WRONG_MECHANIC.exec(text);
+    if (hit && !hasNegationNear(text, hit.index, hit.index + hit[0].length)) {
+      flags.push('Described break-even as the Roth balance exceeding taxes paid — it is cumulative TAX paid, strategy vs baseline.');
+    }
+  }
+
+  // Pattern G: claiming federal brackets are frozen at 2026 values.
+  // NOTE: deliberately does NOT run hasNegationNear. For every other pattern a
+  // nearby negation means the bot is correctly denying the false thing; here
+  // the negation ("brackets are NOT indexed") IS the false claim.
+  {
+    const hit = BRACKETS_FROZEN.exec(text);
+    if (hit) {
+      flags.push('Claimed federal brackets are not inflation-indexed — the engine indexes them 3%/yr past 2026.');
+    }
+  }
+
   // Pattern C: SSI payout age range claims with numbers other than 62/100.
   for (const m of text.matchAll(SSI_RANGE_CLAIM)) {
     const num = Number(m[1]);
     if (num === 62 || num === 100) continue;
     const idx = m.index ?? 0;
     const end = idx + m[0].length;
-    if (hasNegationNear(text, idx, end)) continue;
+    if (hasDenialNear(text, idx, end)) continue;
     flags.push(`Stated SSI/SS payout age limit of ${num} — the real range is 62-100.`);
   }
 
@@ -174,7 +255,7 @@ export function scanAssistantTextForHallucinations(text: string): string[] {
     if (lo === 62 && hi === 100) continue;
     const idx = m.index ?? 0;
     const end = idx + m[0].length;
-    if (hasNegationNear(text, idx, end)) continue;
+    if (hasDenialNear(text, idx, end)) continue;
     flags.push(`Stated SSI/SS payout age range of ${lo}-${hi} — the real range is 62-100.`);
   }
 

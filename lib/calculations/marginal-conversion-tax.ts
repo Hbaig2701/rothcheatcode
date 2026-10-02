@@ -22,7 +22,7 @@ import { calculateFederalTax } from "./modules/federal-tax";
 import { calculateStateTax } from "./modules/state-tax";
 import { computeTaxableIncomeWithSS } from "./tax-helpers";
 import { getStandardDeduction } from "@/lib/data/standard-deductions";
-import { getTaxExemptIncomeForYear } from "./utils/income";
+import { getTaxExemptIncomeForYear, getPreferentialIncomeForYear } from "./utils/income";
 import type { YearlyResult } from "./types";
 
 interface ClientLike {
@@ -56,7 +56,10 @@ export function computePerYearMarginalConversionTax(
       ? client.state_tax_rate / 100
       : undefined;
 
-  const taxExemptNonSSI = getTaxExemptIncomeForYear(
+  // Preferential income counts toward provisional income like tax-exempt does.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const preferentialNonSSI = getPreferentialIncomeForYear(client as any, year.year);
+  const taxExemptNonSSI = preferentialNonSSI + getTaxExemptIncomeForYear(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     client as any,
     year.year,

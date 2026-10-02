@@ -7,7 +7,7 @@ import { calculateStateTax } from '../modules/state-tax';
 import { calculateIRMAA, calculateIRMAAWithLookback } from '../modules/irmaa';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
 import { applyTaxCreditCarryforward } from '../utils/tax-credits';
-import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear } from '../utils/income';
+import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear, getPreferentialIncomeForYear } from '../utils/income';
 import { rateFromSchedule } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA, netIraTargetForYear } from '../utils/withdrawals';
 import { getMarginalBracket, computeTaxableIncomeWithSS, computeIrmaaMagi } from '../tax-helpers';
@@ -174,7 +174,11 @@ export function runBaselineScenario(
 
     // Other taxable income (non-SSI) - year-specific from income table
     const otherIncome = getNonSSIIncomeForYear(client, year);
-    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year);
+    // Preferential income (capital gains / qualified dividends) — see
+    // growth-formula.ts. Same treatment on the do-nothing side.
+    const preferentialIncome = getPreferentialIncomeForYear(client, year);
+    const ltcgTax = Math.round(preferentialIncome * ((client.ltcg_rate ?? 15) / 100));
+    const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year) + preferentialIncome;
 
     // Gross non-SSI income (drives provisional income for SS taxation).
     // Voluntary IRA withdrawals satisfy the RMD up to their amount, so the
@@ -293,7 +297,7 @@ export function runBaselineScenario(
     // Total tax — federal + state + IRMAA + 10% early-withdrawal penalty for
     // any pre-59.5 voluntary IRA pull. RMDs themselves don't trigger the
     // penalty (RMD start age is well above 59.5).
-    const totalTax = federalResult.totalTax + stateResult.totalTax + irmaaSurcharge + earlyPenalty;
+    const totalTax = federalResult.totalTax + ltcgTax + stateResult.totalTax + irmaaSurcharge + earlyPenalty;
 
     // Marginal federal tax attributable to the year's IRA distribution
     // (= the "Total Fed Tax on IRA W/D" display column). Mirrors the
@@ -425,7 +429,7 @@ export function runBaselineScenario(
     const federalTaxOnSS = totalTaxableComponents > 0 && ssComponent > 0
       ? Math.round(federalResult.totalTax * ssComponent / totalTaxableComponents)
       : 0;
-    const federalTaxOnOrdinaryIncome = federalResult.totalTax - federalTaxOnSS;
+    const federalTaxOnOrdinaryIncome = federalResult.totalTax + ltcgTax - federalTaxOnSS;
     const stateTaxOnSS = totalTaxableComponents > 0 && ssComponent > 0
       ? Math.round(stateResult.totalTax * ssComponent / totalTaxableComponents)
       : 0;
@@ -446,7 +450,7 @@ export function runBaselineScenario(
       pensionIncome: 0, // Simplified - included in otherIncome
       otherIncome,
       totalIncome,
-      federalTax: federalResult.totalTax,
+      federalTax: federalResult.totalTax + ltcgTax,
       stateTax: stateResult.totalTax,
       niitTax: 0, // Simplified - not included in basic model
       irmaaSurcharge,
@@ -469,6 +473,8 @@ export function runBaselineScenario(
       taxableIncome,
       federalTaxBracket,
       irmaaTier,
+      preferentialIncome,
+      ltcgTax,
       federalTaxOnSS,
       federalTaxOnConversions: 0, // No conversions in baseline
       federalTaxOnOrdinaryIncome,

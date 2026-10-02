@@ -43,7 +43,7 @@ export const intakeFormSchema = z
       age: z.union([z.number(), z.string()]),
       gross_taxable: z.number().int().min(0),
       tax_exempt: z.number().int().min(0),
-      type: z.enum(["pension", "rental", "dividends", "capital_gains", "wages", "annuity", "other"]).optional(),
+      type: z.enum(["pension", "rental", "dividends", "capital_gains", "qualified_dividends", "wages", "annuity", "other"]).optional(),
     })).optional(),
   })
   .superRefine((data, ctx) => {
