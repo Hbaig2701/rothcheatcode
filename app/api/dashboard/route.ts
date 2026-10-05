@@ -4,11 +4,13 @@ import { ALL_PRODUCTS } from "@/lib/config/products";
 import { getEffectivePlan } from "@/lib/usage";
 import { getPlanLimits } from "@/lib/config/plans";
 import { getVisibleUserIds } from "@/lib/auth/visibleUserIds";
+import { fetchLatestProjections, fetchProjectionColumnsByIds } from "@/lib/projections/latest";
 import type { Client } from "@/lib/types/client";
 import type { ProjectionSummary, ConversionPipelineItem } from "@/lib/types/dashboard";
 import type { YearlyResult } from "@/lib/calculations/types";
 
 interface ProjectionRow {
+  id: string;
   client_id: string;
   baseline_final_net_worth: number;
   blueprint_final_net_worth: number;
@@ -44,17 +46,36 @@ export async function GET() {
   // into every admin's home dashboard.
   const visibleUserIds = await getVisibleUserIds(supabase, user.id);
 
+  // Projections: scalar columns for the latest row per client first, then the
+  // blueprint_years JSONB for just those rows (the pipeline needs it). Selecting
+  // blueprint_years across the whole append-only history is what made this
+  // endpoint slow.
+  const loadLatestProjections = async (): Promise<ProjectionRow[]> => {
+    const latest = await fetchLatestProjections<Omit<ProjectionRow, "blueprint_years">>(
+      supabase,
+      { userIds: visibleUserIds },
+      "id, client_id, baseline_final_net_worth, blueprint_final_net_worth, blueprint_final_roth, blueprint_final_traditional, total_tax_savings, heir_benefit, gi_tax_free_wealth_created, created_at",
+    );
+    const rows = Array.from(latest.values());
+    const years = await fetchProjectionColumnsByIds<{ id: string; blueprint_years: YearlyResult[] | null }>(
+      supabase,
+      rows.map((p) => p.id),
+      "id, blueprint_years",
+    );
+    const yearsById = new Map(years.map((y) => [y.id, y.blueprint_years]));
+    return rows.map((p) => ({ ...p, blueprint_years: yearsById.get(p.id) ?? null }));
+  };
+
   const [clientsResult, projectionsResult, usageResult] = await Promise.all([
     supabase
       .from("clients")
       .select("*")
       .in("user_id", visibleUserIds)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("projections")
-      .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, blueprint_final_roth, blueprint_final_traditional, total_tax_savings, heir_benefit, gi_tax_free_wealth_created, blueprint_years, created_at")
-      .in("user_id", visibleUserIds)
-      .order("created_at", { ascending: false }),
+    loadLatestProjections().then(
+      (data) => ({ data, error: null }),
+      (error: { message: string }) => ({ data: null, error }),
+    ),
     supabase
       .from("usage")
       .select("scenario_runs, pdf_exports")
@@ -76,14 +97,10 @@ export async function GET() {
   }
 
   const clients: Client[] = clientsResult.data ?? [];
-  const rawProjections: ProjectionRow[] = projectionsResult.data ?? [];
-
-  // Deduplicate projections: keep latest per client_id
+  // Already the latest projection per client_id
   const projectionMap = new Map<string, ProjectionRow>();
-  for (const p of rawProjections) {
-    if (!projectionMap.has(p.client_id)) {
-      projectionMap.set(p.client_id, p);
-    }
+  for (const p of projectionsResult.data ?? []) {
+    projectionMap.set(p.client_id, p);
   }
 
   // Build client lookup for pipeline

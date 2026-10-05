@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { isGuaranteedIncomeProduct } from "@/lib/config/products";
 import { getVisibleUserIds } from "@/lib/auth/visibleUserIds";
+import { fetchLatestProjections, DELTA_COLUMNS, type DeltaProjectionRow } from "@/lib/projections/latest";
 
 export async function GET(
   request: NextRequest,
@@ -36,19 +37,12 @@ export async function GET(
   // Get all scenarios for the exact same customer name across the visible
   // owners (so a team member on the owner's client sees the team's variants,
   // not just their own).
-  const [clientsResult, projectionsResult] = await Promise.all([
-    supabase
-      .from("clients")
-      .select("*")
-      .eq("name", originalClient.name)
-      .in("user_id", visibleUserIds)
-      .order("created_at", { ascending: true }),
-    supabase
-      .from("projections")
-      .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, gi_tax_free_wealth_created, baseline_final_traditional, blueprint_final_traditional, baseline_final_qlac_death_benefit, blueprint_final_qlac_death_benefit, baseline_years")
-      .in("user_id", visibleUserIds)
-      .order("created_at", { ascending: false }),
-  ]);
+  const clientsResult = await supabase
+    .from("clients")
+    .select("*")
+    .eq("name", originalClient.name)
+    .in("user_id", visibleUserIds)
+    .order("created_at", { ascending: true });
 
   if (clientsResult.error) {
     console.error("Error fetching scenarios:", clientsResult.error);
@@ -57,14 +51,20 @@ export async function GET(
 
   const clients = clientsResult.data ?? [];
 
+  // Only this client's scenarios — not every projection the advisor owns.
+  const latestProjections = await fetchLatestProjections<DeltaProjectionRow>(
+    supabase,
+    { clientIds: clients.map((c) => c.id) },
+    DELTA_COLUMNS,
+  ).catch((error) => {
+    console.error("Error fetching scenario projections:", error);
+    return new Map<string, DeltaProjectionRow>();
+  });
+
   // Build per-scenario delta map from latest projection
   const deltaMap = new Map<string, number>();
-  if (projectionsResult.data) {
-    const seen = new Set<string>();
-    for (const p of projectionsResult.data) {
-      if (seen.has(p.client_id)) continue;
-      seen.add(p.client_id);
-
+  {
+    for (const p of latestProjections.values()) {
       if (p.baseline_final_net_worth > 0) {
         const client = clients.find(c => c.id === p.client_id);
         if (client) {

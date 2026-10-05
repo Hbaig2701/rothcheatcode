@@ -4,6 +4,7 @@ import { clientFullSchema } from "@/lib/validations/client";
 import { checkClientLimit } from "@/lib/usage";
 import { isGuaranteedIncomeProduct } from "@/lib/config/products";
 import { translateDbError } from "@/lib/utils/db-errors";
+import { fetchLatestProjections, DELTA_COLUMNS, type DeltaProjectionRow } from "@/lib/projections/latest";
 
 // GET /api/clients - List all clients for the authenticated user
 export async function GET(request: NextRequest) {
@@ -31,17 +32,19 @@ export async function GET(request: NextRequest) {
   if (viewerProfile?.team_owner_id) visibleUserIds.push(viewerProfile.team_owner_id);
 
   // Fetch clients and latest projections in parallel
-  const [clientsResult, projectionsResult] = await Promise.all([
+  const [clientsResult, latestProjections] = await Promise.all([
     supabase
       .from("clients")
       .select("*")
       .in("user_id", visibleUserIds)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("projections")
-      .select("client_id, baseline_final_net_worth, blueprint_final_net_worth, gi_tax_free_wealth_created, baseline_final_traditional, blueprint_final_traditional, baseline_final_qlac_death_benefit, blueprint_final_qlac_death_benefit, baseline_years")
-      .in("user_id", visibleUserIds)
-      .order("created_at", { ascending: false }),
+    fetchLatestProjections<DeltaProjectionRow>(supabase, { userIds: visibleUserIds }, DELTA_COLUMNS)
+      .catch((error) => {
+        // Deltas are decoration on the list — a projection read failure
+        // shouldn't block the advisor from seeing their clients.
+        console.error("Error fetching projections:", error);
+        return new Map<string, DeltaProjectionRow>();
+      }),
   ]);
 
   if (clientsResult.error) {
@@ -80,12 +83,8 @@ export async function GET(request: NextRequest) {
 
   // Build per-client delta map from latest projection
   const deltaMap = new Map<string, number>();
-  if (projectionsResult.data) {
-    const seen = new Set<string>();
-    for (const p of projectionsResult.data) {
-      if (seen.has(p.client_id)) continue;
-      seen.add(p.client_id);
-
+  {
+    for (const p of latestProjections.values()) {
       if (p.baseline_final_net_worth > 0) {
         // Find the client to check product type
         const client = clients.find(c => c.id === p.client_id);
