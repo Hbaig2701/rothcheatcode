@@ -316,6 +316,23 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 
 ---
 
+## AUM fee should be separable from the conversion decision (and apply to the Roth)
+
+**The pitch:** An advisor who converts a client to a Roth still manages that money and still bills on it — and Roth is the *better* AUM story, because the balance is never drawn down by RMDs, so it compounds instead of shrinking. Today the software can't express that. `aum_allocation_percent` is one control doing two unrelated jobs: it decides **what I charge a fee on** AND **what stays out of the conversion**. Set it to 100% and nothing converts at all.
+
+**Why the current model is economically dominated:** `lib/calculations/scenarios/aum.ts` pulls the AUM slice **out of the IRA**, taxes it at ordinary rates, lands it in a **taxable** brokerage, then applies a fee plus a dividend drag plus a cap-gains turnover drag every year after. Converting the same slice costs the **identical** ordinary-income tax at the moment of transfer and lands it in a Roth with no ongoing drag and no RMDs. Same tax in, strictly better account after. Measured on a $2M IRA, MFJ, 6% growth, 24% ceiling, tax from the IRA, to age 95: **AUM 0% → $9,363,057** net legacy vs **AUM 40% → $7,925,866** — routing 40% to the managed brokerage costs **$1,437,191**. The brokerage's only win is step-up in basis for heirs, nowhere near enough to cover 30 years of drag.
+
+**What it requires:**
+- Split the one control in two: *how much converts* (exists) and *what the fee applies to* (new). The fee becomes a property of balances rather than of a carve-out bucket, so it can sit on the Roth after conversion.
+- **A baseline-symmetry switch — "would you manage this money if they don't convert?", defaulting to YES.** This is the part that decides whether the comparison is honest. `runAumOverlay` runs on the strategy side only; the baseline comes from `runGrowthSimulation(baselineSimInput).baseline` and never gets an AUM bucket. That is correct today (the AUM slice is money that left the IRA, which only happens in the strategy), but the moment a fee can apply to a Roth the asymmetry becomes a real bias: a fee-paying Roth measured against a fee-free do-nothing IRA invents a ~1%/yr penalty the baseline never pays, which compounds badly over 30 years. Default the fee to BOTH sides; let the advisor switch to strategy-only when they genuinely wouldn't manage the money otherwise (different custodian). With the fee on both sides the conversion still wins for the original reason — same tax in, no ongoing drag — the fee simply stops distorting the comparison.
+- Keep `aum_allocation_percent` working unchanged for the 30 clients already using it (6 at 100%), so this is additive rather than a migration of live scenarios.
+
+**Demand signal:** raised by the user directly (Oct 2 2026, "logically — is it possible to manage money in a roth?"; Oct 5, "there is a strong case for the aum allocation to also be converted in a roth right?"). Adjacent to Joshua Williamson's AUM/IRMAA ticket `58eb5e9d`, which exposed how little the two engines know about each other. 30 of 1,067 clients use AUM today — small blast radius, but those advisors are getting the worse of two options without being told.
+
+**Estimated effort:** **2-3 days.** The fee arithmetic is trivial; the cost is everything around it — new columns + migration, the fee applied inside the growth/standard/GI scenarios rather than only in `aum.ts`, 11 engine files and ~22 UI/report surfaces referencing `aum_`, a `PRODUCT_CONFIG_VERSION` bump (engine change ⇒ every projection recomputes), and re-locking the golden fixtures plus the 1,000-client real-data sweep. The baseline-symmetry switch is the part to get right, not the part that takes the time.
+
+---
+
 ## Supabase capacity + client churn (production outage, Oct 5 2026)
 
 **The pitch:** Production went down for roughly 90 minutes. Every advisor saw the app load but no data and no login — Cloudflare 522 on both REST and auth. The dashboard read **STATUS: Unhealthy, COMPUTE: Nano, RAM 83%, Conns Unavailable**: the connection pool was exhausted on the smallest compute tier Supabase sells, carrying 50,424 requests in 24 hours plus the projection engine, PDF generation and Whisper transcription. A project restart cleared it; nothing about the capacity changed, so it can recur.
