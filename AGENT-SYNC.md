@@ -274,3 +274,57 @@ and keep the single `useStateTaxPreset(form)` call in place of the old
 **Please don't push `feat/qlac` to main before `20260918120000_clients_qlac.sql`
 runs** — `tax-data.tsx` now reads `qlac_premium`, so client saves could fail in
 prod without the column. (You likely know; I nearly shipped it by pushing HEAD.)
+
+---
+
+## Session: Advisory fee on managed assets (v82) — updated 2026-10-05
+
+**Branch:** `main` · **1 commit, NOT PUSHED** — `fc7e368` feat(engine): advisory
+fee on managed assets, separable from the conversion (v82)
+
+### ⚠️ Run the migration in prod BEFORE this reaches main
+
+`supabase/migrations/20261005140000_clients_advisory_fee.sql` adds
+`clients.advisory_fee_percent` + `clients.advisory_fee_in_baseline`.
+
+Without those columns live, **every client save breaks**: the client form now
+always submits `advisory_fee_percent` (0 when the feature is off), and
+`lib/chat/tools.ts` names both columns in an explicit PostgREST `select`, so
+reads error too. Same failure shape as the QLAC note above.
+
+Order: apply the SQL, then push.
+
+### What it does
+
+Separates "what I bill on" from "what stays unconverted". The fee rides on the
+account balances (Traditional + Roth + taxable) instead of the AUM carve-out, so
+an advisor can model "convert the whole IRA to a Roth and I keep managing it" —
+`aum_allocation_percent` can't, because at 100% nothing converts.
+
+`advisory_fee_in_baseline` defaults to TRUE. Don't "simplify" that away: with the
+fee on the strategy only, a $2M IRA at 1%/yr to age 95 showed $2.8M of advantage
+the strategy hadn't earned.
+
+### Files you might collide with
+
+- `lib/calculations/scenarios/{growth-formula,formula,baseline}.ts` — one gated
+  block each, plus `cumulativeWithdrawn += fee.traditional` in growth-formula
+  (Step 3.6) so the FIA principal floor can't refund the fee.
+- `app/api/clients/[id]/projections/route.ts` — `PRODUCT_CONFIG_VERSION` 81 → 82
+  and two new input-hash fields. **If you also bump the version, merge the
+  comment rather than overwriting it.**
+- `app/api/generate-pdf/route.ts` + `templates/pdf-template.html` — this is on
+  top of `9b84e0e` (logo size). New `TemplateData` fields + one assumption row +
+  one glossary entry.
+- `components/clients/sections/aum-allocation.tsx` — section retitled
+  "7. Advisory Fee & AUM Allocation"; the AUM block below it is untouched.
+- `package.json` — `test:audit` gained `advisory-fee.test.ts`.
+- `lib/chat/generated/ui-map.ts` — regenerated (`npm run generate-ui-map`).
+
+### Verified
+
+tsc + `next build` clean · 19 audit suites + the new one (158 checks) · report
+fixtures 86/86 · 1,000-client sweep 3,874,540 checks / 0 breaches · and an
+additive proof: 452 scenarios × 30 years = 27,120 rows diffed against `9b84e0e`,
+**0 changed** (only delta is the new `advisoryFee` key, 0 when off, absent on GI
+rows by design — the GI engine is excluded on both sides).
