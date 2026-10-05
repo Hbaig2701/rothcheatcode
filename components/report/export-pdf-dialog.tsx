@@ -62,6 +62,10 @@ export function ExportPdfDialog({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Printed logo size. Loaded from saved settings, changeable here, and saved
+  // back so Settings and this dialog never disagree. NOT plan-gated — it is a
+  // layout preference, not white-labelling.
+  const [logoSize, setLogoSize] = useState<"small" | "medium" | "large">("small");
   const [sections, setSections] = useState({
     baselineIncome: true,
     strategyIncome: true,
@@ -99,6 +103,8 @@ export function ExportPdfDialog({
         };
         setSavedBranding(branding);
         setForm(branding);
+        const size = settings.logo_size;
+        setLogoSize(size === "medium" || size === "large" ? size : "small");
         setPlan(planData.plan || "none");
       })
       .catch(() => {
@@ -181,6 +187,7 @@ export function ExportPdfDialog({
           body: JSON.stringify({
             reportData: { client, projection },
             brandingOverrides,
+            logoSize,
             title: title.trim() || undefined,
             sections: !isGI ? sections : undefined,
           }),
@@ -231,7 +238,16 @@ export function ExportPdfDialog({
             company_phone: form.phone,
             company_email: form.email,
             company_website: form.website,
+            logo_size: logoSize,
           }),
+        }).catch(console.error);
+      } else if (logoSize !== "small") {
+        // Logo size is available on every plan, so persist it on its own for
+        // advisors who don't go through the branding save above.
+        fetch("/api/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ logo_size: logoSize }),
         }).catch(console.error);
       }
 
@@ -309,6 +325,39 @@ export function ExportPdfDialog({
                 </p>
               </div>
             )}
+
+            {/* Logo size — applies to the cover and page headers. Shown for
+                every plan and for both growth and GI reports. */}
+            <div className="mb-6">
+              <label className="text-sm font-medium mb-3 block">Logo Size</label>
+              <p className="text-xs text-muted-foreground mb-3">
+                How large your logo prints on the cover and page headers. Your logo
+                keeps its proportions, so a wide logo may not grow much taller.
+              </p>
+              <div className="flex gap-2">
+                {([
+                  { value: "small" as const, label: "Small", hint: "Default" },
+                  { value: "medium" as const, label: "Medium", hint: "25% larger" },
+                  { value: "large" as const, label: "Large", hint: "50% larger" },
+                ]).map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setLogoSize(opt.value)}
+                    aria-pressed={logoSize === opt.value}
+                    className={
+                      "flex-1 rounded-lg border px-3 py-2.5 text-left transition-colors " +
+                      (logoSize === opt.value
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-bg-card-hover")
+                    }
+                  >
+                    <span className="block text-sm font-medium text-foreground">{opt.label}</span>
+                    <span className="block text-xs text-muted-foreground">{opt.hint}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {/* Report Sections (Growth only) */}
             {!isGI && (

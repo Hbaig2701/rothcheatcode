@@ -1814,7 +1814,7 @@ export async function POST(request: NextRequest) {
     const showPoweredBy = !hasFeature(effectivePlan, 'whiteLabel');
 
     const body = await request.json();
-    const { reportData, brandingOverrides, title, sections } = body;
+    const { reportData, brandingOverrides, title, sections, logoSize } = body;
 
     if (!reportData || !reportData.client || !reportData.projection) {
       return NextResponse.json(
@@ -1868,6 +1868,12 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
       const key = sizeRow?.logo_size as keyof typeof LOGO_SIZES | undefined;
       if (key && key in LOGO_SIZES) logoBox = LOGO_SIZES[key];
+      // The export dialog can override it for this run. Available on every
+      // plan — it's a layout choice, not white-labelling, so it is read here
+      // rather than through the plan-gated brandingOverrides path. The dialog
+      // also saves the choice back to settings, so the two stay in step.
+      const requested = logoSize as keyof typeof LOGO_SIZES | undefined;
+      if (requested && requested in LOGO_SIZES) logoBox = LOGO_SIZES[requested];
     }
 
     const branding: BrandingData = {
