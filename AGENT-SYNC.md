@@ -279,20 +279,19 @@ prod without the column. (You likely know; I nearly shipped it by pushing HEAD.)
 
 ## Session: Advisory fee on managed assets (v82) — updated 2026-10-05
 
-**Branch:** `main` · **1 commit, NOT PUSHED** — `fc7e368` feat(engine): advisory
-fee on managed assets, separable from the conversion (v82)
+**Branch:** `main` · **SHIPPED** — `fc7e368` + `8dfab8c` pushed to `origin/main`
+at `8dfab8c`, Vercel production Ready. Nothing pending here.
 
-### ⚠️ Run the migration in prod BEFORE this reaches main
+### Migration: DONE
 
-`supabase/migrations/20261005140000_clients_advisory_fee.sql` adds
-`clients.advisory_fee_percent` + `clients.advisory_fee_in_baseline`.
+`supabase/migrations/20261005140000_clients_advisory_fee.sql` was applied to prod
+BEFORE the push (it had to be — the client form always submits
+`advisory_fee_percent`, and `lib/chat/tools.ts` names both columns in an explicit
+PostgREST `select`, so without them every client save and read would error).
 
-Without those columns live, **every client save breaks**: the client form now
-always submits `advisory_fee_percent` (0 when the feature is off), and
-`lib/chat/tools.ts` names both columns in an explicit PostgREST `select`, so
-reads error too. Same failure shape as the QLAC note above.
-
-Order: apply the SQL, then push.
+Verified against prod after applying: the select pattern works, the CHECK
+constraint rejects 99%, a legal write round-trips, and 0 of the live clients have
+a non-null `advisory_fee_percent` — so nothing moved for anyone.
 
 ### What it does
 
