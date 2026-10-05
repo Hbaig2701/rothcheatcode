@@ -43,6 +43,9 @@ export type WithdrawalSource = 'ira' | 'roth' | 'auto';
  * (life-only) pays nothing after death in exchange for a higher payout.
  */
 export type QlacDeathBenefit = 'return_of_premium' | 'none';
+
+/** Where the AUM-allocated slice goes. null reads as 'taxable'. */
+export type AumDestination = 'taxable' | 'roth';
 export interface WithdrawalEntry {
   year: number;
   age: number | string;  // for display only — engine uses year
@@ -240,6 +243,16 @@ export interface Client {
   aum_turnover_percent: number;       // Annual turnover % of unrealized gains (default 10) — taxed at LTCG
   aum_withdrawal_years: number;       // Years to spread the IRA-to-AUM transfer over (default 5)
   aum_growth_rate?: number | null;    // Annual growth % for the AUM brokerage; null = use rate_of_return
+  // Where the allocated slice actually GOES. 'taxable' (default; null reads as
+  // taxable) is the original behaviour — pulled out of the IRA at ordinary rates
+  // into a taxable brokerage, converting nothing. 'roth' is what advisors mean
+  // by "move it to AUM": the money IS Roth converted and the advisory account is
+  // just where it's managed instead of an annuity. Under 'roth' the IRA is NOT
+  // split — the whole balance runs through the normal bracket/IRMAA-aware
+  // conversion engine — and aum_allocation_percent becomes the share of each
+  // conversion landing in a MANAGED Roth sleeve that grows at aum_growth_rate.
+  // GI products always behave as 'taxable'. See utils/aum-destination.ts.
+  aum_destination?: AumDestination | null;
   ltcg_rate: number;                  // Long-term capital gains rate (default 15) — used for AUM tax drag
 
   // ===== Advisory fee on managed assets =====

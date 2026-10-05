@@ -369,6 +369,10 @@ export const clientFormulaBaseSchema = z.object({
   // false when the money genuinely wouldn't be managed without the conversion.
   advisory_fee_percent: z.number().min(0).max(5).nullable().optional(),
   advisory_fee_in_baseline: z.boolean().nullable().optional(),
+  // Where the AUM slice goes. null/'taxable' = original behaviour (taxable
+  // brokerage, converts nothing); 'roth' Roth-converts it and manages it in a
+  // Roth sleeve. See lib/calculations/utils/aum-destination.ts.
+  aum_destination: z.enum(['taxable', 'roth']).nullable().optional(),
 
   // Additional fields needed for calculations
   taxable_accounts: z.number().int().min(0).default(0),
@@ -636,6 +640,10 @@ export const clientFullBaseSchema = z.object({
   // false when the money genuinely wouldn't be managed without the conversion.
   advisory_fee_percent: z.number().min(0).max(5).nullable().optional(),
   advisory_fee_in_baseline: z.boolean().nullable().optional(),
+  // Where the AUM slice goes. null/'taxable' = original behaviour (taxable
+  // brokerage, converts nothing); 'roth' Roth-converts it and manages it in a
+  // Roth sleeve. See lib/calculations/utils/aum-destination.ts.
+  aum_destination: z.enum(['taxable', 'roth']).nullable().optional(),
 });
 
 // Partial schema for updates
@@ -798,6 +806,7 @@ export type ClientFormData = {
   // Advisory fee on managed assets (advisory-fee.ts). in_baseline null -> true.
   advisory_fee_percent?: number | null;
   advisory_fee_in_baseline?: boolean | null;
+  aum_destination?: "taxable" | "roth" | null;
 
   // Additional
   taxable_accounts: number;

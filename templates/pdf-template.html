@@ -496,6 +496,12 @@
           <span class="metric-value">{{advisoryFeePercent}}%</span>
         </div>
         {{/if}}
+        {{#if hasManagedRoth}}
+        <div class="metric-row">
+          <span class="metric-label">Managed Roth Allocation</span>
+          <span class="metric-value">{{managedRothPercent}}% at {{managedRothRatePercent}}%</span>
+        </div>
+        {{/if}}
         <div class="metric-row">
           <span class="metric-label">Rate of Return</span>
           <span class="metric-value">{{rateOfReturn}}%</span>
@@ -1296,6 +1302,23 @@
         configurable on the client&apos;s profile; the default is 40%.
       </div>
     </div>
+
+    {{#if hasManagedRoth}}
+    <div class="glossary-entry">
+      <div class="glossary-term">Managed Roth Allocation ({{managedRothPercent}}%)</div>
+      <div class="glossary-def">
+        {{managedRothPercent}}% of every Roth conversion is managed in an advisory
+        account rather than held in the annuity, assumed to grow at
+        {{managedRothRatePercent}}% a year; the remainder grows at the annuity rate.
+        The money is <strong>converted either way</strong> &mdash; the tax at
+        conversion is identical &mdash; so this choice affects only where the
+        converted dollars are invested, not what they cost. All of it remains in a
+        Roth: no required minimum distributions, and no tax on growth, dividends or
+        rebalancing. Projected managed balance at the end of the projection:
+        {{managedRothFinalBalance}}.
+      </div>
+    </div>
+    {{/if}}
 
     {{#if hasAdvisoryFee}}
     <div class="glossary-entry">

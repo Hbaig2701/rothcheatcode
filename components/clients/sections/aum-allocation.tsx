@@ -7,6 +7,7 @@ import { FormSection } from "@/components/clients/form-section";
 import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
@@ -48,6 +49,9 @@ export function AumAllocationSection() {
   // null/undefined reads as TRUE — matches advisory-fee.ts's default so the
   // checkbox shows the same thing the engine will actually do.
   const feeInBaseline = form.watch("advisory_fee_in_baseline") ?? true;
+  // null reads as 'taxable' — matches lib/calculations/utils/aum-destination.ts.
+  const aumDestination = form.watch("aum_destination") ?? "taxable";
+  const aumGoesToRoth = aumDestination === "roth";
 
   // GI products: the advisory fee is a no-op on both sides by design, so the
   // whole section collapses to the AUM split for them.
@@ -177,17 +181,58 @@ export function AumAllocationSection() {
             htmlFor="aum_allocation_enabled"
             className="inline-flex items-center gap-1.5 text-sm font-medium cursor-pointer"
           >
-            Send part of the IRA to a managed brokerage account (AUM)
+            Allocate part of the IRA to an account you manage
             <FieldHelp {...FIELD_HELP.aum_allocation_enabled} />
           </label>
           <p className="text-sm text-muted-foreground mt-0.5">
-            The Roth conversion runs on the remainder. Combined view shows the full strategy.
+            Choose below whether that money is <strong>Roth converted</strong> and managed, or
+            moved to a <strong>taxable</strong> brokerage. The two are very different strategies.
           </p>
         </div>
       </div>
 
       {isOn && (
         <>
+          {/* Destination FIRST — it decides which strategy the rest describes. */}
+          <Controller
+            name="aum_destination"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid} className="sm:col-span-2">
+                <FieldLabel htmlFor="aum_destination" className="flex items-center gap-1.5">
+                  Where does that money go?
+                  <FieldHelp {...FIELD_HELP.aum_destination} />
+                </FieldLabel>
+                <Select
+                  value={field.value ?? "taxable"}
+                  onValueChange={(v) => field.onChange(v)}
+                >
+                  <SelectTrigger id="aum_destination" className="w-full">
+                    <SelectValue placeholder="Select destination" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="roth">Roth conversion — you manage the Roth</SelectItem>
+                    <SelectItem value="taxable">Taxable brokerage — no conversion</SelectItem>
+                  </SelectContent>
+                </Select>
+                {aumGoesToRoth ? (
+                  <FieldDescription>
+                    The money is Roth converted through the normal bracket-aware engine, then
+                    managed at the growth rate below. No RMDs, no tax drag.
+                  </FieldDescription>
+                ) : (
+                  <FieldDescription className="text-amber-700 dark:text-amber-500">
+                    This does <strong>not</strong> convert anything. The slice leaves the IRA at
+                    ordinary rates into a taxable account, then pays a fee plus dividend and
+                    turnover tax drag every year. On a $2M IRA that cost $1,079,866 of net legacy
+                    versus converting the same money.
+                  </FieldDescription>
+                )}
+                <FieldError errors={[fieldState.error]} />
+              </Field>
+            )}
+          />
+
           {/* Allocation % — % of IRA that goes to AUM */}
           <Controller
             name="aum_allocation_percent"
@@ -195,7 +240,7 @@ export function AumAllocationSection() {
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="aum_allocation_percent" className="flex items-center gap-1.5">
-                  % to AUM
+                  {aumGoesToRoth ? "% you manage" : "% to taxable brokerage"}
                   <FieldHelp {...FIELD_HELP.aum_allocation_percent} />
                 </FieldLabel>
                 <Input
@@ -213,7 +258,9 @@ export function AumAllocationSection() {
                   aria-invalid={fieldState.invalid}
                 />
                 <FieldDescription>
-                  Roth conversion runs on the other {Math.max(0, 100 - (field.value ?? 0))}%.
+                  {aumGoesToRoth
+                    ? `Share of each conversion you manage. The other ${Math.max(0, 100 - (field.value ?? 0))}% stays in the annuity.`
+                    : `Roth conversion runs on the other ${Math.max(0, 100 - (field.value ?? 0))}%.`}
                 </FieldDescription>
                 <FieldError errors={[fieldState.error]} />
               </Field>
@@ -226,7 +273,9 @@ export function AumAllocationSection() {
             control={form.control}
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="aum_growth_rate">AUM growth rate (%/yr)</FieldLabel>
+                <FieldLabel htmlFor="aum_growth_rate">
+                  {aumGoesToRoth ? "Managed growth rate (%/yr)" : "AUM growth rate (%/yr)"}
+                </FieldLabel>
                 <Input
                   id="aum_growth_rate"
                   type="number"
@@ -240,13 +289,21 @@ export function AumAllocationSection() {
                   aria-invalid={fieldState.invalid}
                 />
                 <FieldDescription>
-                  Growth rate for the managed brokerage. Leave blank to match the annuity rate.
+                  {aumGoesToRoth
+                    ? "Growth rate for the managed Roth sleeve. Leave blank to match the annuity rate."
+                    : "Growth rate for the managed brokerage. Leave blank to match the annuity rate."}
                 </FieldDescription>
                 <FieldError errors={[fieldState.error]} />
               </Field>
             )}
           />
 
+          {/* Taxable-brokerage-only mechanics. Under the Roth destination there is
+              no brokerage: the conversion is sized by the normal engine, the
+              advisory fee above is the fee, and a Roth has no dividend or
+              turnover tax drag. Showing these would imply they do something. */}
+          {!aumGoesToRoth && (
+          <>
           {/* Withdrawal years — how to spread the IRA-to-AUM transfer */}
           <Controller
             name="aum_withdrawal_years"
@@ -390,6 +447,8 @@ export function AumAllocationSection() {
                 )}
               />
             </>
+          )}
+          </>
           )}
         </>
       )}

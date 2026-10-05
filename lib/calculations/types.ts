@@ -362,6 +362,10 @@ export interface YearlyResult {
   // charge on the annuity. Undefined/0 when advisory_fee_percent is off.
   // Not a taxable distribution — see lib/calculations/utils/advisory-fee.ts.
   advisoryFee?: number;
+  // Portion of rothBalance held in the advisor-MANAGED sleeve (cents), growing
+  // at aum_growth_rate. Non-zero only when aum_destination is 'roth'; it is a
+  // strict subset of rothBalance. See lib/calculations/utils/aum-destination.ts.
+  rothManagedBalance?: number;
 
   // Extended GI fields for adjustable columns on GI products
   // 'waiting' = baseline-only pre-purchase period; 'conversion' = strategy-only Roth conversion phase

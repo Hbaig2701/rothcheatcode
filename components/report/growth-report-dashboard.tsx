@@ -386,6 +386,15 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // At 100% AUM it is almost entirely the latter, so headlining only
   // advisory_fee_percent would misattribute the figure when the two rates differ.
   const aumOwnFeePct = client.aum_fee_percent ?? 1;
+  // Roth destination: the allocated slice was CONVERTED and is managed in a Roth
+  // sleeve, so there is no separate brokerage and no aum_years. The split line
+  // below must describe that instead of the taxable-brokerage story.
+  const managedRothPct = client.aum_destination === 'roth' ? (client.aum_allocation_percent ?? 0) : 0;
+  const managedRothOn = managedRothPct > 0;
+  const finalManagedRoth = blueprintYears.length
+    ? (blueprintYears[blueprintYears.length - 1].rothManagedBalance ?? 0)
+    : 0;
+  const managedRothRate = client.aum_growth_rate ?? client.rate_of_return ?? 7;
 
   // ===== AUM split-allocation metrics =====
   // The AUM bucket is stored separately on the projection so we can describe
@@ -710,6 +719,17 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   {strategyConverts ? "the conversion" : "this strategy"}.
                 </p>
               )
+            )}
+            {managedRothOn && (
+              <p className="text-sm text-gold mt-2">
+                Managed Roth:&nbsp;
+                <span className="font-medium">{managedRothPct.toFixed(0)}%</span>
+                &nbsp;of each conversion managed at&nbsp;
+                <span className="font-medium">{managedRothRate}%/yr</span>
+                &nbsp;(final managed balance {toUSD(finalManagedRoth)}) ·&nbsp;
+                {(100 - managedRothPct).toFixed(0)}% stays in the annuity. All of it is
+                Roth — no RMDs, no tax drag.
+              </p>
             )}
             {(client.aum_allocation_percent ?? 0) > 0 && projection.aum_years && (
               <p className="text-sm text-gold mt-2">

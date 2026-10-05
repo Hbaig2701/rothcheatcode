@@ -157,6 +157,9 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       // lib/calculations/utils/advisory-fee.ts.
       advisory_fee_percent: client?.advisory_fee_percent ?? d?.advisory_fee_percent ?? 0,
       advisory_fee_in_baseline: client?.advisory_fee_in_baseline ?? null,
+      // null reads as 'taxable' in the engine — leave it null so existing
+      // clients keep the original brokerage behaviour untouched.
+      aum_destination: client?.aum_destination ?? null,
 
       // Additional fields needed
       taxable_accounts: client?.taxable_accounts ?? d?.taxable_accounts ?? 0,

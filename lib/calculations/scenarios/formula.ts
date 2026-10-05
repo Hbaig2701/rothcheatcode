@@ -20,6 +20,7 @@ import {
   calculateConversionTaxWithSS,
 } from '../tax-helpers';
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
+import { managedRothShare, managedRothGrowthRate } from '../utils/aum-destination';
 
 /**
  * Run Formula scenario: strategic Roth conversions
@@ -73,6 +74,11 @@ export function runFormulaScenario(
   // comparison stays symmetric. 0 when off ⇒ byte-identical for existing
   // clients. See lib/calculations/utils/advisory-fee.ts.
   const advisoryFeeRate = getAdvisoryFeeRate(client, 'strategy');
+  // MANAGED Roth sleeve — see lib/calculations/utils/aum-destination.ts. 0 for
+  // every client whose aum_destination isn't 'roth', so this is byte-identical.
+  const managedShare = managedRothShare(client);
+  const managedGrowthRate = managedRothGrowthRate(client);
+  let rothManagedBalance = 0;
 
   // Income history for IRMAA lookback
   const incomeHistory = new Map<number, number>();
@@ -754,7 +760,15 @@ export function runFormulaScenario(
 
     // Interest = (B.O.Y. Balance − Distribution) × Rate
     const iraInterest = Math.round(iraAfterConversion * growthRate);
-    const rothInterest = Math.round(rothAfterConversion * growthRate);
+    // Roth interest splits across the managed sleeve (its own rate) and the
+    // rest. managedShare is 0 unless aum_destination is 'roth', in which case
+    // this collapses to the previous single-rate expression exactly.
+    const boyRothManaged = rothManagedBalance;
+    const managedAfterConversion = boyRothManaged + Math.round(conversionAmount * managedShare);
+    const managedInterest = Math.round(managedAfterConversion * managedGrowthRate);
+    const rothInterest = Math.round((rothAfterConversion - managedAfterConversion) * growthRate)
+      + managedInterest;
+    rothManagedBalance = managedAfterConversion + managedInterest;
 
     // Final tax picture. The IRS sees the full IRA distribution (RMD +
     // conversion + any tax withheld from the IRA), so we pass them all
@@ -870,6 +884,10 @@ export function runFormulaScenario(
         taxable: taxableBalance,
       });
       iraBalance -= fee.traditional;
+      if (fee.roth > 0 && rothBalance > 0) {
+        // Keep the managed sleeve a subset of the post-fee Roth balance.
+        rothManagedBalance = Math.round(rothManagedBalance * (rothBalance - fee.roth) / rothBalance);
+      }
       rothBalance -= fee.roth;
       taxableBalance -= fee.taxable;
       yearAdvisoryFee = fee.total;
@@ -935,6 +953,7 @@ export function runFormulaScenario(
       taxableSS: taxInfoFinal.taxableSS,
       netWorth: iraBalance + rothBalance + taxableBalance,
       advisoryFee: yearAdvisoryFee,
+      rothManagedBalance,
       // Extended fields for adjustable columns
       traditionalBOY: boyIRA,
       rothBOY: boyRoth,

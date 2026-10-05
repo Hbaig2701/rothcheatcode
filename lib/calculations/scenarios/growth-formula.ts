@@ -21,6 +21,7 @@ import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from '@/lib/config
 import { getEffectiveGrowthRiderFee, getEffectiveCumulativePenaltyFree, getEffectiveRateSchedule, rateFromSchedule } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
+import { managedRothShare, managedRothGrowthRate } from '../utils/aum-destination';
 import type { CustomProductRow } from '@/lib/products/types';
 
 /**
@@ -98,6 +99,16 @@ export function runGrowthFormulaScenario(
   // anniversaryBonusFollowsConversion below. Starts at 0: the external Roth was
   // never in the annuity, so it never earns the carrier bonus.
   let rothMirrorBalance = 0;
+  // MANAGED Roth sleeve — the share of converted dollars the advisor manages in
+  // an advisory account rather than the annuity, growing at its own rate. This
+  // is what `aum_allocation_percent` means when `aum_destination` is 'roth':
+  // the money IS converted (bracket- and IRMAA-aware, through this engine's
+  // normal optimizer) and the advisory account is simply where it lands. Both
+  // values are 0 for every other client, which keeps this byte-identical.
+  // See lib/calculations/utils/aum-destination.ts.
+  const managedShare = managedRothShare(client);
+  const managedGrowthRate = managedRothGrowthRate(client);
+  let rothManagedBalance = 0;
 
   // Look up the product preset early so we can fall back to preset defaults
   // when the client record is missing fields. This guards against legacy
@@ -1112,7 +1123,23 @@ export function runGrowthFormulaScenario(
       : postContractRate);
     const iraInterest = Math.round(iraAfterConversion * iraGrowthRate);
     const rothGrowthRate = scheduledRate ?? ((client.rate_of_return ?? 7) / 100);
-    const rothInterest = Math.round(rothAfterConversion * rothGrowthRate);
+    // Roth interest is the sum of two sleeves: the managed one (this year's
+    // share of the conversion plus what it already held, at its own rate) and
+    // everything else (at the Roth rate). Withdrawals come out of the sleeve
+    // pro-rata to its share of the Roth, the same way the annuity mirror below
+    // handles them. managedShare is 0 unless aum_destination is 'roth', in which
+    // case managedAfterConversion is 0, unmanagedAfterConversion collapses to
+    // rothAfterConversion and rothInterest is byte-identical to before.
+    const boyRothManaged = rothManagedBalance;
+    const managedWithdrawal = boyRoth > 0
+      ? Math.round(rothWithdrawal * boyRothManaged / boyRoth)
+      : 0;
+    const managedAfterConversion = Math.max(0, boyRothManaged - managedWithdrawal)
+      + Math.round(conversionAmount * managedShare);
+    const managedInterest = Math.round(managedAfterConversion * managedGrowthRate);
+    const unmanagedAfterConversion = rothAfterConversion - managedAfterConversion;
+    const rothInterest = Math.round(unmanagedAfterConversion * rothGrowthRate) + managedInterest;
+    rothManagedBalance = managedAfterConversion + managedInterest;
 
     // Update balances
     iraBalance = iraAfterConversion + iraInterest;
@@ -1232,7 +1259,11 @@ export function runGrowthFormulaScenario(
       // rothBalance — it is the base for the anniversary bonus and the rider
       // fee, and letting it drift above the total would over-credit both.
       if (fee.roth > 0 && rothBalance > 0) {
-        rothMirrorBalance = Math.round(rothMirrorBalance * (rothBalance - fee.roth) / rothBalance);
+        const survivingShare = (rothBalance - fee.roth) / rothBalance;
+        rothMirrorBalance = Math.round(rothMirrorBalance * survivingShare);
+        // Same treatment for the managed sleeve: it is a subset of rothBalance
+        // and must not drift above it once the fee has been taken.
+        rothManagedBalance = Math.round(rothManagedBalance * survivingShare);
       }
       rothBalance -= fee.roth;
       yearAdvisoryFee += fee.total;
@@ -1560,6 +1591,7 @@ export function runGrowthFormulaScenario(
       rothWithdrawal,
       riderFee: yearRiderFee,
       advisoryFee: yearAdvisoryFee,
+      rothManagedBalance,
     });
   }
 

@@ -1,0 +1,30 @@
+import { createClient } from '@supabase/supabase-js';
+import { config } from 'dotenv';
+import { resolve } from 'path';
+import { runGrowthFormulaScenario } from '../lib/calculations/scenarios/growth-formula';
+config({ path: resolve(process.cwd(), '.env.local') });
+const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { autoRefreshToken: false, persistSession: false } });
+(async () => {
+  const { data: db } = await admin.from('clients').select('*').eq('id', 'e9490406-a07d-4892-bb9b-a282760bf303').maybeSingle();
+  if (!db) return;
+  const usd = (c: number) => '$' + Math.round((c ?? 0) / 100).toLocaleString();
+  const run = (blueprint: string, label: string) => {
+    const client: any = { ...db, blueprint_type: blueprint, bonus_percent: 20 };
+    const r = runGrowthFormulaScenario(client, 2026, db.projection_years ?? 21, null) as any[];
+    const conv = r.reduce((s, y) => s + (y.conversionAmount ?? 0), 0);
+    const convTax = r.reduce((s, y) => s + (y.federalTaxOnConversions ?? 0) + (y.stateTaxOnConversions ?? 0), 0);
+    const rider = r.reduce((s, y) => s + (y.riderFee ?? 0), 0);
+    const last = r[r.length - 1];
+    const bonus = Math.round((db.qualified_account_value ?? 0) * 0.20);
+    console.log(`\n${label}`);
+    console.log('  Total converted:      ' + usd(conv));
+    console.log('  Tax on conversions:   ' + usd(convTax));
+    console.log('  Premium bonus:        ' + usd(bonus));
+    console.log('  Net out-of-pocket tax:' + usd(convTax - bonus));
+    console.log('  Total rider fee:      ' + usd(rider));
+    console.log('  Final Roth (legacy):  ' + usd(last.rothBalance));
+    console.log('  Final net worth:      ' + usd(last.netWorth));
+  };
+  run('fia', 'GENERIC (no rider fee), 20% bonus');
+  run('high-bonus-medium-term-growth', 'HIGH-BONUS MEDIUM-TERM (0.95% fee), 20% bonus');
+})();

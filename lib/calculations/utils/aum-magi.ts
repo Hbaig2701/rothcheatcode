@@ -1,4 +1,5 @@
 import type { Client } from '@/lib/types/client';
+import { aumSliceGoesToTaxableBrokerage } from './aum-destination';
 import { createSimulationInput } from '@/lib/calculations/engine';
 import { runAumScenario } from '@/lib/calculations/scenarios/aum';
 
@@ -24,6 +25,13 @@ import { runAumScenario } from '@/lib/calculations/scenarios/aum';
  * Strategy side only: the do-nothing baseline has no AUM pulls.
  */
 export function withAumPullMagi(rothSideClient: Client, strategyClient: Client): Client {
+  // Only the TAXABLE destination has a second engine making IRA pulls this one
+  // can't see. With aum_destination 'roth' the slice is converted inside the
+  // main engine, which already counts it in MAGI the normal way — attaching an
+  // external schedule on top would double-count the same dollars against the
+  // IRMAA cap and the 2-year lookback, shrinking conversions for income that
+  // doesn't exist twice. See lib/calculations/utils/aum-destination.ts.
+  if (!aumSliceGoesToTaxableBrokerage(strategyClient)) return rothSideClient;
   const pct = strategyClient.aum_allocation_percent ?? 0;
   if (pct <= 0) return rothSideClient;
   const startingIraPortion = Math.round((strategyClient.qualified_account_value ?? 0) * (pct / 100));

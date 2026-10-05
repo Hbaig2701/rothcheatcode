@@ -129,6 +129,9 @@ export function InputDrawer({ client, onClose, expanded = false, onToggleExpand 
       // from the report can never silently drop the advisor's fee.
       advisory_fee_percent: client?.advisory_fee_percent ?? 0,
       advisory_fee_in_baseline: client?.advisory_fee_in_baseline ?? null,
+      // null reads as 'taxable' in the engine — leave it null so existing
+      // clients keep the original brokerage behaviour untouched.
+      aum_destination: client?.aum_destination ?? null,
       surrender_schedule: client?.surrender_schedule ?? null,
       taxable_accounts: client?.taxable_accounts ?? 0,
       roth_ira: client?.roth_ira ?? 0,

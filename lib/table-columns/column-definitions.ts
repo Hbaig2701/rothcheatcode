@@ -770,6 +770,17 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
   // PRODUCT-SPECIFIC (Growth FIA)
   // ============================================================
   {
+    id: 'rothManagedBalance',
+    label: 'Managed Roth',
+    category: 'balances',
+    description: 'Portion of the Roth balance held in the account you manage, growing at your managed growth rate. Only populated when the AUM allocation\'s destination is "Roth conversion" — the rest of the Roth stays at the annuity rate. It is a subset of the Roth Balance column, not an addition to it.',
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['growth'],
+    defaultWidth: 140,
+    minWidth: 110,
+  },
+  {
     id: 'advisoryFee',
     label: 'Advisory Fee',
     category: 'growth',

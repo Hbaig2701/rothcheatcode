@@ -311,6 +311,13 @@ interface TemplateData {
   // Advisory fee on managed assets. advisoryFeeInBaseline drives the glossary
   // wording: when false the strategy carries a cost the comparison doesn't, and
   // the PDF has to say so rather than let the numbers imply a fair comparison.
+  // AUM allocation routed to a MANAGED ROTH sleeve rather than a taxable
+  // brokerage (aum_destination = 'roth'): the slice was Roth converted, so the
+  // PDF must say that rather than imply a brokerage transfer.
+  hasManagedRoth: boolean;
+  managedRothPercent: string;
+  managedRothRatePercent: string;
+  managedRothFinalBalance: string;
   hasAdvisoryFee: boolean;
   advisoryFeePercent: string;
   advisoryFeeInBaseline: boolean;
@@ -1143,6 +1150,12 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     // cost the client pays, and because WHICH side pays it determines whether
     // the comparison is apples-to-apples. advisory_fee_in_baseline null reads as
     // true — matches lib/calculations/utils/advisory-fee.ts.
+    hasManagedRoth: client.aum_destination === 'roth' && (client.aum_allocation_percent ?? 0) > 0,
+    managedRothPercent: String(client.aum_allocation_percent ?? 0),
+    managedRothRatePercent: String(client.aum_growth_rate ?? client.rate_of_return ?? 7),
+    managedRothFinalBalance: formatCurrency(
+      (projection.blueprint_years ?? []).at(-1)?.rothManagedBalance ?? 0
+    ),
     hasAdvisoryFee: (client.advisory_fee_percent ?? 0) > 0,
     advisoryFeePercent: String(client.advisory_fee_percent ?? 0),
     advisoryFeeInBaseline: (client.advisory_fee_in_baseline ?? true) === true,
