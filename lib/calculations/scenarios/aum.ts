@@ -287,6 +287,15 @@ export function runAumScenario(input: AumScenarioInput): YearlyResult[] {
       stateTaxOnConversions: 0,
       stateTaxOnOrdinaryIncome: Math.round(withdrawalTax * (stateDecimal / Math.max(ordinaryEffective, 1e-9))),
       stateTaxOnSS: 0,
+      // The AUM bucket's own fee (aum_fee_percent) reported on the SAME field
+      // the balance-based advisory fee uses, so "advisory fees paid on this
+      // strategy" is one coherent number once combineRothAndAum sums the two
+      // buckets. Both are the advisor's fee on money they manage; only the
+      // bucket differs. Without this, a client with a 100% AUM split and an
+      // advisory fee set would show ~$0 of strategy fee against a full baseline
+      // fee — the Roth side has no balances left to bill, and the brokerage's
+      // fee was computed here but never surfaced anywhere.
+      advisoryFee: aumFee,
     });
   }
 

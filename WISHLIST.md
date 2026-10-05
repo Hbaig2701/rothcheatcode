@@ -344,6 +344,30 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 
 ---
 
+## combineRothAndAum silently drops 5 report fields for AUM clients
+
+**The pitch:** `combineRothAndAum` in `app/api/clients/[id]/projections/route.ts` rebuilds every strategy row field-by-field from a hand-written list. Any `YearlyResult` field added since that list was written is dropped the moment `aum_allocation_percent > 0`, with no error — the column just shows blank or $0 for those clients. Found while verifying the advisory fee (whose own field was the 6th casualty; that one is fixed).
+
+**Currently dropped** (measured on an FIA client, age 65, MFJ, with capital-gains and qualified-dividend income rows and a tax credit):
+
+| Field | Why it matters |
+|---|---|
+| `preferentialIncome` | v81 capital-gains feature. An AUM client with Capital Gains / Qualified Dividends rows sees $0 in that column. |
+| `ltcgTax` | Same feature. The tax IS charged (it rides inside `federalTax`, so totals are right) — only the breakdown is blank. |
+| `seniorBonusDeduction` | The OBBA senior deduction is applied inside `computeTaxableIncomeWithSS` but excluded from `standardDeduction`, so it must be surfaced separately or the report's **AGI − Deduction ≠ Taxable Income** for 65+ AUM clients. |
+| `federalTaxOnIRAWithdrawal` | Non-zero in 6 of 30 years on the test client. |
+| `taxesPaidExternally` | Pairs with `taxesPaidFromIRA`, which IS carried — so the pair doesn't reconcile. |
+
+**What it requires:** add the five fields to the combine (mirroring how `advisoryFee` was added), plus a `PRODUCT_CONFIG_VERSION` bump to invalidate cached projections. **Display-only — no balance, tax total or legacy figure moves.** Then re-lock the fixtures.
+
+**Better than patching the list again:** make the function fail loudly instead. Either spread the Roth row first (`{ ...r, ...overrides }`) so new fields carry by default and only summed fields are named, or add an audit check that asserts every populated field the growth engine emits appears in the combined row. Otherwise this recurs with the next field anyone adds — it has now happened at least twice (v80/v81 fields, then the advisory fee).
+
+**Demand signal:** no advisor has reported it, which is itself the problem — it's a quiet wrong number, not a visible break. 30 of 1,067 clients use AUM.
+
+**Estimated effort:** **1-2 hours** for the five fields + version bump + fixture re-lock. Half a day if the spread-based rewrite and the audit guard are done properly, which is the version worth doing.
+
+---
+
 ## Supabase capacity + client churn (production outage, Oct 5 2026)
 
 **The pitch:** Production went down for roughly 90 minutes. Every advisor saw the app load but no data and no login — Cloudflare 522 on both REST and auth. The dashboard read **STATUS: Unhealthy, COMPUTE: Nano, RAM 83%, Conns Unavailable**: the connection pool was exhausted on the smallest compute tier Supabase sells, carrying 50,424 requests in 24 hours plus the projection engine, PDF generation and Whisper transcription. A project restart cleared it; nothing about the capacity changed, so it can recur.

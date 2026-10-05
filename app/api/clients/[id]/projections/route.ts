@@ -278,6 +278,13 @@ function combineRothAndAum(roth: YearlyResult[], aum: YearlyResult[]): YearlyRes
       accumulationValue: r.accumulationValue,
       incomePayoutAmount: r.incomePayoutAmount,
       riderFee: r.riderFee,
+      // Advisory fee is the SUM of both buckets: the Roth side's balance-based
+      // fee plus the AUM brokerage's own aum_fee_percent. Dropping it here made
+      // the dashboard badge and the Advisory Fee column read $0 on the strategy
+      // while the baseline showed a real figure, even though the fee HAD been
+      // deducted from the Roth-side balances — the math was right, the
+      // reported number was not.
+      advisoryFee: (r.advisoryFee ?? 0) + (a.advisoryFee ?? 0),
       giPhase: r.giPhase,
       giIncomeNet: r.giIncomeNet,
       giCumulativeIncome: r.giCumulativeIncome,

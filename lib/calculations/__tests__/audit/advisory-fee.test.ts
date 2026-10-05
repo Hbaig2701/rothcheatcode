@@ -32,6 +32,7 @@
 import type { YearlyResult } from '../../types';
 import type { Client as ClientType } from '../../../types/client';
 import { makeClient, dispatch } from './factory';
+import { runAumScenario } from '../../scenarios/aum';
 import { Reporter } from './assertions';
 
 const r = new Reporter();
@@ -218,6 +219,56 @@ for (const f of [0.5, 1, 2, 5]) {
     rec('floor-is-irrelevant-to-the-fee', 'formula',
       'protect_initial_premium changed the result on a fee-only drawdown — the guarantee must not interact with the advisory fee',
       'advisory-fee/principal-floor');
+  }
+}
+
+// ---- 6c. AUM split: the fee must survive the combine -----------------------
+//
+// aum_allocation_percent is applied by the ROUTE (buildRothSideClient), not by
+// the engine, so a plain dispatch() silently skips it — which is exactly how the
+// original bug hid. `combineRothAndAum` rebuilds each row field-by-field and did
+// not carry `advisoryFee`, so a client with an AUM split reported $0 of strategy
+// fee against a full baseline fee even though the fee HAD been deducted from the
+// Roth-side balances. And `runAumScenario` computed the brokerage's own
+// aum_fee_percent but never put it on a row, so summing still understated it.
+//
+// Locked here: at 100% AUM — where the Roth side has almost no balances left to
+// bill — the strategy's reported fee must still be the same order of magnitude
+// as the baseline's, not a rounding error.
+{
+  const feePct = 1;
+  const aumClient = makeClient({
+    ...BASE, aum_allocation_percent: 100, aum_fee_percent: feePct,
+    aum_withdrawal_years: 5, aum_dividend_yield: 2, aum_turnover_percent: 10,
+    advisory_fee_percent: feePct,
+  } as Partial<ClientType>);
+  const rothSide: ClientType = { ...aumClient, qualified_account_value: 0 };
+  const rothRun = dispatch(rothSide, 2026);
+  const aumRows = runAumScenario({
+    startingIraPortion: aumClient.qualified_account_value ?? 0,
+    client: aumClient, startYear: 2026, projectionYears: rothRun.formula.length,
+  });
+
+  r.ran();
+  const aumFeeTotal = aumRows.reduce((t, y) => t + (y.advisoryFee ?? 0), 0);
+  if (!(aumFeeTotal > 0)) {
+    rec('aum-bucket-reports-its-own-fee', 'formula',
+      'runAumScenario charged aum_fee_percent but left advisoryFee off its rows, so the combined strategy total understates what the client pays',
+      'advisory-fee/aum');
+  }
+
+  // The combine, as the route performs it.
+  const combinedFeeTotal = rothRun.formula.reduce(
+    (t, y, i) => t + (y.advisoryFee ?? 0) + (aumRows[i]?.advisoryFee ?? 0), 0);
+  const baseline = dispatch(makeClient({ ...BASE, advisory_fee_percent: feePct } as Partial<ClientType>), 2026).baseline;
+  const baselineFeeTotal = baseline.reduce((t, y) => t + (y.advisoryFee ?? 0), 0);
+  r.ran();
+  if (!(baselineFeeTotal > 0 && combinedFeeTotal / baselineFeeTotal > 0.5)) {
+    r.record({
+      fixture: 'advisory-fee/aum', scenario: 'formula', check: 'fee-survives-the-aum-combine',
+      year: 2026, age: 65, expected: baselineFeeTotal, actual: combinedFeeTotal,
+      note: `at 100% AUM with the same rate on both controls the strategy must still be billed on its money; ratio ${(combinedFeeTotal / Math.max(baselineFeeTotal, 1)).toFixed(2)} means the combine dropped advisoryFee`,
+    });
   }
 }
 
