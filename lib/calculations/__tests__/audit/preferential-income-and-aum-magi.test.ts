@@ -12,7 +12,7 @@
  *    Standard, Roth-side MAGI + external stays under the single Standard
  *    threshold, and the tier/surcharge reflect the combined MAGI.
  */
-import type { Client } from '../../../types/client';
+import type { Client, NonSSIIncomeEntry } from '../../../types/client';
 import { makeClient, dispatch } from './factory';
 import { Reporter } from './assertions';
 import { calculateIRMAA } from '../../modules/irmaa';
@@ -21,7 +21,7 @@ import { calculateIRMAAHeadroom } from '../../../data/irmaa-brackets';
 const r = new Reporter();
 const TOL = 100;
 
-function rows(type: string, amountCents: number, startAge: number, n = 30) {
+function rows(type: NonNullable<NonSSIIncomeEntry['type']>, amountCents: number, startAge: number, n = 30) {
   return Array.from({ length: n }, (_, i) => ({
     age: String(startAge + i), year: 2026 + i, type, gross_taxable: amountCents, tax_exempt: 0,
   }));
@@ -37,7 +37,7 @@ function rows(type: string, amountCents: number, startAge: number, n = 30) {
   };
   const amt = 4_000_000; // $40,000
   const ordinary = dispatch(makeClient({ ...base, non_ssi_income: rows('other', amt, 71) } as Partial<Client>), 2026).baseline[0];
-  for (const t of ['capital_gains', 'qualified_dividends']) {
+  for (const t of ['capital_gains', 'qualified_dividends'] as const) {
     const pref = dispatch(makeClient({ ...base, non_ssi_income: rows(t, amt, 71) } as Partial<Client>), 2026).baseline[0];
     r.ran();
     const expectedLtcg = Math.round(amt * 0.15);
