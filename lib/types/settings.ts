@@ -19,6 +19,9 @@ export interface UserSettings {
   address: string | null;
   logo_url: string | null;
   logo_light_url: string | null;
+  /** Printed logo size on PDFs. 'small' is the geometry shipped before this
+   *  setting existed, so it stays the default and leaves reports unchanged. */
+  logo_size: 'small' | 'medium' | 'large';
   /** Advisor-authored compliance disclosure for client-facing reports. Per-user. */
   report_disclosure: string | null;
   primary_color: string;

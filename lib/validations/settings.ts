@@ -82,6 +82,9 @@ export const businessSchema = z.object({
     .nullable()
     .or(z.literal("")),
   address: z.string().max(500).optional().nullable(),
+  // How large the logo prints on reports. Default 'small' is the geometry that
+  // shipped before this was adjustable, so nobody's existing report moves.
+  logo_size: z.enum(["small", "medium", "large"]),
   // Broker-dealer / RIA disclosure printed on client-facing reports. Generous
   // cap: BD-approved language often runs to a full paragraph plus an advisory
   // line. Authored by the advisor; we never supply a default.

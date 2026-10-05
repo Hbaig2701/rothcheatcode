@@ -34,7 +34,23 @@ interface BrandingData {
   secondaryColor: string;
   /** Advisor's own compliance disclosure (FINRA 2210). Empty = block omitted. */
   reportDisclosure: string;
+  /** Logo box in px, interpolated into this template's CSS. Mirrors
+   *  /api/generate-pdf so one setting governs both PDFs. */
+  logoCoverMaxWidth: number;
+  logoCoverMaxHeight: number;
+  logoHeaderMaxWidth: number;
+  logoHeaderMaxHeight: number;
 }
+
+/** Advisor-selected logo size → the four caps above. Cover matches
+ *  /api/generate-pdf; the story header box is its own slightly smaller
+ *  geometry (220x64), scaled by the same steps. 'small' is the geometry that
+ *  shipped before this was a setting. */
+const LOGO_SIZES = {
+  small:  { coverW: 320, coverH: 100, headerW: 220, headerH: 64 },
+  medium: { coverW: 400, coverH: 140, headerW: 275, headerH: 80 },
+  large:  { coverW: 480, coverH: 180, headerW: 330, headerH: 96 },
+} as const;
 
 // Branded header/footer helpers — same shapes as /api/generate-pdf so the
 // templates can share the {{{brandingHeader}}} / {{{brandingFooter}}} calls.
@@ -129,6 +145,19 @@ export async function POST(request: NextRequest) {
       .eq("user_id", user.id)
       .single();
 
+    // Own query — see the matching note in /api/generate-pdf. Keeps a
+    // pre-migration deploy from stripping branding off every story report.
+    let logoBox: (typeof LOGO_SIZES)[keyof typeof LOGO_SIZES] = LOGO_SIZES.small;
+    {
+      const { data: sizeRow } = await supabase
+        .from("user_settings")
+        .select("logo_size")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const key = sizeRow?.logo_size as keyof typeof LOGO_SIZES | undefined;
+      if (key && key in LOGO_SIZES) logoBox = LOGO_SIZES[key];
+    }
+
     const branding: BrandingData = {
       companyName: settings?.company_name || "",
       tagline: settings?.tagline || "",
@@ -141,6 +170,10 @@ export async function POST(request: NextRequest) {
       secondaryColor: settings?.secondary_color || "#1a1a1a",
       // Advisor-authored; rendered escaped with line breaks preserved.
       reportDisclosure: (settings?.report_disclosure || "").trim(),
+      logoCoverMaxWidth: logoBox.coverW,
+      logoCoverMaxHeight: logoBox.coverH,
+      logoHeaderMaxWidth: logoBox.headerW,
+      logoHeaderMaxHeight: logoBox.headerH,
     };
 
     // Apply branding overrides (Pro / white-label). The compliance disclosure is

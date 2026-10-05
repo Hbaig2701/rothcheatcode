@@ -54,6 +54,7 @@ export function BusinessTab({ settings }: BusinessTabProps) {
       company_email: settings.company_email ?? "",
       company_website: settings.company_website ?? "",
       address: settings.address ?? "",
+      logo_size: settings.logo_size ?? "small",
       report_disclosure: settings.report_disclosure ?? "",
       primary_color: settings.primary_color ?? "#1a3a5c",
       secondary_color: settings.secondary_color ?? "#14b8a6",
@@ -113,6 +114,50 @@ export function BusinessTab({ settings }: BusinessTabProps) {
               label="Light Logo (Cover Page)"
               hint="Recommended: White PNG with transparent background, 400x100px. Max 2MB."
               isUploading={uploadLightLogo.isPending}
+            />
+          </div>
+
+          {/* Printed logo size. Default 'small' is the geometry that shipped
+              before this was adjustable, so an advisor who never touches this
+              sees no change to their reports. Raised at Dana Gibson's request
+              (ticket a40e1b9a) rather than resizing everyone's cover for them. */}
+          <div>
+            <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Logo Size on Reports
+            </h3>
+            <p className="mb-3 text-sm text-muted-foreground">
+              How large your logo prints on the report cover and page headers.
+              Your logo always keeps its proportions, so a wide logo may not
+              grow much taller.
+            </p>
+            <Controller
+              name="logo_size"
+              control={control}
+              render={({ field }) => (
+                <div className="flex gap-2">
+                  {([
+                    { value: "small", label: "Small", hint: "Default" },
+                    { value: "medium", label: "Medium", hint: "25% larger" },
+                    { value: "large", label: "Large", hint: "50% larger" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => field.onChange(opt.value)}
+                      aria-pressed={field.value === opt.value}
+                      className={
+                        "flex-1 rounded-lg border px-4 py-3 text-left transition-colors " +
+                        (field.value === opt.value
+                          ? "border-primary bg-primary/5"
+                          : "border-input hover:bg-accent")
+                      }
+                    >
+                      <span className="block text-sm font-medium">{opt.label}</span>
+                      <span className="block text-xs text-muted-foreground">{opt.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             />
           </div>
 

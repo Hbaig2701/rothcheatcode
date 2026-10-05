@@ -239,7 +239,24 @@ interface BrandingData {
   reportDisclosure: string;
   hasBranding: boolean;
   hasContactInfo: boolean;
+  /** Logo box in px, interpolated into the template's CSS. Both are hard caps
+   *  and the aspect ratio is preserved, so whichever runs out first decides the
+   *  printed size — a wide logo is usually stopped by width, a tall one by
+   *  height. 'small' reproduces the pre-2026-10 geometry exactly. */
+  logoCoverMaxWidth: number;
+  logoCoverMaxHeight: number;
+  logoHeaderMaxWidth: number;
+  logoHeaderMaxHeight: number;
 }
+
+/** Advisor-selected logo size → the four caps above. Keep 'small' identical to
+ *  the values that were hard-coded in the template before this was a setting,
+ *  or every report that never opted in would silently change. */
+const LOGO_SIZES = {
+  small:  { coverW: 320, coverH: 100, headerW: 240, headerH: 72 },
+  medium: { coverW: 400, coverH: 140, headerW: 280, headerH: 90 },
+  large:  { coverW: 480, coverH: 180, headerW: 320, headerH: 110 },
+} as const;
 
 interface RothGrowthRow {
   year: number;
@@ -1837,6 +1854,22 @@ export async function POST(request: NextRequest) {
       .eq('user_id', user.id)
       .single();
 
+    // logo_size is read in its OWN query, deliberately not added to the select
+    // above. If a deploy lands before the migration, that select would fail on
+    // the unknown column and EVERY report would lose its branding. Isolated
+    // here, a missing column just falls back to 'small' — the geometry that
+    // shipped before this was adjustable — and nothing else is affected.
+    let logoBox: (typeof LOGO_SIZES)[keyof typeof LOGO_SIZES] = LOGO_SIZES.small;
+    {
+      const { data: sizeRow } = await supabase
+        .from('user_settings')
+        .select('logo_size')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const key = sizeRow?.logo_size as keyof typeof LOGO_SIZES | undefined;
+      if (key && key in LOGO_SIZES) logoBox = LOGO_SIZES[key];
+    }
+
     const branding: BrandingData = {
       companyName: settings?.company_name || '',
       tagline: settings?.tagline || '',
@@ -1851,6 +1884,10 @@ export async function POST(request: NextRequest) {
       secondaryColor: settings?.secondary_color || '#4ecdc4',
       hasBranding: !!(settings?.company_name || settings?.logo_url),
       hasContactInfo: !!(settings?.company_phone || settings?.company_email || settings?.company_website),
+      logoCoverMaxWidth: logoBox.coverW,
+      logoCoverMaxHeight: logoBox.coverH,
+      logoHeaderMaxWidth: logoBox.headerW,
+      logoHeaderMaxHeight: logoBox.headerH,
     };
 
     // Apply branding overrides from export dialog (plans with white-label feature)
