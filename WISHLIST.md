@@ -316,6 +316,24 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 
 ---
 
+## Supabase capacity + client churn (production outage, Oct 5 2026)
+
+**The pitch:** Production went down for roughly 90 minutes. Every advisor saw the app load but no data and no login — Cloudflare 522 on both REST and auth. The dashboard read **STATUS: Unhealthy, COMPUTE: Nano, RAM 83%, Conns Unavailable**: the connection pool was exhausted on the smallest compute tier Supabase sells, carrying 50,424 requests in 24 hours plus the projection engine, PDF generation and Whisper transcription. A project restart cleared it; nothing about the capacity changed, so it can recur.
+
+**Two separate causes, both worth fixing:**
+
+1. **Under-provisioned compute.** `t4g.nano` is 0.5 GB RAM. RAM sat at 83% *before* the failure. Upgrade to Small (2 GB) — Settings → Compute and Disk. Not a code change; it is the immediate fix and it is scheduled for the overnight window.
+
+2. **Client churn in the API layer.** `createAdminClient()` (`lib/supabase/admin.ts`) calls `createClient()` fresh on every invocation with no memoisation, and is called from **51 sites across `app/api/`**. `lib/supabase/server.ts` likewise builds a new `createServerClient` per request (correct there — it is request-scoped and carries cookies — but the admin client has no such constraint). Three of the admin call sites sit **inside `after()` callbacks**, which run past the HTTP response and therefore hold their client beyond the request lifetime. Combined with the long-running routes — `sales-calls` `maxDuration = 120`, `generate-pdf` / `generate-story-pdf` / `chat` at 60, `products/research` at 90 — a handful of concurrent exports or one transcription can pin connections for minutes. That is the shape of what fell over.
+
+**What it requires:** memoise the admin client behind a module-level singleton (the pattern already used by `getOpenAI()` in `lib/sales-calls/transcribe.ts`), since the service-role client is stateless and configured with `autoRefreshToken: false, persistSession: false` — there is no per-request state to leak. Then audit the `after()` call sites so background work does not outlive its client. Note the app talks to Supabase over **supabase-js REST, not a direct `pg` connection**, so this is HTTP connection churn against the API gateway rather than a Postgres pool leak — the fix is about not constructing 51 clients per request path, not about pgBouncer.
+
+**Demand signal:** a live production outage on Oct 5 2026 affecting every advisor, surfaced by a user report ("someone said the site is down"). 406 API Gateway errors clustered in the failure window. The restart is a 60-second mitigation that will be needed again until both halves are done.
+
+**Estimated effort:** compute upgrade **minutes** (dashboard, scheduled overnight); client memoisation + `after()` audit **half a day** including tests.
+
+---
+
 ## Guardrail: warn when the strategy converts $0
 
 **The pitch:** An advisor can build a complete scenario, hit Calculate, and get a strategy column that converted **nothing** — with no warning anywhere. The report renders normally; baseline and strategy are identical; it just looks broken.
