@@ -82,14 +82,14 @@ export function runGrowthFormulaScenario(
   // taxes instead of the real money sitting on the client's balance sheet).
   // Roth balance compounds via rothInterest (~line 588), so starting it at
   // the client's value lets the existing Roth grow tax-free alongside any
-  // conversions. Taxable balance does NOT yet have interest applied in this
-  // engine (unlike baseline.ts) — it's a tax-flow tracker that drains by
-  // conversion tax + grows by RMD reinvestment. Starting it at the client's
-  // real value lets the engine honestly model conversion taxes draining the
-  // brokerage, instead of pretending those dollars came from nowhere.
-  // TODO: add taxableInterest to this engine to fully mirror baseline.ts's
-  // taxable-bucket semantics. Left out of this change to keep blast radius
-  // scoped and predictable.
+  // conversions. Starting the taxable balance at the client's real value lets
+  // the engine honestly model conversion taxes draining the brokerage, instead
+  // of pretending those dollars came from nowhere.
+  // The taxable bucket DOES earn interest in 'reinvested' mode, at the
+  // baseline/market rate rather than the contract rate (see taxableInterest
+  // further down) — this comment previously said it did not, and carried a TODO
+  // that had already been completed. Stale comment corrected 2026-10-05 after it
+  // sent an independent re-derivation of the advisory fee chasing a phantom bug.
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
   // Running balance of ONLY the Roth dollars that came from conversions into the
