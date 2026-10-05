@@ -373,6 +373,19 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
     rows.reduce((t, y) => t + (y.advisoryFee ?? 0), 0);
   const advisoryFeeStrategyTotal = advisoryFeeOn ? sumAdvisoryFee(blueprintYears) : 0;
   const advisoryFeeBaselineTotal = advisoryFeeOn ? sumAdvisoryFee(baselineYears) : 0;
+  // The badge copy has to survive the case where the strategy converts NOTHING
+  // — a 100% AUM allocation, or conversion_type 'no_conversion'. Saying "$X
+  // with the conversion" and "still isolates the tax decision" there describes
+  // a conversion that isn't happening. Reuses the same blueConversions signal
+  // the headline above already branches on, so the two can't disagree.
+  const strategyConverts = blueConversions > 0;
+  // `aumActive` is declared with the AUM metrics below (it also requires
+  // projection.aum_years to exist); the JSX reads that one.
+  // With an AUM split the strategy's fee total is the Roth side's balance-based
+  // fee PLUS the brokerage's own aum_fee_percent (summed in combineRothAndAum).
+  // At 100% AUM it is almost entirely the latter, so headlining only
+  // advisory_fee_percent would misattribute the figure when the two rates differ.
+  const aumOwnFeePct = client.aum_fee_percent ?? 1;
 
   // ===== AUM split-allocation metrics =====
   // The AUM bucket is stored separately on the projection so we can describe
@@ -675,18 +688,26 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   Advisory fee:&nbsp;
                   <span className="font-medium">{advisoryFeePct}%/yr</span>
                   &nbsp;on managed balances, charged on both sides —&nbsp;
-                  {toUSD(advisoryFeeStrategyTotal)} with the conversion vs&nbsp;
-                  {toUSD(advisoryFeeBaselineTotal)} doing nothing. The comparison
-                  below still isolates the tax decision.
+                  {toUSD(advisoryFeeStrategyTotal)} for this strategy vs&nbsp;
+                  {toUSD(advisoryFeeBaselineTotal)} doing nothing.
+                  {aumActive && (
+                    <>
+                      &nbsp;The strategy figure includes the AUM brokerage&rsquo;s own{" "}
+                      {aumOwnFeePct}%/yr fee.
+                    </>
+                  )}
+                  {strategyConverts && (
+                    <>&nbsp;The comparison below still isolates the tax decision.</>
+                  )}
                 </p>
               ) : (
                 <p className="text-sm text-amber-500 mt-2">
                   Advisory fee:&nbsp;
                   <span className="font-medium">{advisoryFeePct}%/yr</span>
                   &nbsp;on managed balances ({toUSD(advisoryFeeStrategyTotal)} over the
-                  projection), charged on the conversion strategy ONLY. The
-                  do-nothing baseline pays no fee, so the comparison below
-                  understates the conversion.
+                  projection), charged on this strategy ONLY. The do-nothing baseline
+                  pays no fee, so the comparison below understates&nbsp;
+                  {strategyConverts ? "the conversion" : "this strategy"}.
                 </p>
               )
             )}
