@@ -701,6 +701,7 @@
         <th>Distribution (IRA)</th>
         <th>Max Tax Bracket ({{maxTaxRate}}%)</th>
         <th>Conversion Tax</th>
+        <th>Total Tax</th>
         <th>Conversion Amount</th>
         <th>Interest</th>
         <th>E.O.Y. (IRA)</th>
@@ -713,6 +714,11 @@
         <td>{{this.distribution}}</td>
         <td>{{this.bracketCeiling}}</td>
         <td class="{{redUnlessZero this.taxes}}">{{this.taxes}}</td>
+        <!-- Deliberately NOT red. Red marks tax the strategy causes; Total Tax
+             mostly consists of tax the household owes either way, and colouring
+             it as a cost both overstates it and drowns out the Conversion Tax
+             column next to it. -->
+        <td>{{this.totalTax}}</td>
         <td>{{this.conversionAmount}}</td>
         <td>{{this.interest}}</td>
         <td>{{this.eoyIra}}</td>
@@ -725,6 +731,7 @@
         <td>{{conversionDetailsTotals.distribution}}</td>
         <td>—</td>
         <td class="tax-value">{{conversionDetailsTotals.taxes}}</td>
+        <td>{{conversionDetailsTotals.totalTax}}</td>
         <td>{{conversionDetailsTotals.conversionAmount}}</td>
         <td>{{conversionDetailsTotals.interest}}</td>
         <td>—</td>

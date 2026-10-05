@@ -485,6 +485,10 @@ export function runGrowthFormulaScenario(
     // Set when full/fixed produced an authoritative self-consistent tax, so the
     // generic convTaxAt(conversion) recompute below doesn't clobber it.
     let selfConsistentTaxFromIra = false;
+    // Set when the optimized/partial planner produced the tax on the FULL
+    // distribution (conversion + gross-up pull). Same situation as the flag
+    // above, and the display split below must treat it the same way.
+    let planAlreadySetTax = false;
 
     if (shouldConvert) {
       // Determine conversion amount based on type
@@ -967,7 +971,7 @@ export function runGrowthFormulaScenario(
       // which is what the IRS actually sees. Re-running convTaxAt(conversion)
       // here would overwrite it with tax-on-conversion-alone, re-introducing
       // the very bug the planner was added to fix.
-      const planAlreadySetTax = payTaxFromIRA && skipGrossDown && (conversionType === 'optimized_amount' || conversionType === 'partial_amount');
+      planAlreadySetTax = payTaxFromIRA && skipGrossDown && (conversionType === 'optimized_amount' || conversionType === 'partial_amount');
       if (conversionAmount > 0 && !planAlreadySetTax && !selfConsistentTaxFromIra) {
         const convTax = convTaxAt(conversionAmount);
         federalTax = convTax.federalTax;
@@ -1257,7 +1261,7 @@ export function runGrowthFormulaScenario(
     // tax belongs in the ordinary-income split). Recompute the conversion-only
     // attribution here so federalTaxOnConversions ≤ federalTaxOnIRAWithdrawal and
     // the residual ordinary/SS columns aren't squeezed to ~$0. (v66 regression.)
-    const conversionOnlyTax = selfConsistentTaxFromIra && conversionAmount > 0
+    const conversionOnlyTax = (selfConsistentTaxFromIra || planAlreadySetTax) && conversionAmount > 0
       ? convTaxAt(conversionAmount)
       : { federalTax, stateTax };
     const conversionFederalTax = conversionOnlyTax.federalTax;

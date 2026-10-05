@@ -134,6 +134,11 @@ interface ConversionDetail {
   distribution: string;
   bracketCeiling: string;
   taxes: string;
+  // The year's FULL tax bill — conversion tax plus the tax the household
+  // would owe anyway on wages, SS and RMDs. Sits next to the conversion-only
+  // figure so neither number can be mistaken for the other. Dana Gibson,
+  // ticket a40e1b9a.
+  totalTax: string;
   conversionAmount: string;
   interest: string;
   eoyIra: string;
@@ -168,6 +173,7 @@ interface ConversionDetailsTotalsRow {
   existingTaxable: string;
   distribution: string;
   taxes: string;
+  totalTax: string;
   conversionAmount: string;
   interest: string;
 }
@@ -973,7 +979,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     .filter(({ year }: { year: any }) => year.conversionAmount > 0);
 
   // Track flow-column running totals for the conversion-details totals row.
-  let cdTotExistingTaxable = 0, cdTotDistribution = 0, cdTotTaxes = 0, cdTotConversion = 0, cdTotInterest = 0;
+  let cdTotExistingTaxable = 0, cdTotDistribution = 0, cdTotTaxes = 0, cdTotTotalTax = 0, cdTotConversion = 0, cdTotInterest = 0;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const conversionDetails: ConversionDetail[] = conversionYearsWithIndex.map(({ year, originalIndex }: { year: any; originalIndex: number }) => {
@@ -1005,10 +1011,12 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     const existingTaxableIncome = year.otherIncome + (year.taxableSS ?? 0);
     const distributionAmount = year.totalIRAWithdrawal ?? year.conversionAmount;
     const conversionTaxAmount = (year.federalTaxOnConversions ?? 0) + (year.stateTaxOnConversions ?? 0);
+    const totalTaxAmount = year.totalTax ?? 0;
 
     cdTotExistingTaxable += existingTaxableIncome;
     cdTotDistribution += distributionAmount;
     cdTotTaxes += conversionTaxAmount;
+    cdTotTotalTax += totalTaxAmount;
     cdTotConversion += year.conversionAmount;
     cdTotInterest += interest;
 
@@ -1024,6 +1032,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       // the client owes because of this conversion (including any SS that
       // became taxable as the conversion raised provisional income).
       taxes: formatCurrency(conversionTaxAmount),
+      // Everything the household owes that year, conversion tax included.
+      totalTax: formatCurrency(totalTaxAmount),
       conversionAmount: formatCurrency(year.conversionAmount),
       interest: formatCurrency(interest),
       eoyIra: formatCurrency(year.traditionalBalance),
@@ -1035,6 +1045,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     existingTaxable: formatCurrency(cdTotExistingTaxable),
     distribution: formatCurrency(cdTotDistribution),
     taxes: formatCurrency(cdTotTaxes),
+    totalTax: formatCurrency(cdTotTotalTax),
     conversionAmount: formatCurrency(cdTotConversion),
     interest: formatCurrency(cdTotInterest),
   };

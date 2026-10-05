@@ -32,6 +32,11 @@
 // Use relative imports to avoid @/ alias issues with tsx
 import type { Client } from '../../types/client';
 import { runSimulationWithMetrics } from '../engine';
+// The three original fixtures run through runSimulation (formula.ts). Production
+// routes any growth product — 'fia' included, which every fixture declares — to
+// runGrowthSimulation (growth-formula.ts) instead. The Russell fixtures below
+// call it directly so the growth engine is covered too. See FIXTURES 4 & 5.
+import { runGrowthSimulation } from '../growth-engine';
 import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
 import { computeTaxableIncomeWithSS } from '../tax-helpers';
@@ -60,6 +65,15 @@ function assertDollars(actual: number, expected: number, msg: string) {
     failed++;
     const diff = actual - expected;
     failures.push(`  FAIL: ${msg}\n    expected: ${expected} (${(expected / 100).toFixed(2)})\n    actual:   ${actual} (${(actual / 100).toFixed(2)})\n    drift:    ${diff > 0 ? '+' : ''}${diff} cents (${(diff / 100).toFixed(2)})`);
+  }
+}
+
+function assertTrue(ok: boolean, msg: string, detail = '') {
+  if (ok) {
+    passed++;
+  } else {
+    failed++;
+    failures.push(`  FAIL: ${msg}${detail ? `\n    ${detail}` : ''}`);
   }
 }
 
@@ -280,6 +294,52 @@ function runFixture(label: string, client: Client) {
     // independent canonical re-derivation above. See block at the bottom.
     helperBaseTaxOnRMDs: computeMarginalRMDTax(result.baseline, client),
     helperBlueTaxOnRMDs: computeMarginalRMDTax(result.formula, client),
+    // Year rows + the client, for the structural checks at the bottom. Not
+    // part of the locked snapshot — stripped from the scratchpad dump.
+    years: result.formula,
+    client,
+  };
+}
+
+// Same shape as runFixture, but through the GROWTH engine — the path
+// production actually uses for every annuity product.
+function runGrowthFixture(label: string, client: Client) {
+  console.log(`\n=== ${label} ===`);
+  const currentYear = new Date().getFullYear();
+  const projectionYears = client.end_age - client.age;
+  const result = runGrowthSimulation({
+    client,
+    startYear: currentYear,
+    endYear: currentYear + projectionYears,
+  });
+  const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
+  const baseFinal = result.baseline[result.baseline.length - 1];
+  const blueFinal = result.formula[result.formula.length - 1];
+  return {
+    base: {
+      finalNetWorth: baseFinal.netWorth,
+      finalTraditional: baseFinal.traditionalBalance,
+      finalRoth: baseFinal.rothBalance,
+      finalTaxable: baseFinal.taxableBalance,
+      lifetimeWealth: canonicalLifetimeWealth(baseFinal.netWorth, baseFinal.traditionalBalance, heirTaxRate),
+      forcedDistributions: canonicalForcedDistributions(result.baseline),
+      totalFedStateTax: canonicalTotalFedStateTax(result.baseline),
+      taxOnRMDs: canonicalTaxOnRMDs(result.baseline, client),
+    },
+    blue: {
+      finalNetWorth: blueFinal.netWorth,
+      finalTraditional: blueFinal.traditionalBalance,
+      finalRoth: blueFinal.rothBalance,
+      finalTaxable: blueFinal.taxableBalance,
+      lifetimeWealth: canonicalLifetimeWealth(blueFinal.netWorth, blueFinal.traditionalBalance, heirTaxRate),
+      taxOnConversions: canonicalTaxOnConversions(result.formula),
+      totalFedStateTax: canonicalTotalFedStateTax(result.formula),
+      taxOnRMDs: canonicalTaxOnRMDs(result.formula, client),
+    },
+    helperBaseTaxOnRMDs: computeMarginalRMDTax(result.baseline, client),
+    helperBlueTaxOnRMDs: computeMarginalRMDTax(result.formula, client),
+    years: result.formula,
+    client,
   };
 }
 
@@ -591,6 +651,179 @@ assertDollars(sprengelResults.helperBaseTaxOnRMDs, SPRENGEL_EXPECTED.base.taxOnR
 assertDollars(sprengelResults.helperBlueTaxOnRMDs, SPRENGEL_EXPECTED.blue.taxOnRMDs, 'Sprengel helperBlueTaxOnRMDs (helper vs canonical)');
 
 // ============================================================
+// FIXTURES 4 & 5: Russell shape
+//   MFJ, 65/62, CA (10.3%), large W-2 income, SS, conversion tax paid
+//   FROM THE IRA, on an FIA (growth engine).
+//
+//   Why these exist:
+//     Before this, every from_ira fixture used fixed_amount (Paul) or
+//     full_conversion (Sprengel) — the two conversion types whose tax is
+//     re-attributed to the converted slice. The optimized/partial planner
+//     also computes its tax on the FULL grossed-up distribution, but its
+//     flag never reached the display split in growth-formula.ts, so the
+//     "Conversion Tax" column reported the whole distribution's tax
+//     against the conversion amount — 80% of the conversion on Dana
+//     Gibson's Larry Russell report (ticket a40e1b9a), where the true
+//     figure is ~44%. 395 of 1,064 live clients sit in this exact
+//     combination and no fixture covered it. These two do.
+// ============================================================
+
+function russellShape(overrides: Partial<Client> = {}): Client {
+  return makeClient({
+    name: 'Russell-shape (MFJ, CA, big W-2, tax from IRA)',
+    filing_status: 'married_filing_jointly',
+    age: 65,
+    spouse_age: 62,
+    end_age: 90,
+    state: 'CA',
+    state_tax_rate: 10.3,
+    qualified_account_value: 190_000_000, // $1.9M
+    bonus_percent: 20,
+    rate_of_return: 6,
+    baseline_comparison_rate: 6,
+    ssi_payout_age: 65,
+    ssi_annual_amount: 2_988_000, // $29,880
+    gross_taxable_non_ssi: 42_500_000, // $425K W-2
+    tax_payment_source: 'from_ira',
+    taxable_accounts: 10_000_000, // $100K
+    max_tax_rate: 35,
+    tax_rate: 35,
+    ...overrides,
+  });
+}
+
+const russellOpt = russellShape({ conversion_type: 'optimized_amount' });
+const russellOptResults = runGrowthFixture('FIXTURE 4 — Russell shape (optimized, tax from IRA, GROWTH engine)', russellOpt);
+
+const russellPart = russellShape({
+  conversion_type: 'partial_amount',
+  target_partial_amount: 100_000_000, // $1M total across the projection
+});
+const russellPartResults = runGrowthFixture('FIXTURE 5 — Russell shape (partial, tax from IRA, GROWTH engine)', russellPart);
+
+const RUSSELL_OPT_EXPECTED = {
+  // LOCKED 2026-10-05 against the GROWTH engine. The structural check below
+  // is the one that guards ticket a40e1b9a: with the growth-formula.ts fix
+  // reverted, year one reports $156,647.80 of tax against a $195,504.20
+  // conversion (80.1%, ceiling 45.3%) — Larry Russell's real figures to the
+  // cent.
+  base: {
+    finalNetWorth:         727_030_636,
+    finalTraditional:      334_394_846,
+    finalRoth:             0,
+    finalTaxable:          392_635_790,
+    lifetimeWealth:        593_272_698,
+    forcedDistributions:   330_551_096,
+    totalFedStateTax:      418_024_292,
+    taxOnRMDs:             113_178_124,
+  },
+  blue: {
+    finalNetWorth:         630_219_275,
+    finalTraditional:      0,
+    finalRoth:             584_725_447,
+    finalTaxable:          45_493_828,
+    lifetimeWealth:        630_219_275,
+    taxOnConversions:      64_252_312,
+    totalFedStateTax:      421_878_539,
+    taxOnRMDs:             0,
+  },
+};
+
+const RUSSELL_PART_EXPECTED = {
+  // LOCKED 2026-10-05 against the GROWTH engine. $1M cap across the
+  // projection, so conversions stop early and a Traditional balance survives
+  // to the end (unlike the optimized fixture) — the only fixture where a
+  // from_ira partial leaves RMDs to tax in the strategy.
+  base: {
+    finalNetWorth:         727_030_636,
+    finalTraditional:      334_394_846,
+    finalRoth:             0,
+    finalTaxable:          392_635_790,
+    lifetimeWealth:        593_272_698,
+    forcedDistributions:   330_551_096,
+    totalFedStateTax:      418_024_292,
+    taxOnRMDs:             113_178_124,
+  },
+  blue: {
+    finalNetWorth:         669_124_585,
+    finalTraditional:      99_855_271,
+    finalRoth:             408_375_548,
+    finalTaxable:          160_893_766,
+    lifetimeWealth:        629_182_477,
+    taxOnConversions:      42_799_795,
+    totalFedStateTax:      419_102_451,
+    taxOnRMDs:             36_148_842,
+  },
+};
+
+for (const [label, res, exp] of [
+  ['Russell-opt', russellOptResults, RUSSELL_OPT_EXPECTED],
+  ['Russell-part', russellPartResults, RUSSELL_PART_EXPECTED],
+] as const) {
+  assertDollars(res.base.finalNetWorth, exp.base.finalNetWorth, `${label} base.finalNetWorth`);
+  assertDollars(res.base.finalTraditional, exp.base.finalTraditional, `${label} base.finalTraditional`);
+  assertDollars(res.base.finalRoth, exp.base.finalRoth, `${label} base.finalRoth`);
+  assertDollars(res.base.finalTaxable, exp.base.finalTaxable, `${label} base.finalTaxable`);
+  assertDollars(res.base.lifetimeWealth, exp.base.lifetimeWealth, `${label} base.lifetimeWealth`);
+  assertDollars(res.base.forcedDistributions, exp.base.forcedDistributions, `${label} base.forcedDistributions`);
+  assertDollars(res.base.totalFedStateTax, exp.base.totalFedStateTax, `${label} base.totalFedStateTax`);
+  assertDollars(res.base.taxOnRMDs, exp.base.taxOnRMDs, `${label} base.taxOnRMDs`);
+  assertDollars(res.blue.finalNetWorth, exp.blue.finalNetWorth, `${label} blue.finalNetWorth`);
+  assertDollars(res.blue.finalTraditional, exp.blue.finalTraditional, `${label} blue.finalTraditional`);
+  assertDollars(res.blue.finalRoth, exp.blue.finalRoth, `${label} blue.finalRoth`);
+  assertDollars(res.blue.lifetimeWealth, exp.blue.lifetimeWealth, `${label} blue.lifetimeWealth`);
+  assertDollars(res.blue.taxOnConversions, exp.blue.taxOnConversions, `${label} blue.taxOnConversions`);
+  assertDollars(res.blue.totalFedStateTax, exp.blue.totalFedStateTax, `${label} blue.totalFedStateTax`);
+  assertDollars(res.blue.taxOnRMDs, exp.blue.taxOnRMDs, `${label} blue.taxOnRMDs`);
+}
+
+// ============================================================
+// STRUCTURAL CHECK — the "Conversion Tax" column must be on the
+// conversion's basis, for EVERY fixture and every conversion year.
+//
+// A locked dollar value only guards the shapes we happened to write down.
+// This guards the bug class: the conversion-attributable tax reported for
+// a year can never exceed what that year's conversion could possibly owe,
+// i.e. conversionAmount x (top federal marginal rate + state rate). When
+// the tax is paid from the IRA the distribution is larger than the
+// conversion, so a column computed on the distribution breaches this
+// immediately — Larry Russell's year one was 80% against a 45.3% ceiling.
+//
+// 2% tolerance absorbs IRMAA surcharges and rounding, which ride along in
+// the attributed figure without being rate-based.
+// ============================================================
+
+for (const [label, res] of [
+  ['Fucci', fucciResults],
+  ['Paul', paulResults],
+  ['Sprengel', sprengelResults],
+  ['Russell-opt', russellOptResults],
+  ['Russell-part', russellPartResults],
+] as const) {
+  const c = res.client;
+  const ceilingRate = (c.max_tax_rate ?? 37) / 100 + (c.state_tax_rate ?? 0) / 100;
+  let worst: { age: number; rate: number; tax: number; conv: number } | null = null;
+  for (const y of res.years) {
+    const conv = y.conversionAmount ?? 0;
+    if (conv <= 0) continue;
+    const convTax = (y.federalTaxOnConversions ?? 0) + (y.stateTaxOnConversions ?? 0);
+    const rate = convTax / conv;
+    if (!worst || rate > worst.rate) worst = { age: y.age, rate, tax: convTax, conv };
+  }
+  if (!worst) {
+    assertTrue(true, `${label} conversion-tax basis (no conversion years)`);
+    continue;
+  }
+  assertTrue(
+    worst.rate <= ceilingRate * 1.02,
+    `${label} conversion-tax basis — attributed tax exceeds what the conversion could owe`,
+    `age ${worst.age}: tax $${(worst.tax / 100).toLocaleString()} on a $${(worst.conv / 100).toLocaleString()} conversion `
+      + `= ${(worst.rate * 100).toFixed(1)}%, ceiling ${(ceilingRate * 100).toFixed(1)}% `
+      + `(fed ${c.max_tax_rate}% + state ${c.state_tax_rate ?? 0}%)`,
+  );
+}
+
+// ============================================================
 // SCRATCHPAD: print actuals so a developer who needs to update the
 // locked values can copy/paste them.
 //
@@ -601,10 +834,17 @@ assertDollars(sprengelResults.helperBlueTaxOnRMDs, SPRENGEL_EXPECTED.blue.taxOnR
 // ============================================================
 
 console.log('\n=== Actuals (for snapshot updates) ===');
+const snapshot = (r: ReturnType<typeof runFixture> | ReturnType<typeof runGrowthFixture>) => ({
+  base: r.base, blue: r.blue,
+  helperBaseTaxOnRMDs: r.helperBaseTaxOnRMDs,
+  helperBlueTaxOnRMDs: r.helperBlueTaxOnRMDs,
+});
 console.log(JSON.stringify({
-  fucci: fucciResults,
-  paul: paulResults,
-  sprengel: sprengelResults,
+  fucci: snapshot(fucciResults),
+  paul: snapshot(paulResults),
+  sprengel: snapshot(sprengelResults),
+  russellOpt: snapshot(russellOptResults),
+  russellPart: snapshot(russellPartResults),
 }, null, 2));
 
 // ============================================================
