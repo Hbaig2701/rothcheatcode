@@ -191,16 +191,46 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // one year when the IRA empties and heir tax drops to zero, then be overtaken
   // and finish behind. Reporting that as "ahead from 65 onward" would put a
   // number in front of a client that the projection doesn't support.
-  const sustainedAheadAge = (() => {
-    if (chartData.length === 0) return null;
-    const last = chartData[chartData.length - 1];
-    if (last.formula <= last.baseline) return null; // finishes behind
+  // Sustained crossover: the age after which the strategy is ahead for the REST
+  // of the projection, not merely the first year it noses in front. A plan can
+  // lead for one year when the IRA empties and heir tax drops to zero, then be
+  // overtaken and finish behind; reporting that as "ahead from 65" would put a
+  // number in front of a client the projection doesn't support.
+  const sustainedCrossover = (
+    pts: Array<{ age: number; s: number; b: number }>,
+  ): number | null => {
+    if (pts.length === 0) return null;
+    const last = pts[pts.length - 1];
+    if (last.s <= last.b) return null; // finishes behind
     let idx = 0;
-    for (let i = chartData.length - 1; i >= 0; i--) {
-      if (chartData[i].formula <= chartData[i].baseline) { idx = i + 1; break; }
+    for (let i = pts.length - 1; i >= 0; i--) {
+      if (pts[i].s <= pts[i].b) { idx = i + 1; break; }
     }
-    return chartData[idx]?.age ?? null;
-  })();
+    return pts[idx]?.age ?? null;
+  };
+
+  // HEADLINE measure: total net worth, NOT net legacy. Net legacy nets off the
+  // heirs' tax on the remaining IRA, so converting a single dollar drops that
+  // liability and the strategy leaps ahead on day one — 90% of real clients
+  // scored "ahead from year 1", which is arithmetically true but answers no
+  // question an advisor is asked. On total net worth the client is genuinely
+  // behind by the tax they just paid, so the age reported is a real payback
+  // point (median ~18 years across the book).
+  const baselineYears = projection.baseline_years ?? [];
+  const netWorthPts = blueprintYears
+    .map((y, i) => baselineYears[i]
+      ? { age: y.age, s: y.netWorth ?? 0, b: baselineYears[i].netWorth ?? 0 }
+      : null)
+    .filter((x): x is { age: number; s: number; b: number } => x !== null);
+  const sustainedNetWorthAge = sustainedCrossover(netWorthPts);
+
+  // Legacy-to-heirs is a genuine second answer, not a substitute for the first:
+  // the premium bonus and the dropping heir-tax liability really do put the
+  // family ahead sooner. Shown as its own row so both are visible and neither
+  // is mistaken for the other. chartData already carries the heir-tax netting.
+  const sustainedLegacyAge = sustainedCrossover(
+    chartData.map((d) => ({ age: d.age, s: d.formula, b: d.baseline })),
+  );
 
 
   // Age the "Final ..." figures in Account Summary are stated as of. Taken from
@@ -1000,9 +1030,11 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
             Breakeven Analysis
           </p>
           <p className="text-lg text-foreground mb-6">
-            {sustainedAheadAge
-              ? <>This strategy is ahead from <span className="text-gold font-medium">age {sustainedAheadAge}</span> onward.</>
-              : <>This strategy does not finish ahead of doing nothing in this projection.</>}
+            {sustainedNetWorthAge
+              ? <>This strategy pulls ahead of doing nothing at <span className="text-gold font-medium">age {sustainedNetWorthAge}</span>, and stays ahead.</>
+              : sustainedLegacyAge
+                ? <>This strategy never catches up on total net worth, but finishes ahead on what reaches the heirs.</>
+                : <>This strategy does not finish ahead of doing nothing in this projection.</>}
           </p>
           <div className="space-y-3">
             {[
@@ -1025,10 +1057,16 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 tip: 'The first year the Roth balance is larger than what is left in the Traditional IRA \u2014 the point where most of the money has become tax-free. A progress marker, not a measure of benefit.',
               },
               {
-                label: 'Strategy stays ahead of doing nothing',
-                age: sustainedAheadAge,
+                label: 'Ahead on total net worth',
+                age: sustainedNetWorthAge,
+                none: 'Does not catch up within this projection',
+                tip: 'The real payback point. Paying conversion tax leaves the client behind at first; this is the age after which total net worth stays above the do-nothing plan for the rest of the projection. No heir-tax adjustment \u2014 just the money on the table \u2014 so it answers "when do I get back what I paid?"',
+              },
+              {
+                label: 'Ahead on legacy to heirs',
+                age: sustainedLegacyAge,
                 none: 'Does not finish ahead in this projection',
-                tip: 'The age after which the strategy stays ahead for the rest of the projection. Compares net legacy on both sides: all account balances, minus the income tax heirs would owe on any Traditional IRA still left (at this client\u2019s heir tax rate). It requires a lasting lead on purpose \u2014 a plan can lead briefly in the year the IRA empties and then be overtaken.',
+                tip: 'A different question: what the family keeps after tax. Balances minus the income tax heirs would owe on any Traditional IRA still left (at this client\u2019s heir tax rate). This usually turns positive far sooner than net worth, because converting removes that heir-tax liability immediately and any premium bonus lands up front.',
               },
             ].map((m) => (
               <div key={m.label} className="flex justify-between items-center gap-4">
