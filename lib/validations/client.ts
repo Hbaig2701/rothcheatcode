@@ -363,6 +363,13 @@ export const clientFormulaBaseSchema = z.object({
   aum_growth_rate: z.number().min(0).max(30).nullable().optional(),
   ltcg_rate: z.number().min(0).max(50).default(15),
 
+  // Advisory fee on managed assets — separate control from the AUM carve-out
+  // above. 0/null = off. in_baseline defaults TRUE so the do-nothing baseline
+  // pays the same fee (see lib/calculations/utils/advisory-fee.ts); only set it
+  // false when the money genuinely wouldn't be managed without the conversion.
+  advisory_fee_percent: z.number().min(0).max(5).nullable().optional(),
+  advisory_fee_in_baseline: z.boolean().nullable().optional(),
+
   // Additional fields needed for calculations
   taxable_accounts: z.number().int().min(0).default(0),
   roth_ira: z.number().int().min(0).default(0),
@@ -622,6 +629,13 @@ export const clientFullBaseSchema = z.object({
   aum_withdrawal_years: z.number().int().min(1).max(30).default(5),
   aum_growth_rate: z.number().min(0).max(30).nullable().optional(),
   ltcg_rate: z.number().min(0).max(50).default(15),
+
+  // Advisory fee on managed assets — separate control from the AUM carve-out
+  // above. 0/null = off. in_baseline defaults TRUE so the do-nothing baseline
+  // pays the same fee (see lib/calculations/utils/advisory-fee.ts); only set it
+  // false when the money genuinely wouldn't be managed without the conversion.
+  advisory_fee_percent: z.number().min(0).max(5).nullable().optional(),
+  advisory_fee_in_baseline: z.boolean().nullable().optional(),
 });
 
 // Partial schema for updates
@@ -780,6 +794,10 @@ export type ClientFormData = {
   aum_withdrawal_years: number;
   aum_growth_rate?: number | null;
   ltcg_rate: number;
+
+  // Advisory fee on managed assets (advisory-fee.ts). in_baseline null -> true.
+  advisory_fee_percent?: number | null;
+  advisory_fee_in_baseline?: boolean | null;
 
   // Additional
   taxable_accounts: number;

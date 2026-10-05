@@ -11,6 +11,7 @@ import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear, getPreferentialIncom
 import { rateFromSchedule } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA, netIraTargetForYear } from '../utils/withdrawals';
 import { getMarginalBracket, computeTaxableIncomeWithSS, computeIrmaaMagi } from '../tax-helpers';
+import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 
 /**
  * Run Baseline scenario: no Roth conversions, just RMDs
@@ -52,6 +53,14 @@ export function runBaselineScenario(
 
   // Use baseline_comparison_rate for baseline scenario (spec default: 7%)
   const growthRate = (client.baseline_comparison_rate ?? client.growth_rate ?? 7) / 100;
+
+  // Advisory fee on managed balances. Applies to the do-nothing baseline by
+  // DEFAULT (advisory_fee_in_baseline): the advisor would have managed the same
+  // dollars whether or not the client converted, so charging the strategy alone
+  // would invent a fee the baseline never pays and understate the conversion.
+  // 0 whenever the feature is off or the advisor switched the baseline off, so
+  // this is byte-identical for every existing client.
+  const advisoryFeeRate = getAdvisoryFeeRate(client, 'baseline');
 
   // Initial balance - Baseline does NOT apply insurance product bonus
   let iraBalance = client.qualified_account_value ?? client.traditional_ira ?? 0;
@@ -407,6 +416,25 @@ export function runBaselineScenario(
     }
     taxableBalance = Math.max(0, desiredTaxableBalance);
 
+    // Advisory fee on managed balances, charged pro-rata from each bucket at
+    // end of year (after growth, after the RMD has been routed). No tax effect:
+    // advisory fees aren't deductible post-TCJA and a fee paid from an IRA out
+    // of its own assets isn't a distribution, so nothing above re-computes.
+    // Next year's RMD base shrinks automatically, which is correct — RMDs are
+    // figured on the prior year-end balance, net of fees paid.
+    let yearAdvisoryFee = 0;
+    if (advisoryFeeRate > 0) {
+      const fee = advisoryFeeCharge(advisoryFeeRate, {
+        traditional: iraBalance,
+        roth: rothBalance,
+        taxable: taxableBalance,
+      });
+      iraBalance -= fee.traditional;
+      rothBalance -= fee.roth;
+      taxableBalance -= fee.taxable;
+      yearAdvisoryFee = fee.total;
+    }
+
     // Determine tax bracket
     const bracket = determineTaxBracket(taxableIncome, client.filing_status, year);
 
@@ -457,6 +485,7 @@ export function runBaselineScenario(
       totalTax,
       taxableSS: taxInfo.taxableSS,
       netWorth: iraBalance + rothBalance + taxableBalance,
+      advisoryFee: yearAdvisoryFee,
       cumulativeDistributions: rmdTreatment === 'spent' ? cumulativeAfterTaxDistributions : undefined,
       // Extended fields for adjustable columns
       traditionalBOY: boyIRA,

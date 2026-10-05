@@ -152,6 +152,11 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       aum_withdrawal_years: client?.aum_withdrawal_years ?? d?.aum_withdrawal_years ?? 5,
       aum_growth_rate: client?.aum_growth_rate ?? d?.aum_growth_rate ?? null,
       ltcg_rate: client?.ltcg_rate ?? d?.ltcg_rate ?? 15,
+      // Advisory fee on managed assets — 0 means feature off. in_baseline is
+      // left null so the engine's own default (TRUE) applies; see
+      // lib/calculations/utils/advisory-fee.ts.
+      advisory_fee_percent: client?.advisory_fee_percent ?? d?.advisory_fee_percent ?? 0,
+      advisory_fee_in_baseline: client?.advisory_fee_in_baseline ?? null,
 
       // Additional fields needed
       taxable_accounts: client?.taxable_accounts ?? d?.taxable_accounts ?? 0,

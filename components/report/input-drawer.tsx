@@ -125,6 +125,10 @@ export function InputDrawer({ client, onClose, expanded = false, onToggleExpand 
       aum_withdrawal_years: client?.aum_withdrawal_years ?? 5,
       aum_growth_rate: client?.aum_growth_rate ?? null,
       ltcg_rate: client?.ltcg_rate ?? 15,
+      // Advisory fee on managed assets — carried through so editing inputs
+      // from the report can never silently drop the advisor's fee.
+      advisory_fee_percent: client?.advisory_fee_percent ?? 0,
+      advisory_fee_in_baseline: client?.advisory_fee_in_baseline ?? null,
       surrender_schedule: client?.surrender_schedule ?? null,
       taxable_accounts: client?.taxable_accounts ?? 0,
       roth_ira: client?.roth_ira ?? 0,

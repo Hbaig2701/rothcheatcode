@@ -20,6 +20,7 @@ import { calculateRMD } from '../modules/rmd';
 import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from '@/lib/config/products';
 import { getEffectiveGrowthRiderFee, getEffectiveCumulativePenaltyFree, getEffectiveRateSchedule, rateFromSchedule } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
+import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 import type { CustomProductRow } from '@/lib/products/types';
 
 /**
@@ -130,6 +131,16 @@ export function runGrowthFormulaScenario(
     customProduct
   );
   const surrenderYears = isNoAnnuity ? 0 : (client.surrender_years ?? 0);
+
+  // Advisory fee on managed balances (Traditional + Roth + taxable). Distinct
+  // from riderFeePercent above, which is the CARRIER's charge on the annuity:
+  // this is the advisor's own fee, and it is what lets a client convert 100% to
+  // a Roth and still be billed on it (aum_allocation_percent can't express that
+  // — at 100% nothing converts). The matching baseline charge is applied in
+  // baseline.ts and defaults to ON, so the comparison stays symmetric. 0 when
+  // the feature is off, which keeps every existing client byte-identical.
+  // See lib/calculations/utils/advisory-fee.ts.
+  const advisoryFeeRate = getAdvisoryFeeRate(client, 'strategy');
 
   // SSI parameters (per spec, SSI is treated as tax-exempt but still displayed)
   const primarySsStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
@@ -1190,6 +1201,43 @@ export function runGrowthFormulaScenario(
       }
     }
 
+    // Step 3.6: Advisory fee on managed balances (Traditional + Roth here; the
+    // taxable bucket is charged further down, once its own end-of-year balance
+    // is known). Deliberately applied AFTER the principal-protection floor:
+    // the FIA guarantee protects premium against the CARRIER's charges, not
+    // against an advisory fee the client agreed to pay out of the contract.
+    // Before Step 4 so the surrender value reflects the post-fee account value.
+    // No tax effect — advisory fees aren't deductible post-TCJA and a fee paid
+    // from an IRA out of its own assets isn't a taxable distribution, so none
+    // of the tax math above re-computes.
+    let yearAdvisoryFee = 0;
+    if (advisoryFeeRate > 0) {
+      const fee = advisoryFeeCharge(advisoryFeeRate, {
+        traditional: iraBalance,
+        roth: rothBalance,
+        taxable: 0, // charged below, after the taxable bucket settles
+      });
+      iraBalance -= fee.traditional;
+      // Money that leaves the contract to pay the advisory fee also lowers the
+      // principal-protection floor, exactly like a withdrawal does. Without
+      // this the guarantee would silently REFUND the fee every year on a
+      // protected contract whose floor is binding: Step 3.5 would push the
+      // balance back up to `initialPremium - cumulativeWithdrawn` the following
+      // year, so the client would pay a fee that cost them nothing. The
+      // carrier's guarantee protects premium against ITS charges and market
+      // losses, not against dollars the client instructs out of the contract.
+      cumulativeWithdrawn += fee.traditional;
+      // Shrink the in-annuity (mirror) Roth by the same proportion the fee took
+      // out of the total Roth, so the mirror stays a strict subset of
+      // rothBalance — it is the base for the anniversary bonus and the rider
+      // fee, and letting it drift above the total would over-credit both.
+      if (fee.roth > 0 && rothBalance > 0) {
+        rothMirrorBalance = Math.round(rothMirrorBalance * (rothBalance - fee.roth) / rothBalance);
+      }
+      rothBalance -= fee.roth;
+      yearAdvisoryFee += fee.total;
+    }
+
     // Step 4: Calculate surrender value on IRA (annuity AV)
     let surrenderChargePercent: number | undefined;
     let surrenderValue: number | undefined;
@@ -1387,6 +1435,18 @@ export function runGrowthFormulaScenario(
       : boyTaxable + reinvestedRmdToTaxable + taxableInterest - externalConversionTax;
     taxableBalance = Math.max(0, desiredTaxableBalance);
 
+    // Advisory fee on the taxable brokerage (the Traditional + Roth portion was
+    // charged in Step 3.6, before the surrender value was struck).
+    if (advisoryFeeRate > 0) {
+      const taxableFee = advisoryFeeCharge(advisoryFeeRate, {
+        traditional: 0,
+        roth: 0,
+        taxable: taxableBalance,
+      });
+      taxableBalance -= taxableFee.taxable;
+      yearAdvisoryFee += taxableFee.total;
+    }
+
     // Product bonus applied this year. Two sources:
     //  1. Upfront premium bonus (year 0 only) — bonus_percent × initial deposit.
     //     Already baked into the starting iraBalance above (initialValue × (1 + bonus_percent)),
@@ -1499,6 +1559,7 @@ export function runGrowthFormulaScenario(
       iraWithdrawal,
       rothWithdrawal,
       riderFee: yearRiderFee,
+      advisoryFee: yearAdvisoryFee,
     });
   }
 

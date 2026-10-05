@@ -770,6 +770,17 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
   // PRODUCT-SPECIFIC (Growth FIA)
   // ============================================================
   {
+    id: 'advisoryFee',
+    label: 'Advisory Fee',
+    category: 'growth',
+    description: 'Annual advisory fee charged on the managed balances (Traditional + Roth + taxable) at end of year. This is your fee, not the carrier\'s — see Rider Fee for the annuity\'s own charge. It reduces balances and nothing else: advisory fees are not deductible post-TCJA, and a fee paid from an IRA out of its own assets is not a taxable distribution, so it never changes income, MAGI, IRMAA or the brackets. By default the same fee is charged on the do-nothing baseline too, so the comparison still isolates the tax decision. Growth and non-annuity products only.',
+    formatter: formatCurrency,
+    defaultVisible: false,
+    visibleForProducts: ['growth'],
+    defaultWidth: 130,
+    minWidth: 110,
+  },
+  {
     id: 'productBonusApplied',
     label: 'Product Bonus',
     category: 'product',

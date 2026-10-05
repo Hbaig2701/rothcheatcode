@@ -303,6 +303,21 @@ export const FIELD_HELP = {
     body: "How many years to spread the IRA-to-AUM transfer over. Bigger numbers smooth the tax bracket impact; smaller numbers move money faster but may push the client into higher brackets in the early years.",
     example: "Move $400K to AUM over 5 years → enter 5. Engine withdraws ~$80K/yr from the IRA to the brokerage.",
   },
+  advisory_fee_enabled: {
+    title: "Charge an advisory fee on the managed money",
+    body: "Models the fee you bill for managing the client's retirement assets. Unlike the AUM Allocation below, this does NOT take money out of the IRA — the Roth conversion runs exactly as planned and the fee simply rides on whatever accounts the money is sitting in (Traditional, Roth and taxable). That is what lets you show \"convert the whole IRA to a Roth and I keep managing it\": a Roth is the better fee story, because the balance is never drawn down by RMDs. The fee reduces balances only — it is not deductible post-TCJA, and a fee paid from an IRA out of its own assets is not a taxable distribution, so it never changes income, MAGI, IRMAA or the client's brackets.",
+    example: "Convert 100% to a Roth and bill 1%/yr on it → leave AUM Allocation off, set the fee to 1.",
+  },
+  advisory_fee_percent: {
+    title: "Advisory Fee (%/yr)",
+    body: "Your annual fee, charged at end of year on the Traditional + Roth + taxable balances. Leave at 0 to turn the feature off. If the client's money is in an annuity that you do not bill on, leave this at 0 — the carrier's own rider fee is modelled separately.",
+    example: "Standard 1% → enter 1. Tiered schedule averaging 0.85% → enter 0.85.",
+  },
+  advisory_fee_in_baseline: {
+    title: "Also charge the fee if they do nothing",
+    body: "Keep this ON unless you genuinely would not manage the money without the conversion. You would be managing the same dollars either way — the conversion only changes which account they sit in — so charging the fee on the strategy alone invents a penalty the do-nothing baseline never pays. On a $2M IRA at 1%/yr to age 95 that asymmetry was worth about $2.8M of advantage the strategy had not actually earned. With the fee on both sides the comparison still isolates the tax decision.\n\nOne effect worth knowing: with the fee on both sides it will usually SHRINK the conversion's advantage, not leave it unchanged. A fee taken from a Traditional IRA is effectively paid with pre-tax dollars (heirs were only ever keeping part of that balance), while a fee taken from a Roth is paid with dollars the family fully owns. That is a real cost of converting when you bill a fee, and the report should show it.",
+    example: "Different custodian, and the money would sit untouched if they don't convert → switch it off. Otherwise leave it on.",
+  },
   aum_fee_percent: {
     title: "AUM Fee (%/yr)",
     body: "The annual advisory fee you charge on the brokerage balance. Deducted yearly from the AUM bucket in the projection.",

@@ -357,6 +357,11 @@ export interface YearlyResult {
   accumulationValue?: number; // Account accumulation value (in cents)
   incomePayoutAmount?: number; // Guaranteed income payout gross (in cents)
   riderFee?: number; // Annual rider fee (in cents)
+  // Annual advisory fee charged on managed balances (Traditional + Roth +
+  // taxable), in cents. Separate from riderFee, which is the carrier's own
+  // charge on the annuity. Undefined/0 when advisory_fee_percent is off.
+  // Not a taxable distribution — see lib/calculations/utils/advisory-fee.ts.
+  advisoryFee?: number;
 
   // Extended GI fields for adjustable columns on GI products
   // 'waiting' = baseline-only pre-purchase period; 'conversion' = strategy-only Roth conversion phase

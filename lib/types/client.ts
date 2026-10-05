@@ -242,6 +242,25 @@ export interface Client {
   aum_growth_rate?: number | null;    // Annual growth % for the AUM brokerage; null = use rate_of_return
   ltcg_rate: number;                  // Long-term capital gains rate (default 15) — used for AUM tax drag
 
+  // ===== Advisory fee on managed assets =====
+  // The fee an advisor charges for managing the client's retirement money,
+  // charged on the ACCOUNT BALANCES (Traditional + Roth + taxable) rather than
+  // on the AUM carve-out bucket above. This is what lets an advisor model
+  // "convert the whole IRA to a Roth and I keep managing it" — aum_allocation_
+  // percent can't express that, because at 100% nothing converts.
+  //
+  // advisory_fee_in_baseline is the honesty switch and DEFAULTS TO TRUE: the
+  // same dollars would have been managed either way, so the do-nothing baseline
+  // pays the same fee. Turning it off charges the strategy only, which is right
+  // solely when the money genuinely wouldn't be managed without the conversion
+  // (different custodian). See lib/calculations/utils/advisory-fee.ts.
+  //
+  // No tax effect (not deductible post-TCJA; a fee paid from an IRA out of its
+  // own assets isn't a distribution). Growth + standard engines and the shared
+  // baseline only — the guaranteed-income engine is excluded on both sides.
+  advisory_fee_percent?: number | null;      // %/yr. 0/null = feature off.
+  advisory_fee_in_baseline?: boolean | null; // null -> true (fee on both sides).
+
   // ===== Legacy fields (kept for backwards compatibility) =====
   date_of_birth: string | null;  // ISO date string YYYY-MM-DD (deprecated, use age)
   spouse_dob: string | null;

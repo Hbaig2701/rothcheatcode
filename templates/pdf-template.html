@@ -490,6 +490,12 @@
           <span class="metric-value">{{riderFee}}%</span>
         </div>
         {{/if}}
+        {{#if hasAdvisoryFee}}
+        <div class="metric-row">
+          <span class="metric-label">Annual Advisory Fee</span>
+          <span class="metric-value">{{advisoryFeePercent}}%</span>
+        </div>
+        {{/if}}
         <div class="metric-row">
           <span class="metric-label">Rate of Return</span>
           <span class="metric-value">{{rateOfReturn}}%</span>
@@ -1290,6 +1296,30 @@
         configurable on the client&apos;s profile; the default is 40%.
       </div>
     </div>
+
+    {{#if hasAdvisoryFee}}
+    <div class="glossary-entry">
+      <div class="glossary-term">Advisory Fee ({{advisoryFeePercent}}%)</div>
+      <div class="glossary-def">
+        The annual fee charged for managing these assets, deducted at the end of
+        each year from the account balances. It is not a taxable distribution and
+        it is not tax-deductible, so it reduces balances only &mdash; it does not
+        change income, Medicare premiums or tax brackets.
+        {{#if advisoryFeeInBaseline}}
+        The same fee is applied to <strong>both</strong> scenarios, because the
+        same money would be managed either way and only the type of account
+        changes. Over the projection it totals {{advisoryFeeStrategyTotal}} with
+        the strategy and {{advisoryFeeBaselineTotal}} doing nothing, so the
+        comparison still reflects the tax decision rather than the fee.
+        {{else}}
+        This projection applies the fee to the <strong>strategy only</strong>;
+        the &ldquo;do nothing&rdquo; comparison is shown without a fee. The
+        strategy therefore carries {{advisoryFeeStrategyTotal}} of cost that the
+        comparison does not, which understates the strategy.
+        {{/if}}
+      </div>
+    </div>
+    {{/if}}
 
     <div class="glossary-entry">
       {{#if aumGrowthDiffers}}

@@ -9,17 +9,32 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
+import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 
 /**
- * Section 7: AUM Allocation (optional)
+ * Section 7: Advisory Fee & AUM Allocation (optional)
  *
- * Lets the advisor model the typical pitch: "Convert X% of the IRA via Roth,
- * send the remaining Y% to a managed brokerage account (AUM)." When the
- * toggle is OFF (allocation_percent = 0) the form behaves exactly as before.
+ * TWO independent controls that advisors kept conflating, deliberately shown
+ * in the order they should be considered:
  *
- * The advanced fields (fee, dividend yield, turnover, withdrawal years, LTCG
- * rate) live behind a "Show advanced" toggle so the common case stays
- * one-input-per-decision.
+ *  1. ADVISORY FEE — "I manage this money and I bill on it." Charges a fee on
+ *     the account balances without taking anything out of the IRA, so the Roth
+ *     conversion runs exactly as planned. This is the one that models "convert
+ *     the whole IRA to a Roth and I keep managing it", which the AUM split
+ *     below cannot express (at 100% nothing converts). Defaults to charging the
+ *     do-nothing baseline too — see advisory_fee_in_baseline; without that the
+ *     comparison invents a fee the baseline never pays.
+ *
+ *  2. AUM ALLOCATION — "Convert X% via Roth, send the remaining Y% to a managed
+ *     brokerage." This physically pulls the slice OUT of the IRA at ordinary
+ *     rates into a taxable account, so it is a genuinely different (and usually
+ *     worse) strategy, not a billing choice. Kept unchanged for the clients
+ *     already using it.
+ *
+ * Both default to OFF, so the form behaves exactly as before until touched.
+ * Hidden entirely for guaranteed-income products: the GI engine carries its own
+ * baseline and the advisory fee is a deliberate no-op there on both sides, so
+ * showing the field would let an advisor set a number that does nothing.
  */
 export function AumAllocationSection() {
   const form = useFormContext<ClientFormData>();
@@ -27,8 +42,123 @@ export function AumAllocationSection() {
   const isOn = allocationPct > 0;
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  const formulaType = form.watch("blueprint_type") as FormulaType;
+  const advisoryFeePct = form.watch("advisory_fee_percent") ?? 0;
+  const advisoryFeeOn = (advisoryFeePct ?? 0) > 0;
+  // null/undefined reads as TRUE — matches advisory-fee.ts's default so the
+  // checkbox shows the same thing the engine will actually do.
+  const feeInBaseline = form.watch("advisory_fee_in_baseline") ?? true;
+
+  // GI products: the advisory fee is a no-op on both sides by design, so the
+  // whole section collapses to the AUM split for them.
+  const isGI = isGuaranteedIncomeProduct(formulaType);
+
   return (
-    <FormSection title="7. AUM Allocation (Optional)">
+    <FormSection title={isGI ? "7. AUM Allocation (Optional)" : "7. Advisory Fee & AUM Allocation (Optional)"}>
+      {!isGI && (
+        <>
+          {/* ---- 1. Advisory fee on managed assets ---- */}
+          <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
+            <Checkbox
+              id="advisory_fee_enabled"
+              checked={advisoryFeeOn}
+              onCheckedChange={(checked) => {
+                form.setValue("advisory_fee_percent", checked ? 1 : 0, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                });
+              }}
+              className="mt-0.5 shrink-0"
+            />
+            <div className="flex-1 min-w-0">
+              <label
+                htmlFor="advisory_fee_enabled"
+                className="inline-flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+              >
+                Charge an advisory fee on the money you manage
+                <FieldHelp {...FIELD_HELP.advisory_fee_enabled} />
+              </label>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Nothing leaves the IRA — the conversion runs as planned and the fee rides on the
+                balances. Use this to show &ldquo;convert to a Roth and I keep managing it&rdquo;.
+              </p>
+            </div>
+          </div>
+
+          {advisoryFeeOn && (
+            <>
+              <Controller
+                name="advisory_fee_percent"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="advisory_fee_percent" className="flex items-center gap-1.5">
+                      Advisory fee (%/yr)
+                      <FieldHelp {...FIELD_HELP.advisory_fee_percent} />
+                    </FieldLabel>
+                    <Input
+                      id="advisory_fee_percent"
+                      type="number"
+                      min={0}
+                      max={5}
+                      step={0.05}
+                      value={field.value ?? 1}
+                      onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      onFocus={(e) => e.currentTarget.select()}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    <FieldDescription>
+                      Charged each year on the Traditional + Roth + taxable balances.
+                    </FieldDescription>
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+
+              {/* The symmetry switch. Default ON; turning it off is what creates
+                  the apples-to-oranges comparison, so the warning is inline. */}
+              <div className="sm:col-span-2 lg:col-span-2 flex flex-row items-start gap-3">
+                <Checkbox
+                  id="advisory_fee_in_baseline"
+                  checked={feeInBaseline}
+                  onCheckedChange={(checked) => {
+                    form.setValue("advisory_fee_in_baseline", checked === true, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                  }}
+                  className="mt-0.5 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <label
+                    htmlFor="advisory_fee_in_baseline"
+                    className="inline-flex items-center gap-1.5 text-sm font-medium cursor-pointer"
+                  >
+                    Also charge the fee if they do nothing
+                    <FieldHelp {...FIELD_HELP.advisory_fee_in_baseline} />
+                  </label>
+                  {feeInBaseline ? (
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Recommended. You&rsquo;d manage the same dollars either way, so both sides pay
+                      the fee and the comparison still isolates the tax decision.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-amber-700 dark:text-amber-500 mt-0.5">
+                      The strategy pays the fee and the do-nothing baseline doesn&rsquo;t, which
+                      charges the conversion for something it didn&rsquo;t cause. Only correct if the
+                      money truly wouldn&rsquo;t be managed without the conversion.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+
+          <div className="sm:col-span-2 lg:col-span-3 border-t pt-1" />
+        </>
+      )}
+
+      {/* ---- 2. AUM split: physically moves the slice out of the IRA ---- */}
       {/* Master toggle — sets allocation to 50% on enable, 0 on disable. */}
       <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
         <Checkbox

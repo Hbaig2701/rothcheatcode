@@ -89,6 +89,10 @@ export function InputSidebar({ client }: InputSidebarProps) {
             aum_withdrawal_years: client?.aum_withdrawal_years ?? 5,
             aum_growth_rate: client?.aum_growth_rate ?? null,
             ltcg_rate: client?.ltcg_rate ?? 15,
+            // Advisory fee on managed assets — carried through so editing inputs
+            // from the report can never silently drop the advisor's fee.
+            advisory_fee_percent: client?.advisory_fee_percent ?? 0,
+            advisory_fee_in_baseline: client?.advisory_fee_in_baseline ?? null,
             protect_initial_premium: client?.protect_initial_premium ?? true,
             withdrawal_type: client?.withdrawal_type ?? "no_withdrawals",
             payout_type: client?.payout_type ?? "individual",

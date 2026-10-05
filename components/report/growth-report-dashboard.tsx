@@ -359,6 +359,21 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   const taxSavings = baseTotalTaxes - blueTotalTaxes;
   const legacyDiff = blueNetLegacy - baseNetLegacy;
 
+  // ===== Advisory fee on managed assets =====
+  // Surfaced on the report because an advisor and a client both need to see
+  // that a fee is being charged AND which side of the comparison pays it. A
+  // fee on the strategy alone is an apples-to-oranges comparison (it charges
+  // the conversion for something it didn't cause), so that case is called out
+  // explicitly rather than quietly folded into the numbers.
+  const advisoryFeePct = client.advisory_fee_percent ?? 0;
+  const advisoryFeeOn = advisoryFeePct > 0;
+  // null reads as true — matches lib/calculations/utils/advisory-fee.ts.
+  const advisoryFeeInBaseline = client.advisory_fee_in_baseline ?? true;
+  const sumAdvisoryFee = (rows: typeof blueprintYears) =>
+    rows.reduce((t, y) => t + (y.advisoryFee ?? 0), 0);
+  const advisoryFeeStrategyTotal = advisoryFeeOn ? sumAdvisoryFee(blueprintYears) : 0;
+  const advisoryFeeBaselineTotal = advisoryFeeOn ? sumAdvisoryFee(baselineYears) : 0;
+
   // ===== AUM split-allocation metrics =====
   // The AUM bucket is stored separately on the projection so we can describe
   // it independently in tooltips ("how much got pulled from the IRA, how much
@@ -653,6 +668,27 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
               <p className="text-base text-text-muted">
                 No Roth conversion this scenario · Full balance routed to AUM brokerage
               </p>
+            )}
+            {advisoryFeeOn && (
+              advisoryFeeInBaseline ? (
+                <p className="text-sm text-gold mt-2">
+                  Advisory fee:&nbsp;
+                  <span className="font-medium">{advisoryFeePct}%/yr</span>
+                  &nbsp;on managed balances, charged on both sides —&nbsp;
+                  {toUSD(advisoryFeeStrategyTotal)} with the conversion vs&nbsp;
+                  {toUSD(advisoryFeeBaselineTotal)} doing nothing. The comparison
+                  below still isolates the tax decision.
+                </p>
+              ) : (
+                <p className="text-sm text-amber-500 mt-2">
+                  Advisory fee:&nbsp;
+                  <span className="font-medium">{advisoryFeePct}%/yr</span>
+                  &nbsp;on managed balances ({toUSD(advisoryFeeStrategyTotal)} over the
+                  projection), charged on the conversion strategy ONLY. The
+                  do-nothing baseline pays no fee, so the comparison below
+                  understates the conversion.
+                </p>
+              )
             )}
             {(client.aum_allocation_percent ?? 0) > 0 && projection.aum_years && (
               <p className="text-sm text-gold mt-2">

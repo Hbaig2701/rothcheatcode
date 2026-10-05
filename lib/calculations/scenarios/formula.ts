@@ -19,6 +19,7 @@ import {
   calculateSSAwareIRAWithdrawalPlan,
   calculateConversionTaxWithSS,
 } from '../tax-helpers';
+import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 
 /**
  * Run Formula scenario: strategic Roth conversions
@@ -63,6 +64,15 @@ export function runFormulaScenario(
 
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
+
+  // Advisory fee on managed balances (Traditional + Roth + taxable). The
+  // advisor's own fee, charged on whatever accounts the money sits in — which
+  // is what lets a client convert 100% to a Roth and still be billed on it
+  // (aum_allocation_percent can't express that; at 100% nothing converts). The
+  // matching baseline charge lives in baseline.ts and defaults to ON so the
+  // comparison stays symmetric. 0 when off ⇒ byte-identical for existing
+  // clients. See lib/calculations/utils/advisory-fee.ts.
+  const advisoryFeeRate = getAdvisoryFeeRate(client, 'strategy');
 
   // Income history for IRMAA lookback
   const incomeHistory = new Map<number, number>();
@@ -846,6 +856,25 @@ export function runFormulaScenario(
       : boyTaxable + reinvestedRmdToTaxable + taxableInterest - externalConversionTax;
     taxableBalance = Math.max(0, desiredTaxableBalance);
 
+    // Advisory fee on managed balances, charged pro-rata from each bucket at
+    // end of year (after growth, after the conversion-tax flows settle). No tax
+    // effect: advisory fees aren't deductible post-TCJA and a fee paid from an
+    // IRA out of its own assets isn't a taxable distribution, so none of the
+    // tax math above re-computes. Next year's RMD base shrinks automatically,
+    // which is correct — RMDs are figured on the prior year-end balance.
+    let yearAdvisoryFee = 0;
+    if (advisoryFeeRate > 0) {
+      const fee = advisoryFeeCharge(advisoryFeeRate, {
+        traditional: iraBalance,
+        roth: rothBalance,
+        taxable: taxableBalance,
+      });
+      iraBalance -= fee.traditional;
+      rothBalance -= fee.roth;
+      taxableBalance -= fee.taxable;
+      yearAdvisoryFee = fee.total;
+    }
+
     // Split federal/state tax between "on conversion" and "on ordinary/SS income"
     // for display breakdowns. Ordinary portion is what remains after subtracting
     // the marginal conversion tax.
@@ -905,6 +934,7 @@ export function runFormulaScenario(
       totalTax,
       taxableSS: taxInfoFinal.taxableSS,
       netWorth: iraBalance + rothBalance + taxableBalance,
+      advisoryFee: yearAdvisoryFee,
       // Extended fields for adjustable columns
       traditionalBOY: boyIRA,
       rothBOY: boyRoth,

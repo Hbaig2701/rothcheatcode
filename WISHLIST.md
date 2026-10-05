@@ -316,7 +316,18 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 
 ---
 
-## AUM fee should be separable from the conversion decision (and apply to the Roth)
+## AUM fee should be separable from the conversion decision (and apply to the Roth) — SHIPPED (v82, Oct 5 2026)
+
+**SHIPPED as `advisory_fee_percent` + `advisory_fee_in_baseline`** (`lib/calculations/utils/advisory-fee.ts`, migration `20261005140000_clients_advisory_fee.sql`, `PRODUCT_CONFIG_VERSION` 82). The fee is charged on the account balances (Traditional + Roth + taxable) at end of year, on BOTH sides by default, with no tax effect. Growth + standard engines and the shared baseline; the GI engine is excluded on both sides so it stays symmetric. Locked by `lib/calculations/__tests__/audit/advisory-fee.test.ts` (156 checks) and verified additive: 452 scenarios x 30 years = 27,120 rows diffed against the prior revision, 0 changed.
+
+**One finding worth carrying forward:** a symmetric fee does NOT simply cancel out of the comparison — it usually SHRINKS the conversion's net-legacy advantage. A fee taken from a Traditional IRA is effectively paid with pre-tax dollars (heirs were only keeping 1 − heir_rate of that balance, so the IRS absorbs part of every fee dollar), while a fee taken from a Roth is paid with dollars the family fully owns. Measured at heir tax 24% on a $2M IRA, the advantage went $160,643 (no fee) → $16,278 (1%) → −$24,264 (1.5%). At heir tax 0% the direction reverses (the baseline just pays more fee dollars because it holds more assets), so the curve is U-shaped in between. This is real economics the advisor should see, and it is documented in the audit test so nobody "smooths" it later.
+
+**Still deferred:**
+- **A bill-only-on-the-converted-money scope.** Shipped scope is all three buckets, which is what makes the two sides symmetric at ANY conversion percentage. A "fee on the Roth only" variant would need the baseline to know the strategy's year-by-year conversion schedule to stay honest — otherwise a 50%-converted strategy pays fee on half its assets while the baseline pays on all of them, biasing the other way.
+- **An exclude-the-annuity scope.** With an FIA, charging the advisory fee on the annuity AV sits on top of the carrier's rider fee. Defaults to 0 so nobody is surprised, and the field help says to leave it at 0 for annuity money you don't bill on — but there's no switch for "bill on the non-annuity sleeve only".
+- **The guaranteed-income engine.** It carries its own baseline (`guaranteed-income/engine.ts`), so wiring the fee there means two more insertion points across its 4-phase model. Excluded on both sides today, which is symmetric; the client form hides the field for GI products so it can't be set silently.
+
+**Original write-up below.**
 
 **The pitch:** An advisor who converts a client to a Roth still manages that money and still bills on it — and Roth is the *better* AUM story, because the balance is never drawn down by RMDs, so it compounds instead of shrinking. Today the software can't express that. `aum_allocation_percent` is one control doing two unrelated jobs: it decides **what I charge a fee on** AND **what stays out of the conversion**. Set it to 100% and nothing converts at all.
 

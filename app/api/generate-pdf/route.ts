@@ -308,6 +308,14 @@ interface TemplateData {
   riderFee: number;
   rateOfReturn: number;
   rateOfReturnPercent: string;
+  // Advisory fee on managed assets. advisoryFeeInBaseline drives the glossary
+  // wording: when false the strategy carries a cost the comparison doesn't, and
+  // the PDF has to say so rather than let the numbers imply a fair comparison.
+  hasAdvisoryFee: boolean;
+  advisoryFeePercent: string;
+  advisoryFeeInBaseline: boolean;
+  advisoryFeeStrategyTotal: string;
+  advisoryFeeBaselineTotal: string;
   // True when an AUM account grows at a different rate from the baseline —
   // the glossary must then state both rates rather than claim they match.
   aumGrowthDiffers: boolean;
@@ -1131,6 +1139,19 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     riderFee: productRiderFee,
     rateOfReturn: client.rate_of_return ?? 7,
     rateOfReturnPercent: String(client.rate_of_return ?? 7),
+    // Advisory fee on managed assets. Disclosed in the PDF because it is a real
+    // cost the client pays, and because WHICH side pays it determines whether
+    // the comparison is apples-to-apples. advisory_fee_in_baseline null reads as
+    // true — matches lib/calculations/utils/advisory-fee.ts.
+    hasAdvisoryFee: (client.advisory_fee_percent ?? 0) > 0,
+    advisoryFeePercent: String(client.advisory_fee_percent ?? 0),
+    advisoryFeeInBaseline: (client.advisory_fee_in_baseline ?? true) === true,
+    advisoryFeeStrategyTotal: formatCurrency(
+      (projection.blueprint_years ?? []).reduce((t: number, y: any) => t + (y.advisoryFee ?? 0), 0)
+    ),
+    advisoryFeeBaselineTotal: formatCurrency(
+      (projection.baseline_years ?? []).reduce((t: number, y: any) => t + (y.advisoryFee ?? 0), 0)
+    ),
     aumGrowthDiffers:
       (client.aum_allocation_percent ?? 0) > 0 &&
       client.aum_growth_rate != null &&

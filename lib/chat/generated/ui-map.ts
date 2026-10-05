@@ -29,6 +29,7 @@ _Insurance product details_
 - **Carrier Name** (\`carrier_name\`)
 - **Conversion Tax Bracket** (\`gi_conversion_bracket\`) — number, range: 0 to 40
 - **Years to Convert Before GI Purchase** (\`gi_conversion_years\`) — number, range: 1 to 15
+- \`gi_legacy_mode\`
 - **Income Start Age** (\`income_start_age\`) — number, range: 55 to 80
 - **Payout Option** (\`payout_option\`)
 - **Payout Type** (\`payout_type\`)
@@ -39,15 +40,25 @@ _Insurance product details_
 
 ## 4. Tax Data
 Source: \`components/clients/sections/tax-data.tsx\`
+- **Additional Deductions** (\`additional_deductions\`) — number, range: 0 to +∞
 - **Additional Constraint** (\`constraint_type\`)
+- **Held-back Traditional IRA** (\`held_back_ira_balance\`) — number, range: 0 to +∞
+- **Held-back IRA Growth Rate** (\`held_back_ira_growth_rate\`) — number, range: 0 to 30
+- \`ltcg_rate\` — number, range: 0 to 50
 - **Max Tax Rate** (\`max_tax_rate\`) — number, range: 0 to 100
 - \`penalty_free_scope\`
+- **QLAC Annual Income** (\`qlac_annual_income\`) — number, range: 0 to +∞
+- **Death Benefit** (\`qlac_death_benefit\`)
+- \`qlac_in_baseline\`
+- **Income Start Age** (\`qlac_income_start_age\`)
+- **QLAC Premium** (\`qlac_premium\`) — number, range: 0 to +∞
 - \`respect_penalty_free_limit\`
 - **RMD Treatment (Baseline)** (\`rmd_treatment\`)
 - \`rmds_handled_externally\`
 - **State** (\`state\`)
 - **State Tax** (\`state_tax_rate\`) — number, range: 0 to 100
 - **Target IRMAA Tier** (\`target_irmaa_tier\`)
+- **Tax Credits** (\`tax_credits\`) — number, range: 0 to +∞
 - **Tax Payment Source** (\`tax_payment_source\`)
 
 ## 5. Taxable Income Calculation
@@ -64,11 +75,13 @@ Source: \`components/clients/sections/conversion.tsx\`
 - \`protect_initial_premium\`
 - **Total Amount to Convert** (\`target_partial_amount\`) — number, range: 0 to +∞
 
-## 7. AUM Allocation (Optional)
+## (no title found)
 Source: \`components/clients/sections/aum-allocation.tsx\`
+- **Advisory fee (%/yr)** (\`advisory_fee_percent\`) — number, range: 0 to 5
 - **% to AUM** (\`aum_allocation_percent\`) — number, range: 0 to 100
 - **Dividend yield (%/yr)** (\`aum_dividend_yield\`) — number, range: 0 to 20
 - **AUM fee (%/yr)** (\`aum_fee_percent\`) — number, range: 0 to 10
+- **AUM growth rate (%/yr)** (\`aum_growth_rate\`) — number, range: 0 to 30
 - **Annual turnover (%)** (\`aum_turnover_percent\`) — number, range: 0 to 100
 - **Withdrawal years** (\`aum_withdrawal_years\`) — number, range: 1 to 30
 - **LTCG rate (%)** (\`ltcg_rate\`) — number, range: 0 to 50
@@ -107,7 +120,7 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **Scenario Name** (\`scenario_name\`): Optional label for this projection. Useful when you're modeling multiple strategies for the same client (e.g., 'Aggressive 5-year' vs 'Conservative 10-year') so you can tell them apart in the client list.
 - **Filing Status** (\`filing_status\`): How the client files their federal taxes. Drives the tax brackets and standard deduction used in every projection year. Choose 'Married Filing Jointly' for married couples filing together — this gives the wider brackets that allow larger Roth conversions at the same rate.
 - **Client Name** (\`name\`): The client's full name. This is how they'll appear in your client list and on any reports or PDFs you generate.
-- **Client Age** (\`age\`): The client's current age in years. The projection uses this as Year 0 and rolls forward from here. Critical for RMD timing (age 73), Social Security start ages, and the 10% early-withdrawal penalty (under 59½).
+- **Client Age** (\`age\`): The client's current age in years. The projection uses this as Year 0 and rolls forward from here. Critical for RMD timing (age 73 if born 1951–1959, age 75 if born 1960 or later), Social Security start ages, and the 10% early-withdrawal penalty (under 59½).
 - **Spouse Name** (\`spouse_name\`): The spouse's full name. Used in story-mode narratives and any spousal-specific report sections.
 - **Spouse Age** (\`spouse_age\`): The spouse's current age. Drives spousal RMD timing, spousal Social Security start, and the Widow's Penalty analysis (which prices brackets at single-filer rates after the older spouse passes).
 - **Qualified Account Value** (\`qualified_account_value\`): Total balance the client wants modeled in the strategy — this is the bucket the Roth conversion or annuity strategy runs on. Combine Traditional IRA, 401(k), 403(b), and any other pre-tax retirement accounts they're rolling into the new product.
@@ -133,13 +146,19 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **What Counts Toward the Cap** (\`penalty_free_scope\`): Only matters when 'Respect Penalty-Free Limit' is ON. 'Only the tax payment' (default) treats the Roth conversion as an intra-carrier transfer and only counts the dollars pulled out to pay tax — so this scope effectively caps nothing if Tax Payment Source is 'External'. 'Every dollar that leaves the IRA' is stricter: conversion + RMD + tax all count toward the cap, even when tax is paid from outside cash. Use the strict mode when the carrier's contract treats the conversion itself as a withdrawal.
 - **RMD Treatment (Baseline)** (\`rmd_treatment\`): How Required Minimum Distributions are handled in the 'do nothing' baseline scenario for comparison. Spent = consumed for living expenses (gone). Reinvested = redeposited into a taxable brokerage where they keep growing. Cash = sits in a checking account earning nothing. Only affects the baseline; the strategy projection is unaffected.
 - **RMDs Handled Externally** (\`rmds_handled_externally\`): Turn ON when you're modeling only PART of the client's total IRA in this software and RMDs are being taken from a separate bucket (e.g., a different custodian) that's not modeled here. The engine will skip RMD calculation entirely on this bucket for both the strategy AND the baseline — keeping the comparison fair. If you want the full tax picture, manually add the external RMD amount as an entry in Section 5 (Taxable Income).
+- **QLAC (Qualified Longevity Annuity Contract)** (\`qlac_enabled\`): Moves up to $210,000 (the 2026 IRS per-person limit) of the IRA into a deferred income annuity at the start of the plan. That premium leaves the RMD calculation entirely — so RMDs on the rest of the IRA drop from the first RMD year — earns no premium bonus, can't be converted, and has no cash value. From the income start age you pick (no later than 85) the contract pays the carrier's quoted annual income for life, taxed as ordinary income (it counts toward the bracket, Social Security taxation, and IRMAA that year). The strategy side holds the QLAC; the do-nothing baseline keeps the full IRA — tick 'Client already owns this QLAC' to put it on both sides instead.
+- **QLAC Premium** (\`qlac_premium\`): The amount moved from the IRA into the QLAC, in dollars. IRS lifetime cap is $210,000 per person for 2026 (a married couple can hold one each, funded from each spouse's own IRA). Bought in year 1 of the projection.
+- **QLAC Income Start Age** (\`qlac_income_start_age\`): The age payments begin. The IRS requires income to start no later than the month after the 85th birthday; most clients pick 80–85 so the payout is largest and the RMD deferral longest. We count the full annual amount in the year the client reaches this age.
+- **QLAC Annual Income** (\`qlac_annual_income\`): The level annual income from the carrier's QLAC quote for this premium, start age, and death-benefit option. Taxed as ordinary income each year from the start age through the end of the plan. Use the actual quoted figure — payouts vary a lot by carrier, sex, and deferral length.
+- **QLAC Death Benefit** (\`qlac_death_benefit\`): Return of Premium (cash refund) pays heirs the premium less any income already received — we carry that unrecovered amount as a heir-taxable asset in the strategy's net worth, so buying the QLAC doesn't erase $210K of legacy. Life Only pays nothing after death in exchange for a higher annual income; the premium is gone from the estate.
+- **Client Already Owns This QLAC** (\`qlac_in_baseline\`): By default the QLAC is part of the strategy, so the comparison shows QLAC + Roth conversion versus doing nothing. Tick this when the client already holds the QLAC regardless — it's then applied to the do-nothing baseline too, and the comparison isolates the Roth conversion alone.
 - **State of Residence** (\`state\`): The state the client lives in for tax purposes. Drives the State Tax rate (auto-filled when you select a state) and triggers any state-specific product availability or bonus overrides.
 - **State Tax Rate** (\`state_tax_rate\`): The state income tax rate applied to conversions and IRA distributions. Auto-loaded from a preset when you pick a state — click 'Manually Edit' to override (e.g., for clients in special tax situations like a CA AMT add-back).
 - **Client SS Start Age** (\`ssi_payout_age\`): The age the client started — or will start — collecting Social Security. Must be 62 or older. If they're ALREADY collecting, enter the age they actually claimed (which is below their current age) — NOT their current age. The engine treats SS as 'on' for any projection year at or past this age, so the income is identical either way, but entering their current age makes the report announce 'Social Security Begins' this year, which is wrong for someone who's been collecting for years.
 - **Client SS Annual Amount** (\`ssi_annual_amount\`): Annual Social Security benefit in today's dollars (the gross before any Medicare premium deductions). The engine includes this in taxable income from the start age onward, applies provisional-income rules, and uses it for IRMAA tier checks.
 - **Spouse SS Start Age** (\`spouse_ssi_payout_age\`): The age the spouse started — or will start — collecting Social Security. Same rule as the client: if they're already collecting, enter the age they actually claimed (below their current age), NOT their current age. Must be 62 or older. Leave the default (67) if the spouse hasn't decided yet; you can revise.
 - **Spouse SS Annual Amount** (\`spouse_ssi_annual_amount\`): Annual SS benefit for the spouse in today's dollars. Combined with the client's SS for provisional income and IRMAA calculations once both are collecting.
-- **Other Taxable Income Schedule** (\`non_ssi_income_table\`): Year-by-year non-Social-Security income — pensions, rental income, RMDs from a non-modeled IRA, part-time wages, etc. Use 'Repeat' to fill a recurring amount across an age range. Only enter income that hasn't already been captured elsewhere in the form.
+- **Other Taxable Income Schedule** (\`non_ssi_income_table\`): Year-by-year non-Social-Security income — pensions, rental income, RMDs from a non-modeled IRA, part-time wages, etc. Use 'Recurring' to fill a recurring amount across an age range. Only enter income that hasn't already been captured elsewhere in the form. Rows typed Capital Gains or Qualified Dividends are taxed at the LTCG rate (Tax Data) instead of as ordinary income, and still count toward IRMAA and Social Security taxation; 'Dividends & Interest' is taxed as ordinary income.
 - **Conversion Type** (\`conversion_type\`): The strategy the engine uses to size annual Roth conversions. Optimized = fill the Max Tax Rate bracket each year (most common). Partial = same as Optimized but stop once cumulative conversions hit a target dollar amount. Fixed = convert the same dollar amount yearly. Full = convert everything in year 1. No Conversion = baseline only.
 - **Annual Conversion Amount** (\`fixed_conversion_amount\`): Only used with 'Fixed Amount' conversion type. The dollar amount converted every year regardless of tax bracket — the engine pushes through even if it spills into a higher bracket. Stops when the IRA is empty.
 - **Total Amount to Convert** (\`target_partial_amount\`): Only used with 'Partial Amount' conversion type. The cumulative dollar amount the engine should convert across all years combined. It converts optimally each year (filling the bracket) and stops once total conversions reach this number. The unconverted remainder stays as Traditional IRA.
@@ -147,17 +166,20 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **Send Part of IRA to AUM** (\`aum_allocation_enabled\`): Models a split strategy: convert part of the IRA via Roth and route the remainder to a managed brokerage account you'll manage as AUM. The combined view shows the full picture across both buckets.
 - **% to AUM** (\`aum_allocation_percent\`): The percentage of the IRA that flows out to the managed brokerage. The Roth conversion strategy runs on the remainder (100% minus this number).
 - **Withdrawal Years** (\`aum_withdrawal_years\`): How many years to spread the IRA-to-AUM transfer over. Bigger numbers smooth the tax bracket impact; smaller numbers move money faster but may push the client into higher brackets in the early years.
+- **Charge an advisory fee on the managed money** (\`advisory_fee_enabled\`): Models the fee you bill for managing the client's retirement assets. Unlike the AUM Allocation below, this does NOT take money out of the IRA — the Roth conversion runs exactly as planned and the fee simply rides on whatever accounts the money is sitting in (Traditional, Roth and taxable). That is what lets you show "convert the whole IRA to a Roth and I keep managing it": a Roth is the better fee story, because the balance is never drawn down by RMDs. The fee reduces balances only — it is not deductible post-TCJA, and a fee paid from an IRA out of its own assets is not a taxable distribution, so it never changes income, MAGI, IRMAA or the client's brackets.
+- **Advisory Fee (%/yr)** (\`advisory_fee_percent\`): Your annual fee, charged at end of year on the Traditional + Roth + taxable balances. Leave at 0 to turn the feature off. If the client's money is in an annuity that you do not bill on, leave this at 0 — the carrier's own rider fee is modelled separately.
+- **Also charge the fee if they do nothing** (\`advisory_fee_in_baseline\`): Keep this ON unless you genuinely would not manage the money without the conversion. You would be managing the same dollars either way — the conversion only changes which account they sit in — so charging the fee on the strategy alone invents a penalty the do-nothing baseline never pays. On a $2M IRA at 1%/yr to age 95 that asymmetry was worth about $2.8M of advantage the strategy had not actually earned. With the fee on both sides the comparison still isolates the tax decision.  One effect worth knowing: with the fee on both sides it will usually SHRINK the conversion's advantage, not leave it unchanged. A fee taken from a Traditional IRA is effectively paid with pre-tax dollars (heirs were only ever keeping part of that balance), while a fee taken from a Roth is paid with dollars the family fully owns. That is a real cost of converting when you bill a fee, and the report should show it.
 - **AUM Fee (%/yr)** (\`aum_fee_percent\`): The annual advisory fee you charge on the brokerage balance. Deducted yearly from the AUM bucket in the projection.
 - **Dividend Yield (%/yr)** (\`aum_dividend_yield\`): Annual dividend yield on the AUM portfolio. Taxed yearly at the LTCG rate below — creates a small drag on after-tax returns.
 - **Annual Turnover (%)** (\`aum_turnover_percent\`): Share of unrealized capital gains realized each year due to portfolio rebalancing. Realized gains pay LTCG tax annually — higher turnover = more tax drag.
-- **LTCG Rate (%)** (\`ltcg_rate\`): Long-term capital gains rate applied to dividends + realized turnover. Federal LTCG is 0/15/20% depending on income; add state if your state taxes LTCG as ordinary income.
+- **LTCG Rate (%)** (\`ltcg_rate\`): Long-term capital gains rate applied to income rows typed Capital Gains or Qualified Dividends, and to the AUM bucket's dividends + realized turnover. Federal LTCG is 0/15/20% depending on income; add state if your state taxes LTCG as ordinary income.
 - **IRA / Roth Withdrawals** (\`withdrawals_table\`): Voluntary distributions the client wants to take each year. Enter the TOTAL amount the client wants pulled — for IRA withdrawals, this satisfies the RMD up to its amount (matches IRS rules: a voluntary distribution counts toward that year's RMD; no extra RMD is forced on top). Only the shortfall (if voluntary < RMD) is added as a forced RMD. Source 'IRA' adds to taxable income (10% penalty if under 59½), 'Roth' is tax-free, 'Auto' lets the baseline draw from IRA while the strategy draws from Roth.
 - **Surrender Years** (\`surrender_years\`): Number of years the annuity carries surrender charges (the period during which early withdrawals incur a penalty). Locked when a system preset is selected — click 'Override preset' if a state-specific version of the same product has a different schedule.
 - **Penalty Free %** (\`penalty_free_percent\`): The percentage of the prior anniversary value the client can withdraw each year during the surrender period without a surrender charge. Typically 10%. Combined with the 'Respect Penalty-Free Limit' toggle in Section 4 to constrain conversions.
 - **Baseline Comparison Rate** (\`baseline_comparison_rate\`): Annual return rate used for the 'do nothing' baseline IRA projection. Auto-synced with the strategy's Rate of Return so the comparison stays fair — adjust only if you have a specific reason (e.g., comparing the strategy to a 60/40 portfolio at a different assumption). HEADS UP: any manual override here gets reset the moment you touch Rate of Return again, so set this LAST.
 - **Post-Contract Rate** (\`post_contract_rate\`): Renewal rate applied to the annuity's account value AFTER the surrender period ends. Doesn't affect the baseline IRA. Defaults to the main Rate of Return — lower it if you expect renewal rates to drop.
 - **Years to Defer Conversion** (\`years_to_defer_conversion\`): Skip Roth conversions for this many years before starting. Useful if the client expects a large income event (sale of a business, severance) and wants to wait until they're in a lower bracket.
-- **End Age** (\`end_age\`): Final age the projection runs through. Sets the time horizon of all charts, tables, and the heir/legacy calculation. Default 95 is standard for life-expectancy-based planning.
+- **End Age** (\`end_age\`): Final age the projection runs through. Sets the time horizon of all charts, tables, and the heir/legacy calculation. Default is 100; lower it toward life expectancy for a shorter horizon.
 - **Heir Tax Rate** (\`heir_tax_rate\`): Marginal federal rate you assume the heirs will pay on inherited Traditional IRA dollars. Applied at the END of the projection to net-down any pre-tax balance left in the baseline AND to any Traditional remainder still left in the strategy (common with Partial Amount conversions, where some Traditional intentionally stays unconverted). Roth inheritances are always tax-free, so this never touches the Roth bucket.
 - **Widow's Penalty Analysis** (\`widow_analysis\`): Models the 'widow's penalty' — when one spouse dies, the survivor files single instead of MFJ. Single-filer brackets compress dramatically, so the survivor often pays much higher taxes on the same income. Only available for married couples.
 - **First-Death Age** (\`widow_death_age\`): The age of the OLDER spouse when first death occurs. Anchors the widow analysis to a specific year. Leave blank to use the default heuristic (85 = older spouse's life expectancy). The survivor's brackets re-price at single-filer rates from this year forward.
@@ -180,6 +202,7 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 
 These are the system presets shown in the Product Preset dropdown on Section 3. Custom products built under Settings → My Products appear below these. If an advisor mentions a product not in this list, it must be a custom product or an external one they want to model.
 
+- No Annuity (\`none\`, kind: Growth FIA)
 - Generic Product (\`fia\`, kind: Growth FIA)
 - Short-Term Cap Growth (\`short-term-cap-growth\`, kind: Growth FIA)
 - Phased Bonus Growth (\`phased-bonus-growth\`, kind: Growth FIA)
