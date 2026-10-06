@@ -326,6 +326,8 @@ interface TemplateData {
   // True when an AUM account grows at a different rate from the baseline —
   // the glossary must then state both rates rather than claim they match.
   aumGrowthDiffers: boolean;
+  aumGrowthDiffersIsManagedRoth: boolean;
+  baselineRatePercent: string;
   aumGrowthRatePercent: string;
   maxTaxRate: number;
   state: string;
@@ -1165,10 +1167,17 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     advisoryFeeBaselineTotal: formatCurrency(
       (projection.baseline_years ?? []).reduce((t: number, y: any) => t + (y.advisoryFee ?? 0), 0)
     ),
+    // Compared against the BASELINE's rate, which is what the "do nothing"
+    // column actually uses — the previous comparison against rate_of_return
+    // could stay silent while the two scenarios ran on different returns.
     aumGrowthDiffers:
       (client.aum_allocation_percent ?? 0) > 0 &&
       client.aum_growth_rate != null &&
-      Math.abs(client.aum_growth_rate - (client.rate_of_return ?? 7)) > 0.01,
+      Math.abs(client.aum_growth_rate - (client.baseline_comparison_rate ?? client.growth_rate ?? client.rate_of_return ?? 7)) > 0.01,
+    // True when that differing rate applies to a MANAGED ROTH sleeve rather than
+    // a taxable brokerage, so the glossary can name the right account.
+    aumGrowthDiffersIsManagedRoth: client.aum_destination === 'roth',
+    baselineRatePercent: String(client.baseline_comparison_rate ?? client.growth_rate ?? client.rate_of_return ?? 7),
     aumGrowthRatePercent: String(client.aum_growth_rate ?? client.rate_of_return ?? 7),
     maxTaxRate: client.max_tax_rate ?? 24,
     state: client.state ?? 'CA',

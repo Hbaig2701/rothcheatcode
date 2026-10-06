@@ -177,6 +177,34 @@ export function generateStory(
     return -1;
   })();
 
+  // Managed-Roth context (aum_destination = 'roth'). Distinct from aumActive
+  // above: there is no second engine and no aum_years, because the slice is
+  // Roth CONVERTED inside the main engine and managed in a sleeve. aumActive is
+  // therefore false here, which is why the story needs its own flag or it would
+  // say nothing at all about a strategy the advisor deliberately chose.
+  const managedRothActive = client.aum_destination === 'roth'
+    && (client.aum_allocation_percent ?? 0) > 0;
+  const managedRothPct = managedRothActive ? (client.aum_allocation_percent ?? 0) : 0;
+  const managedRothRate = client.aum_growth_rate ?? client.rate_of_return ?? 7;
+  const managedRothFinal = managedRothActive
+    ? (years[years.length - 1]?.rothManagedBalance ?? 0)
+    : 0;
+  // A managed rate above the baseline rate inflates the strategy with RETURN
+  // rather than tax, so the story has to name it rather than let the headline
+  // number imply the conversion earned it.
+  const baselineRate = client.baseline_comparison_rate ?? client.growth_rate ?? 7;
+  const managedRateDiffers = managedRothActive
+    && Math.abs(managedRothRate - baselineRate) > 0.01;
+
+  // Advisory fee on managed balances. A real cost the client pays, and WHICH
+  // side pays it decides whether the comparison is apples-to-apples.
+  const advisoryFeePct = client.advisory_fee_percent ?? 0;
+  const advisoryFeeActive = advisoryFeePct > 0;
+  const advisoryFeeBothSides = (client.advisory_fee_in_baseline ?? true) === true;
+  const advisoryFeeStrategyTotal = advisoryFeeActive
+    ? years.reduce((t, y) => t + (y.advisoryFee ?? 0), 0)
+    : 0;
+
   // Widow analysis context.
   const widowAnalysisActive = client.widow_analysis === true;
   const widowDeathAge = client.widow_death_age ?? null;
@@ -281,6 +309,32 @@ export function generateStory(
     });
   }
 
+  if (managedRothActive) {
+    setupDetails.push({
+      label: 'Managed allocation',
+      value: `${managedRothPct}% of each conversion managed at ${managedRothRate}%/yr · ${100 - managedRothPct}% stays in the annuity`,
+    });
+    setupDetails.push({
+      label: 'Destination',
+      value: 'Roth conversion — the money is converted either way, this only changes where it is invested',
+    });
+    if (managedRateDiffers) {
+      setupDetails.push({
+        label: 'Note on returns',
+        value: `The managed sleeve assumes ${managedRothRate}%/yr while the do-nothing comparison assumes ${baselineRate}%/yr. Part of the difference between the two scenarios therefore comes from the higher assumed return, not from tax planning.`,
+      });
+    }
+  }
+
+  if (advisoryFeeActive) {
+    setupDetails.push({
+      label: 'Advisory fee',
+      value: advisoryFeeBothSides
+        ? `${advisoryFeePct}%/yr on managed balances, charged on BOTH scenarios (${formatCurrency(advisoryFeeStrategyTotal)} over this projection) — so the comparison still isolates the tax decision`
+        : `${advisoryFeePct}%/yr on managed balances (${formatCurrency(advisoryFeeStrategyTotal)} over this projection), charged on THIS strategy only — the do-nothing comparison pays no fee, which understates the strategy`,
+    });
+  }
+
   if (qlacActive) {
     setupDetails.push({
       label: 'QLAC',
@@ -306,7 +360,7 @@ export function generateStory(
 
   // Short framing sentence — cards above the timeline orient the advisor.
   // Detail rows do the heavy lifting underneath.
-  const setupBody = aumActive || conversionType === 'no_conversion' || hasScheduledWithdrawals || widowAnalysisActive || qlacActive
+  const setupBody = aumActive || managedRothActive || advisoryFeeActive || conversionType === 'no_conversion' || hasScheduledWithdrawals || widowAnalysisActive || qlacActive
     ? "Here's how this scenario is configured. Each line below is a parameter the advisor chose that drives the numbers in the rest of the timeline."
     : `Here's the plan. Roth conversions over ${totalConversionYears} ${totalConversionYears === 1 ? 'year' : 'years'} starting at age ${firstConversionEntry?.age ?? (client.age ?? 62) + yearsToDefer}, paid for from ${taxPaymentSource === 'from_ira' ? 'the IRA itself' : 'outside funds'}.`;
 
@@ -323,6 +377,8 @@ export function generateStory(
       { label: 'Starting IRA', value: formatCurrency(originalIRA) },
       ...(!isNoAnnuity && client.bonus_percent && client.bonus_percent > 0 ? [{ label: 'Premium Bonus', value: `${client.bonus_percent}%` }] : []),
       ...(aumActive ? [{ label: 'AUM Split', value: `${client.aum_allocation_percent}%` }] : []),
+      ...(managedRothActive ? [{ label: 'Managed Roth', value: `${managedRothPct}% at ${managedRothRate}%` }] : []),
+      ...(advisoryFeeActive ? [{ label: 'Advisory Fee', value: `${advisoryFeePct}%/yr` }] : []),
     ],
     runningTotals: {
       totalConverted: formatCurrency(0),

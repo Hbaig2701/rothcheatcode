@@ -1346,14 +1346,19 @@
 
     <div class="glossary-entry">
       {{#if aumGrowthDiffers}}
-      <div class="glossary-term">Growth Rates ({{rateOfReturnPercent}}% and {{aumGrowthRatePercent}}% AUM)</div>
+      <div class="glossary-term">Growth Rates ({{baselineRatePercent}}% and {{aumGrowthRatePercent}}% managed)</div>
       <div class="glossary-def">
-        The baseline and the IRA side of the strategy grow at {{rateOfReturnPercent}}% a year.
-        The managed (AUM) account in the strategy grows at {{aumGrowthRatePercent}}% a year.
-        Because the two scenarios assume different returns, part of the difference
-        between them comes from the higher assumed return rather than from tax
-        planning. This is a deterministic projection — actual returns will vary
-        with market conditions.
+        The &ldquo;do nothing&rdquo; comparison grows at {{baselineRatePercent}}% a year.
+        {{#if aumGrowthDiffersIsManagedRoth}}
+        The managed Roth sleeve in the strategy grows at {{aumGrowthRatePercent}}% a year.
+        {{else}}
+        The managed (AUM) brokerage account in the strategy grows at {{aumGrowthRatePercent}}% a year.
+        {{/if}}
+        <strong>Because the two scenarios assume different returns, part of the
+        difference between them comes from the higher assumed return rather than
+        from tax planning.</strong> Setting the two rates equal isolates the tax
+        decision on its own. This is a deterministic projection &mdash; actual
+        returns will vary with market conditions.
       </div>
       {{else}}
       <div class="glossary-term">Growth Rate ({{rateOfReturnPercent}}%)</div>

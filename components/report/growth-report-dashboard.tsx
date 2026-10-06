@@ -395,6 +395,13 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
     ? (blueprintYears[blueprintYears.length - 1].rothManagedBalance ?? 0)
     : 0;
   const managedRothRate = client.aum_growth_rate ?? client.rate_of_return ?? 7;
+  // A managed growth rate above the baseline's rate inflates the strategy with
+  // RETURN, not tax. Measured: 100% managed at 9% against a 6% baseline turned a
+  // $635,529 net-legacy advantage into $11,645,688 — an 18x difference that has
+  // nothing to do with the Roth conversion. The PDF glossary already covers this
+  // for the AUM bucket; the dashboard said nothing at all.
+  const managedBaselineRate = client.baseline_comparison_rate ?? client.growth_rate ?? 7;
+  const managedRateDiffers = managedRothOn && Math.abs(managedRothRate - managedBaselineRate) > 0.01;
 
   // ===== AUM split-allocation metrics =====
   // The AUM bucket is stored separately on the projection so we can describe
@@ -729,6 +736,17 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                 &nbsp;(final managed balance {toUSD(finalManagedRoth)}) ·&nbsp;
                 {(100 - managedRothPct).toFixed(0)}% stays in the annuity. All of it is
                 Roth — no RMDs, no tax drag.
+              </p>
+            )}
+            {managedRateDiffers && (
+              <p className="text-sm text-amber-500 mt-2">
+                Return assumptions differ: the managed sleeve grows at&nbsp;
+                <span className="font-medium">{managedRothRate}%/yr</span>
+                &nbsp;while the do-nothing comparison grows at&nbsp;
+                <span className="font-medium">{managedBaselineRate}%/yr</span>.
+                Part of the difference below comes from the higher assumed return,
+                not from the tax decision. Match the two rates to isolate the
+                conversion.
               </p>
             )}
             {(client.aum_allocation_percent ?? 0) > 0 && projection.aum_years && (

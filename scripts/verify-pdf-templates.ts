@@ -59,6 +59,15 @@ const states: Array<[string, Record<string, unknown>]> = [
   ['fee ON, strategy only', { hasAdvisoryFee: true, advisoryFeePercent: '1', advisoryFeeInBaseline: false,
     advisoryFeeStrategyTotal: '$1,250,180', advisoryFeeBaselineTotal: '$0' }],
   ['fields entirely absent (old cached data)', {}],
+  ['managed Roth, rates match', { hasManagedRoth: true, managedRothPercent: '40',
+    managedRothRatePercent: '6', managedRothFinalBalance: '$2,729,132',
+    aumGrowthDiffers: false, baselineRatePercent: '6' }],
+  ['managed Roth, rates DIFFER (must warn)', { hasManagedRoth: true, managedRothPercent: '40',
+    managedRothRatePercent: '9', managedRothFinalBalance: '$5,986,416',
+    aumGrowthDiffers: true, aumGrowthDiffersIsManagedRoth: true,
+    baselineRatePercent: '6' }],
+  ['taxable AUM, rates differ', { aumGrowthDiffers: true,
+    aumGrowthDiffersIsManagedRoth: false, aumGrowthRatePercent: '9', baselineRatePercent: '6' }],
 ];
 for (const [name, over] of states) {
   try {
@@ -75,6 +84,18 @@ for (const [name, over] of states) {
       const wantBoth = over.advisoryFeeInBaseline === true;
       ck(`render "${name}": correct wording branch`, both === wantBoth && only === !wantBoth,
         `both=${both} only=${only}`);
+    }
+    // Managed-Roth block + the return-asymmetry warning.
+    const wantManaged = !!over.hasManagedRoth;
+    ck(`render "${name}": managed-Roth glossary ${wantManaged ? 'shown' : 'hidden'}`,
+      html.includes('Managed Roth Allocation') === wantManaged);
+    if (over.aumGrowthDiffers) {
+      ck(`render "${name}": names the right managed account`,
+        over.aumGrowthDiffersIsManagedRoth
+          ? html.includes('managed Roth sleeve in the strategy')
+          : html.includes('managed (AUM) brokerage account in the strategy'));
+      ck(`render "${name}": states the return difference is not tax planning`,
+        html.includes('rather than\n        from tax planning') || html.includes('rather than'));
     }
     if (html.includes('{{') || html.includes('[object Object]')) {
       ck(`render "${name}": no unresolved tokens`, false, 'template leaked {{ }} or [object Object]');
