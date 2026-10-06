@@ -201,6 +201,59 @@ const legacy = (rows: YearlyResult[]) => {
   }
 }
 
+// ---- 6b. Money managed OUT of the annuity leaves the contract ---------------
+//
+// The managed sleeve and the mirrored Roth annuity (`rothMirrorBalance`) are
+// both subsets of rothBalance, and they are MUTUALLY EXCLUSIVE: the mirror is
+// converted dollars still inside the annuity, the sleeve is converted dollars
+// moved to an advisory account. The first version of this feature added the
+// FULL conversion to the mirror and its share to the sleeve as well, so the two
+// double-claimed the same dollars — a client with 100% of the conversion managed
+// away from the annuity still earned the identical $486,708 of anniversary bonus
+// as one with none managed, and kept paying the carrier's rider fee on it.
+//
+// Two observable consequences, both locked here. The mirror isn't on the row, so
+// these are the only way to catch the regression from outside the engine.
+{
+  // (a) Anniversary bonus. phased-bonus-growth is the one product with
+  // anniversaryBonusFollowsConversion = true (EquiTrust MarketEdge Bonus PTC).
+  const eq = (pct: number) => run({
+    blueprint_type: 'phased-bonus-growth', bonus_percent: 10,
+    anniversary_bonus_percent: 4, anniversary_bonus_years: 3, surrender_years: 10,
+    surrender_schedule: [9, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+    aum_allocation_percent: pct, aum_destination: pct > 0 ? 'roth' : undefined,
+  }).formula.slice(0, 3).reduce((t, y) => t + (y.productBonusApplied ?? 0), 0);
+  const [bonus0, bonus40, bonus100] = [eq(0), eq(40), eq(100)];
+  r.ran();
+  if (!(bonus100 < bonus40 && bonus40 < bonus0)) {
+    r.record({
+      fixture: 'aum-destination/annuity-exit', scenario: 'formula',
+      check: 'managed-money-earns-no-anniversary-bonus', year: 2026, age: 65,
+      expected: bonus0, actual: bonus100,
+      note: `the carrier bonus on converted money must FALL as more of it is managed out of the contract — got 0%=${bonus0} 40%=${bonus40} 100%=${bonus100}; equal values mean the mirror is crediting dollars that left`,
+    });
+  }
+
+  // (b) Rider fee. Charged on iraBalance + rothMirrorBalance, so a smaller
+  // mirror must mean a smaller fee. Uses a product that actually has one —
+  // phased-bonus-growth does not, which would make this vacuous.
+  const rf = (pct: number) => run({
+    blueprint_type: 'high-bonus-long-term-growth', bonus_percent: 20,
+    surrender_years: 10, surrender_schedule: [9, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+    aum_allocation_percent: pct, aum_destination: pct > 0 ? 'roth' : undefined,
+  }).formula.reduce((t, y) => t + (y.riderFee ?? 0), 0);
+  const [fee0, fee100] = [rf(0), rf(100)];
+  r.ran();
+  if (!(fee0 > 0 && fee100 < fee0)) {
+    r.record({
+      fixture: 'aum-destination/annuity-exit', scenario: 'formula',
+      check: 'managed-money-stops-paying-the-rider-fee', year: 2026, age: 65,
+      expected: fee0, actual: fee100,
+      note: `dollars moved to an advisory account are out of the contract and cannot keep paying its rider fee — got 0%=${fee0} 100%=${fee100} (fee0 must be > 0 or the fixture is vacuous)`,
+    });
+  }
+}
+
 // ---- 7. GI ignores the destination ------------------------------------------
 {
   const giBase: Partial<ClientType> = {

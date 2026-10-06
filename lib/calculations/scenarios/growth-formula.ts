@@ -1134,8 +1134,12 @@ export function runGrowthFormulaScenario(
     const managedWithdrawal = boyRoth > 0
       ? Math.round(rothWithdrawal * boyRothManaged / boyRoth)
       : 0;
+    // This year's conversion dollars going to the MANAGED account rather than
+    // staying in the annuity. The mirrored Roth annuity (Step 3b) must exclude
+    // them — see the note there.
+    const managedConversionAmount = Math.round(conversionAmount * managedShare);
     const managedAfterConversion = Math.max(0, boyRothManaged - managedWithdrawal)
-      + Math.round(conversionAmount * managedShare);
+      + managedConversionAmount;
     const managedInterest = Math.round(managedAfterConversion * managedGrowthRate);
     const unmanagedAfterConversion = rothAfterConversion - managedAfterConversion;
     const rothInterest = Math.round(unmanagedAfterConversion * rothGrowthRate) + managedInterest;
@@ -1178,7 +1182,20 @@ export function runGrowthFormulaScenario(
     const mirrorWithdrawal = boyRoth > 0
       ? Math.round(rothWithdrawal * boyRothMirror / boyRoth)
       : 0;
-    const mirrorAfterConversion = Math.max(0, boyRothMirror - mirrorWithdrawal) + conversionAmount;
+    // Only the UNMANAGED share of the conversion stays inside the annuity. When
+    // aum_destination is 'roth', managedConversionAmount of this year's
+    // conversion was routed to an advisory account instead — those dollars left
+    // the contract, so they can neither earn the carrier's anniversary bonus nor
+    // keep paying its rider fee (the fee in Step 3c is charged on
+    // iraBalance + rothMirrorBalance, so excluding them here correctly reduces
+    // both). Without this the mirror received the FULL conversion while the
+    // managed sleeve received its share as well, double-claiming the same
+    // dollars: a client with 100% of the conversion managed away from the
+    // annuity still earned the identical $486,708 of anniversary bonus as one
+    // with none managed. managedConversionAmount is 0 for every product without
+    // the Roth destination, so this is byte-identical for them.
+    const mirrorAfterConversion = Math.max(0, boyRothMirror - mirrorWithdrawal)
+      + (conversionAmount - managedConversionAmount);
     const mirrorPostGrowth = mirrorAfterConversion + Math.round(mirrorAfterConversion * rothGrowthRate);
     let rothMirrorBonus = 0;
     if (bonusFollowsConversion && anniversaryBonusPercent > 0 && yearOffset < anniversaryBonusYears) {
