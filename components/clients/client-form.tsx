@@ -208,7 +208,8 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       // 2024 or later" doesn't point at Section 8 — Jorge Tola hit this
       // and filed a ticket instead of finding the section himself.
       non_ssi_income: "Section 5: Taxable Income",
-      withdrawals: "Section 8: IRA / Roth Withdrawals",
+      // No number: it shifts when Settings → Input Panel hides Section 7.
+      withdrawals: "IRA / Roth Withdrawals section",
     };
 
     const getLabel = (key: string) => fieldLabels[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());

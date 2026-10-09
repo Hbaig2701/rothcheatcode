@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { UserSettings } from "@/lib/types/settings";
-import { useUpdateSettings } from "@/lib/queries/settings";
+import { settingsKeys, useUpdateSettings } from "@/lib/queries/settings";
 import {
   INPUT_FEATURES,
   INPUT_FEATURE_KEYS,
@@ -15,19 +16,25 @@ import {
  */
 export function InputPanelTab({ settings }: { settings: UserSettings }) {
   const updateSettings = useUpdateSettings();
-  // Optimistic copy so toggles respond instantly; cleared once the refetch lands.
-  const [optimistic, setOptimistic] = useState<InputFeatureKey[] | null>(null);
-  const hidden = optimistic ?? settings.hidden_input_features ?? [];
+  const queryClient = useQueryClient();
+  const hidden = settings.hidden_input_features ?? [];
   const [error, setError] = useState<string | null>(null);
 
+  // Optimistic: write the settings cache first so the switch (and any open
+  // form) responds instantly and rapid clicks build on each other; the PUT's
+  // success refetch then confirms it. On failure, refetch to show the truth.
   const save = (next: InputFeatureKey[]) => {
-    setOptimistic(next);
     setError(null);
+    queryClient.setQueryData<UserSettings>(settingsKeys.detail(), (prev) =>
+      prev ? { ...prev, hidden_input_features: next } : prev,
+    );
     updateSettings.mutate(
       { hidden_input_features: next },
       {
-        onSettled: () => setOptimistic(null),
-        onError: () => setError("Couldn't save that change. Please try again."),
+        onError: () => {
+          setError("Couldn't save that change. Please try again.");
+          queryClient.invalidateQueries({ queryKey: settingsKeys.detail() });
+        },
       },
     );
   };
@@ -62,7 +69,7 @@ export function InputPanelTab({ settings }: { settings: UserSettings }) {
         <button
           type="button"
           onClick={() => save([])}
-          disabled={updateSettings.isPending || hidden.length === 0}
+          disabled={hidden.length === 0}
           className="h-8 rounded-md border border-border px-3 text-xs text-foreground hover:border-primary/40 transition-colors disabled:opacity-50"
         >
           Turn all on
@@ -70,7 +77,7 @@ export function InputPanelTab({ settings }: { settings: UserSettings }) {
         <button
           type="button"
           onClick={() => save([...INPUT_FEATURE_KEYS])}
-          disabled={updateSettings.isPending || hidden.length === INPUT_FEATURE_KEYS.length}
+          disabled={hidden.length === INPUT_FEATURE_KEYS.length}
           className="h-8 rounded-md border border-border px-3 text-xs text-foreground hover:border-primary/40 transition-colors disabled:opacity-50"
         >
           Turn all off
