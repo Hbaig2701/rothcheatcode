@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
+import { useInputFeature, HiddenFeatureNote } from "@/components/clients/use-input-feature";
 import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/products";
 
 /**
@@ -57,10 +58,23 @@ export function AumAllocationSection() {
   // whole section collapses to the AUM split for them.
   const isGI = isGuaranteedIncomeProduct(formulaType);
 
+  // Settings → Input Panel. The section disappears when neither half shows.
+  const advisory = useInputFeature("advisory_fee");
+  const aum = useInputFeature("aum_allocation");
+  const showAdvisory = !isGI && advisory.show;
+  if (!showAdvisory && !aum.show) return null;
+
+  const title = showAdvisory && aum.show
+    ? "7. Advisory Fee & AUM Allocation (Optional)"
+    : showAdvisory
+      ? "7. Advisory Fee (Optional)"
+      : "7. AUM Allocation (Optional)";
+
   return (
-    <FormSection title={isGI ? "7. AUM Allocation (Optional)" : "7. Advisory Fee & AUM Allocation (Optional)"}>
-      {!isGI && (
+    <FormSection title={title}>
+      {showAdvisory && (
         <>
+          {advisory.forced && <HiddenFeatureNote className="sm:col-span-2 lg:col-span-3" />}
           {/* ---- 1. Advisory fee on managed assets ---- */}
           <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
             <Checkbox
@@ -158,12 +172,15 @@ export function AumAllocationSection() {
             </>
           )}
 
-          <div className="sm:col-span-2 lg:col-span-3 border-t pt-1" />
+          {aum.show && <div className="sm:col-span-2 lg:col-span-3 border-t pt-1" />}
         </>
       )}
 
+      {aum.forced && <HiddenFeatureNote className="sm:col-span-2 lg:col-span-3" />}
+
       {/* ---- 2. AUM split: physically moves the slice out of the IRA ---- */}
       {/* Master toggle — sets allocation to 50% on enable, 0 on disable. */}
+      {aum.show && (
       <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
         <Checkbox
           id="aum_allocation_enabled"
@@ -191,7 +208,8 @@ export function AumAllocationSection() {
         </div>
       </div>
 
-      {isOn && (
+      )}
+      {aum.show && isOn && (
         <>
           {/* Destination FIRST — it decides which strategy the rest describes. */}
           <Controller

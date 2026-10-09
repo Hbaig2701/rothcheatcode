@@ -28,6 +28,7 @@ import { Lock, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
+import { useInputFeature, HiddenFeatureNote } from "@/components/clients/use-input-feature";
 import { QLAC_MIN_INCOME_START_AGE, QLAC_MAX_INCOME_START_AGE, QLAC_DEFAULT_INCOME_START_AGE } from "@/lib/data/qlac-limits";
 
 // Only two active values now. 'none' and 'fixed_amount' were dead code
@@ -110,6 +111,14 @@ export function TaxDataSection() {
   // picker is inert there even if a saved row still carries 'irmaa_threshold'.
   const showIrmaaTargetPicker = !isGI && constraintType === "irmaa_threshold";
 
+  // Settings → Input Panel. Each hides its block unless this client uses it.
+  const irmaa = useInputFeature("irmaa_targeting");
+  const deductions = useInputFeature("additional_deductions");
+  const credits = useInputFeature("tax_credits");
+  const rmdsExternal = useInputFeature("rmds_external");
+  const qlac = useInputFeature("qlac");
+  const capitalGains = useInputFeature("capital_gains");
+
   return (
     <FormSection title="4. Tax Data">
       {/* Additional Constraint + Max Tax Rate + the IRMAA tier picker together
@@ -120,7 +129,7 @@ export function TaxDataSection() {
           whole cluster is hidden for GI to avoid duplicate/inert inputs — leaving
           Conversion Tax Bracket (in the New Account section) as the single GI
           conversion-bracket control. */}
-      {!isGI && (
+      {!isGI && irmaa.show && (
       <Controller
         name="constraint_type"
         control={form.control}
@@ -159,6 +168,7 @@ export function TaxDataSection() {
               <FieldDescription>
                 Bracket Ceiling (via Max Tax Rate below) is always applied. Pick whether to ALSO cap conversions to keep MAGI under a chosen IRMAA tier.
               </FieldDescription>
+              {irmaa.forced && <HiddenFeatureNote />}
               <FieldError errors={[fieldState.error]} />
             </Field>
           );
@@ -169,7 +179,7 @@ export function TaxDataSection() {
       {/* IRMAA target tier picker — only visible when the advisor chose
           IRMAA. When constraint_type is bracket_ceiling, the engine ignores
           this value, so hiding it removes a redundant input. */}
-      {showIrmaaTargetPicker && (
+      {showIrmaaTargetPicker && irmaa.show && (
         <Controller
           name="target_irmaa_tier"
           control={form.control}
@@ -269,6 +279,7 @@ export function TaxDataSection() {
           deduction (charitable/itemized, business losses/NOLs, leveraged-
           deduction programs). Added on top of the standard deduction, so a
           conversion shielded by these shows lower (or zero) tax. */}
+      {deductions.show && (
       <Controller
         name="additional_deductions"
         control={form.control}
@@ -287,15 +298,18 @@ export function TaxDataSection() {
               business losses, leveraged-deduction programs). Applied on top of the
               standard deduction each year to lower the tax on conversions.
             </FieldDescription>
+            {deductions.forced && <HiddenFeatureNote />}
             <FieldError errors={[fieldState.error]} />
           </Field>
         )}
       />
+      )}
 
       {/* Tax Credits — offsets tax OWED dollar-for-dollar (unlike a deduction,
           which only reduces taxable income). Entered as the TOTAL available
           credit; the engine draws it down against federal income tax each year
           and carries the unused balance forward until it's used up. */}
+      {credits.show && (
       <Controller
         name="tax_credits"
         control={form.control}
@@ -315,10 +329,12 @@ export function TaxDataSection() {
               like a deduction — and the unused balance carries forward year to year
               until it&apos;s used up.
             </FieldDescription>
+            {credits.forced && <HiddenFeatureNote />}
             <FieldError errors={[fieldState.error]} />
           </Field>
         )}
       />
+      )}
 
       {/* Tax Payment Source */}
       <Controller
@@ -511,6 +527,8 @@ export function TaxDataSection() {
           strategy) so the modeled bucket doesn't get RMDs eating into the
           conversion target. Available for both Growth FIA and GI products
           since GI strategies can also have a split-bucket setup. */}
+      {rmdsExternal.forced && <HiddenFeatureNote className="sm:col-span-2 lg:col-span-3" />}
+      {rmdsExternal.show && (
       <Controller
         name="rmds_handled_externally"
         control={form.control}
@@ -552,6 +570,7 @@ export function TaxDataSection() {
           </div>
         )}
       />
+      )}
 
       {/* Held-back Traditional IRA — revealed under "RMDs Handled Externally":
           that's the IRA the external RMDs come from. Entering a balance auto-
@@ -559,7 +578,7 @@ export function TaxDataSection() {
           income for BOTH sides, AND keeps the converting slice's own RMDs (the
           engine overrides the toggle's zeroing when a balance is present) — so
           do-nothing has RMDs on the full balance, strategy on just the held-back. */}
-      {form.watch("rmds_handled_externally") && (
+      {rmdsExternal.show && form.watch("rmds_handled_externally") && (
         <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-primary/30 bg-accent/50 p-4">
           <Controller
             name="held_back_ira_balance"
@@ -613,6 +632,8 @@ export function TaxDataSection() {
           start age (≤ 85). The engine keys the feature off qlac_premium alone,
           so the reveal checkbox is UI state and unchecking clears every field
           (same reasoning as the held-back block above). */}
+      {qlac.forced && <HiddenFeatureNote className="sm:col-span-2 lg:col-span-3" />}
+      {qlac.show && (
       <div className="sm:col-span-2 lg:col-span-3 flex flex-row items-start gap-3">
         <Checkbox
           id="qlac_enabled"
@@ -648,8 +669,9 @@ export function TaxDataSection() {
           </p>
         </div>
       </div>
+      )}
 
-      {qlacOpen && (
+      {qlac.show && qlacOpen && (
         <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl border border-primary/30 bg-accent/50 p-4">
           <Controller
             name="qlac_premium"
@@ -810,6 +832,7 @@ export function TaxDataSection() {
           Dividends (and the AUM bucket's dividends + turnover). Same form field
           as the one under 7. AUM Allocation; surfaced here so it's reachable
           without an AUM split. */}
+      {capitalGains.show && (
       <Controller
         name="ltcg_rate"
         control={form.control}
@@ -821,10 +844,12 @@ export function TaxDataSection() {
               <FieldHelp {...FIELD_HELP.ltcg_rate} />
             </FieldLabel>
             <PercentInput {...field} value={field.value ?? undefined} aria-invalid={fieldState.invalid} />
+            {capitalGains.forced && <HiddenFeatureNote />}
             <FieldError errors={[fieldState.error]} />
           </Field>
         )}
       />
+      )}
 
       {/* State Tax Rate */}
       <Controller

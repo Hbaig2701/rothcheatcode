@@ -12,6 +12,7 @@ import { Lock, LockOpen, ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
+import { useInputFeature, useLateSectionNumbers, HiddenFeatureNote } from "@/components/clients/use-input-feature";
 
 export function AdvancedDataSection() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -29,6 +30,11 @@ export function AdvancedDataSection() {
   // "No Annuity" preset — hide surrender years, penalty-free %, and post-contract
   // (annuity renewal) rate; none apply to a plain Roth conversion.
   const isNoAnnuity = isNoAnnuityProduct(formulaType);
+
+  // Settings → Input Panel.
+  const deferFeature = useInputFeature("years_to_defer");
+  const widowFeature = useInputFeature("widow_penalty");
+  const { advanced: sectionNumber } = useLateSectionNumbers();
 
   // Auto-sync baseline_comparison_rate with rate_of_return for ALL products
   // For a fair comparison, both scenarios should use the same growth rate
@@ -67,7 +73,7 @@ export function AdvancedDataSection() {
           <ChevronRight className="size-4 text-muted-foreground shrink-0" />
         )}
         <span className="text-xs font-medium uppercase tracking-[1.5px] text-text-muted group-hover:text-foreground transition-colors">
-          9. Advanced Data
+          {sectionNumber}. Advanced Data
         </span>
         <span className="ml-auto text-[11px] text-text-dim">
           {isExpanded ? "Collapse" : "Expand"}
@@ -205,7 +211,7 @@ export function AdvancedDataSection() {
           )}
 
           {/* Years to Defer Conversion - Growth products only (GI uses gi_conversion_years) */}
-          {!isGI && (
+          {!isGI && deferFeature.show && (
             <Field data-invalid={!!form.formState.errors.years_to_defer_conversion}>
               <FieldLabel htmlFor="years_to_defer_conversion" className="flex items-center gap-1.5">
                 Years to Defer Conversion
@@ -219,6 +225,7 @@ export function AdvancedDataSection() {
                 {...form.register("years_to_defer_conversion", { valueAsNumber: true })}
               />
               <FieldDescription>Delay conversions by this many years</FieldDescription>
+              {deferFeature.forced && <HiddenFeatureNote />}
               <FieldError errors={[form.formState.errors.years_to_defer_conversion]} />
             </Field>
           )}
@@ -263,8 +270,9 @@ export function AdvancedDataSection() {
           {/* Widow's Penalty controls — only meaningful for MFJ. The report
               section already gates on filing_status, so showing the checkbox
               for single filers just creates dead state in the DB. */}
-          {form.watch("filing_status") === "married_filing_jointly" && (
+          {form.watch("filing_status") === "married_filing_jointly" && widowFeature.show && (
             <>
+          {widowFeature.forced && <HiddenFeatureNote className="sm:col-span-2 lg:col-span-3" />}
           <Controller
             name="widow_analysis"
             control={form.control}

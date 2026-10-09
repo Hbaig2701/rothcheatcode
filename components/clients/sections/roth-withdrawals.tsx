@@ -4,6 +4,7 @@ import { FormSection } from "@/components/clients/form-section";
 import { WithdrawalsTable } from "@/components/clients/withdrawals-table";
 import { FieldHelp } from "@/components/clients/field-help";
 import { FIELD_HELP } from "@/lib/copy/field-help-content";
+import { useInputFeature, useLateSectionNumbers, HiddenFeatureNote } from "@/components/clients/use-input-feature";
 
 /**
  * Voluntary IRA / Roth distributions. IRA pulls satisfy the RMD up to their
@@ -12,11 +13,16 @@ import { FIELD_HELP } from "@/lib/copy/field-help-content";
  * naturally fall to IRA while the strategy uses the Roth bucket.
  */
 export function RothWithdrawalsSection() {
+  const feature = useInputFeature("withdrawals");
+  const numbers = useLateSectionNumbers();
+  if (!feature.show) return null;
+
   return (
     <FormSection
-      title="8. IRA / Roth Withdrawals"
+      title={`${numbers.withdrawals}. IRA / Roth Withdrawals`}
       description="Schedule voluntary distributions from the qualified buckets. IRA pulls count toward the RMD (no extra RMD is forced on top); only the shortfall, if any, is added as forced RMD."
     >
+      {feature.forced && <HiddenFeatureNote className="sm:col-span-2 lg:col-span-3" />}
       <div className="sm:col-span-2 lg:col-span-3">
         <div className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
           <FieldHelp {...FIELD_HELP.withdrawals_table} />

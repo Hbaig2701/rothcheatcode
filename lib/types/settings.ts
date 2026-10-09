@@ -1,3 +1,5 @@
+import type { InputFeatureKey } from "@/lib/input-features";
+
 export interface UserSettings {
   id: string;
   user_id: string;
@@ -29,6 +31,10 @@ export interface UserSettings {
 
   // Default Values
   default_values: Partial<ClientFormDefaults>;
+
+  // Input Panel — optional form features this advisor hid (lib/input-features.ts).
+  // Optional: absent until the column's migration is applied.
+  hidden_input_features?: InputFeatureKey[];
 }
 
 /** Subset of client form fields that can be set as user defaults */

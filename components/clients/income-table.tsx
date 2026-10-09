@@ -8,10 +8,19 @@ import { CurrencyInput } from "@/components/ui/currency-input";
 import { Plus, Trash2, Repeat, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { INCOME_TYPES, type IncomeType } from "@/lib/types/client";
+import { useInputFeature } from "@/components/clients/use-input-feature";
+
+// Taxed at the LTCG rate; offered only when Capital Gains is on in Settings → Input Panel
+// (or this client already has such a row, which keeps the feature shown).
+const PREFERENTIAL_TYPES: readonly string[] = ["capital_gains", "qualified_dividends"];
 import { buildRecurringIncomeRows, inferGrowthPercent } from "@/lib/utils/recurring-income";
 
 export function IncomeTable() {
   const form = useFormContext<ClientFormData>();
+  const capitalGains = useInputFeature("capital_gains");
+  const typeOptions = capitalGains.show
+    ? INCOME_TYPES
+    : INCOME_TYPES.filter((t) => !PREFERENTIAL_TYPES.includes(t.value));
   const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: "non_ssi_income",
@@ -285,7 +294,7 @@ export function IncomeTable() {
                   onChange={(e) => setRecurringType(e.target.value as IncomeType)}
                   className="w-full h-9 rounded-md border border-border bg-white dark:bg-input/30 px-2 text-sm text-foreground"
                 >
-                  {INCOME_TYPES.map((t) => (
+                  {typeOptions.map((t) => (
                     <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </select>
@@ -400,6 +409,7 @@ export function IncomeTable() {
                     <IncomeTableRow
                       key={field.id}
                       index={index}
+                      typeOptions={typeOptions}
                       onRemove={() => {
                         // Look up current index by field id so stale closures over `index`
                         // from earlier renders don't delete the wrong row.
@@ -427,9 +437,10 @@ interface IncomeTableRowProps {
   currentAge: number;
   spouseAge: number | undefined | null;
   currentYear: number;
+  typeOptions: readonly { value: string; label: string }[];
 }
 
-function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }: IncomeTableRowProps) {
+function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear, typeOptions }: IncomeTableRowProps) {
   const form = useFormContext<ClientFormData>();
 
   // Watch year for this row
@@ -471,7 +482,7 @@ function IncomeTableRow({ index, onRemove, currentAge, spouseAge, currentYear }:
               value={field.value ?? "other"}
               onChange={field.onChange}
             >
-              {INCOME_TYPES.map((t) => (
+              {typeOptions.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
             </select>

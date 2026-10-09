@@ -27,10 +27,11 @@ const RENDERED_SECTIONS: Array<{ component: string; file: string; fallbackTitle?
   { component: "TaxDataSection",           file: "components/clients/sections/tax-data.tsx" },
   { component: "TaxableIncomeSection",     file: "components/clients/sections/taxable-income.tsx" },
   { component: "ConversionSection",        file: "components/clients/sections/conversion.tsx" },
-  { component: "AumAllocationSection",     file: "components/clients/sections/aum-allocation.tsx" },
-  { component: "RothWithdrawalsSection",   file: "components/clients/sections/roth-withdrawals.tsx" },
-  // advanced-data.tsx uses a custom header (<span>9. Advanced Data</span>)
-  // instead of <FormSection title="...">, so we hardcode the title.
+  // Sections 7 onward have computed titles (Settings → Input Panel can hide
+  // 7 and the Withdrawals section, renumbering what follows), so the regex
+  // below can't read them; these are their titles with every feature shown.
+  { component: "AumAllocationSection",     file: "components/clients/sections/aum-allocation.tsx", fallbackTitle: "7. Advisory Fee & AUM Allocation (Optional)" },
+  { component: "RothWithdrawalsSection",   file: "components/clients/sections/roth-withdrawals.tsx", fallbackTitle: "8. IRA / Roth Withdrawals" },
   { component: "AdvancedDataSection",      file: "components/clients/sections/advanced-data.tsx", fallbackTitle: "9. Advanced Data" },
 ];
 

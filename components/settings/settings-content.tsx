@@ -16,6 +16,7 @@ import {
   Columns3,
   Gift,
   Loader2,
+  ListChecks,
 } from "lucide-react";
 import { ProfileTab } from "./tabs/profile-tab";
 import { SecurityTab } from "./tabs/security-tab";
@@ -27,6 +28,7 @@ import { AppearanceTab } from "./tabs/appearance-tab";
 import { ProductsTab } from "./tabs/products-tab";
 import { ColumnsTab } from "./tabs/columns-tab";
 import { ReferTab } from "./tabs/refer-tab";
+import { InputPanelTab } from "./tabs/input-panel-tab";
 
 interface TabDef {
   value: string;
@@ -39,6 +41,7 @@ const BASE_TABS: TabDef[] = [
   { value: "security", label: "Security", icon: Shield },
   { value: "business", label: "Business & Logo", icon: Building2 },
   { value: "defaults", label: "Default Values", icon: SlidersHorizontal },
+  { value: "input-panel", label: "Input Panel", icon: ListChecks },
   { value: "products", label: "My Products", icon: Package },
   { value: "columns", label: "My Columns", icon: Columns3 },
   { value: "appearance", label: "Appearance", icon: Palette },
@@ -129,6 +132,9 @@ export function SettingsContent({ user }: { user: User }) {
             </TabsContent>
             <TabsContent value="defaults" className="mt-0">
               <DefaultsTab settings={settings} />
+            </TabsContent>
+            <TabsContent value="input-panel" className="mt-0">
+              <InputPanelTab settings={settings} />
             </TabsContent>
             <TabsContent value="products" className="mt-0">
               <ProductsTab />

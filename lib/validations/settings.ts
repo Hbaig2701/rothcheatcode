@@ -7,6 +7,7 @@ import {
   taxSourceEnum,
   formulaTypeEnum,
 } from "./client";
+import { INPUT_FEATURE_KEYS } from "@/lib/input-features";
 
 // ============================================================================
 // Profile Tab
@@ -27,6 +28,7 @@ export type ProfileFormData = z.infer<typeof profileSchema>;
 
 export const preferencesSchema = z.object({
   chat_widget_enabled: z.boolean().optional(),
+  hidden_input_features: z.array(z.enum(INPUT_FEATURE_KEYS)).optional(),
 });
 
 export type PreferencesFormData = z.infer<typeof preferencesSchema>;

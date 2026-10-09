@@ -75,13 +75,14 @@ Source: \`components/clients/sections/conversion.tsx\`
 - \`protect_initial_premium\`
 - **Total Amount to Convert** (\`target_partial_amount\`) — number, range: 0 to +∞
 
-## (no title found)
+## 7. Advisory Fee & AUM Allocation (Optional)
 Source: \`components/clients/sections/aum-allocation.tsx\`
 - **Advisory fee (%/yr)** (\`advisory_fee_percent\`) — number, range: 0 to 5
-- **% to AUM** (\`aum_allocation_percent\`) — number, range: 0 to 100
+- \`aum_allocation_percent\` — number, range: 0 to 100
+- **Where does that money go?** (\`aum_destination\`)
 - **Dividend yield (%/yr)** (\`aum_dividend_yield\`) — number, range: 0 to 20
 - **AUM fee (%/yr)** (\`aum_fee_percent\`) — number, range: 0 to 10
-- **AUM growth rate (%/yr)** (\`aum_growth_rate\`) — number, range: 0 to 30
+- \`aum_growth_rate\` — number, range: 0 to 30
 - **Annual turnover (%)** (\`aum_turnover_percent\`) — number, range: 0 to 100
 - **Withdrawal years** (\`aum_withdrawal_years\`) — number, range: 1 to 30
 - **LTCG rate (%)** (\`ltcg_rate\`) — number, range: 0 to 50
@@ -169,6 +170,7 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **Charge an advisory fee on the managed money** (\`advisory_fee_enabled\`): Models the fee you bill for managing the client's retirement assets. Unlike the AUM Allocation below, this does NOT take money out of the IRA — the Roth conversion runs exactly as planned and the fee simply rides on whatever accounts the money is sitting in (Traditional, Roth and taxable). That is what lets you show "convert the whole IRA to a Roth and I keep managing it": a Roth is the better fee story, because the balance is never drawn down by RMDs. The fee reduces balances only — it is not deductible post-TCJA, and a fee paid from an IRA out of its own assets is not a taxable distribution, so it never changes income, MAGI, IRMAA or the client's brackets.
 - **Advisory Fee (%/yr)** (\`advisory_fee_percent\`): Your annual fee, charged at end of year on the Traditional + Roth + taxable balances. Leave at 0 to turn the feature off. If the client's money is in an annuity that you do not bill on, leave this at 0 — the carrier's own rider fee is modelled separately.
 - **Also charge the fee if they do nothing** (\`advisory_fee_in_baseline\`): Keep this ON unless you genuinely would not manage the money without the conversion. You would be managing the same dollars either way — the conversion only changes which account they sit in — so charging the fee on the strategy alone invents a penalty the do-nothing baseline never pays. On a $2M IRA at 1%/yr to age 95 that asymmetry was worth about $2.8M of advantage the strategy had not actually earned. With the fee on both sides the comparison still isolates the tax decision.  One effect worth knowing: with the fee on both sides it will usually SHRINK the conversion's advantage, not leave it unchanged. A fee taken from a Traditional IRA is effectively paid with pre-tax dollars (heirs were only ever keeping part of that balance), while a fee taken from a Roth is paid with dollars the family fully owns. That is a real cost of converting when you bill a fee, and the report should show it.
+- **Where does the allocated money go?** (\`aum_destination\`): Two genuinely different strategies, so this is the first thing to get right.  **Roth conversion — you manage the Roth.** The money is Roth converted through the normal bracket- and IRMAA-aware engine, then managed at the growth rate you set. Same ordinary tax at conversion, but it lands somewhere with no RMDs and no ongoing tax drag. This is what most advisors mean by "move it to AUM": the advisory account is simply where the converted money is managed instead of an annuity.  **Taxable brokerage — no conversion.** The original behaviour. The slice is pulled out of the IRA at ordinary rates into a taxable account, then pays a fee plus a dividend drag plus a capital-gains turnover drag every year after. Nothing is converted — set this to 100% and the report will correctly say there is no Roth conversion.  The tax at the moment of transfer is the same either way, so the brokerage route is usually worse: measured on a $2M IRA to age 95 with a 1% fee, it cost $1,079,866 of net legacy and left the heirs a taxable account instead of a Roth. Its only advantage is step-up in basis for heirs, which rarely covers 30 years of drag. Choose it when the client genuinely needs the money outside a retirement account.
 - **AUM Fee (%/yr)** (\`aum_fee_percent\`): The annual advisory fee you charge on the brokerage balance. Deducted yearly from the AUM bucket in the projection.
 - **Dividend Yield (%/yr)** (\`aum_dividend_yield\`): Annual dividend yield on the AUM portfolio. Taxed yearly at the LTCG rate below — creates a small drag on after-tax returns.
 - **Annual Turnover (%)** (\`aum_turnover_percent\`): Share of unrealized capital gains realized each year due to portfolio rebalancing. Realized gains pay LTCG tax annually — higher turnover = more tax drag.

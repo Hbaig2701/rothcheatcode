@@ -323,6 +323,8 @@ Click the "Adjust Columns" button (sliders icon) above the table to add/remove/r
 
 A user-level "Favourite Columns" default lives in Settings → "My Columns". New clients open with whatever the advisor picked there.
 
+**Input Panel (Settings → "Input Panel").** Advisors can hide optional input features they don't use: QLAC, Additional Deductions, Tax Credits, IRMAA Tier Targeting, RMDs Handled Externally / Held-back IRA, Capital Gains & Qualified Dividends (income types + LTCG Rate), Advisory Fee, AUM Allocation, IRA / Roth Withdrawals, Years to Defer Conversion, and Widow's Penalty Analysis. Accounts created from October 2026 start with all of these turned OFF. If an advisor can't find one of these fields, tell them to turn it on in Settings → "Input Panel". A hidden feature still shows on any client that already uses it, and hiding never changes results. Section numbers after 6 shift when Section 7 or the Withdrawals section is hidden, so refer to sections by name, not just number.
+
 ## Break-even / payback — what the number actually means
 
 **Definition.** Break-even is the first year the strategy's CUMULATIVE tax paid falls to or
