@@ -5,6 +5,38 @@ import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck
 
 const updates = [
   {
+    id: '51',
+    date: 'October 5, 2026',
+    title: 'Advisory Fee and Roth-Managed Allocation',
+    description: "Show the \"convert to a Roth and I keep managing it\" story. In Section 7 (Advisory Fee & AUM Allocation), check \"Charge an advisory fee on the money you manage\" and set your annual percentage. The fee is applied to the client's balances while the conversion runs exactly as planned.\n\nThe same section lets you allocate part of the IRA to an account you manage. Under \"Where does that money go?\" choose \"Roth conversion — you manage the Roth\" to convert that money and manage it in the Roth, or keep the taxable brokerage option.\n\nClients can see that converting doesn't take assets away from you, and you can compare a managed Roth against a managed taxable account side by side.",
+    category: 'New Feature',
+    icon: HandCoins,
+  },
+  {
+    id: '50',
+    date: 'October 5, 2026',
+    title: 'Choose Your Logo Size on Reports',
+    description: "Pick Small, Medium or Large for how your logo prints on the PDF cover and page headers. Set it in Settings → Business under \"Logo Size on Reports\", or right on the export screen above Report Sections.\n\nWide firm logos can print noticeably bigger, so your branding gets the presence you want on client-facing reports.",
+    category: 'Enhancement',
+    icon: Printer,
+  },
+  {
+    id: '49',
+    date: 'October 2, 2026',
+    title: 'Breakeven Analysis Card',
+    description: "The results dashboard now includes a Breakeven Analysis card with a plain-English headline and four milestones: when conversions are complete, when the conversion tax is paid back, when the Roth overtakes the IRA, and when the strategy stays ahead of doing nothing. Hover any milestone for an explanation of what it measures.\n\nIt gives clients a direct answer to \"when does this pay off?\" without you having to read it off a chart.",
+    category: 'New Feature',
+    icon: TrendingUp,
+  },
+  {
+    id: '48',
+    date: 'September 29, 2026',
+    title: 'Full-Screen Inputs',
+    description: "The Inputs panel on the results page can now expand to full screen. Use the expand button next to the close X, and minimize it again the same way (or press Esc).\n\nYour choice is remembered, so you can work through a client's details in a roomy view and keep it that way across updates.",
+    category: 'Enhancement',
+    icon: SlidersHorizontal,
+  },
+  {
     id: '47',
     date: 'September 24, 2026',
     title: 'Your Compliance Disclosure on Client Reports',
