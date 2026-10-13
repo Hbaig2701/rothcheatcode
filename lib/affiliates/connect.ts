@@ -6,8 +6,8 @@ import type { createAdminClient } from "@/lib/supabase/admin";
  *
  * Each affiliate gets one Express account. Stripe hosts the onboarding
  * (identity, bank account, W-9 / tax ID), so we never handle bank or tax
- * details ourselves. We only ever *transfer* to these accounts — they don't
- * take payments — so `transfers` is the only capability requested.
+ * details ourselves. We only ever *transfer* to these accounts; card_payments
+ * is requested too only because Stripe requires it for US accounts.
  *
  * Account status is pulled from Stripe on demand (when the advisor opens
  * Refer & Earn, returns from onboarding, or the payout job runs) instead of
@@ -39,11 +39,23 @@ export async function ensureConnectAccount(admin: Admin, aff: AffiliateForConnec
       country: "US",
       email: aff.email,
       business_type: "individual",
-      capabilities: { transfers: { requested: true } },
+      // Stripe won't create a US account with `transfers` alone ("cannot
+      // request transfers without card_payments for accounts in US"), so
+      // both are requested even though affiliates only ever receive transfers.
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+      // Pre-answer "what does this business do" so onboarding doesn't ask
+      // advisors for a business website.
+      business_profile: {
+        product_description: "Referral commissions earned from Retirement Expert (retirementexpert.ai).",
+      },
       metadata: { affiliate_id: aff.id },
     },
     // Two clicks on "Set up payouts" must not create two accounts.
-    { idempotencyKey: `affiliate-connect-${aff.id}` }
+    // (v2: v1 keys were used by the rejected transfers-only requests.)
+    { idempotencyKey: `affiliate-connect-v2-${aff.id}` }
   );
 
   const { error } = await admin
