@@ -63,8 +63,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ url });
   } catch (err) {
     console.error("[Affiliate payouts] link error:", err);
+    // Surface Stripe's own message — "couldn't reach Stripe" hid the real
+    // cause (a platform/Connect setting) the first time this failed in prod.
+    const stripeMessage =
+      err && typeof err === "object" && "message" in err ? String((err as { message: unknown }).message) : null;
     return NextResponse.json(
-      { error: "Couldn't reach Stripe. Please try again in a moment." },
+      {
+        error: stripeMessage
+          ? `Stripe couldn't start payout setup: ${stripeMessage}`
+          : "Couldn't reach Stripe. Please try again in a moment.",
+      },
       { status: 502 }
     );
   }

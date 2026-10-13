@@ -14,10 +14,10 @@ function test(name: string, fn: () => void) {
   console.log(`  ✓ ${name}`);
 }
 
-// Annual standard plan: $2,970 list, 20% off → $2,376 paid → 30% = $712.80.
-test("annual referral earns $712.80", () => {
-  const base = commissionBaseCents(237_600, 0);
-  assert.equal(commissionCents(base, 30), 71_280);
+// Annual standard plan: $2,970 list, 35% off → $1,930.50 paid → 30% = $579.15.
+test("annual referral earns $579.15", () => {
+  const base = commissionBaseCents(193_050, 0);
+  assert.equal(commissionCents(base, 30), 57_915);
 });
 
 test("tax is excluded from the commission base", () => {

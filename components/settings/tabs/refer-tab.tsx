@@ -37,6 +37,7 @@ interface CodeEconomics {
 interface EnrolledPayload {
   enrolled: true;
   per_referral_annual: number;
+  referral_discount_pct: number;
   affiliate: {
     id: string;
     name: string;
@@ -74,7 +75,7 @@ interface Payouts {
 }
 
 type MeResponse =
-  | { enrolled: false; per_referral_annual: number }
+  | { enrolled: false; per_referral_annual: number; referral_discount_pct: number }
   | EnrolledPayload;
 
 function money(n: number): string {
@@ -134,7 +135,8 @@ export function ReferTab() {
   if (!data || !data.enrolled) {
     return (
       <JoinCard
-        perReferralAnnual={data?.per_referral_annual ?? 713}
+        perReferralAnnual={data?.per_referral_annual ?? 579}
+        discountPct={data?.referral_discount_pct ?? 35}
         onEnroll={enroll}
         enrolling={enrolling}
         error={error}
@@ -148,11 +150,13 @@ export function ReferTab() {
 // ── Not enrolled: the pitch + one-click join ─────────────────────────────
 function JoinCard({
   perReferralAnnual,
+  discountPct,
   onEnroll,
   enrolling,
   error,
 }: {
   perReferralAnnual: number;
+  discountPct: number;
   onEnroll: () => void;
   enrolling: boolean;
   error: string | null;
@@ -177,7 +181,7 @@ function JoinCard({
             every year — for as long as they stay
           </p>
           <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-            Refer another advisor to Retirement Expert. They get 20% off, you
+            Refer another advisor to Retirement Expert. They get {discountPct}% off, you
             earn {money(perReferralAnnual)}/year in commission — recurring for
             life, not a one-time bounty.
           </p>
@@ -198,8 +202,8 @@ function JoinCard({
       <div className="grid gap-4 sm:grid-cols-3">
         <Perk
           icon={<Gift className="size-4 text-gold" />}
-          title="20% off for them"
-          body="Your referral gets 20% off the annual plan — for as long as they stay subscribed."
+          title={`${discountPct}% off for them`}
+          body={`Your referral gets ${discountPct}% off the annual plan — for as long as they stay subscribed.`}
         />
         <Perk
           icon={<BadgeDollarSign className="size-4 text-gold" />}
@@ -209,7 +213,7 @@ function JoinCard({
         <Perk
           icon={<TrendingUp className="size-4 text-gold" />}
           title="Recurring for life"
-          body="Two referrals is over $1,400/year. Ten is over $7,000/year — as long as they stay."
+          body="Two referrals is over $1,100/year. Ten is nearly $5,800/year — as long as they stay."
         />
       </div>
     </div>
@@ -248,7 +252,7 @@ function Dashboard({
   const primary =
     data.codes.find((c) => c.code === data.referral_code) ?? data.codes[0] ?? null;
 
-  const shareMessage = `Sign up for Retirement Expert at ${data.signup_url} and use code ${data.referral_code} for 20% off the annual plan.`;
+  const shareMessage = `Sign up for Retirement Expert at ${data.signup_url} and use code ${data.referral_code} for ${data.referral_discount_pct}% off the annual plan.`;
 
   const copy = async (text: string) => {
     try {
@@ -270,7 +274,8 @@ function Dashboard({
             Your referral code
           </CardTitle>
           <CardDescription>
-            Share this code. Your referral enters it at checkout for 20% off the
+            Share this code. Your referral enters it at checkout for{" "}
+            {data.referral_discount_pct}% off the
             annual plan, and you earn {primary ? primary.commission_pct : 30}%
             commission on it.
           </CardDescription>

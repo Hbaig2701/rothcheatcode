@@ -18,15 +18,15 @@ import { getEarningsSummary } from "@/lib/affiliates/payouts";
 // Payout setup (Stripe Connect) lives in /api/affiliate/payouts.
 //
 // Every self-serve affiliate is created at the standard tier: their referral
-// gets 20% off the annual plan forever, and they earn the tier's default
+// gets 35% off the annual plan forever, and they earn the tier's default
 // commission on it. Admins can still bump specific partners to a richer deal
 // in the admin panel — this only sets the default for the self-serve path.
-const SELF_SERVE_TIER: DiscountTier = 20;
+const SELF_SERVE_TIER: DiscountTier = 35;
 
 // Headline figure for the pitch: what an advisor earns per referral each year,
 // recurring for as long as that referral stays subscribed. Derived from the
 // live annual price + tier so it never drifts from what customers actually pay.
-// At $2,970/yr annual, 20% off, 30% commission → $713/yr per referral.
+// At $2,970/yr annual, 35% off, 30% commission → $579/yr per referral.
 function perReferralAnnualCommission(): number {
   const commissionPct = getTierConfig(SELF_SERVE_TIER).defaultCommissionPct;
   const discounted = PLAN_PRICES.standard.annual.amount * (1 - SELF_SERVE_TIER / 100);
@@ -106,6 +106,7 @@ async function buildEnrolledPayload(admin: Admin, aff: AffiliateRow) {
   return {
     enrolled: true as const,
     per_referral_annual: perReferralAnnualCommission(),
+    referral_discount_pct: SELF_SERVE_TIER,
     affiliate: {
       id: aff.id as string,
       name: aff.name as string,
@@ -157,6 +158,7 @@ export async function GET() {
     return NextResponse.json({
       enrolled: false,
       per_referral_annual: perReferralAnnualCommission(),
+      referral_discount_pct: SELF_SERVE_TIER,
     });
   }
   return NextResponse.json(await buildEnrolledPayload(admin, aff));

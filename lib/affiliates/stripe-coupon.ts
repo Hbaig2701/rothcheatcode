@@ -1,7 +1,8 @@
 import { getStripe } from "@/lib/stripe";
 
 /**
- * Each affiliate can have up to one code per discount tier (20%/10%/5%).
+ * Each affiliate can have up to one code per discount tier. Self-serve
+ * affiliates get the 35% tier; 20%/10%/5% are the legacy admin-partner tiers.
  * One master Stripe Coupon per tier is shared across all affiliates;
  * each affiliate gets their own Stripe Promotion Code per tier (e.g.
  * JANE20, JANE10, JANE5) pointing at the matching master coupon.
@@ -11,7 +12,7 @@ import { getStripe } from "@/lib/stripe";
  * monthly subscriptions.
  */
 
-export const DISCOUNT_TIERS = [20, 10, 5] as const;
+export const DISCOUNT_TIERS = [35, 20, 10, 5] as const;
 export type DiscountTier = (typeof DISCOUNT_TIERS)[number];
 
 interface TierConfig {
@@ -24,6 +25,11 @@ interface TierConfig {
 }
 
 const TIER_CONFIG: Record<DiscountTier, TierConfig> = {
+  35: {
+    couponId: "AFFILIATE_PROGRAM_35OFF",
+    couponName: "Affiliate 35% Off Annual Forever",
+    defaultCommissionPct: 30,
+  },
   20: {
     couponId: "AFFILIATE_PROGRAM_20OFF",
     couponName: "Affiliate 20% Off Annual Forever",
@@ -97,7 +103,7 @@ export async function createAffiliatePromotionCode(
     active: true,
     // Referral codes are for new customers. An existing subscriber — most
     // importantly the affiliate themselves — can't redeem one, which closes
-    // the "refer yourself for 20% off plus 30% back" loophole at checkout.
+    // the "refer yourself for 35% off plus 30% back" loophole at checkout.
     // (Commission on self-referrals is also blocked in lib/affiliates/commissions.ts.)
     restrictions: { first_time_transaction: true },
   });
