@@ -27,7 +27,7 @@ const TIER_CONFIG: Record<DiscountTier, TierConfig> = {
   20: {
     couponId: "AFFILIATE_PROGRAM_20OFF",
     couponName: "Affiliate 20% Off Annual Forever",
-    defaultCommissionPct: 25,
+    defaultCommissionPct: 30,
   },
   10: {
     couponId: "AFFILIATE_PROGRAM_10OFF",
@@ -97,7 +97,7 @@ export async function createAffiliatePromotionCode(
     active: true,
     // Referral codes are for new customers. An existing subscriber — most
     // importantly the affiliate themselves — can't redeem one, which closes
-    // the "refer yourself for 20% off plus 25% back" loophole at checkout.
+    // the "refer yourself for 20% off plus 30% back" loophole at checkout.
     // (Commission on self-referrals is also blocked in lib/affiliates/commissions.ts.)
     restrictions: { first_time_transaction: true },
   });

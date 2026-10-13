@@ -26,7 +26,7 @@ const SELF_SERVE_TIER: DiscountTier = 20;
 // Headline figure for the pitch: what an advisor earns per referral each year,
 // recurring for as long as that referral stays subscribed. Derived from the
 // live annual price + tier so it never drifts from what customers actually pay.
-// At $2,970/yr annual, 20% off, 25% commission → $594/yr per referral.
+// At $2,970/yr annual, 20% off, 30% commission → $713/yr per referral.
 function perReferralAnnualCommission(): number {
   const commissionPct = getTierConfig(SELF_SERVE_TIER).defaultCommissionPct;
   const discounted = PLAN_PRICES.standard.annual.amount * (1 - SELF_SERVE_TIER / 100);

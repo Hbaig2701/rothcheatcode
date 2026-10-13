@@ -134,7 +134,7 @@ export function ReferTab() {
   if (!data || !data.enrolled) {
     return (
       <JoinCard
-        perReferralAnnual={data?.per_referral_annual ?? 594}
+        perReferralAnnual={data?.per_referral_annual ?? 713}
         onEnroll={enroll}
         enrolling={enrolling}
         error={error}
@@ -204,12 +204,12 @@ function JoinCard({
         <Perk
           icon={<BadgeDollarSign className="size-4 text-gold" />}
           title={`${money(perReferralAnnual)} to you`}
-          body="You earn 25% commission on what each referral pays, every single year they renew."
+          body="You earn 30% commission on what each referral pays, every single year they renew."
         />
         <Perk
           icon={<TrendingUp className="size-4 text-gold" />}
           title="Recurring for life"
-          body="Two referrals is over $1,000/year. Ten is nearly $6,000/year — as long as they stay."
+          body="Two referrals is over $1,400/year. Ten is over $7,000/year — as long as they stay."
         />
       </div>
     </div>
@@ -271,7 +271,7 @@ function Dashboard({
           </CardTitle>
           <CardDescription>
             Share this code. Your referral enters it at checkout for 20% off the
-            annual plan, and you earn {primary ? primary.commission_pct : 25}%
+            annual plan, and you earn {primary ? primary.commission_pct : 30}%
             commission on it.
           </CardDescription>
         </CardHeader>

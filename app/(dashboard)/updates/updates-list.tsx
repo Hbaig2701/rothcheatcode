@@ -80,7 +80,7 @@ const updates = [
     id: '38',
     date: 'July 14, 2026',
     title: 'Refer & Earn',
-    description: "You can now enrol yourself in the referral programme from Settings → Refer & Earn. You get your own link, your referrals get 20% off, and you earn 25% commission — around $594 a year for every advisor who signs up through you.\n\nThe page shows who's signed up, who's started and not finished, and what you've earned, so you can follow up with the ones still sitting on the fence.",
+    description: "You can now enrol yourself in the referral programme from Settings → Refer & Earn. You get your own link, your referrals get 20% off, and you earn 30% commission — around $713 a year for every advisor who signs up through you.\n\nThe page shows who's signed up, who's started and not finished, and what you've earned, so you can follow up with the ones still sitting on the fence.",
     category: 'New Feature',
     icon: HandCoins,
   },
