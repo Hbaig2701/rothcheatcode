@@ -95,6 +95,11 @@ export async function createAffiliatePromotionCode(
     promotion: { type: "coupon", coupon: couponId },
     code: code.toUpperCase(),
     active: true,
+    // Referral codes are for new customers. An existing subscriber — most
+    // importantly the affiliate themselves — can't redeem one, which closes
+    // the "refer yourself for 20% off plus 25% back" loophole at checkout.
+    // (Commission on self-referrals is also blocked in lib/affiliates/commissions.ts.)
+    restrictions: { first_time_transaction: true },
   });
   return { promotion_code_id: promo.id, coupon_id: couponId };
 }

@@ -1,5 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -8,12 +7,15 @@ import {
   type DiscountTier,
 } from "@/lib/affiliates/stripe-coupon";
 import { PLAN_PRICES } from "@/lib/config/plans";
+import { syncConnectAccount, type PayoutAccountStatus } from "@/lib/affiliates/connect";
+import { getEarningsSummary } from "@/lib/affiliates/payouts";
 
 // Self-serve affiliate program for logged-in advisors.
 //
 //  GET   → enrollment status + referral code + live stats (if enrolled)
 //  POST  → enroll instantly (find-or-create affiliate + Stripe promo code)
-//  PATCH → set the PayPal email payouts are sent to
+//
+// Payout setup (Stripe Connect) lives in /api/affiliate/payouts.
 //
 // Every self-serve affiliate is created at the standard tier: their referral
 // gets 20% off the annual plan forever, and they earn the tier's default
@@ -76,6 +78,22 @@ async function buildEnrolledPayload(admin: Admin, aff: AffiliateRow) {
     };
   });
 
+  // Payout account status. Only ask Stripe while setup is unfinished — once
+  // payouts are enabled the cached flag is enough (the monthly payout run
+  // re-checks it before every transfer).
+  let payoutStatus: PayoutAccountStatus = "not_started";
+  if (aff.stripe_account_id) {
+    payoutStatus = aff.payouts_enabled ? "active" : "incomplete";
+    if (!aff.payouts_enabled) {
+      try {
+        payoutStatus = await syncConnectAccount(admin, aff.id, aff.stripe_account_id);
+      } catch (err) {
+        console.error("[Affiliate] Could not sync payout account:", err);
+      }
+    }
+  }
+  const earnings = await getEarningsSummary(admin, aff.id);
+
   const totalRecurringCommission = codes.reduce(
     (acc, c) => acc + c.annual_recurring_commission,
     0
@@ -92,7 +110,6 @@ async function buildEnrolledPayload(admin: Admin, aff: AffiliateRow) {
       id: aff.id as string,
       name: aff.name as string,
       email: aff.email as string,
-      paypal_email: (aff.paypal_email ?? null) as string | null,
       is_active: Boolean(aff.is_active),
       created_at: aff.created_at as string,
     },
@@ -108,6 +125,10 @@ async function buildEnrolledPayload(admin: Admin, aff: AffiliateRow) {
     totals: {
       active_subscribers: Number(s?.active_annual ?? 0),
       annual_recurring_commission: totalRecurringCommission,
+    },
+    payouts: {
+      status: payoutStatus,
+      ...earnings,
     },
   };
 }
@@ -342,42 +363,4 @@ export async function POST() {
   return NextResponse.json(await buildEnrolledPayload(admin, affiliate), {
     status: 201,
   });
-}
-
-const patchSchema = z.object({
-  paypal_email: z.string().trim().email(),
-});
-
-// PATCH /api/affiliate/me — set the PayPal email payouts go to.
-export async function PATCH(request: NextRequest) {
-  const user = await getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-  const parsed = patchSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "A valid PayPal email is required." }, { status: 400 });
-  }
-
-  const admin = createAdminClient();
-  const { data: aff, error } = await admin
-    .from("affiliates")
-    .update({ paypal_email: parsed.data.paypal_email })
-    .eq("owner_profile_id", user.id)
-    .select()
-    .maybeSingle();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!aff) {
-    return NextResponse.json(
-      { error: "You're not enrolled in the referral program yet." },
-      { status: 404 }
-    );
-  }
-  return NextResponse.json(await buildEnrolledPayload(admin, aff));
 }

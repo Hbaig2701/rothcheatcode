@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Loader2,
   Gift,
@@ -19,6 +18,8 @@ import {
   TrendingUp,
   BadgeDollarSign,
   Clock,
+  Landmark,
+  ExternalLink,
 } from "lucide-react";
 
 interface CodeEconomics {
@@ -40,7 +41,6 @@ interface EnrolledPayload {
     id: string;
     name: string;
     email: string;
-    paypal_email: string | null;
     is_active: boolean;
     created_at: string;
   };
@@ -56,6 +56,21 @@ interface EnrolledPayload {
     active_subscribers: number;
     annual_recurring_commission: number;
   };
+  payouts: Payouts;
+}
+
+interface Payouts {
+  status: "not_started" | "incomplete" | "active";
+  pending_cents: number;
+  available_cents: number;
+  paid_cents: number;
+  min_payout_cents: number;
+  payouts: Array<{
+    id: string;
+    amount_cents: number;
+    status: "processing" | "paid";
+    date: string;
+  }>;
 }
 
 type MeResponse =
@@ -127,7 +142,7 @@ export function ReferTab() {
     );
   }
 
-  return <Dashboard data={data} onPayoutSaved={setData} error={error} />;
+  return <Dashboard data={data} error={error} />;
 }
 
 // ── Not enrolled: the pitch + one-click join ─────────────────────────────
@@ -221,14 +236,12 @@ function Perk({
   );
 }
 
-// ── Enrolled: code + stats + payout email ────────────────────────────────
+// ── Enrolled: code + stats + payouts ─────────────────────────────────────
 function Dashboard({
   data,
-  onPayoutSaved,
   error,
 }: {
   data: EnrolledPayload;
-  onPayoutSaved: (d: MeResponse) => void;
   error: string | null;
 }) {
   const [copied, setCopied] = useState(false);
@@ -336,11 +349,8 @@ function Dashboard({
         />
       </div>
 
-      {/* Payout details */}
-      <PayoutCard
-        current={data.affiliate.paypal_email}
-        onSaved={onPayoutSaved}
-      />
+      {/* Earnings + payout account */}
+      <PayoutsCard payouts={data.payouts} />
 
       {error && <p className="text-sm text-[#ef4444]">{error}</p>}
     </div>
@@ -374,79 +384,160 @@ function Stat({
   );
 }
 
-function PayoutCard({
-  current,
-  onSaved,
-}: {
-  current: string | null;
-  onSaved: (d: MeResponse) => void;
-}) {
-  const [value, setValue] = useState(current ?? "");
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+function cents(n: number): string {
+  return `$${(n / 100).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
-  const save = async () => {
-    setSaving(true);
+function PayoutsCard({ payouts }: { payouts: Payouts }) {
+  const [opening, setOpening] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const open = async (action: "onboard" | "dashboard") => {
+    setOpening(true);
     setMsg(null);
     try {
-      const res = await fetch("/api/affiliate/me", {
-        method: "PATCH",
+      const res = await fetch("/api/affiliate/payouts", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paypal_email: value.trim() }),
+        body: JSON.stringify({ action }),
       });
       const json = await res.json();
-      if (!res.ok) {
-        setMsg({ ok: false, text: json.error ?? "Couldn't save." });
-      } else {
-        setMsg({ ok: true, text: "Payout email saved." });
-        onSaved(json as MeResponse);
+      if (!res.ok || !json.url) {
+        setMsg(json.error ?? "Couldn't open Stripe. Please try again.");
+        setOpening(false);
+        return;
       }
+      window.location.href = json.url as string;
     } catch {
-      setMsg({ ok: false, text: "Couldn't save. Please try again." });
-    } finally {
-      setSaving(false);
+      setMsg("Couldn't open Stripe. Please try again.");
+      setOpening(false);
     }
   };
+
+  const { status } = payouts;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Payout details</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Landmark className="size-4 text-gold" />
+          Earnings &amp; payouts
+        </CardTitle>
         <CardDescription>
-          Commissions are paid to this PayPal address.
+          Commissions clear 30 days after your referral pays, then go straight
+          to your bank on the 1st of each month once you have at least{" "}
+          {cents(payouts.min_payout_cents)} cleared.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-3">
-          <Input
-            type="email"
-            placeholder="you@example.com"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            className="flex-1"
+      <CardContent className="space-y-5">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Balance
+            label="Pending"
+            value={cents(payouts.pending_cents)}
+            sub="in the 30-day hold"
           />
+          <Balance
+            label="Ready to pay"
+            value={cents(payouts.available_cents)}
+            sub="goes out on the 1st"
+          />
+          <Balance
+            label="Paid to date"
+            value={cents(payouts.paid_cents)}
+          />
+        </div>
+
+        <div className="flex flex-col gap-3 rounded-[10px] border border-border-default bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm">
+            {status === "active" && (
+              <p className="text-foreground">
+                <Check className="mr-1.5 inline size-4 text-green" />
+                Payouts are set up. Manage your bank and tax forms in Stripe.
+              </p>
+            )}
+            {status === "incomplete" && (
+              <p className="text-foreground">
+                Your payout setup isn&apos;t finished — complete it so we can
+                pay you.
+              </p>
+            )}
+            {status === "not_started" && (
+              <p className="text-foreground">
+                Connect a bank account through Stripe to get paid. Takes about
+                five minutes; Stripe also collects your W-9.
+              </p>
+            )}
+          </div>
           <Button
-            onClick={save}
-            disabled={saving || !value.trim() || value.trim() === (current ?? "")}
+            onClick={() => open(status === "active" ? "dashboard" : "onboard")}
+            disabled={opening}
+            variant={status === "active" ? "outline" : "default"}
             className="shrink-0"
           >
-            {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Save
+            {opening ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              status === "active" && <ExternalLink className="mr-2 size-4" />
+            )}
+            {status === "active"
+              ? "Open Stripe dashboard"
+              : status === "incomplete"
+                ? "Finish payout setup"
+                : "Set up payouts"}
           </Button>
         </div>
-        {msg && (
-          <p
-            className={`text-sm ${msg.ok ? "text-green" : "text-[#ef4444]"}`}
-          >
-            {msg.text}
-          </p>
-        )}
-        {!current && !msg && (
-          <p className="text-xs text-muted-foreground">
-            Add your PayPal email so we can pay out your commissions.
-          </p>
+        {msg && <p className="text-sm text-[#ef4444]">{msg}</p>}
+
+        {payouts.payouts.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">
+              Payout history
+            </p>
+            <ul className="divide-y divide-border-default rounded-[10px] border border-border-default text-sm">
+              {payouts.payouts.map((p) => (
+                <li key={p.id} className="flex items-center justify-between px-4 py-2.5">
+                  <span className="text-muted-foreground">
+                    {new Date(p.date).toLocaleDateString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                  <span className="font-medium text-foreground">
+                    {cents(p.amount_cents)}
+                    {p.status === "processing" && (
+                      <span className="ml-2 text-xs font-normal text-muted-foreground">
+                        processing
+                      </span>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function Balance({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <div className="rounded-[10px] border border-border-default p-3">
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xl font-semibold text-foreground">{value}</p>
+      {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+    </div>
   );
 }

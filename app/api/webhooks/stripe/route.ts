@@ -5,6 +5,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getPlanFromPriceId } from "@/lib/config/plans";
 import { PLAN_LIMITS } from "@/lib/config/plans";
 import { sendSignupContinuationEmail } from "@/lib/notifications/email";
+import {
+  isSelfReferral,
+  recordChargeRefunds,
+  recordDispute,
+  recordDisputeWon,
+  recordInvoiceCommission,
+} from "@/lib/affiliates/commissions";
 
 /** Send a notification to Slack via incoming webhook. Fails silently. */
 async function notifySlack(text: string) {
@@ -176,7 +183,9 @@ export async function POST(request: NextRequest) {
                 .select("id, affiliate_id, code")
                 .eq("stripe_promotion_code_id", promotionCodeId)
                 .maybeSingle();
-              if (affCode) {
+              if (affCode && (await isSelfReferral(supabase, affCode.affiliate_id, { profileId: profile.id, stripeCustomerId: customerId }))) {
+                console.warn(`[Stripe Webhook] Profile ${profile.id} redeemed their own referral code ${affCode.code} — not attributing`);
+              } else if (affCode) {
                 updateData.affiliate_id = affCode.affiliate_id;
                 updateData.affiliate_code_id = affCode.id;
                 console.log(`[Stripe Webhook] Attributed profile ${profile.id} to affiliate ${affCode.affiliate_id} via code ${affCode.code} (${promotionCodeId})`);
@@ -521,6 +530,35 @@ export async function POST(request: NextRequest) {
         } else {
           console.warn(`[Stripe Webhook] No profile found for customer ${customerId} to reset usage`);
         }
+
+        // Affiliate commission for referred customers. Caught rather than
+        // thrown: a 500 would make Stripe replay this whole event and re-zero
+        // the usage counters above. A miss is flagged in Slack to backfill.
+        try {
+          await recordInvoiceCommission(supabase, invoice);
+        } catch (err) {
+          console.error(`[Stripe Webhook] Affiliate commission failed for invoice ${invoice.id}:`, err);
+          await notifySlack(`:warning: Affiliate commission NOT recorded for invoice ${invoice.id} (customer ${customerId}): ${err instanceof Error ? err.message : String(err)}`);
+        }
+        break;
+      }
+
+      // =================================================================
+      // REFUNDS / DISPUTES — Reverse affiliate commission
+      // =================================================================
+      // Only touches invoices that earned a commission; everything else is a
+      // no-op. Ledger rows are keyed by refund/dispute id, so Stripe retries
+      // are safe and errors are allowed to 500 so Stripe does retry.
+      case "charge.refunded": {
+        await recordChargeRefunds(supabase, event.data.object as Stripe.Charge);
+        break;
+      }
+      case "charge.dispute.created": {
+        await recordDispute(supabase, event.data.object as Stripe.Dispute);
+        break;
+      }
+      case "charge.dispute.closed": {
+        await recordDisputeWon(supabase, event.data.object as Stripe.Dispute);
         break;
       }
     }
