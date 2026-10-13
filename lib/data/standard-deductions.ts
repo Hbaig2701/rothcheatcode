@@ -115,7 +115,10 @@ export function getStandardDeduction(
     if (age >= 65) {
       seniorBonus += seniorBonusPerSpouse;
     }
-    if (spouseAge && spouseAge >= 65) {
+    // On a separate return the spouse's additional amount is claimable only
+    // when the spouse has no income and files no return — not modelled, so
+    // only a joint return counts the spouse.
+    if (status === 'married_filing_jointly' && spouseAge && spouseAge >= 65) {
       seniorBonus += seniorBonusPerSpouse;
     }
   } else {

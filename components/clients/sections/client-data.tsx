@@ -20,6 +20,7 @@ import { FIELD_HELP } from "@/lib/copy/field-help-content";
 const FILING_STATUS_OPTIONS = [
   { value: "single", label: "Single" },
   { value: "married_filing_jointly", label: "Married Filing Jointly" },
+  { value: "married_filing_separately", label: "Married Filing Separately" },
 ] as const;
 
 export function ClientDataSection() {

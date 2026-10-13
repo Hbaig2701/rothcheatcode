@@ -34,8 +34,8 @@ export const FIELD_HELP = {
   },
   filing_status: {
     title: "Filing Status",
-    body: "How the client files their federal taxes. Drives the tax brackets and standard deduction used in every projection year. Choose 'Married Filing Jointly' for married couples filing together — this gives the wider brackets that allow larger Roth conversions at the same rate.",
-    example: "A retired couple filing one return together → Married Filing Jointly. A widow filing on her own → Single.",
+    body: "How the client files their federal taxes. Drives the tax brackets and standard deduction used in every projection year. Choose 'Married Filing Jointly' for married couples filing together — this gives the wider brackets that allow larger Roth conversions at the same rate. 'Married Filing Separately' models only this client's own return (the spouse's income and Social Security are left out). Medicare IRMAA is figured on the single-filer thresholds, which is correct when the spouses lived apart the entire year.",
+    example: "A retired couple filing one return together → Married Filing Jointly. A widow filing on her own → Single. A married client living in a different state from their spouse, each filing their own return → Married Filing Separately.",
   },
   name: {
     title: "Client Name",
