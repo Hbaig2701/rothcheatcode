@@ -107,6 +107,7 @@ async function buildEnrolledPayload(admin: Admin, aff: AffiliateRow) {
     enrolled: true as const,
     per_referral_annual: perReferralAnnualCommission(),
     referral_discount_pct: SELF_SERVE_TIER,
+    referral_commission_pct: getTierConfig(SELF_SERVE_TIER).defaultCommissionPct,
     affiliate: {
       id: aff.id as string,
       name: aff.name as string,
@@ -159,6 +160,7 @@ export async function GET() {
       enrolled: false,
       per_referral_annual: perReferralAnnualCommission(),
       referral_discount_pct: SELF_SERVE_TIER,
+      referral_commission_pct: getTierConfig(SELF_SERVE_TIER).defaultCommissionPct,
     });
   }
   return NextResponse.json(await buildEnrolledPayload(admin, aff));

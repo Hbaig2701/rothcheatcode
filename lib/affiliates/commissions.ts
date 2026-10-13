@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import type { createAdminClient } from "@/lib/supabase/admin";
+import { COMMISSION_HOLD_DAYS, MIN_PAYOUT_CENTS } from "./constants";
 
 /**
  * Affiliate commission ledger (table `affiliate_commissions`).
@@ -16,12 +17,7 @@ import type { createAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-/** Commissions wait this long before they can be paid out, so a refund in
- *  the first month never leaves us having paid on money we gave back. */
-export const COMMISSION_HOLD_DAYS = 30;
-
-/** Balances under this carry over to the next month's run. */
-export const MIN_PAYOUT_CENTS = 5000;
+export { COMMISSION_HOLD_DAYS, MIN_PAYOUT_CENTS };
 
 // ── Pure math (unit-tested) ──────────────────────────────────────────────
 

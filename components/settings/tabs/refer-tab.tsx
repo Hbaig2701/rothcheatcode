@@ -21,6 +21,7 @@ import {
   Landmark,
   ExternalLink,
 } from "lucide-react";
+import { ReferFaq } from "./refer-faq";
 
 interface CodeEconomics {
   id: string;
@@ -38,6 +39,7 @@ interface EnrolledPayload {
   enrolled: true;
   per_referral_annual: number;
   referral_discount_pct: number;
+  referral_commission_pct: number;
   affiliate: {
     id: string;
     name: string;
@@ -79,6 +81,7 @@ type MeResponse =
       enrolled: false;
       per_referral_annual: number;
       referral_discount_pct: number;
+      referral_commission_pct: number;
     }
   | EnrolledPayload;
 
@@ -141,6 +144,7 @@ export function ReferTab() {
       <JoinCard
         perReferralAnnual={data?.per_referral_annual ?? 579}
         discountPct={data?.referral_discount_pct ?? 35}
+        commissionPct={data?.referral_commission_pct ?? 30}
         onEnroll={enroll}
         enrolling={enrolling}
         error={error}
@@ -155,12 +159,14 @@ export function ReferTab() {
 function JoinCard({
   perReferralAnnual,
   discountPct,
+  commissionPct,
   onEnroll,
   enrolling,
   error,
 }: {
   perReferralAnnual: number;
   discountPct: number;
+  commissionPct: number;
   onEnroll: () => void;
   enrolling: boolean;
   error: string | null;
@@ -212,7 +218,7 @@ function JoinCard({
         <Perk
           icon={<BadgeDollarSign className="size-4 text-gold" />}
           title={`${money(perReferralAnnual)} to you`}
-          body="You earn 30% commission on what each referral pays, every single year they renew."
+          body={`You earn ${commissionPct}% commission on what each referral pays, every single year they renew.`}
         />
         <Perk
           icon={<TrendingUp className="size-4 text-gold" />}
@@ -220,6 +226,12 @@ function JoinCard({
           body="Two referrals is over $1,100/year. Ten is nearly $5,800/year — as long as they stay."
         />
       </div>
+
+      <ReferFaq
+        discountPct={discountPct}
+        commissionPct={commissionPct}
+        perReferralAnnual={perReferralAnnual}
+      />
     </div>
   );
 }
@@ -361,6 +373,12 @@ function Dashboard({
 
       {/* Earnings + payout account */}
       <PayoutsCard payouts={data.payouts} />
+
+      <ReferFaq
+        discountPct={data.referral_discount_pct}
+        commissionPct={data.referral_commission_pct}
+        perReferralAnnual={data.per_referral_annual}
+      />
 
       {error && <p className="text-sm text-[#ef4444]">{error}</p>}
     </div>
