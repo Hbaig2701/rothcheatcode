@@ -28,14 +28,20 @@ export interface PayoutRunResult {
   reason?: string;
 }
 
+/** The transfer already made for this payout, if any (transfer_group = payout id). */
+async function findTransfer(payoutId: string): Promise<string | null> {
+  const existing = await getStripe().transfers.list({ transfer_group: payoutId, limit: 1 });
+  return existing.data[0]?.id ?? null;
+}
+
 async function transferForPayout(
   payoutId: string,
   accountId: string,
   amountCents: number
 ): Promise<string> {
   const stripe = getStripe();
-  const existing = await stripe.transfers.list({ transfer_group: payoutId, limit: 1 });
-  if (existing.data[0]) return existing.data[0].id;
+  const existing = await findTransfer(payoutId);
+  if (existing) return existing;
 
   const transfer = await stripe.transfers.create(
     {
@@ -57,16 +63,34 @@ async function settlePayout(
   accountId: string,
   amountCents: number
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  try {
-    const transferId = await transferForPayout(payoutId, accountId, amountCents);
-    await admin
+  const markPaid = (transferId: string) =>
+    admin
       .from("affiliate_payouts")
       .update({ status: "paid", stripe_transfer_id: transferId, paid_at: new Date().toISOString() })
       .eq("id", payoutId);
+
+  try {
+    await markPaid(await transferForPayout(payoutId, accountId, amountCents));
     return { ok: true };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    // Release the rows so next month's run picks the balance up again.
+
+    // An error doesn't prove the transfer didn't happen (e.g. a timeout after
+    // Stripe accepted it). Releasing the rows then would pay them twice next
+    // run, so only release once Stripe confirms there's no transfer.
+    let made: string | null;
+    try {
+      made = await findTransfer(payoutId);
+    } catch {
+      // Can't tell — leave it 'processing'; the next run resumes it safely.
+      return { ok: false, error: `${message} (left in progress; next run will retry)` };
+    }
+    if (made) {
+      await markPaid(made);
+      return { ok: true };
+    }
+
+    // Definitely not sent: release the rows so the next run picks them up.
     await admin.from("affiliate_commissions").update({ payout_id: null }).eq("payout_id", payoutId);
     await admin.from("affiliate_payouts").update({ status: "failed", error: message }).eq("id", payoutId);
     return { ok: false, error: message };

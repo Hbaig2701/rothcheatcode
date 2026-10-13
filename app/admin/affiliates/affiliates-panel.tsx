@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus, Copy, Check, ExternalLink, ShoppingCart, Sparkles } from "lucide-react";
+import { Loader2, Plus, Copy, Check, ExternalLink, ShoppingCart, Sparkles, Landmark } from "lucide-react";
 
 interface CodeRow {
   id: string;
@@ -166,6 +166,13 @@ export function AffiliatesPanel({ affiliates }: { affiliates: AffiliateWithStats
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/admin/affiliates/payouts"
+            className="inline-flex items-center gap-2 rounded-md border border-border-default px-3 py-2 text-sm font-medium text-foreground hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+          >
+            <Landmark className="size-4" />
+            Payouts
+          </Link>
           <Link
             href="/admin/affiliates/abandoned"
             className="inline-flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-400 hover:bg-amber-500/20 transition-colors"
