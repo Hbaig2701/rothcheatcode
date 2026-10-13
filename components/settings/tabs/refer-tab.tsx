@@ -75,7 +75,11 @@ interface Payouts {
 }
 
 type MeResponse =
-  | { enrolled: false; per_referral_annual: number; referral_discount_pct: number }
+  | {
+      enrolled: false;
+      per_referral_annual: number;
+      referral_discount_pct: number;
+    }
   | EnrolledPayload;
 
 function money(n: number): string {
@@ -181,9 +185,9 @@ function JoinCard({
             every year — for as long as they stay
           </p>
           <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-            Refer another advisor to Retirement Expert. They get {discountPct}% off, you
-            earn {money(perReferralAnnual)}/year in commission — recurring for
-            life, not a one-time bounty.
+            Refer another advisor to Retirement Expert. They get {discountPct}%
+            off, you earn {money(perReferralAnnual)}/year in commission —
+            recurring for life, not a one-time bounty.
           </p>
           <div className="mt-6 flex flex-col items-center gap-2">
             <Button onClick={onEnroll} disabled={enrolling} size="lg">
@@ -250,7 +254,9 @@ function Dashboard({
 }) {
   const [copied, setCopied] = useState(false);
   const primary =
-    data.codes.find((c) => c.code === data.referral_code) ?? data.codes[0] ?? null;
+    data.codes.find((c) => c.code === data.referral_code) ??
+    data.codes[0] ??
+    null;
 
   const shareMessage = `Sign up for Retirement Expert at ${data.signup_url} and use code ${data.referral_code} for ${data.referral_discount_pct}% off the annual plan.`;
 
@@ -275,9 +281,8 @@ function Dashboard({
           </CardTitle>
           <CardDescription>
             Share this code. Your referral enters it at checkout for{" "}
-            {data.referral_discount_pct}% off the
-            annual plan, and you earn {primary ? primary.commission_pct : 30}%
-            commission on it.
+            {data.referral_discount_pct}% off the annual plan, and you earn{" "}
+            {primary ? primary.commission_pct : 30}% commission on it.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -317,8 +322,8 @@ function Dashboard({
 
           {primary && (
             <p className="text-xs text-muted-foreground">
-              Each referral pays {money(primary.discounted_annual)}/yr after their
-              discount — you earn{" "}
+              Each referral pays {money(primary.discounted_annual)}/yr after
+              their discount — you earn{" "}
               <span className="font-medium text-foreground">
                 {money(primary.annual_commission_per_customer)}/yr
               </span>{" "}
@@ -399,6 +404,8 @@ function cents(n: number): string {
 function PayoutsCard({ payouts }: { payouts: Payouts }) {
   const [opening, setOpening] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  // Stripe fixes a payout account's country when it's created, so ask first.
+  const [country, setCountry] = useState<"" | "US" | "CA">("");
 
   const open = async (action: "onboard" | "dashboard") => {
     setOpening(true);
@@ -407,7 +414,9 @@ function PayoutsCard({ payouts }: { payouts: Payouts }) {
       const res = await fetch("/api/affiliate/payouts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify(
+          action === "onboard" ? { action, country } : { action },
+        ),
       });
       const json = await res.json();
       if (!res.ok || !json.url) {
@@ -449,10 +458,7 @@ function PayoutsCard({ payouts }: { payouts: Payouts }) {
             value={cents(payouts.available_cents)}
             sub="goes out on the 1st"
           />
-          <Balance
-            label="Paid to date"
-            value={cents(payouts.paid_cents)}
-          />
+          <Balance label="Paid to date" value={cents(payouts.paid_cents)} />
         </div>
 
         <div className="flex flex-col gap-3 rounded-[10px] border border-border-default bg-secondary/40 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -472,27 +478,43 @@ function PayoutsCard({ payouts }: { payouts: Payouts }) {
             {status === "not_started" && (
               <p className="text-foreground">
                 Connect a bank account through Stripe to get paid. Takes about
-                five minutes; Stripe also collects your W-9.
+                five minutes; Stripe also collects your tax info.
               </p>
             )}
           </div>
-          <Button
-            onClick={() => open(status === "active" ? "dashboard" : "onboard")}
-            disabled={opening}
-            variant={status === "active" ? "outline" : "default"}
-            className="shrink-0"
-          >
-            {opening ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              status === "active" && <ExternalLink className="mr-2 size-4" />
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+            {status !== "active" && (
+              <select
+                aria-label="Country of your bank account"
+                value={country}
+                onChange={(e) => setCountry(e.target.value as "" | "US" | "CA")}
+                className="h-9 rounded-md border border-border-default bg-background px-3 text-sm text-foreground"
+              >
+                <option value="">Bank account country…</option>
+                <option value="US">United States</option>
+                <option value="CA">Canada</option>
+              </select>
             )}
-            {status === "active"
-              ? "Open Stripe dashboard"
-              : status === "incomplete"
-                ? "Finish payout setup"
-                : "Set up payouts"}
-          </Button>
+            <Button
+              onClick={() =>
+                open(status === "active" ? "dashboard" : "onboard")
+              }
+              disabled={opening || (status !== "active" && !country)}
+              variant={status === "active" ? "outline" : "default"}
+              className="shrink-0"
+            >
+              {opening ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                status === "active" && <ExternalLink className="mr-2 size-4" />
+              )}
+              {status === "active"
+                ? "Open Stripe dashboard"
+                : status === "incomplete"
+                  ? "Finish payout setup"
+                  : "Set up payouts"}
+            </Button>
+          </div>
         </div>
         {msg && <p className="text-sm text-[#ef4444]">{msg}</p>}
 
@@ -503,7 +525,10 @@ function PayoutsCard({ payouts }: { payouts: Payouts }) {
             </p>
             <ul className="divide-y divide-border-default rounded-[10px] border border-border-default text-sm">
               {payouts.payouts.map((p) => (
-                <li key={p.id} className="flex items-center justify-between px-4 py-2.5">
+                <li
+                  key={p.id}
+                  className="flex items-center justify-between px-4 py-2.5"
+                >
                   <span className="text-muted-foreground">
                     {new Date(p.date).toLocaleDateString("en-US", {
                       month: "short",

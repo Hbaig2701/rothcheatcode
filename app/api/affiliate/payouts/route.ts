@@ -5,10 +5,11 @@ import {
   createDashboardLink,
   createOnboardingLink,
   ensureConnectAccount,
+  isPayoutCountry,
   syncConnectAccount,
 } from "@/lib/affiliates/connect";
 
-// POST /api/affiliate/payouts  { action: "onboard" | "dashboard" }
+// POST /api/affiliate/payouts  { action: "onboard", country: "US" | "CA" } | { action: "dashboard" }
 //
 //  onboard   → create the advisor's Stripe Express account (first time) and
 //              return a one-time link to Stripe's hosted payout setup, or to
@@ -23,8 +24,11 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let action: unknown;
+  let country: unknown;
   try {
-    action = (await request.json())?.action;
+    const body = await request.json();
+    action = body?.action;
+    country = body?.country;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
@@ -47,7 +51,10 @@ export async function POST(request: NextRequest) {
 
   try {
     if (action === "onboard") {
-      const accountId = await ensureConnectAccount(admin, aff);
+      if (!isPayoutCountry(country)) {
+        return NextResponse.json({ error: "Choose the country your bank account is in." }, { status: 400 });
+      }
+      const accountId = await ensureConnectAccount(admin, aff, country);
       return NextResponse.json({ url: await createOnboardingLink(accountId) });
     }
 

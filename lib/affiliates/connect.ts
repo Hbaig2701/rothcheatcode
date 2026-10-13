@@ -29,14 +29,51 @@ function settingsReturnUrl(): string {
   return `${base}/settings?payouts=return#refer`;
 }
 
-/** Create the affiliate's Express account if they don't have one yet. */
-export async function ensureConnectAccount(admin: Admin, aff: AffiliateForConnect): Promise<string> {
-  if (aff.stripe_account_id) return aff.stripe_account_id;
+/** Countries an affiliate can be paid in. The platform is Canadian; Stripe
+ *  supports paying connected accounts in both (cross-border for the US). */
+export const PAYOUT_COUNTRIES = ["US", "CA"] as const;
+export type PayoutCountry = (typeof PAYOUT_COUNTRIES)[number];
 
-  const account = await getStripe().accounts.create(
+export function isPayoutCountry(v: unknown): v is PayoutCountry {
+  return typeof v === "string" && (PAYOUT_COUNTRIES as readonly string[]).includes(v);
+}
+
+/**
+ * Return the affiliate's Express account for `country`, creating it if needed.
+ *
+ * Stripe fixes an account's country at creation. If the affiliate already has
+ * an account for another country and never finished its setup, it's deleted
+ * and replaced. One they finished can't be swapped here — that needs support.
+ */
+export async function ensureConnectAccount(
+  admin: Admin,
+  aff: AffiliateForConnect,
+  country: PayoutCountry
+): Promise<string> {
+  const stripe = getStripe();
+  let replacing: string | null = null;
+
+  if (aff.stripe_account_id) {
+    const existing = await stripe.accounts.retrieve(aff.stripe_account_id);
+    if (existing.country === country) return existing.id;
+    if (existing.details_submitted) {
+      throw new Error(
+        "Your payout account is already set up for another country. Contact support to change it."
+      );
+    }
+    await stripe.accounts.del(existing.id);
+    await admin
+      .from("affiliates")
+      .update({ stripe_account_id: null, payouts_enabled: false })
+      .eq("id", aff.id)
+      .eq("stripe_account_id", existing.id);
+    replacing = existing.id;
+  }
+
+  const account = await stripe.accounts.create(
     {
       type: "express",
-      country: "US",
+      country,
       email: aff.email,
       business_type: "individual",
       // Stripe won't create a US account with `transfers` alone ("cannot
@@ -53,9 +90,9 @@ export async function ensureConnectAccount(admin: Admin, aff: AffiliateForConnec
       },
       metadata: { affiliate_id: aff.id },
     },
-    // Two clicks on "Set up payouts" must not create two accounts.
-    // (v2: v1 keys were used by the rejected transfers-only requests.)
-    { idempotencyKey: `affiliate-connect-v2-${aff.id}` }
+    // Two clicks on "Set up payouts" must not create two accounts. Keyed by
+    // the account being replaced so a later country switch gets a fresh key.
+    { idempotencyKey: `affiliate-connect-v3-${aff.id}-${country}-${replacing ?? "new"}` }
   );
 
   const { error } = await admin
