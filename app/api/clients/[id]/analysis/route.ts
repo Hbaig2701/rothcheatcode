@@ -1,3 +1,4 @@
+import { withExactBirthDates } from "@/lib/calculations/utils/age";
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import type { Client } from '@/lib/types/client';
@@ -50,7 +51,9 @@ export async function GET(
     return NextResponse.json({ error: clientError.message }, { status: 500 });
   }
 
-  const typedClient = client as Client;
+  // Derive exact-DOB ages BEFORE the held-back / QLAC overlays (they read the
+  // age), matching the projections route.
+  const typedClient = withExactBirthDates(client as Client);
 
   // Track calculation time for audit
   const startTime = performance.now();

@@ -115,6 +115,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     updatePayload.spouse_name = null;
     updatePayload.spouse_age = null;
     updatePayload.spouse_dob = null;
+    updatePayload.spouse_dob_exact = false;
     updatePayload.spouse_ssi_payout_age = null;
     updatePayload.spouse_ssi_annual_amount = null;
     updatePayload.ss_spouse = 0; // NOT NULL column — zero it out instead of nulling.
