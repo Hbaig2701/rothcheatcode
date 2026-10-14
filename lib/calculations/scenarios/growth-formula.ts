@@ -1,6 +1,6 @@
 import type { Client } from '@/lib/types/client';
 import type { YearlyResult } from '../types';
-import { getAgeAtYearOffset, getBirthYear } from '../utils/age';
+import { getAgeAtYearOffset, getBirthYear, ssStartYearFraction } from '../utils/age';
 import { calculateFederalTax, calculateTaxableIncome } from '../modules/federal-tax';
 import { calculateStateTax } from '../modules/state-tax';
 import { getEffectiveDeduction } from '@/lib/data/standard-deductions';
@@ -272,7 +272,7 @@ export function runGrowthFormulaScenario(
     // into their current benefit and over-state it. A future collector still grows
     // from the claim age (age - startAge = 0 at claim), matching the entered amount.
     const primarySsIncome = age >= primarySsStartAge
-      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)))
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)) * ssStartYearFraction(client, 'client', age, primarySsStartAge, yearOffset))
       : 0;
 
     // Spouse SSI income (with COLA) — MFJ only
@@ -280,7 +280,7 @@ export function runGrowthFormulaScenario(
     if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
       const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : 0;
       spouseSsIncome = currentSpouseAge >= spouseSsStartAge
-        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)))
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)) * ssStartYearFraction(client, 'spouse', currentSpouseAge, spouseSsStartAge, yearOffset))
         : 0;
     }
 

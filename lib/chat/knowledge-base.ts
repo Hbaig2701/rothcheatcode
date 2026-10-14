@@ -236,10 +236,17 @@ In the report UI:
 
 ## RMDs (Required Minimum Distributions)
 
-- Start age is 73 (under SECURE 2.0). The engine uses the IRS Uniform Lifetime Table.
+- Start age depends on birth year (SECURE 2.0): 73 if born 1951–1959, 75 if born 1960 or later. The engine uses the IRS Uniform Lifetime Table.
 - RMD divisor at age 73 is 26.5; age 75 is 24.6; age 80 is 20.2; age 85 is 16.0; age 90 is 12.2.
 - Annual RMD = prior-year-end Traditional IRA balance / divisor for current age.
 - The strategy avoids RMDs to the extent it converts the IRA before age 73. A full conversion in year 1 → zero RMDs. A partial conversion → smaller RMDs.
+
+## Age vs date of birth (section "1. Client Data")
+
+- Age is entered as a whole number by default. Under Age (and Spouse Age on a joint return) there is a checkbox **"Enter date of birth instead"** that swaps the box for a date picker.
+- With a date of birth, the projection uses **the age the person reaches during each calendar year**, recalculated every year. Example: a client who is 72 today but turns 73 in November is treated as 73 for this year, so this year's RMD is included (RMDs are owed for the year you reach the age). Their age can therefore read one higher than their age today — that is expected.
+- When to suggest it: a client near the RMD age whose birthday hasn't happened yet this year, anyone born late in 1959 (the 73-vs-75 RMD line), or a spouse turning 65 late in the year (65+ deduction). With only an age entered, RMDs can start a year late for clients whose birthday is still ahead.
+- In the year Social Security starts, a date of birth also pays only from the birthday month (e.g., a November birthday gets 2 of 12 months that year).
 
 ## IRA / Roth Withdrawals (voluntary income — section "8. IRA / Roth Withdrawals")
 

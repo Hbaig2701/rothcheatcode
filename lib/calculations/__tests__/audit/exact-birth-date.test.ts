@@ -73,6 +73,28 @@ const noConv = { conversion_type: 'no_conversion' as const, qualified_account_va
   check('spouse-dec-1961', 'std-deduction-age-only', ageOnly.baseline[0].standardDeduction === 3_385_000, 3_385_000, ageOnly.baseline[0].standardDeduction);
 }
 
+// 3b. Social Security in the start year pays from the birthday month.
+{
+  const ss = { ...noConv, ssi_annual_amount: 4_000_000 }; // $40,000/yr
+  // Born Nov 1959, claims at 70 → starts Nov 2029: 2/12 that year, full from 2030.
+  const nov = runExact({ ...ss, age: 66, date_of_birth: '1959-11-20', date_of_birth_exact: true, ssi_payout_age: 70 });
+  const y2029 = nov.baseline.find((y) => y.year === 2029)!, y2030 = nov.baseline.find((y) => y.year === 2030)!;
+  check('ss-nov', 'start-year-prorated', Math.abs(y2029.ssIncome - Math.round(4_000_000 * 2 / 12)) <= 1, Math.round(4_000_000 * 2 / 12), y2029.ssIncome);
+  // Full year from 2030, with one year of the 2% COLA from the claim age.
+  check('ss-nov', 'next-year-full', y2030.ssIncome === 4_080_000, 4_080_000, y2030.ssIncome);
+  check('ss-nov', 'strategy-matches', nov.formula.find((y) => y.year === 2029)!.ssIncome === y2029.ssIncome, y2029.ssIncome, nov.formula.find((y) => y.year === 2029)!.ssIncome);
+  // Payout age = this year's age reads as "already collecting" → full year 0.
+  const already = runExact({ ...ss, age: 74, date_of_birth: '1952-10-01', date_of_birth_exact: true, ssi_payout_age: 74 });
+  check('ss-year0', 'already-collecting-full', already.baseline[0].ssIncome === 4_000_000, 4_000_000, already.baseline[0].ssIncome);
+  // Age-only client: unchanged (full first year).
+  const ageOnly = dispatch(makeClient({ ...ss, age: 66, ssi_payout_age: 70 }), YEAR);
+  check('ss-age-only', 'full-start-year', ageOnly.baseline.find((y) => y.year === 2030)!.ssIncome === 4_000_000, 4_000_000, ageOnly.baseline.find((y) => y.year === 2030)!.ssIncome);
+  // Spouse on a joint return, born July 1962, claims at 67 → July 2029: 6/12.
+  const sp = runExact({ ...ss, ssi_annual_amount: 0, filing_status: 'married_filing_jointly', age: 66, spouse_age: 64, spouse_dob: '1962-07-04', spouse_dob_exact: true, spouse_ssi_annual_amount: 3_000_000, spouse_ssi_payout_age: 67 });
+  const s2029 = sp.baseline.find((y) => y.year === 2029)!;
+  check('ss-spouse', 'start-year-prorated', Math.abs(s2029.ssIncome - 1_500_000) <= 1, 1_500_000, s2029.ssIncome);
+}
+
 // 4. No exact DOB → untouched (same object), so existing clients are byte-identical.
 {
   const c = makeClient({ age: 70, date_of_birth: '1956-01-01' });

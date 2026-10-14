@@ -1,3 +1,4 @@
+import { withExactBirthDates } from './utils/age';
 import { Client } from '@/lib/types/client';
 import {
   SimulationResult,
@@ -93,6 +94,7 @@ export function runMultiStrategySimulation(
   startYear: number,
   endYear: number
 ): MultiStrategyResult {
+  client = withExactBirthDates(client, startYear);
   const results: Record<StrategyType, SimulationResult> = {} as Record<StrategyType, SimulationResult>;
 
   // Run simulation for each strategy

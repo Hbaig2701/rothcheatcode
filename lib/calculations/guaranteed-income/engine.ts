@@ -28,7 +28,7 @@ import type {
   GIStrategyMetrics,
   GIBaselineMetrics,
 } from './types';
-import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge } from '../utils/age';
+import { calculateAge, getAgeAtYearOffset, getBirthYearFromAge, ssStartYearFraction } from '../utils/age';
 import {
   calculateFederalTax,
   calculateTaxableIncome,
@@ -378,14 +378,14 @@ function runGIStrategyScenario(
     // into their current benefit and over-state it. A future collector still grows
     // from the claim age (age - startAge = 0 at claim), matching the entered amount.
     const primarySsIncome = age >= primarySsStartAge
-      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)))
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)) * ssStartYearFraction(client, 'client', age, primarySsStartAge, yearOffset))
       : 0;
 
     let spouseSsIncome = 0;
     if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
       const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : 0;
       spouseSsIncome = currentSpouseAge >= spouseSsStartAge
-        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)))
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)) * ssStartYearFraction(client, 'spouse', currentSpouseAge, spouseSsStartAge, yearOffset))
         : 0;
     }
     const ssIncome = primarySsIncome + spouseSsIncome;
@@ -1388,14 +1388,14 @@ function runGIBaselineScenario(
     // into their current benefit and over-state it. A future collector still grows
     // from the claim age (age - startAge = 0 at claim), matching the entered amount.
     const primarySsIncome = age >= primarySsStartAge
-      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)))
+      ? Math.round(primarySsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, age - primarySsStartAge)) * ssStartYearFraction(client, 'client', age, primarySsStartAge, yearOffset))
       : 0;
 
     let spouseSsIncome = 0;
     if (client.filing_status === 'married_filing_jointly' && spouseSsAmount > 0) {
       const currentSpouseAge = initialSpouseAge !== null ? initialSpouseAge + yearOffset : 0;
       spouseSsIncome = currentSpouseAge >= spouseSsStartAge
-        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)))
+        ? Math.round(spouseSsAmount * Math.pow(1 + ssiColaRate, Math.min(yearOffset, currentSpouseAge - spouseSsStartAge)) * ssStartYearFraction(client, 'spouse', currentSpouseAge, spouseSsStartAge, yearOffset))
         : 0;
     }
     const ssIncome = primarySsIncome + spouseSsIncome;

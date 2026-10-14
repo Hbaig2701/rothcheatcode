@@ -87,6 +87,33 @@ export function withExactBirthDates<T extends ExactBirthDateFields>(
 }
 
 /**
+ * Share of the year's Social Security paid in the year benefits start.
+ *
+ * Ages run on the age reached during the year, so without this an exact-DOB
+ * client claiming at 67 with a November birthday would collect all twelve
+ * months of the year they turn 67. Benefits begin in the birthday month, so
+ * that year gets (13 - month) / 12 — 2/12 for November.
+ *
+ * Returns 1 (unchanged) without an exact DOB, outside the start year, and in
+ * the first projection year: advisors enter payout age = current age to mean
+ * "already collecting", which must not be cut.
+ */
+export function ssStartYearFraction(
+  client: { date_of_birth?: string | null; date_of_birth_exact?: boolean | null; spouse_dob?: string | null; spouse_dob_exact?: boolean | null },
+  person: 'client' | 'spouse',
+  age: number,
+  startAge: number,
+  yearOffset: number,
+): number {
+  const dob = person === 'client' ? client.date_of_birth : client.spouse_dob;
+  const exact = person === 'client' ? client.date_of_birth_exact : client.spouse_dob_exact;
+  if (!exact || !dob || yearOffset === 0 || age !== startAge) return 1;
+  const month = parseInt(dob.slice(5, 7), 10);
+  if (!(month >= 1 && month <= 12)) return 1;
+  return (13 - month) / 12;
+}
+
+/**
  * Determines RMD start age based on birth year (SECURE 2.0)
  * - Born 1951-1959: RMD starts at 73
  * - Born 1960 or later: RMD starts at 75

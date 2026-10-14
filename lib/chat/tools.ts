@@ -13,6 +13,7 @@
  * UI shows while the tool runs ("Looking up your client list…") so
  * advisors know something is happening during multi-second lookups.
  */
+import { withExactBirthDates } from "@/lib/calculations/utils/age";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifySlackNewTicket } from "@/lib/notifications/slack";
 import type { SupportSeverity, SupportCategory } from "@/lib/types/support";
@@ -236,7 +237,7 @@ async function runGetMyClients(
   // "Travis Johns" → "did you mean Travis John?". Without this fallback,
   // a single-character typo dead-ends with "no client matches".
   const baseSelect =
-    "id, name, age, filing_status, qualified_account_value, blueprint_type, conversion_type, updated_at";
+    "id, name, age, date_of_birth, date_of_birth_exact, filing_status, qualified_account_value, blueprint_type, conversion_type, updated_at";
 
   const buildQuery = (filter: string | null) => {
     let q = ctx.supabase
@@ -273,7 +274,7 @@ async function runGetMyClients(
     clients: data.map((c) => ({
       id: c.id,
       name: c.name,
-      age: c.age,
+      age: withExactBirthDates(c).age,
       filing_status: c.filing_status,
       ira_balance_dollars: Math.round((c.qualified_account_value ?? 0) / 100),
       blueprint: c.blueprint_type,
@@ -298,7 +299,7 @@ async function runGetClientDetails(
   const { data, error } = await ctx.supabase
     .from("clients")
     .select(
-      "id, name, age, spouse_name, spouse_age, filing_status, state, state_tax_rate, qualified_account_value, roth_ira, taxable_accounts, blueprint_type, custom_product_id, carrier_name, product_name, bonus_percent, rate_of_return, baseline_comparison_rate, conversion_type, fixed_conversion_amount, target_partial_amount, constraint_type, tax_rate, max_tax_rate, tax_payment_source, ssi_payout_age, ssi_annual_amount, spouse_ssi_payout_age, spouse_ssi_annual_amount, end_age, heir_tax_rate, widow_analysis, widow_death_age, rmd_treatment, aum_allocation_percent, advisory_fee_percent, advisory_fee_in_baseline, respect_penalty_free_limit, penalty_free_scope, penalty_free_percent, surrender_years, qlac_premium, qlac_income_start_age, qlac_annual_income, qlac_death_benefit, qlac_in_baseline"
+      "id, name, age, date_of_birth, date_of_birth_exact, spouse_name, spouse_age, spouse_dob, spouse_dob_exact, filing_status, state, state_tax_rate, qualified_account_value, roth_ira, taxable_accounts, blueprint_type, custom_product_id, carrier_name, product_name, bonus_percent, rate_of_return, baseline_comparison_rate, conversion_type, fixed_conversion_amount, target_partial_amount, constraint_type, tax_rate, max_tax_rate, tax_payment_source, ssi_payout_age, ssi_annual_amount, spouse_ssi_payout_age, spouse_ssi_annual_amount, end_age, heir_tax_rate, widow_analysis, widow_death_age, rmd_treatment, aum_allocation_percent, advisory_fee_percent, advisory_fee_in_baseline, respect_penalty_free_limit, penalty_free_scope, penalty_free_percent, surrender_years, qlac_premium, qlac_income_start_age, qlac_annual_income, qlac_death_benefit, qlac_in_baseline"
     )
     .eq("id", clientId)
     .single();
@@ -309,7 +310,13 @@ async function runGetClientDetails(
   // Cast to a generic record because the long-string select returns a
   // single-row shape the TS parser doesn't fully resolve; the runtime
   // shape matches the columns we listed above.
-  const d = data as unknown as Record<string, unknown>;
+  // Exact-DOB clients: the age reached this year, not the stored one. Only an
+  // advisor-entered DOB is shown; synthesized Jan-1 dates would read as real.
+  const d = withExactBirthDates(data as unknown as Record<string, unknown> & { age: number }) as Record<string, unknown>;
+  if (!d.date_of_birth_exact) delete d.date_of_birth;
+  if (!d.spouse_dob_exact) delete d.spouse_dob;
+  delete d.date_of_birth_exact;
+  delete d.spouse_dob_exact;
 
   // Normalize cents → dollars for the model.
   const norm: Record<string, unknown> = {

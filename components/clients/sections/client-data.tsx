@@ -56,7 +56,10 @@ function AgeOrBirthDateField({
   };
 
   return (
-    <Field data-invalid={!!(exact ? dobError ?? ageError : ageError)} className="animate-in fade-in slide-in-from-top-1">
+    <Field
+      data-invalid={!!(exact ? dobError ?? ageError : ageError)}
+      className={person === "spouse" ? "animate-in fade-in slide-in-from-top-1" : undefined}
+    >
       <FieldLabel htmlFor={exact ? dobName : ageName} className="flex items-center gap-1.5">
         {exact ? (person === "client" ? "Date of Birth" : "Spouse Date of Birth") : label}
         <FieldHelp {...help} />

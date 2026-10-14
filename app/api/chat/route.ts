@@ -17,6 +17,7 @@
  * Persistence happens server-side regardless of client connection — closing
  * the browser mid-stream still produces saved assistant + tool rows.
  */
+import { withExactBirthDates } from "@/lib/calculations/utils/age";
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -281,12 +282,12 @@ export async function POST(req: NextRequest) {
     if (typeof pc.clientId === "string" && UUID_RE.test(pc.clientId)) {
       const { data: clientRow } = await supabase
         .from("clients")
-        .select("id, name, age, filing_status, blueprint_type, conversion_type")
+        .select("id, name, age, date_of_birth, date_of_birth_exact, filing_status, blueprint_type, conversion_type")
         .eq("id", pc.clientId)
         .single();
       if (clientRow) {
         lines.push("");
-        lines.push(`The advisor is viewing client \`${clientRow.name}\` (id: \`${clientRow.id}\`, age ${clientRow.age}, ${clientRow.filing_status}, ${clientRow.blueprint_type ?? "n/a"} product, ${clientRow.conversion_type ?? "n/a"} conversion). When the advisor asks "why is X so high" or any other question without naming a client, assume they mean THIS client and call tools with this client_id directly. Do NOT ask "which client?" — the answer is in the URL.`);
+        lines.push(`The advisor is viewing client \`${clientRow.name}\` (id: \`${clientRow.id}\`, age ${withExactBirthDates(clientRow).age}, ${clientRow.filing_status}, ${clientRow.blueprint_type ?? "n/a"} product, ${clientRow.conversion_type ?? "n/a"} conversion). When the advisor asks "why is X so high" or any other question without naming a client, assume they mean THIS client and call tools with this client_id directly. Do NOT ask "which client?" — the answer is in the URL.`);
       }
     } else {
       lines.push("");
