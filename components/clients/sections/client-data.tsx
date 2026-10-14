@@ -108,18 +108,21 @@ function AgeOrBirthDateField({
         name={exactName}
         control={form.control}
         render={({ field }) => (
-          // w-fit + self-start: only the box and its text toggle it — a full-width
-          // label made clicks in the empty space beside it untick the checkbox.
-          <label className="flex w-fit self-start items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-            <Checkbox
-              checked={!!field.value}
-              onCheckedChange={(checked) => {
-                field.onChange(!!checked);
-                if (checked && typeof dob === "string") setAgeFromDob(dob);
-              }}
-            />
-            Enter date of birth instead
-          </label>
+          // Field stretches its direct children to full width, so a bare label
+          // made the whole row clickable (clicking beside it unticked the box).
+          // The wrapper takes the width; the inline label is only the box + text.
+          <div>
+            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <Checkbox
+                checked={!!field.value}
+                onCheckedChange={(checked) => {
+                  field.onChange(!!checked);
+                  if (checked && typeof dob === "string") setAgeFromDob(dob);
+                }}
+              />
+              Enter date of birth instead
+            </label>
+          </div>
         )}
       />
       {exact && (
