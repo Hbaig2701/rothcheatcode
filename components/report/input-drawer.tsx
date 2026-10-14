@@ -25,6 +25,7 @@ import { ConversionSection } from "@/components/clients/sections/conversion";
 import { AumAllocationSection } from "@/components/clients/sections/aum-allocation";
 import { RothWithdrawalsSection } from "@/components/clients/sections/roth-withdrawals";
 import { AdvancedDataSection } from "@/components/clients/sections/advanced-data";
+import { birthDateFieldsForSave } from "@/lib/utils/birth-dates";
 
 interface InputDrawerProps {
   client: Client;
@@ -51,6 +52,10 @@ export function InputDrawer({ client, onClose, expanded = false, onToggleExpand 
       age: client?.age ?? undefined,
       spouse_name: client?.spouse_name ?? "",
       spouse_age: client?.spouse_age ?? undefined,
+      date_of_birth_exact: client?.date_of_birth_exact ?? false,
+      date_of_birth: client?.date_of_birth_exact ? client.date_of_birth : null,
+      spouse_dob_exact: client?.spouse_dob_exact ?? false,
+      spouse_dob: client?.spouse_dob_exact ? client.spouse_dob : null,
       qualified_account_value: client?.qualified_account_value ?? 0,
       carrier_name: client?.carrier_name ?? "Generic Carrier",
       product_name: client?.product_name ?? "Generic Product",
@@ -192,20 +197,6 @@ export function InputDrawer({ client, onClose, expanded = false, onToggleExpand 
         );
       }
 
-      const currentYear = new Date().getFullYear();
-      const birthYear = currentYear - data.age;
-      const dateOfBirth = `${birthYear}-01-01`;
-
-      let spouseDob = null;
-      if (data.filing_status === "married_filing_jointly" || data.filing_status === "married_filing_separately") {
-        if (data.spouse_age) {
-          const spYear = currentYear - data.spouse_age;
-          spouseDob = `${spYear}-01-01`;
-        } else {
-          spouseDob = dateOfBirth;
-        }
-      }
-
       const submitData = {
         ...data,
         traditional_ira: data.qualified_account_value,
@@ -225,9 +216,8 @@ export function InputDrawer({ client, onClose, expanded = false, onToggleExpand 
         pension: 0,
         other_income: 0,
         sensitivity: false,
-        date_of_birth: dateOfBirth,
-        spouse_dob: spouseDob,
         life_expectancy: data.end_age,
+        ...birthDateFieldsForSave(data, client),
       } as const;
 
       // @ts-ignore

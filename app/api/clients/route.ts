@@ -4,6 +4,7 @@ import { clientFullSchema } from "@/lib/validations/client";
 import { checkClientLimit } from "@/lib/usage";
 import { isGuaranteedIncomeProduct } from "@/lib/config/products";
 import { translateDbError } from "@/lib/utils/db-errors";
+import { withExactBirthDates } from "@/lib/calculations/utils/age";
 import { fetchLatestProjections, DELTA_COLUMNS, type DeltaProjectionRow } from "@/lib/projections/latest";
 
 // GET /api/clients - List all clients for the authenticated user
@@ -124,7 +125,7 @@ const extractScenarioName = (val: any) => {
   return val;
 };
   const clientsWithDelta = clients.map(c => ({
-    ...c,
+    ...withExactBirthDates(c),
     scenario_name: extractScenarioName(c.federal_bracket),
     delta: deltaMap.get(c.id) ?? null,
     scenario_count: scenarioCountByName.get(c.name) ?? 1,

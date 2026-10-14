@@ -210,6 +210,12 @@ export const clientFormulaBaseSchema = z.object({
     (v) => (typeof v === "number" && Number.isNaN(v)) ? undefined : v,
     z.number().int().min(18).max(100).optional()
   ),
+  // Exact date of birth (optional alternative to Age). When the *_exact flag is
+  // on, Age is derived from the DOB in the form; see withExactBirthDates.
+  date_of_birth: z.string().optional().nullable(),
+  date_of_birth_exact: z.boolean().optional(),
+  spouse_dob: z.string().optional().nullable(),
+  spouse_dob_exact: z.boolean().optional(),
   // Contact info (optional on the manual-add form — advisors can fill it
   // when they have it; required on the public intake form). Empty strings
   // are normalized to null at submit time so the DB column stays clean.
@@ -381,6 +387,14 @@ export const clientFormulaBaseSchema = z.object({
 
 // Add refinements for the full schema
 export const clientFormulaSchema = clientFormulaBaseSchema.superRefine((data, ctx) => {
+  const isIsoDate = (v: string | null | undefined) => !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  if (data.date_of_birth_exact && !isIsoDate(data.date_of_birth)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Date of birth is required", path: ["date_of_birth"] });
+  }
+  if (data.filing_status === "married_filing_jointly" && data.spouse_dob_exact && !isIsoDate(data.spouse_dob)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Spouse date of birth is required", path: ["spouse_dob"] });
+  }
+
   // Spouse age is required when filing jointly (no silent default — the
   // advisor must enter the real age so the projection isn't run on a guess).
   if (data.filing_status === "married_filing_jointly" && data.spouse_age == null) {
@@ -488,6 +502,8 @@ export const clientFullBaseSchema = z.object({
   spouse_dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD format").optional().nullable(),
   spouse_name: z.string().max(100).optional().nullable(),
   spouse_age: z.number().int().min(18).max(100).optional().nullable(),
+  date_of_birth_exact: z.boolean().optional(),
+  spouse_dob_exact: z.boolean().optional(),
   life_expectancy: z.number().int().min(1).max(120).optional().nullable(),
 
   // Product Preset
@@ -651,10 +667,11 @@ export const clientFullPartialSchema = clientFullBaseSchema.partial();
 
 // Full schema with refinements
 export const clientFullSchema = clientFullBaseSchema.superRefine((data, ctx) => {
-  // Spouse DOB required when filing status includes "married"
+  // Spouse DOB required on a joint return. Not for married filing separately:
+  // the form hides (and clears) the spouse fields there, so requiring it made
+  // every new MFS client fail to save.
   if (
-    (data.filing_status === "married_filing_jointly" ||
-      data.filing_status === "married_filing_separately") &&
+    data.filing_status === "married_filing_jointly" &&
     !data.spouse_dob &&
     data.date_of_birth // Only enforce if using legacy date_of_birth
   ) {
@@ -696,6 +713,8 @@ export type ClientFormData = {
   age: number;
   spouse_name?: string;
   spouse_age?: number;
+  date_of_birth_exact?: boolean;
+  spouse_dob_exact?: boolean;
 
   // Section 2: Current Account
   qualified_account_value: number;

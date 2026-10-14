@@ -25,6 +25,7 @@ import { ConversionSection } from "./sections/conversion";
 import { AumAllocationSection } from "./sections/aum-allocation";
 import { RothWithdrawalsSection } from "./sections/roth-withdrawals";
 import { AdvancedDataSection } from "./sections/advanced-data";
+import { birthDateFieldsForSave } from "@/lib/utils/birth-dates";
 
 interface ClientFormProps {
   client?: Client;
@@ -69,6 +70,12 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
       age: client?.age ?? d?.age ?? undefined,
       spouse_name: client?.spouse_name ?? d?.spouse_name ?? "",
       spouse_age: client?.spouse_age ?? d?.spouse_age ?? undefined,
+      // Only a DOB the advisor actually entered pre-fills the date input; the
+      // synthesized Jan-1 ones would look real and aren't.
+      date_of_birth_exact: client?.date_of_birth_exact ?? false,
+      date_of_birth: client?.date_of_birth_exact ? client.date_of_birth : null,
+      spouse_dob_exact: client?.spouse_dob_exact ?? false,
+      spouse_dob: client?.spouse_dob_exact ? client.spouse_dob : null,
 
       // Section 2: Current Account
       qualified_account_value: client?.qualified_account_value ?? d?.qualified_account_value ?? 25000000, // $250,000 in cents
@@ -265,22 +272,10 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
           });
       }
 
-      // Calculate date_of_birth from age (assume Jan 1st of calculated birth year)
-      const currentYear = new Date().getFullYear();
-      const birthYear = currentYear - data.age;
-      const dateOfBirth = `${birthYear}-01-01`;
-
       // Determine if married
       const isMarriedFiling =
         data.filing_status === "married_filing_jointly" ||
         data.filing_status === "married_filing_separately";
-
-      // Calculate spouse_dob if married (from spouse_age, not client's own age)
-      let spouseDob: string | null = null;
-      if (isMarriedFiling && data.spouse_age) {
-        const spouseBirthYear = currentYear - data.spouse_age;
-        spouseDob = `${spouseBirthYear}-01-01`;
-      }
 
       // Strip spouse fields for non-married filers
       const cleanedData = { ...data };
@@ -312,9 +307,8 @@ export function ClientForm({ client, defaults, onCancel }: ClientFormProps) {
         pension: 0,
         other_income: 0,
         sensitivity: false,
-        date_of_birth: dateOfBirth, // Fixed: Generated from Age
-        spouse_dob: spouseDob,      // Fixed: Generated if married
         life_expectancy: data.end_age,
+        ...birthDateFieldsForSave(data, client),
       };
 
       if (isEditing && client) {

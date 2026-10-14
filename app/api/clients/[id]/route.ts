@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { clientFullPartialSchema } from "@/lib/validations/client";
 import { getVisibleUserIds } from "@/lib/auth/visibleUserIds";
+import { withExactBirthDates } from "@/lib/calculations/utils/age";
 import { translateDbError } from "@/lib/utils/db-errors";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -43,7 +44,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return val;
   };
 
-  const mappedClient = { ...data, scenario_name: extractScenarioName(data.federal_bracket) };
+  // Exact-DOB clients: report the age reached this year, not the age stored
+  // at the last save (it goes stale every January).
+  const mappedClient = withExactBirthDates({ ...data, scenario_name: extractScenarioName(data.federal_bracket) });
   return NextResponse.json(mappedClient);
 }
 
@@ -157,7 +160,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     return val;
   };
 
-  const mappedClient = { ...data, scenario_name: extractScenarioName(data.federal_bracket) };
+  // Exact-DOB clients: report the age reached this year, not the age stored
+  // at the last save (it goes stale every January).
+  const mappedClient = withExactBirthDates({ ...data, scenario_name: extractScenarioName(data.federal_bracket) });
   return NextResponse.json(mappedClient);
 }
 

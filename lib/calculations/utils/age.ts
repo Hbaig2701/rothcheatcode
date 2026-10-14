@@ -47,6 +47,46 @@ export function getBirthYearFromAge(currentAge: number, currentYear: number): nu
 }
 
 /**
+ * Age the person reaches during `year` — the IRS convention for RMDs (owed for
+ * the year you attain the age), the 65+ deductions and Medicare.
+ */
+export function getAgeReachedInYear(dob: string, year: number): number {
+  return year - getBirthYear(dob);
+}
+
+interface ExactBirthDateFields {
+  age: number;
+  date_of_birth?: string | null;
+  date_of_birth_exact?: boolean | null;
+  spouse_age?: number | null;
+  spouse_dob?: string | null;
+  spouse_dob_exact?: boolean | null;
+}
+
+/**
+ * When the advisor entered a real date of birth, the age the engine runs on is
+ * the age reached during the current calendar year, recomputed each year so it
+ * never goes stale. Without this the stored age is used, which is a year early
+ * for anyone whose birthday hasn't passed (RMDs start a year late) and can put
+ * a late-1959 birth on the wrong side of the 73/75 RMD line.
+ *
+ * Clients without an exact DOB come back unchanged (same object).
+ */
+export function withExactBirthDates<T extends ExactBirthDateFields>(
+  client: T,
+  currentYear: number = new Date().getFullYear(),
+): T {
+  const age = client.date_of_birth_exact && client.date_of_birth
+    ? getAgeReachedInYear(client.date_of_birth, currentYear)
+    : client.age;
+  const spouseAge = client.spouse_dob_exact && client.spouse_dob
+    ? getAgeReachedInYear(client.spouse_dob, currentYear)
+    : client.spouse_age;
+  if (age === client.age && spouseAge === client.spouse_age) return client;
+  return { ...client, age, spouse_age: spouseAge };
+}
+
+/**
  * Determines RMD start age based on birth year (SECURE 2.0)
  * - Born 1951-1959: RMD starts at 73
  * - Born 1960 or later: RMD starts at 75

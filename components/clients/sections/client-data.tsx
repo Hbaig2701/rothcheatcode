@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import type { ClientFormData } from "@/lib/validations/client";
 import { FormSection } from "@/components/clients/form-section";
-import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui/field";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -23,6 +24,95 @@ const FILING_STATUS_OPTIONS = [
   { value: "married_filing_separately", label: "Married Filing Separately" },
 ] as const;
 
+// Age is required either way: in date-of-birth mode it's derived from the DOB
+// (age reached during the current year) so end-age and the other age checks
+// keep working unchanged.
+function AgeOrBirthDateField({
+  person,
+  label,
+  placeholder,
+}: {
+  person: "client" | "spouse";
+  label: string;
+  placeholder: string;
+}) {
+  const form = useFormContext<ClientFormData>();
+  const ageName = person === "client" ? "age" : "spouse_age";
+  const dobName = person === "client" ? "date_of_birth" : "spouse_dob";
+  const exactName = person === "client" ? "date_of_birth_exact" : "spouse_dob_exact";
+  const help = person === "client" ? FIELD_HELP.age : FIELD_HELP.spouse_age;
+
+  const exact = !!form.watch(exactName);
+  const dob = form.watch(dobName);
+  const currentYear = new Date().getFullYear();
+  const today = new Date().toISOString().slice(0, 10);
+  const ageError = form.formState.errors[ageName];
+  const dobError = form.formState.errors[dobName];
+
+  const setAgeFromDob = (value: string) => {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      form.setValue(ageName, currentYear - parseInt(value.slice(0, 4), 10), { shouldValidate: true, shouldDirty: true });
+    }
+  };
+
+  return (
+    <Field data-invalid={!!(exact ? dobError ?? ageError : ageError)} className="animate-in fade-in slide-in-from-top-1">
+      <FieldLabel htmlFor={exact ? dobName : ageName} className="flex items-center gap-1.5">
+        {exact ? (person === "client" ? "Date of Birth" : "Spouse Date of Birth") : label}
+        <FieldHelp {...help} />
+      </FieldLabel>
+      {exact ? (
+        <Input
+          id={dobName}
+          type="date"
+          min="1900-01-01"
+          max={today}
+          {...form.register(dobName, { onChange: (e) => setAgeFromDob(e.target.value) })}
+          aria-invalid={!!dobError}
+        />
+      ) : (
+        <Input
+          id={ageName}
+          type="number"
+          min={18}
+          max={100}
+          placeholder={placeholder}
+          {...form.register(ageName, { valueAsNumber: true })}
+          // Empty by default with a ghost-label placeholder; select on focus so
+          // editing an existing value replaces it cleanly.
+          onFocus={(e) => e.currentTarget.select()}
+          aria-invalid={!!ageError}
+        />
+      )}
+      <Controller
+        name={exactName}
+        control={form.control}
+        render={({ field }) => (
+          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+            <Checkbox
+              checked={!!field.value}
+              onCheckedChange={(checked) => {
+                field.onChange(!!checked);
+                if (checked && typeof dob === "string") setAgeFromDob(dob);
+              }}
+            />
+            Enter date of birth instead
+          </label>
+        )}
+      />
+      {exact && (
+        <FieldDescription>
+          {typeof dob === "string" && dob
+            ? <>Reaches age {currentYear - parseInt(dob.slice(0, 4), 10)} in {currentYear}. </>
+            : null}
+          Ages in the report are the age reached during each year.
+        </FieldDescription>
+      )}
+      <FieldError errors={[exact ? dobError ?? ageError : ageError]} />
+    </Field>
+  );
+}
+
 export function ClientDataSection() {
   const form = useFormContext<ClientFormData>();
   const filingStatus = form.watch("filing_status");
@@ -37,6 +127,8 @@ export function ClientDataSection() {
     if (!isMarried) {
       form.setValue("spouse_name", undefined);
       form.setValue("spouse_age", undefined);
+      form.setValue("spouse_dob", null);
+      form.setValue("spouse_dob_exact", false);
     }
   }, [isMarried, form]);
 
@@ -107,26 +199,8 @@ export function ClientDataSection() {
         <FieldError errors={[form.formState.errors.name]} />
       </Field>
 
-      {/* Client Age */}
-      <Field data-invalid={!!form.formState.errors.age}>
-        <FieldLabel htmlFor="age" className="flex items-center gap-1.5">
-          Age
-          <FieldHelp {...FIELD_HELP.age} />
-        </FieldLabel>
-        <Input
-          id="age"
-          type="number"
-          min={18}
-          max={100}
-          placeholder="e.g. 62"
-          {...form.register("age", { valueAsNumber: true })}
-          // Empty by default with a ghost-label placeholder; select on focus so
-          // editing an existing value replaces it cleanly.
-          onFocus={(e) => e.currentTarget.select()}
-          aria-invalid={!!form.formState.errors.age}
-        />
-        <FieldError errors={[form.formState.errors.age]} />
-      </Field>
+      {/* Client Age / Date of Birth */}
+      <AgeOrBirthDateField person="client" label="Age" placeholder="e.g. 62" />
 
       {/* Spouse Name (Conditional) */}
       {isMarried && (
@@ -144,26 +218,8 @@ export function ClientDataSection() {
         </Field>
       )}
 
-      {/* Spouse Age (Conditional) */}
-      {isMarried && (
-        <Field data-invalid={!!form.formState.errors.spouse_age} className="animate-in fade-in slide-in-from-top-1">
-          <FieldLabel htmlFor="spouse_age" className="flex items-center gap-1.5">
-            Spouse Age
-            <FieldHelp {...FIELD_HELP.spouse_age} />
-          </FieldLabel>
-          <Input
-            id="spouse_age"
-            type="number"
-            min={18}
-            max={100}
-            placeholder="e.g. 60"
-            {...form.register("spouse_age", { valueAsNumber: true })}
-            onFocus={(e) => e.currentTarget.select()}
-            aria-invalid={!!form.formState.errors.spouse_age}
-          />
-          <FieldError errors={[form.formState.errors.spouse_age]} />
-        </Field>
-      )}
+      {/* Spouse Age / Date of Birth (Conditional) */}
+      {isMarried && <AgeOrBirthDateField person="spouse" label="Spouse Age" placeholder="e.g. 60" />}
     </FormSection>
   );
 }

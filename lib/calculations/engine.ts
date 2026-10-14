@@ -1,5 +1,6 @@
 import type { Client } from '@/lib/types/client';
 import { resolveHeirTaxRate } from './utils/heir-rate';
+import { withExactBirthDates } from './utils/age';
 import type { SimulationInput, SimulationResult, YearlyResult } from './types';
 import { runBaselineScenario } from './scenarios/baseline';
 import { runFormulaScenario } from './scenarios/formula';
@@ -310,6 +311,7 @@ export function createSimulationInput(
   customProduct?: import("@/lib/products/types").CustomProductRow | null
 ): SimulationInput {
   const currentYear = new Date().getFullYear();
+  client = withExactBirthDates(client, currentYear);
 
   // Calculate projection years: prefer (end_age - age) if both are available
   let projectionYears: number;

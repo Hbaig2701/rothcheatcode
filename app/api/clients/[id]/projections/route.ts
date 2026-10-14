@@ -17,6 +17,7 @@ import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/
 import { checkUsageLimit, incrementUsage } from '@/lib/usage';
 import { getCustomProduct } from '@/lib/products/repository';
 import { getVisibleUserIds } from '@/lib/auth/visibleUserIds';
+import { withExactBirthDates } from '@/lib/calculations/utils/age';
 import type { CustomProductRow } from '@/lib/products/types';
 import crypto from 'crypto';
 
@@ -563,7 +564,7 @@ export async function GET(
     // to the owner. Looking it up under the viewer would silently return
     // null and the projection would fall back to system defaults (wrong
     // bonus %, surrender schedule, etc.).
-    const typedClient = client as Client;
+    const typedClient = withExactBirthDates(client as Client);
     const customProduct = typedClient.custom_product_id
       ? await getCustomProduct(typedClient.user_id, typedClient.custom_product_id)
       : null;
@@ -764,7 +765,7 @@ export async function POST(
       );
     }
 
-    const typedClient = client as Client;
+    const typedClient = withExactBirthDates(client as Client);
     // Look up the custom product under the CLIENT'S owner — same reason as
     // the GET handler. Team members would otherwise lose the configured
     // carrier values and silently get system defaults.

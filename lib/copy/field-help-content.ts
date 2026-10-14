@@ -45,7 +45,7 @@ export const FIELD_HELP = {
   age: {
     title: "Client Age",
     body: "The client's current age in years. The projection uses this as Year 0 and rolls forward from here. Critical for RMD timing (age 73 if born 1951–1959, age 75 if born 1960 or later), Social Security start ages, and the 10% early-withdrawal penalty (under 59½).",
-    example: "If the client just turned 67, enter 67. If they're 67 but turn 68 in a few months, still enter 67 — the projection rounds based on age at the start of the projection year.",
+    example: "If the client just turned 67, enter 67. For exact RMD timing, tick 'Enter date of birth instead': a client who is 72 now but turns 73 in November is then treated as 73 for this year, so this year's RMD is included (RMDs are owed for the year you reach the age).",
   },
   spouse_name: {
     title: "Spouse Name",
@@ -55,7 +55,7 @@ export const FIELD_HELP = {
   spouse_age: {
     title: "Spouse Age",
     body: "The spouse's current age. Drives spousal RMD timing, spousal Social Security start, and the Widow's Penalty analysis (which prices brackets at single-filer rates after the older spouse passes).",
-    example: "Husband is 75, wife is 73. Enter 73 for spouse age.",
+    example: "Husband is 75, wife is 73. Enter 73 for spouse age, or tick 'Enter date of birth instead' to enter her birth date.",
   },
 
   // ============================================================

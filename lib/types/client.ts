@@ -275,8 +275,12 @@ export interface Client {
   advisory_fee_in_baseline?: boolean | null; // null -> true (fee on both sides).
 
   // ===== Legacy fields (kept for backwards compatibility) =====
-  date_of_birth: string | null;  // ISO date string YYYY-MM-DD (deprecated, use age)
+  date_of_birth: string | null;  // ISO date string YYYY-MM-DD. Synthesized as Jan 1 of (year - age) unless date_of_birth_exact.
   spouse_dob: string | null;
+  // True when the advisor entered a real DOB. The engine then derives age from
+  // it each year (see withExactBirthDates) instead of using the stored age.
+  date_of_birth_exact?: boolean | null;
+  spouse_dob_exact?: boolean | null;
   life_expectancy: number | null;
   traditional_ira: number;       // Deprecated, use qualified_account_value
   roth_ira: number;              // Still used for tracking Roth balance

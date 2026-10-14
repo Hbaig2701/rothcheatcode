@@ -8,11 +8,9 @@ These are the exact sections rendered in the main client form (\`/clients/new\`)
 
 ## 1. Client Data
 Source: \`components/clients/sections/client-data.tsx\`
-- **Age** (\`age\`) — number, range: 18 to 100
 - **Filing Status** (\`filing_status\`)
 - **Name** (\`name\`)
 - **Scenario Name (Optional)** (\`scenario_name\`)
-- **Spouse Age** (\`spouse_age\`) — number, range: 18 to 100
 - **Spouse Name** (\`spouse_name\`)
 
 ## 2. Current Account Data
@@ -111,7 +109,7 @@ These files exist in the codebase but are not imported by \`components/clients/c
 - \`components/clients/sections/account-balances.tsx\` (orphan title: "Account Balances")
 - \`components/clients/sections/advanced.tsx\` (orphan title: "Advanced Options")
 - \`components/clients/sections/income-sources.tsx\` (orphan title: "Income Sources")
-- \`components/clients/sections/personal-info.tsx\` (orphan title: "Personal Information")
+- \`components/clients/sections/personal-info.tsx\` (orphan title: "?")
 - \`components/clients/sections/tax-config.tsx\` (orphan title: "Tax Configuration")
 
 ## Field definitions (GENERATED FROM lib/copy/field-help-content.ts)
@@ -119,7 +117,7 @@ These files exist in the codebase but are not imported by \`components/clients/c
 Authoritative one-paragraph explanation of every named form field, taken verbatim from the in-app tooltip copy. This is the source of truth for what each setting MEANS. When an advisor asks 'what does X do' / 'what does X mean' / 'explain X', the answer is here. Do NOT improvise a different definition — if two of your past answers contradicted each other, this block is the tiebreaker.
 
 - **Scenario Name** (\`scenario_name\`): Optional label for this projection. Useful when you're modeling multiple strategies for the same client (e.g., 'Aggressive 5-year' vs 'Conservative 10-year') so you can tell them apart in the client list.
-- **Filing Status** (\`filing_status\`): How the client files their federal taxes. Drives the tax brackets and standard deduction used in every projection year. Choose 'Married Filing Jointly' for married couples filing together — this gives the wider brackets that allow larger Roth conversions at the same rate.
+- **Filing Status** (\`filing_status\`): How the client files their federal taxes. Drives the tax brackets and standard deduction used in every projection year. Choose 'Married Filing Jointly' for married couples filing together — this gives the wider brackets that allow larger Roth conversions at the same rate. 'Married Filing Separately' models only this client's own return (the spouse's income and Social Security are left out). Medicare IRMAA is figured on the single-filer thresholds, which is correct when the spouses lived apart the entire year.
 - **Client Name** (\`name\`): The client's full name. This is how they'll appear in your client list and on any reports or PDFs you generate.
 - **Client Age** (\`age\`): The client's current age in years. The projection uses this as Year 0 and rolls forward from here. Critical for RMD timing (age 73 if born 1951–1959, age 75 if born 1960 or later), Social Security start ages, and the 10% early-withdrawal penalty (under 59½).
 - **Spouse Name** (\`spouse_name\`): The spouse's full name. Used in story-mode narratives and any spousal-specific report sections.
