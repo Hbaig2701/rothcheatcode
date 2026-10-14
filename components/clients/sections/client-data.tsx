@@ -108,7 +108,9 @@ function AgeOrBirthDateField({
         name={exactName}
         control={form.control}
         render={({ field }) => (
-          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+          // w-fit + self-start: only the box and its text toggle it — a full-width
+          // label made clicks in the empty space beside it untick the checkbox.
+          <label className="flex w-fit self-start items-center gap-2 text-sm text-muted-foreground cursor-pointer">
             <Checkbox
               checked={!!field.value}
               onCheckedChange={(checked) => {
