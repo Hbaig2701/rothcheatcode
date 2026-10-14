@@ -64,8 +64,13 @@ function AgeOrBirthDateField({
         {exact ? (person === "client" ? "Date of Birth" : "Spouse Date of Birth") : label}
         <FieldHelp {...help} />
       </FieldLabel>
+      {/* Distinct keys so React mounts a separate <input> for each mode.
+          Without them it reused one element, the form library kept it
+          registered as Age, and setting the age from the DOB wrote "73" into
+          the date box — wiping the date the moment it was complete. */}
       {exact ? (
         <Input
+          key={dobName}
           id={dobName}
           type="date"
           min="1900-01-01"
@@ -86,6 +91,7 @@ function AgeOrBirthDateField({
         />
       ) : (
         <Input
+          key={ageName}
           id={ageName}
           type="number"
           min={18}
