@@ -70,7 +70,18 @@ function AgeOrBirthDateField({
           type="date"
           min="1900-01-01"
           max={today}
-          {...form.register(dobName, { onChange: (e) => setAgeFromDob(e.target.value) })}
+          {...form.register(dobName, {
+            onChange: (e) => setAgeFromDob(e.target.value),
+            // A half-typed date reads as "" in the DOM but the browser doesn't
+            // always fire a change for it, so the form would keep (and save) the
+            // last complete date while the box shows something else. Re-sync on
+            // blur so a partial entry surfaces "Date of birth is required".
+            onBlur: (e) => {
+              if (!e.target.value && form.getValues(dobName)) {
+                form.setValue(dobName, "", { shouldValidate: true, shouldDirty: true });
+              }
+            },
+          })}
           aria-invalid={!!dobError}
         />
       ) : (
