@@ -535,6 +535,42 @@ errors in tax (flat-rate conversion, $0 income-phase tax) AND Roth-legacy
 treatment. It needs a dedicated, carrier-validated rework — it is the least
 trustworthy part of the system.**
 
+### F18 — Penalty-free allowance taken on the UNCONVERTED balance only — **P1 (money) ✅ FIXED v85 (branch fix/penalty-free-cap)**
+Found from an advisor correction (Dana Gibson / Chau Tran, ticket 9194bf6f), not by the
+audit — the engine was internally consistent but applied the wrong rule.
+- **Root:** `growth-formula.ts` `taxCap = boyIRA × pct`. Under `tax_only` the conversion is
+  an intra-contract transfer — the engine itself keeps the converted Roth in the annuity
+  (anniversary bonus via `rothMirrorBalance`, rider fee on total AV) — yet the allowance
+  ignored it and shrank every year as money converted. Chau: 11-year conversion tail
+  instead of 3.
+- **Fix:** `taxCapBase = boyIRA + rothMirrorBalance` (excludes outside Roth IRA + AUM
+  sleeve); cumulative carry uses the same base; `all_distributions` keeps the unconverted
+  base. Rows export `penaltyFreeAllowanceBase`; the growth report's "Penalty-Free
+  Withdrawal Limit Exceeded" warning reads it (it re-derived the old base and would have
+  contradicted the engine).
+- **Guard:** `penalty-free-contract-base.test.ts` (uses-contract-base, outside-roth-excluded,
+  exported-allowance-base); `penalty-free-cap.test.ts` updated to the contract base.
+
+### F19 — Full/Fixed under the penalty-free cap left the tax-on-the-tax unpaid — **P0 (money) ✅ FIXED v85 (branch fix/penalty-free-cap)**
+- **Root:** `useSelfConsistent` excluded every finite `taxCap`, so full_conversion /
+  fixed_amount used the legacy solver, which prices tax on the conversion ALONE. The pull
+  that pays the tax is itself taxable, so `totalTax` exceeded what was withdrawn and the
+  difference was never debited (Chau Full year 1: owed $154,782, paid $111,000). 12/12
+  clean-case Fixed + cap clients affected (up to $37.6K unpaid in year 1).
+- **Fix:** `useSelfConsistentDrain` lets the draining types use their self-consistent
+  solvers under the tax-only cap; the cap shrink now searches the TOTAL distribution D
+  with tax(D) ≤ cap; residual sweep skipped in cap-limited years. optimized/partial untouched
+  (already correct: 0 unfunded across 189 clean cases).
+- **Guard:** `penalty-free-contract-base.test.ts` conversion-tax-funded (marginal tax via
+  with/without-conversion runs, IRMAA excluded) — fails on the pre-fix engine (16 years).
+- **Impact (F18+F19):** 265/1,099 production scenarios change, all limit-ticked with tax
+  from the IRA; 0 unexpected changes, 0 baselines moved. Most strategy results DROP (unpaid
+  tax now paid; conversions follow the advisor's bracket instead of a throttled trickle).
+- **Still open:** full/fixed + `irmaa_threshold` (15 scenarios) stay on the legacy path with
+  the same gap (Chris Cavanna coupling); `formula.ts` has the same latent bugs (no cap-on
+  clients); the GI engine ignores `respect_penalty_free_limit` entirely (8 scenarios ticked);
+  `scripts/test-penalty-free-cap.ts` asserts pre-v59 behavior and fails on main too.
+
 ## Recurrence guard 🛡️
 - `audit/no-hardcoded-rates.test.ts` scans live `components/` + `lib/chat` source and
   FAILS if any new hardcoded heir/legacy rate appears (the F1/F9 class). The 4 dead
