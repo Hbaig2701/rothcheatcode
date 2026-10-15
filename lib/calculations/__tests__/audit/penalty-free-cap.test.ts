@@ -4,11 +4,15 @@
  * Run: npx tsx lib/calculations/__tests__/audit/penalty-free-cap.test.ts
  *
  * When respect_penalty_free_limit is on and tax is paid from the IRA during the
- * surrender period, the carrier only lets penalty_free_percent × BOY-IRA leave
- * the policy as tax (a Roth conversion is an intra-carrier transfer and does NOT
- * count). Scope:
- *   - tax_only (default): taxesPaidFromIRA ≤ pf% × BOY-IRA each surrender year.
- *   - all_distributions: conversion + RMD + tax ≤ pf% × BOY-IRA.
+ * surrender period, the carrier only lets penalty_free_percent of the contract
+ * value leave the policy as tax. Scope:
+ *   - tax_only (default): the conversion is an intra-carrier transfer, so the
+ *     converted Roth stays in the contract and the allowance is pf% × (BOY IRA +
+ *     BOY in-annuity Roth). taxesPaidFromIRA ≤ that, each surrender year.
+ *     (Dana Gibson / Chau Tran ticket: the allowance used to be pf% × BOY IRA
+ *     only, which shrank as money converted.)
+ *   - all_distributions: the conversion counts as leaving the contract, so the
+ *     base stays BOY IRA: conversion + RMD + tax ≤ pf% × BOY-IRA.
  * After the surrender period there is no cap.
  */
 
@@ -28,10 +32,14 @@ function run(scope: 'tax_only' | 'all_distributions', surrenderYears: number) {
     penalty_free_percent: pfPct, surrender_years: surrenderYears,
     ssi_annual_amount: 2_000_000, bonus_percent: 0, post_contract_rate: 6, baseline_comparison_rate: 6, rate_of_return: 6,
   });
+  // No outside Roth IRA and no AUM sleeve, so the whole Roth is the in-annuity
+  // (converted) Roth and rothBOY is the tax_only allowance's Roth share.
+  if ((c.roth_ira ?? 0) !== 0 || (c.aum_allocation_percent ?? 0) !== 0) throw new Error('fixture must have no outside Roth / AUM');
   const { formula } = dispatch(c, 2026);
   formula.forEach((y, i) => {
     const boyIra = y.traditionalBOY ?? 0;
-    const cap = Math.round(boyIra * pfPct / 100);
+    const allowanceBase = scope === 'tax_only' ? boyIra + (y.rothBOY ?? 0) : boyIra;
+    const cap = Math.round(allowanceBase * pfPct / 100);
     const inSurrender = i < surrenderYears;
     const taxFromIra = y.taxesPaidFromIRA ?? 0;
     if (inSurrender && boyIra > 0) {

@@ -408,8 +408,21 @@ export function runGrowthFormulaScenario(
     // Tax cap (used in 'tax_only' scope): only the tax dollars from the IRA
     // count against the carrier's penalty-free allowance. Conversion runs
     // off the full physical IRA below.
+    //
+    // The allowance is a percentage of the CONTRACT's value. Under 'tax_only'
+    // the conversion is an intra-contract transfer (see above) — the converted
+    // money stays in the annuity, which is why it keeps the carrier's
+    // anniversary bonus (Step 3b) and pays the rider fee on total AV (Step 3c).
+    // So the base is the unconverted balance PLUS the in-annuity Roth
+    // (rothMirrorBalance, which excludes any outside Roth IRA and the AUM
+    // managed sleeve). Using the unconverted balance alone shrank the allowance
+    // every year as money converted and dragged conversions out for a decade
+    // (Dana Gibson / Chau Tran, ticket 9194bf6f: 11 years instead of 3).
+    // 'all_distributions' keeps the unconverted base: that scope treats the
+    // conversion itself as leaving the contract.
+    const taxCapBase = boyIRA + Math.max(0, rothMirrorBalance);
     const taxCap = (respectPenaltyFreeLimit && inSurrenderPeriod && payTaxFromIRA)
-      ? Math.round(boyIRA * effectiveAllowancePct / 100)
+      ? Math.round(taxCapBase * effectiveAllowancePct / 100)
       : Number.POSITIVE_INFINITY;
     // Outflow cap (used in 'all_distributions' scope): conversion +
     // effective IRA distribution + tax-from-IRA must all fit under the
@@ -447,6 +460,8 @@ export function runGrowthFormulaScenario(
     // full_conversion), skip the generic gross-down below to avoid shrinking
     // the conversion twice.
     let skipGrossDown = false;
+    // Set when the penalty-free cap shrank a full/fixed conversion this year.
+    let conversionCapLimited = false;
 
     // --- IRMAA surcharge + after-tax forced RMD (computed BEFORE conversion
     // sizing so the self-consistent gross-up below can use the after-tax RMD).
@@ -504,6 +519,21 @@ export function runGrowthFormulaScenario(
       // so those types DO use the self-consistent path (fixed 2026-09-25).
       && !(client.constraint_type === 'irmaa_threshold'
         && (conversionType === 'full_conversion' || conversionType === 'fixed_amount'));
+    // full_conversion / fixed_amount use their self-consistent solvers under the
+    // tax-only penalty-free cap too. Excluding them (the taxCap gate above) sent
+    // them down the legacy path, which prices the tax on the conversion ALONE;
+    // the extra pull that funds the tax is itself a taxable distribution, so the
+    // year's tax bill came out higher than what was withdrawn to pay it and the
+    // difference was never debited anywhere (Dana Gibson / Chau Tran, ticket
+    // 9194bf6f: Full + cap owed $154,782 in year 1 and paid $111,000). The cap
+    // is enforced on the self-consistent tax further down, by shrinking the
+    // total distribution until its tax fits the allowance. optimized/partial keep
+    // their planner path (already correct under the cap) — this flag only
+    // feeds the draining branches.
+    const useSelfConsistentDrain = payTaxFromIRA
+      && !useOutflowCap
+      && !(client.constraint_type === 'irmaa_threshold'
+        && (conversionType === 'full_conversion' || conversionType === 'fixed_amount'));
     // Set when full/fixed produced an authoritative self-consistent tax, so the
     // generic convTaxAt(conversion) recompute below doesn't clobber it.
     let selfConsistentTaxFromIra = false;
@@ -536,7 +566,7 @@ export function runGrowthFormulaScenario(
           // bounded above (effectiveIraForConversion = min(iraAfterDistribution,
           // outflowCap - effectiveIraDistribution)), so Regime A's solver
           // handles it cleanly.
-          if (taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap) {
+          if (taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap && !useSelfConsistentDrain) {
             const tryConv = Math.max(0, effectiveIraForConversion - taxCap);
             const tryTaxes = convTaxAt(tryConv);
             if (tryTaxes.federalTax + tryTaxes.stateTax > taxCap) {
@@ -544,7 +574,7 @@ export function runGrowthFormulaScenario(
               useRegimeB = true;
             }
           }
-          if (!useRegimeB && useSelfConsistent) {
+          if (!useRegimeB && useSelfConsistentDrain) {
             // Regime A (self-consistent): empty the IRA. The ENTIRE post-RMD IRA
             // is distributed; the whole amount (conversion + the extra pull that
             // funds the tax) is taxable, so the conversion tax is computed on the
@@ -581,7 +611,7 @@ export function runGrowthFormulaScenario(
         }
       } else if (conversionType === 'fixed_amount' && fixedConversionAmount > 0) {
         // Fixed amount: convert specified amount per year (or remaining balance if less).
-        if (payTaxFromIRA && useSelfConsistent) {
+        if (payTaxFromIRA && useSelfConsistentDrain) {
           // Self-consistent gross-up. The client converts a fixed X to Roth; the
           // tax is also pulled from the IRA, and that pull is itself taxable, so
           // the conversion tax = convTaxAt(X + extraPull). The tax is funded from
@@ -945,7 +975,33 @@ export function runGrowthFormulaScenario(
       // types), so we only need to shrink conversionAmount. (Joshua Williamson
       // follow-up — full_conversion now spreads across years when the cap binds
       // instead of emptying the IRA in one over-cap year.)
-      if (payTaxFromIRA && conversionAmount > 0 && taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
+      if (selfConsistentTaxFromIra && conversionAmount > 0 && taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
+          && (conversionType === 'fixed_amount' || conversionType === 'full_conversion')
+          && federalTax + stateTax > taxCap) {
+        // Self-consistent version of the shrink below. federalTax/stateTax were
+        // priced on the whole distribution D = conversion + extra pull, so the
+        // cap must be met on THAT tax: find the largest D whose tax fits the
+        // allowance, then split it back into conversion + pull exactly as the
+        // solvers above do (tax funded from the after-tax RMD first).
+        const R = Math.max(0, afterTaxForcedRmd);
+        const currentD = conversionAmount + Math.max(0, federalTax + stateTax - R);
+        let lo = 0, hi = currentD;
+        for (let i = 0; i < 40; i++) {
+          const mid = (lo + hi) / 2;
+          const t = convTaxAt(mid);
+          if (t.federalTax + t.stateTax <= taxCap) lo = mid; else hi = mid;
+        }
+        const capD = Math.floor(lo);
+        const capTax = convTaxAt(capD);
+        federalTax = capTax.federalTax;
+        stateTax = capTax.stateTax;
+        conversionAmount = Math.max(0, capD - Math.max(0, federalTax + stateTax - R));
+        // The year is cap-limited: the residual sweep below must not fold the
+        // remaining balance back in (it would convert past the allowance with
+        // no tax pulled for it).
+        conversionCapLimited = true;
+      } else if (payTaxFromIRA && conversionAmount > 0 && taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
+          && !selfConsistentTaxFromIra
           && (conversionType === 'fixed_amount' || conversionType === 'full_conversion')) {
         const capTax0 = convTaxAt(conversionAmount);
         if (capTax0.federalTax + capTax0.stateTax > taxCap) {
@@ -1060,6 +1116,7 @@ export function runGrowthFormulaScenario(
     // in totalTax but the emptied IRA can't fund it — bounded by the $25K cap.)
     const residualSweepLimit = Math.min(2500000, Math.max(500000, Math.round(conversionAmount * 0.10)));
     if ((conversionType === 'fixed_amount' || conversionType === 'full_conversion')
+        && !conversionCapLimited
         && conversionAmount > 0 && iraAfterConversion > 0 && iraAfterConversion <= residualSweepLimit) {
       conversionAmount += iraAfterConversion;
       iraAfterConversion = 0;
@@ -1092,7 +1149,9 @@ export function runGrowthFormulaScenario(
           penaltyFreeScope === 'all_distributions'
             ? effectiveIraDistribution + conversionAmount + extraPullForTax
             : conversionTaxFromIRA;
-        const usedPct = Math.max(0, penaltyFreeUsed) / boyIRA * 100;
+        // Same base the cap used this year (contract value under 'tax_only').
+        const allowanceBase = penaltyFreeScope === 'all_distributions' ? boyIRA : taxCapBase;
+        const usedPct = Math.max(0, penaltyFreeUsed) / allowanceBase * 100;
         // Carry the unused portion of this year's allowance, bounded by the room
         // above the base (cumulativeFreeRoom) so the ceiling stays maxPercent —
         // including multi-year products where the room exceeds one base year.

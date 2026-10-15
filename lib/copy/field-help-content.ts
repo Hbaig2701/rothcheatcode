@@ -178,7 +178,7 @@ export const FIELD_HELP = {
   },
   penalty_free_scope: {
     title: "What Counts Toward the Cap",
-    body: "Only matters when 'Respect Penalty-Free Limit' is ON. 'Only the tax payment' (default) treats the Roth conversion as an intra-carrier transfer and only counts the dollars pulled out to pay tax — so this scope effectively caps nothing if Tax Payment Source is 'External'. 'Every dollar that leaves the IRA' is stricter: conversion + RMD + tax all count toward the cap, even when tax is paid from outside cash. Use the strict mode when the carrier's contract treats the conversion itself as a withdrawal.",
+    body: "Only matters when 'Respect Penalty-Free Limit' is ON. 'Only the tax payment' (default) treats the Roth conversion as an intra-carrier transfer and only counts the dollars pulled out to pay tax — so this scope effectively caps nothing if Tax Payment Source is 'External'. Because the converted money stays in the contract, the allowance is based on the whole contract value (unconverted balance plus converted Roth). 'Every dollar that leaves the IRA' is stricter: conversion + RMD + tax all count toward the cap, even when tax is paid from outside cash. Use the strict mode when the carrier's contract treats the conversion itself as a withdrawal.",
     example: "Allianz intra-carrier Roth, paying tax from IRA → 'Only the tax payment'. Carrier where the conversion triggers a surrender charge → 'Every dollar that leaves the IRA'.",
   },
   rmd_treatment: {
