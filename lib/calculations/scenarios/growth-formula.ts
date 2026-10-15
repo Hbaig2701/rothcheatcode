@@ -1662,6 +1662,7 @@ export function runGrowthFormulaScenario(
       federalTaxOnIRAWithdrawal,
       taxesPaidFromIRA: conversionTaxFromIRA,
       taxesPaidExternally: conversionTaxExternal,
+      penaltyFreeAllowanceBase: penaltyFreeScope === 'all_distributions' ? boyIRA : taxCapBase,
       earlyWithdrawalPenalty,
       iraWithdrawal,
       rothWithdrawal,

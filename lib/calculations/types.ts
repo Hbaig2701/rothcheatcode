@@ -264,6 +264,12 @@ export interface YearlyResult {
   // wrote a check for. Doesn't reduce any tracked balance — it's modeled as
   // money the client funded externally.
   taxesPaidExternally?: number;
+  // Contract value the penalty-free allowance is a percentage of this year
+  // (growth engine): BOY unconverted + BOY in-annuity Roth under 'tax_only',
+  // BOY unconverted under 'all_distributions'. Exported so display checks
+  // (e.g. the report's "Penalty-Free Withdrawal Limit Exceeded" warning) use
+  // the same base as the engine instead of re-deriving a different one.
+  penaltyFreeAllowanceBase?: number;
 
   // 10% early withdrawal penalty on IRA distributions used to pay conversion
   // taxes when client is under 59.5 (in cents). Assessed on the taxesPaidFromIRA

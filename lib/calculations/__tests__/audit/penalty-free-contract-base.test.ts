@@ -103,5 +103,16 @@ schedules.full.forEach((v, i) => check('full-vs-optimized', 'same-schedule-when-
   });
 }
 
+// 7. The exported allowance base (read by the report's penalty-free warning)
+//    is the base the cap used: contract value under tax_only, unconverted under
+//    all_distributions — so the warning and the engine can't disagree.
+for (const scope of ['tax_only', 'all_distributions'] as const) {
+  const { formula } = run({ conversion_type: 'optimized_amount', penalty_free_scope: scope });
+  formula.slice(0, 10).forEach((y) => {
+    const expected = scope === 'tax_only' ? (y.traditionalBOY ?? 0) + (y.rothBOY ?? 0) : (y.traditionalBOY ?? 0);
+    check(`base/${scope}`, 'exported-allowance-base', Math.abs((y.penaltyFreeAllowanceBase ?? -1) - expected) <= TOL, expected, y.penaltyFreeAllowanceBase, `${y.year}`);
+  });
+}
+
 r.print('Penalty-free cap — contract base + full/fixed tax funding');
 process.exit(r.breaches.length > 0 ? 1 : 0);

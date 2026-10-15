@@ -541,11 +541,14 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // count against the allowance. The dollars that DO count are
   // taxesPaidFromIRA (the conversion tax pulled out of the contract). So the
   // violation comparison is taxesPaidFromIRA vs the cap. When
-  // respect_penalty_free_limit is on, the engine routes overflow to external
-  // funds and the cap is never exceeded — no violations to surface. When
-  // it's off (and the advisor is paying tax from the IRA), we compute how
-  // much the year's tax distribution would actually exceed the cap and what
-  // surrender charge would apply.
+  // respect_penalty_free_limit is on, the engine sizes conversions so the cap
+  // is never exceeded — no violations to surface. When it's off (and the
+  // advisor is paying tax from the IRA), we compute how much the year's tax
+  // distribution would actually exceed the cap and what surrender charge
+  // would apply. The cap's base is the engine's own penaltyFreeAllowanceBase
+  // (contract value: unconverted + in-annuity Roth), so this warning agrees
+  // with the engine; older rows without it fall back to the unconverted
+  // balance.
   const penaltyFreePercent = (client.penalty_free_percent ?? 10) / 100;
   const surrenderYears = client.surrender_years ?? 0;
   const surrenderSchedule = client.surrender_schedule ?? [];
@@ -564,7 +567,8 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
       const boyIRA = idx > 0
         ? projection.blueprint_years[idx - 1].traditionalBalance
         : Math.round(rothSidePortion * (1 + (client.bonus_percent ?? 0) / 100));
-      const penaltyFreeLimit = Math.round(boyIRA * penaltyFreePercent);
+      const allowanceBase = year.penaltyFreeAllowanceBase ?? boyIRA;
+      const penaltyFreeLimit = Math.round(allowanceBase * penaltyFreePercent);
       if (taxFromIra > penaltyFreeLimit) {
         const excess = taxFromIra - penaltyFreeLimit;
         const chargePercent = yearOffset < surrenderSchedule.length ? surrenderSchedule[yearOffset] : 0;
