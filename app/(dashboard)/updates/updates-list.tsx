@@ -1,9 +1,65 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield, Table2, ArrowUpDown, MoveHorizontal, UserCog, Columns, Tags, HandCoins, Heart, Sparkles, GitCompare, SlidersHorizontal, MessageCircle, GraduationCap, Scale, BookOpen, Calculator, Wrench, TrendingUp, PiggyBank, Split, CalendarClock, LineChart, Building2, ShieldCheck } from 'lucide-react'
+import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield, Table2, ArrowUpDown, MoveHorizontal, UserCog, Columns, Tags, HandCoins, Heart, Sparkles, GitCompare, SlidersHorizontal, MessageCircle, GraduationCap, Scale, BookOpen, Calculator, Wrench, TrendingUp, PiggyBank, Split, CalendarClock, LineChart, Building2, ShieldCheck, Maximize2, CalendarDays } from 'lucide-react'
 
 const updates = [
+  {
+    id: '54',
+    date: 'October 14, 2026',
+    title: 'Enter an Exact Date of Birth',
+    description: "Under Age and Spouse Age in 1. Client Data there's now a \"Enter date of birth instead\" option. Tick it and you can give the actual date rather than a round number.\n\nIt matters more than it sounds. The IRS works from the age a client reaches during the calendar year, which is the convention behind required distributions, the 65-and-over deductions and Medicare. With a date of birth the projection follows that convention exactly and recalculates every year, so it never drifts out of date.\n\nAge on its own still works and existing clients are untouched \u2014 use the date when the birthday matters, particularly for someone close to an RMD or Medicare threshold.",
+    category: 'New Feature',
+    icon: CalendarDays,
+  },
+  {
+    id: '53',
+    date: 'October 13, 2026',
+    title: 'Referral Commissions Now Pay Out Automatically',
+    description: "Refer & Earn pays you without you having to ask. Set up a payout account once and your commissions land in your bank on their own.\n\nEvery time an advisor you referred pays their invoice, 30% of it is credited to you \u2014 and they keep 35% off for as long as they stay subscribed. Commissions clear after 30 days, then pay out on the 1st of each month once your balance is over $50.\n\nSettings \u2192 Refer & Earn now shows your pending, ready and paid balances alongside your full payout history, so you can see what's coming and when. There's also a new FAQ there covering how attribution works and when a commission counts.",
+    category: 'New Feature',
+    icon: HandCoins,
+  },
+  {
+    id: '52',
+    date: 'October 9, 2026',
+    title: 'Choose Which Inputs You See',
+    description: "The client form can be trimmed down to just the fields you actually use. Go to Settings \u2192 Input Panel and switch off the optional features you don't write \u2014 QLAC, tax credits, held-back IRA, AUM allocation and the rest.\n\nAnything you hide stays hidden on new clients but comes back automatically on any existing client whose numbers already use it, so nothing you've already built changes and no projection is recalculated.\n\nParticularly useful on a demo, where a shorter form is an easier story to tell.",
+    category: 'New Feature',
+    icon: SlidersHorizontal,
+  },
+  {
+    id: '51',
+    date: 'October 5, 2026',
+    title: 'Convert to a Roth and Keep Managing the Money',
+    description: "You can now model the case where the client converts to a Roth and you continue to manage it. Two new controls in section 7.\n\n\"Where does that money go?\" decides whether an allocation is Roth converted and managed, or moved to a taxable brokerage the way it worked before. Converted is usually the stronger story: the tax at the moment of transfer is identical either way, but a Roth has no required distributions and no tax on growth, dividends or rebalancing. On a $2M IRA run to age 95, that difference came to more than $1M in what the family keeps.\n\n\"Advisory fee\" charges your annual fee on the balances you manage, wherever that money sits \u2014 including the Roth once it's converted. By default the same fee is applied to the do-nothing comparison as well, since you would have been managing the same dollars either way. That keeps the comparison about the tax decision rather than about the fee.",
+    category: 'New Feature',
+    icon: PiggyBank,
+  },
+  {
+    id: '50',
+    date: 'October 5, 2026',
+    title: 'Print Your Logo Larger',
+    description: "Your logo can now print bigger on client reports. Settings \u2192 Business has a size choice of small, medium or large, and the export dialog lets you change it for one report without touching your default.\n\nSmall is the size reports have always used, so nothing changes unless you choose otherwise. The aspect ratio is always preserved, so a wide logo may still be limited by its width rather than its height.",
+    category: 'Enhancement',
+    icon: Printer,
+  },
+  {
+    id: '49',
+    date: 'October 2, 2026',
+    title: 'Breakeven Analysis on the Results Dashboard',
+    description: "A new Breakeven Analysis card shows the ages at which the strategy pulls ahead of doing nothing \u2014 when total net worth overtakes the baseline, when the legacy to heirs overtakes it, and the milestones in between.\n\nHover any milestone title to see what it means and the assumptions behind it.\n\nIt answers the question clients tend to ask first: when does this actually start paying off?",
+    category: 'New Feature',
+    icon: Scale,
+  },
+  {
+    id: '48',
+    date: 'September 29, 2026',
+    title: 'Full-Screen Inputs',
+    description: "The Inputs tray can expand to fill the screen. Use the button next to the close X to expand it, and Esc to go back.\n\nWhichever mode you leave it in is remembered, including after you hit Update Scenario, so you're not resizing it every time.\n\nHelpful when you're working through a longer form or sharing your screen with a client.",
+    category: 'Enhancement',
+    icon: Maximize2,
+  },
   {
     id: '47',
     date: 'September 24, 2026',
