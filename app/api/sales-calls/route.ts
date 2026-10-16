@@ -8,9 +8,22 @@ import { transcribeAudio } from "@/lib/sales-calls/transcribe";
 import { analyzeTranscript } from "@/lib/sales-calls/analysis";
 
 export const dynamic = "force-dynamic";
-// Whisper needs 30–90s on a 25MB recording and runs inside after(), which
-// shares the route's budget; the default would cut it off mid-transcription.
-export const maxDuration = 120;
+// Transcription AND analysis both run inside after(), which shares the route's
+// budget. Measured on real uploads: Whisper takes 43s on a 22-minute recording
+// and 88s on a 35-minute one, then the analysis takes another 86-92s. At 120
+// the function was being killed partway through the analysis — and because a
+// hard kill never reaches the catch block, the record sat at "analyzing" with a
+// null error_message and the advisor watched a spinner forever (Tamara, 22-min
+// call, Oct 16; Josh, 35-min call, Sept 23, stuck for 23 days). 300 leaves room
+// for the longest recording the 25MB ceiling allows. STUCK_PROCESSING_MS below
+// is the backstop for the case where even this is not enough, since a timed-out
+// function can never report its own failure.
+export const maxDuration = 300;
+
+// A record left in transcribing/analyzing for longer than this had its function
+// killed; nothing is still working on it. Comfortably above maxDuration so a
+// genuinely in-flight job is never touched.
+const STUCK_PROCESSING_MS = 10 * 60 * 1000;
 
 const SALES_CALLS_BUCKET = "sales-call-uploads";
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB — Whisper's ceiling
@@ -26,6 +39,26 @@ export async function GET(request: NextRequest) {
   if (plan === "none") {
     return NextResponse.json({ error: "Subscription required" }, { status: 403 });
   }
+
+  // Fail forward any of this advisor's records whose processing died without
+  // reporting it. Done on read rather than on a schedule because this is the
+  // exact moment it matters: the advisor is looking at the spinner, so the page
+  // they load next shows a message they can act on instead of spinning on a job
+  // that stopped existing. Scoped to their own rows and to records old enough
+  // that nothing can still be running.
+  await supabase
+    .from("sales_calls")
+    .update({
+      status: "failed",
+      error_message:
+        "Processing stopped before the report was finished. This usually means the " +
+        "recording was long enough to exceed the processing window — uploading it in " +
+        "shorter segments will produce a report. Nothing was charged against your usage.",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", user.id)
+    .in("status", ["transcribing", "analyzing"])
+    .lt("updated_at", new Date(Date.now() - STUCK_PROCESSING_MS).toISOString());
 
   const { searchParams } = new URL(request.url);
   const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);

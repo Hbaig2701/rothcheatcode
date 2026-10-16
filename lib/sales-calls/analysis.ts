@@ -201,7 +201,15 @@ export async function analyzeTranscript(
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-5-20250929",
-    max_tokens: 8192,
+    // A long call produces a lot of structured output — every metric, moment,
+    // missed opportunity, compliance flag and priority action. At 8192 the JSON
+    // was being cut mid-object on real calls (a 22-minute call with a 16,022
+    // character transcript truncated at ~13,980 characters of JSON), and the
+    // greedy regex below then handed JSON.parse a string with no closing brace,
+    // so the advisor saw a spinner forever instead of a report. Sonnet 4.5
+    // allows far more than this; 16384 is ample headroom for the longest calls
+    // we see without inviting a runaway response.
+    max_tokens: 16384,
     messages: [
       {
         role: "user",
@@ -210,6 +218,19 @@ export async function analyzeTranscript(
     ],
     system: SYSTEM_PROMPT,
   });
+
+  // Catch truncation BEFORE trying to parse. A response cut off at the token
+  // ceiling still looks like text, so JSON.parse fails with something like
+  // "Expected ',' or '}' after property value at position 13982" — which tells
+  // whoever is debugging nothing about the real cause. Check the stop reason
+  // and say what actually happened.
+  if (message.stop_reason === "max_tokens") {
+    throw new Error(
+      "Analysis response hit the output limit and was cut off before it could be read. " +
+      "This happens on unusually long calls; splitting the recording into shorter " +
+      "segments and re-uploading will produce a report."
+    );
+  }
 
   const textBlock = message.content.find((block) => block.type === "text");
   if (!textBlock || textBlock.type !== "text") {
@@ -222,7 +243,18 @@ export async function analyzeTranscript(
     throw new Error("Could not parse analysis JSON from Claude response");
   }
 
-  const raw = JSON.parse(jsonMatch[0]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- shape is validated below, as before
+  let raw: any;
+  try {
+    raw = JSON.parse(jsonMatch[0]);
+  } catch (err) {
+    // Surface the length so a recurrence is diagnosable from the record alone,
+    // rather than needing someone to re-run the call by hand.
+    throw new Error(
+      `Analysis returned malformed JSON (${jsonMatch[0].length} characters, ` +
+      `stop reason "${message.stop_reason}"): ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
 
   // Validate overall score
   if (typeof raw.overallScore !== "number" || raw.overallScore < 0 || raw.overallScore > 10) {
