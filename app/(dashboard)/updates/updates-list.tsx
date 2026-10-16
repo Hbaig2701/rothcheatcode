@@ -5,6 +5,46 @@ import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck
 
 const updates = [
   {
+    id: '52',
+    date: 'October 14, 2026',
+    title: 'Enter a Date of Birth Instead of an Age',
+    description: "In Section 1 (Client Data), tick \"Enter date of birth instead\" under Age or Spouse Age to enter an exact date of birth for the client and spouse.\n\nThe projection then follows the age each person reaches during the calendar year, which is the convention used for RMD start dates, the 65+ deductions and Medicare, and it updates itself every year. Leave the box unticked and you can keep entering an age as you always have.",
+    category: 'New Feature',
+    icon: CalendarClock,
+  },
+  {
+    id: '51',
+    date: 'October 9, 2026',
+    title: 'Input Panel: Show Only the Options You Use',
+    description: "A new Input Panel tab in Settings lets you switch each optional part of the client form on or off: QLAC, Additional Deductions, Tax Credits, IRMAA Tier Targeting, Held-back IRA, Capital Gains & Qualified Dividends, Advisory Fee, AUM Allocation, IRA / Roth Withdrawals, Years to Defer Conversion and Widow's Penalty.\n\nKeep the form short and focused on the way you work, and turn a feature on whenever a client needs it. Hiding an option never changes a projection, and a client who already uses a hidden feature still sees it with a note explaining why.",
+    category: 'New Feature',
+    icon: SlidersHorizontal,
+  },
+  {
+    id: '50',
+    date: 'October 5, 2026',
+    title: 'Choose Your Logo Size on Reports',
+    description: "Pick Small, Medium or Large for how your logo prints on the PDF cover and page headers. Set a default under Settings → Business → Logo Size on Reports, or choose it right in the Export Report dialog just above Report Sections.\n\nWide firm logos can now fill the cover the way you want, so client-facing reports look like yours. Your logo always keeps its proportions, and Small stays the default.",
+    category: 'Enhancement',
+    icon: Printer,
+  },
+  {
+    id: '49',
+    date: 'October 5, 2026',
+    title: 'Advisory Fee and Managed Roth Dollars',
+    description: "Section 7 (Advisory Fee & AUM Allocation) now lets you show \"convert to a Roth and I keep managing it\". Turn on \"Charge an advisory fee on the money you manage\" and enter your annual percentage. The fee is charged on the client's account balances while the conversion runs exactly as planned.\n\nIn AUM Allocation you can also choose the destination for the managed slice: Roth conversion (you manage the Roth) or a taxable brokerage. Use it to show clients the trade-off between a managed Roth and a managed taxable account, side by side.",
+    category: 'New Feature',
+    icon: HandCoins,
+  },
+  {
+    id: '48',
+    date: 'October 2, 2026',
+    title: 'Breakeven Analysis Card',
+    description: "The results dashboard now has a Breakeven Analysis card with a plain-English headline and four milestones: when conversions are complete, when the conversion tax is paid back, when the Roth overtakes the IRA, and when the strategy pulls ahead of doing nothing and stays ahead. Hover any milestone for a short explanation of what it measures.\n\nIt answers the question clients ask most, \"when does this pay off?\", with clear ages you can point to during the meeting.",
+    category: 'New Feature',
+    icon: LineChart,
+  },
+  {
     id: '47',
     date: 'September 24, 2026',
     title: 'Your Compliance Disclosure on Client Reports',
