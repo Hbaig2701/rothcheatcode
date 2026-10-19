@@ -63,6 +63,12 @@ export async function toSpeechSegments(inputPath: string): Promise<AudioSegment[
       ]);
     } catch (err) {
       console.error("ffmpeg re-encode failed:", err);
+      // Spawn failures mean the binary is missing / not executable on this
+      // deploy — not the advisor's file. Don't tell them to re-export it.
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code === "ENOENT" || code === "EACCES") {
+        throw new RecordingError("Recording conversion is unavailable right now. Please try again shortly.", true);
+      }
       const detail = err instanceof Error ? err.message : "";
       if (/does not contain any stream|matches no streams/i.test(detail)) {
         throw new RecordingError("This recording has no audio track, so there's nothing to transcribe.", false);

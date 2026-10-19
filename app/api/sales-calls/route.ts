@@ -13,6 +13,7 @@ import { join } from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import { analyzeTranscript } from "@/lib/sales-calls/analysis";
+import { MAX_RECORDING_BYTES, MAX_RECORDING_MB } from "@/lib/sales-calls/limits";
 
 export const dynamic = "force-dynamic";
 // Transcription AND analysis both run inside after(), which shares the route's
@@ -36,11 +37,6 @@ export const maxDuration = 300;
 const STUCK_PROCESSING_MS = 10 * 60 * 1000;
 
 const SALES_CALLS_BUCKET = "sales-call-uploads";
-// Upload ceiling. Whisper itself caps at 25MB, but recordings are re-encoded to
-// speech-quality mono and segmented before transcription (lib/sales-calls/audio.ts),
-// so the upload can be far larger. 200MB covers a typical hour-long Zoom video
-// or several hours of audio while staying well inside the function's /tmp and memory.
-const MAX_FILE_SIZE = 200 * 1024 * 1024;
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024;
 
 export async function GET(request: NextRequest) {
@@ -210,9 +206,9 @@ async function handleRecording(body: unknown, userId: string) {
     return NextResponse.json({ error: "Uploaded file not found" }, { status: 400 });
   }
   const size = (object.metadata as { size?: number } | null)?.size ?? 0;
-  if (size > MAX_FILE_SIZE) {
+  if (size > MAX_RECORDING_BYTES) {
     await admin.storage.from(SALES_CALLS_BUCKET).remove([storagePath]);
-    return NextResponse.json({ error: "File must be under 200MB" }, { status: 400 });
+    return NextResponse.json({ error: `File must be under ${MAX_RECORDING_MB}MB` }, { status: 400 });
   }
   const mimeType = (object.metadata as { mimetype?: string } | null)?.mimetype || "audio/mpeg";
 
@@ -238,12 +234,15 @@ async function handleRecording(body: unknown, userId: string) {
   after(async () => {
     const bg = createAdminClient();
     try {
-      const { data: blob, error: downloadError } = await bg.storage
+      const { data: downloaded, error: downloadError } = await bg.storage
         .from(SALES_CALLS_BUCKET)
         .download(storagePath);
-      if (downloadError || !blob) {
+      if (downloadError || !downloaded) {
         throw new Error(downloadError?.message || "Could not read uploaded file");
       }
+      // Held only until encoding succeeds — the fallback below needs the
+      // original, but the analysis step shouldn't keep up to 50MB+ alive.
+      let blob: Blob | null = downloaded;
       // Step 1: Transcribe. Write the recording to /tmp for ffmpeg, re-encode
       // into small segments, and transcribe those in parallel. The working
       // copy is deleted as soon as encoding finishes — concurrent uploads on a
@@ -255,10 +254,11 @@ async function handleRecording(body: unknown, userId: string) {
       try {
         const inputPath = join(workDir, objectName);
         await pipeline(
-          Readable.fromWeb(blob.stream() as import("stream/web").ReadableStream),
+          Readable.fromWeb(downloaded.stream() as import("stream/web").ReadableStream),
           createWriteStream(inputPath),
         );
         segments = await toSpeechSegments(inputPath);
+        blob = null;
       } catch (encodeErr) {
         const retryable = encodeErr instanceof RecordingError ? encodeErr.retryable : true;
         if (!retryable || size > WHISPER_MAX_BYTES) throw encodeErr;
@@ -268,7 +268,7 @@ async function handleRecording(body: unknown, userId: string) {
       }
       const transcription = segments
         ? await transcribeSegments(segments)
-        : await transcribeAudio(Buffer.from(await blob.arrayBuffer()), objectName, mimeType);
+        : await transcribeAudio(Buffer.from(await blob!.arrayBuffer()), objectName, mimeType);
       const { text, duration } = transcription;
 
       await bg

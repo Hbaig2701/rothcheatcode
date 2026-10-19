@@ -1,10 +1,11 @@
 -- Recordings over Whisper's 25MB ceiling are now re-encoded to speech-quality
 -- mono and split into segments server-side (lib/sales-calls/audio.ts), so the
 -- bucket no longer needs to stop at 25MB. Tamara, Oct 2026: 40MB recording.
--- NOTE: the project-wide Storage upload limit (dashboard → Storage → Settings)
--- must also be ≥ 200MB or uploads above it still fail.
+-- 50MB = the project-wide Storage upload limit (dashboard → Storage →
+-- Settings); a bucket can't exceed it. Raise both together, and
+-- MAX_RECORDING_MB in lib/sales-calls/limits.ts.
 UPDATE storage.buckets
-SET file_size_limit = 209715200 -- 200MB
+SET file_size_limit = 52428800 -- 50MB
 WHERE id = 'sales-call-uploads';
 
 -- Call dates picked in the upload form were stored as UTC midnight

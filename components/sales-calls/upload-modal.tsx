@@ -20,9 +20,9 @@ interface UploadModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+import { MAX_RECORDING_BYTES, MAX_RECORDING_MB } from '@/lib/sales-calls/limits';
+
 const ALLOWED_EXTENSIONS = '.mp4,.mp3,.wav,.m4a,.webm';
-const MAX_SIZE_MB = 200;
-const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
 // <input type="date"> gives "YYYY-MM-DD". new Date() parses that as UTC
 // midnight, which every US timezone renders as the PREVIOUS day (pick June 15,
@@ -73,8 +73,8 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
       setFileError('File must be MP4, MP3, WAV, M4A, or WebM');
       return false;
     }
-    if (f.size > MAX_SIZE_BYTES) {
-      setFileError(`File must be under ${MAX_SIZE_MB}MB`);
+    if (f.size > MAX_RECORDING_BYTES) {
+      setFileError(`File must be under ${MAX_RECORDING_MB}MB`);
       return false;
     }
     return true;
@@ -194,7 +194,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
                       Drag & drop or click to upload
                     </p>
                     <p className="text-xs text-text-dimmer">
-                      MP4, MP3, WAV, M4A, WebM (max {MAX_SIZE_MB}MB)
+                      MP4, MP3, WAV, M4A, WebM (max {MAX_RECORDING_MB}MB)
                     </p>
                   </>
                 )}
