@@ -4,7 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEffectivePlan } from "@/lib/usage";
 import { salesCallTranscriptSchema, salesCallRecordingSchema } from "@/lib/validations/sales-call";
-import { transcribeAudio } from "@/lib/sales-calls/transcribe";
+import { transcribeAudio, transcribeSegments } from "@/lib/sales-calls/transcribe";
+import { toSpeechSegments, RecordingError, type AudioSegment } from "@/lib/sales-calls/audio";
+import { createWriteStream } from "fs";
+import { mkdtemp, rm } from "fs/promises";
+import { tmpdir } from "os";
+import { join } from "path";
+import { Readable } from "stream";
+import { pipeline } from "stream/promises";
 import { analyzeTranscript } from "@/lib/sales-calls/analysis";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +22,10 @@ export const dynamic = "force-dynamic";
 // hard kill never reaches the catch block, the record sat at "analyzing" with a
 // null error_message and the advisor watched a spinner forever (Tamara, 22-min
 // call, Oct 16; Josh, 35-min call, Sept 23, stuck for 23 days). 300 leaves room
-// for the longest recording the 25MB ceiling allows. STUCK_PROCESSING_MS below
+// for the longest recording the 25MB ceiling allows. (Uploads above 25MB are now
+// re-encoded and split into segments that transcribe in parallel — see
+// lib/sales-calls/audio.ts — so Whisper time no longer grows with call length.)
+// STUCK_PROCESSING_MS below
 // is the backstop for the case where even this is not enough, since a timed-out
 // function can never report its own failure.
 export const maxDuration = 300;
@@ -26,7 +36,12 @@ export const maxDuration = 300;
 const STUCK_PROCESSING_MS = 10 * 60 * 1000;
 
 const SALES_CALLS_BUCKET = "sales-call-uploads";
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB — Whisper's ceiling
+// Upload ceiling. Whisper itself caps at 25MB, but recordings are re-encoded to
+// speech-quality mono and segmented before transcription (lib/sales-calls/audio.ts),
+// so the upload can be far larger. 200MB covers a typical hour-long Zoom video
+// or several hours of audio while staying well inside the function's /tmp and memory.
+const MAX_FILE_SIZE = 200 * 1024 * 1024;
+const WHISPER_MAX_BYTES = 25 * 1024 * 1024;
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -197,7 +212,7 @@ async function handleRecording(body: unknown, userId: string) {
   const size = (object.metadata as { size?: number } | null)?.size ?? 0;
   if (size > MAX_FILE_SIZE) {
     await admin.storage.from(SALES_CALLS_BUCKET).remove([storagePath]);
-    return NextResponse.json({ error: "File must be under 25MB" }, { status: 400 });
+    return NextResponse.json({ error: "File must be under 200MB" }, { status: 400 });
   }
   const mimeType = (object.metadata as { mimetype?: string } | null)?.mimetype || "audio/mpeg";
 
@@ -229,10 +244,32 @@ async function handleRecording(body: unknown, userId: string) {
       if (downloadError || !blob) {
         throw new Error(downloadError?.message || "Could not read uploaded file");
       }
-      const fileBuffer = Buffer.from(await blob.arrayBuffer());
-
-      // Step 1: Transcribe
-      const { text, duration } = await transcribeAudio(fileBuffer, objectName, mimeType);
+      // Step 1: Transcribe. Write the recording to /tmp for ffmpeg, re-encode
+      // into small segments, and transcribe those in parallel. The working
+      // copy is deleted as soon as encoding finishes — concurrent uploads on a
+      // warm instance share /tmp. If encoding fails in a way Whisper might
+      // still handle (and the original is under its 25MB cap), fall back to
+      // sending the original rather than failing the upload.
+      const workDir = await mkdtemp(join(tmpdir(), "sales-call-"));
+      let segments: AudioSegment[] | null = null;
+      try {
+        const inputPath = join(workDir, objectName);
+        await pipeline(
+          Readable.fromWeb(blob.stream() as import("stream/web").ReadableStream),
+          createWriteStream(inputPath),
+        );
+        segments = await toSpeechSegments(inputPath);
+      } catch (encodeErr) {
+        const retryable = encodeErr instanceof RecordingError ? encodeErr.retryable : true;
+        if (!retryable || size > WHISPER_MAX_BYTES) throw encodeErr;
+        console.error("Re-encode failed, sending original to Whisper:", record.id, encodeErr);
+      } finally {
+        await rm(workDir, { recursive: true, force: true }).catch(() => {});
+      }
+      const transcription = segments
+        ? await transcribeSegments(segments)
+        : await transcribeAudio(Buffer.from(await blob.arrayBuffer()), objectName, mimeType);
+      const { text, duration } = transcription;
 
       await bg
         .from("sales_calls")

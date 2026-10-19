@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   Clock,
   ShieldAlert,
   Target,
+  Download,
 } from 'lucide-react';
 import { useSalesCall, useReanalyzeSalesCall, useDeleteSalesCall } from '@/lib/queries/sales-calls';
 import { ScoreBadge } from '@/components/sales-calls/score-badge';
@@ -46,6 +47,38 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
   const { data: call, isLoading, isError, error } = useSalesCall(id);
   const reanalyzeMutation = useReanalyzeSalesCall();
   const deleteMutation = useDeleteSalesCall();
+
+  const [pdfLoading, setPdfLoading] = useState<'plain' | 'transcript' | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+
+  // Fetch rather than navigate, so a failure shows a message here instead of
+  // leaving the advisor on a raw JSON error page.
+  const handleDownloadPdf = async (withTranscript: boolean) => {
+    setPdfError(null);
+    setPdfLoading(withTranscript ? 'transcript' : 'plain');
+    try {
+      const params = new URLSearchParams({ tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+      if (withTranscript) params.set('transcript', '1');
+      const res = await fetch(`/api/sales-calls/${id}/pdf?${params}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error || 'Failed to generate PDF');
+      }
+      const blob = await res.blob();
+      const filename = res.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] ?? 'sales-call-analysis.pdf';
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      // Revoking synchronously can cancel the download in Safari/Firefox.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (err) {
+      setPdfError(err instanceof Error ? err.message : 'Failed to generate PDF');
+    } finally {
+      setPdfLoading(null);
+    }
+  };
 
   const handleReanalyze = async () => {
     await reanalyzeMutation.mutateAsync(id);
@@ -161,6 +194,31 @@ export default function SalesCallDetailPage({ params }: { params: Promise<{ id: 
               <p className="text-base text-text-dimmer mt-3 leading-relaxed">{call.notes}</p>
             )}
           </div>
+
+          {/* PDF export */}
+          {call.status === 'complete' && analysis && (
+            <div className="flex-shrink-0 flex flex-col gap-2 self-start">
+              <Button onClick={() => handleDownloadPdf(false)} disabled={pdfLoading !== null}>
+                {pdfLoading === 'plain' ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                Download PDF
+              </Button>
+              {call.transcript_text && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleDownloadPdf(true)}
+                  disabled={pdfLoading !== null}
+                >
+                  {pdfLoading === 'transcript' && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                  PDF + Transcript
+                </Button>
+              )}
+              {pdfError && <p className="text-xs text-red-400 max-w-[200px]">{pdfError}</p>}
+            </div>
+          )}
         </div>
       </div>
 

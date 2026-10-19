@@ -21,8 +21,15 @@ interface UploadModalProps {
 }
 
 const ALLOWED_EXTENSIONS = '.mp4,.mp3,.wav,.m4a,.webm';
-const MAX_SIZE_MB = 25;
+const MAX_SIZE_MB = 200;
 const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+
+// <input type="date"> gives "YYYY-MM-DD". new Date() parses that as UTC
+// midnight, which every US timezone renders as the PREVIOUS day (pick June 15,
+// see June 14). Noon UTC is the same calendar date from UTC-11 to UTC+11.
+function callDateToIso(value: string): string | undefined {
+  return value ? `${value}T12:00:00.000Z` : undefined;
+}
 
 export function UploadModal({ open, onOpenChange }: UploadModalProps) {
   const router = useRouter();
@@ -93,7 +100,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
       const result = await uploadMutation.mutateAsync({
         file,
         title: title || undefined,
-        call_date: callDate ? new Date(callDate).toISOString() : undefined,
+        call_date: callDateToIso(callDate),
         notes: notes || undefined,
       });
       resetForm();
@@ -111,7 +118,7 @@ export function UploadModal({ open, onOpenChange }: UploadModalProps) {
       const result = await transcriptMutation.mutateAsync({
         transcript_text: transcript,
         title: title || undefined,
-        call_date: callDate ? new Date(callDate).toISOString() : undefined,
+        call_date: callDateToIso(callDate),
         notes: notes || undefined,
       });
       resetForm();
