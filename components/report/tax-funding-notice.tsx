@@ -13,6 +13,14 @@ interface TaxFundingNoticeProps {
    * those advisors with a silently lower wealth number and no explanation.
    */
   taxFundedFromIra: boolean;
+  /**
+   * Starting Taxable Account Balance (cents) that would let the tool pay the
+   * conversion tax from outside funds — the outside-funded plan's lifetime
+   * conversion tax, computed by the projections route
+   * (blueprint_years[0].taxableBalanceNeeded). Absent on projections cached
+   * before v86; the notice then falls back to the generic wording.
+   */
+  taxableBalanceNeeded?: number | null;
 }
 
 /**
@@ -24,7 +32,7 @@ interface TaxFundingNoticeProps {
  * it. Renders nothing when it doesn't apply (taxable covered the tax, explicit
  * from-IRA, or no conversion).
  */
-export function TaxFundingNotice({ client, taxFundedFromIra }: TaxFundingNoticeProps) {
+export function TaxFundingNotice({ client, taxFundedFromIra, taxableBalanceNeeded }: TaxFundingNoticeProps) {
   const choseFromTaxable = client.tax_payment_source !== "from_ira";
 
   if (!(choseFromTaxable && taxFundedFromIra)) return null;
@@ -37,14 +45,37 @@ export function TaxFundingNotice({ client, taxFundedFromIra }: TaxFundingNoticeP
   const conversionStartAge = (client.age ?? 99) + (client.years_to_defer_conversion ?? 0);
   const underPenaltyAge = conversionStartAge < 60;
 
+  // Rounded UP to the next $1,000 so entering the shown figure always clears
+  // the notice (the tool needs balance >= the exact lifetime conversion tax).
+  const neededDollars = taxableBalanceNeeded && taxableBalanceNeeded > 0
+    ? Math.ceil(taxableBalanceNeeded / 100 / 1000) * 1000
+    : null;
+  const currentDollars = Math.round((client.taxable_accounts ?? 0) / 100);
+  const usd = (d: number) => `$${d.toLocaleString("en-US")}`;
+
   return (
     <div className="mx-9 mt-6 rounded-lg border border-amber-400 bg-amber-100 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/15 dark:text-amber-200">
       <span className="font-semibold">Conversion taxes funded from the IRA.</span>{" "}
       This client is set to pay taxes from a taxable account, but it can&apos;t
-      cover the conversion taxes — so the shortfall is being funded from the IRA
-      (the realistic source). To change this, increase the client&apos;s taxable
-      balance, or set Tax Payment Source to &ldquo;Internal (from IRA)&rdquo; to
-      make it explicit.
+      cover the conversion taxes — so they&apos;re being funded from the IRA
+      (the realistic source).{" "}
+      {neededDollars ? (
+        <>
+          <span className="font-semibold">
+            To pay them from outside funds instead, enter at least {usd(neededDollars)} in
+            Taxable Account Balance
+          </span>{" "}
+          (2. Current Account Data; currently {usd(currentDollars)}) and this
+          message goes away. That&apos;s the total conversion tax over the whole
+          plan. Or set Tax Payment Source to &ldquo;Internal (from IRA)&rdquo;
+          to make IRA funding explicit.
+        </>
+      ) : (
+        <>
+          To change this, increase the client&apos;s taxable balance, or set Tax
+          Payment Source to &ldquo;Internal (from IRA)&rdquo; to make it explicit.
+        </>
+      )}
       {underPenaltyAge && (
         <>
           {" "}
@@ -52,8 +83,7 @@ export function TaxFundingNotice({ client, taxFundedFromIra }: TaxFundingNoticeP
             Note: this client is under 59½
           </span>
           , so the IRA-funded conversion taxes include a 10% early-withdrawal
-          penalty. If they&apos;ll pay the tax from outside funds (e.g. salary),
-          enter a taxable balance to remove the penalty.
+          penalty{neededDollars ? ", which also goes away once the taxable balance covers the taxes." : ". If they'll pay the tax from outside funds (e.g. salary), enter a taxable balance to remove the penalty."}
         </>
       )}
     </div>

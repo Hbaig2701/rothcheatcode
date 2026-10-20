@@ -639,6 +639,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
       <TaxFundingNotice
         client={client}
         taxFundedFromIra={(projection.blueprint_years ?? []).some((y) => (y.taxesPaidFromIRA ?? 0) > 0)}
+        taxableBalanceNeeded={projection.blueprint_years?.[0]?.taxableBalanceNeeded}
       />
       <StrategyLosingNotice isLosing={lifetimeWealthDiff < 0} client={client} />
       <div className="p-9 space-y-6">

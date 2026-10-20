@@ -70,6 +70,7 @@ export function GILegacyReportDashboard({ client, projection }: Props) {
       <TaxFundingNotice
         client={client}
         taxFundedFromIra={(projection.blueprint_years ?? []).some((y) => (y.taxesPaidFromIRA ?? 0) > 0)}
+        taxableBalanceNeeded={projection.blueprint_years?.[0]?.taxableBalanceNeeded}
       />
       <div className="p-9 space-y-6">
         {/* Hero: total tax-free legacy to heirs (consistent with the do-nothing

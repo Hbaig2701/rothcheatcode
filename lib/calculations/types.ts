@@ -254,6 +254,14 @@ export interface YearlyResult {
   // doesn't count against the carrier's penalty-free withdrawal allowance.
   taxesPaidFromIRA?: number;
 
+  // Display-only, set on the FIRST strategy year by the projections route when
+  // the advisor chose "pay taxes from taxable" but the taxable balance can't
+  // cover the plan's conversion tax (so the strategy was re-run IRA-funded).
+  // It's the lifetime conversion tax of the OUTSIDE-funded plan — the starting
+  // Taxable Account Balance that would make the tool fund it externally. Shown
+  // in the TaxFundingNotice so advisors get the number, not a hunt. In cents.
+  taxableBalanceNeeded?: number;
+
   // Taxes paid from external/non-IRA funds for the conversion (in cents).
   // Populated when the carrier penalty-free cap binds in a from_ira scenario
   // — the IRA covers up to taxesPaidFromIRA, the rest of the conversion tax
