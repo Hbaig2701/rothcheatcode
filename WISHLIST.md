@@ -379,7 +379,11 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 - "Athene Performance Elite 10" — 26% bonus, 11-year surrender `[12,12,12,11,10,9,8,7,6,4,0]`, vesting 11 yrs, overrides 24/20. Built `source=manual`. **13 advisor copies.**
 - "Performance Elite 10 Plus" — 22% bonus, 10-year surrender `[12,12,12,11,10,9,8,7,6,4]`, vesting 10 yrs, overrides 20/19. Built `source=ai_document`. **12 advisor copies.**
 
-They disagree on the bonus by 4 points AND on the surrender period by a year — which also moves the rider-fee duration and the post-contract rate switch. The 11-entry schedule with a trailing `0` looks like an off-by-one in the hand-built one.
+They disagree on the bonus by 4 points AND on the surrender period by a year, which also moves the rider-fee duration and the post-contract rate switch.
+
+**Correction after checking Athene's own brochure (AN1299-10):** the 11-entry schedule with a trailing `0` is NOT an off-by-one, as first assumed — Athene publishes withdrawal charges for years 1 through "11+" with the last at 0%, so the 11-row shape is right and the 10-row entry is the odd one.
+
+**And the labelling is worse than a duplicate.** Elite 10 and Elite 10 Plus are genuinely different contracts — the brochure lists "Increased Premium Bonus" and "Additional Free Withdrawals" as what Plus adds, and third-party reviews consistently describe the ~0.95% rider charge as the Plus feature. BOTH our entries carry `annual_rider_fee: 0.95` and `carrier_product_name: "Performance Elite 10 Plus"`. So the entry an advisor picks when they want the base Elite 10 is configured as the Plus: wrong bonus AND a rider fee that may not belong to their contract. On Bo's client that is a $22,750 overstated bonus and $85,834 of rider fee across 10 years.
 
 **Why it surfaced as a different bug:** Bo reported it as "Georgia defaults to 26% when the current GA bonus is 22%". There is no GA override in either entry — GA correctly falls back to the base — and 22% is simply the *other* entry's national base. The state-override mechanism is working exactly as designed; the data is the problem. Confirming the right rate still needs the carrier's rate sheet.
 
