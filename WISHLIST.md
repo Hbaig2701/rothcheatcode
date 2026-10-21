@@ -399,6 +399,26 @@ They disagree on the bonus by 4 points AND on the surrender period by a year, wh
 
 ---
 
+## State bonus overrides can't express an issue-age band, and vesting is stored but ignored
+
+**The pitch:** Two schema gaps that between them make it impossible to encode a carrier's real premium-bonus rules, found while correcting Athene Performance Elite 10 (Bo Lee, Oct 21 2026).
+
+**1. `bonus_overrides` is `Record<string, number>` — one bonus per state.** Athene's current Performance Elite 10 bonus in Florida is 22% for issue ages 0-64 and **13% for ages 65-78**. There is no way to express that. The same wall was hit seeding Knighthead Chartline Bonus 10, whose bonus is 20% for issue ages 0-75 and 10% for 76-80 — the seed script's own comment says "the engine has no age-banded bonus, so an advisor with a 76-80 client must change the bonus on the client form." It is a recurring carrier pattern, not an edge case.
+
+**2. The Premium Bonus Vesting / recapture schedule is stored and never read.** `vesting_overrides` exists in `StateAvailabilityConfig` and the client form explicitly surfaces it as "noted, not modeled". Confirmed: nothing under `lib/calculations` references it. Athene publishes four vesting charts by state group (Chart A for most states incl. GA: `0,0,0,0,0,0,20,40,60,80,100`; CA's Chart D: `10,20,...,100`), and none of it changes a projection. Same root gap that has [[project-sunil-patel-bonus-stacking]] blocked and that makes the surrender-value display overstate every high-bonus FIA ([[project-surrender-value-bonus-recapture]]).
+
+**What it requires:**
+- Bonus overrides keyed by state AND issue-age band: `Record<state, number | Array<{minAge, maxAge, percent}>>`, resolved against the client's age at issue. Backwards compatible if a bare number keeps meaning "all ages".
+- Either model bonus vesting/recapture in the engine, or stop storing the charts so nobody believes they do something.
+
+**Why it bit:** the Athene entries had to ship with their state overrides **removed** rather than corrected. The old table put 19 states at 24% against a 26% base; against the real 22% base that would make those states richer than most states, and the true reductions are far larger (Florida 13% vs 22%). A table that silently asserts wrong numbers is worse than no table plus a warning — so the correction names the affected states in the description and tells the advisor to set the field by hand. That is a workaround for a schema gap, not a fix.
+
+**Demand signal:** two carriers so far (Athene, Knighthead) both with age-banded bonuses; one advisor ticket; 26 clients across 9 advisors currently carrying bonuses in states where Athene's 9/25/2026 rates say the bonus is unavailable.
+
+**Estimated effort:** **1-2 days** for age-banded overrides including the resolver, the form's state/age notice and a migration of existing configs. Vesting in the engine is a separate, larger piece — see the Sunil Patel entry.
+
+---
+
 ## Supabase capacity + client churn (production outage, Oct 5 2026)
 
 **The pitch:** Production went down for roughly 90 minutes. Every advisor saw the app load but no data and no login — Cloudflare 522 on both REST and auth. The dashboard read **STATUS: Unhealthy, COMPUTE: Nano, RAM 83%, Conns Unavailable**: the connection pool was exhausted on the smallest compute tier Supabase sells, carrying 50,424 requests in 24 hours plus the projection engine, PDF generation and Whisper transcription. A project restart cleared it; nothing about the capacity changed, so it can recur.
