@@ -370,6 +370,31 @@ Advisor (Kwanza Ellis, mysummitadvisors.com, Jun 26–27 2026) was correct; our 
 
 ---
 
+## Two published community products can describe the same carrier contract
+
+**The pitch:** Nothing stops the Community library holding two published entries for the same carrier product with different numbers, and nothing records which rate sheet an entry came from or when. Advisors pick whichever one they find first and get a different illustration depending on the coin flip.
+
+**Live example (Bo Lee, ticket Oct 21 2026).** Two published entries, both created 2026-06-15, both carrying `carrier_product_name: "Performance Elite 10 Plus"`:
+
+- "Athene Performance Elite 10" — 26% bonus, 11-year surrender `[12,12,12,11,10,9,8,7,6,4,0]`, vesting 11 yrs, overrides 24/20. Built `source=manual`. **13 advisor copies.**
+- "Performance Elite 10 Plus" — 22% bonus, 10-year surrender `[12,12,12,11,10,9,8,7,6,4]`, vesting 10 yrs, overrides 20/19. Built `source=ai_document`. **12 advisor copies.**
+
+They disagree on the bonus by 4 points AND on the surrender period by a year — which also moves the rider-fee duration and the post-contract rate switch. The 11-entry schedule with a trailing `0` looks like an off-by-one in the hand-built one.
+
+**Why it surfaced as a different bug:** Bo reported it as "Georgia defaults to 26% when the current GA bonus is 22%". There is no GA override in either entry — GA correctly falls back to the base — and 22% is simply the *other* entry's national base. The state-override mechanism is working exactly as designed; the data is the problem. Confirming the right rate still needs the carrier's rate sheet.
+
+**What it requires:**
+- A uniqueness guard on publish: warn (or block) when an entry's `carrier_name` + `carrier_product_name` already matches a published product, and offer to supersede it rather than sit alongside it.
+- A `rate_sheet_date` and `rate_sheet_source` on community products, shown in the picker. These were seeded in June and are four months stale with no way to tell from the UI.
+- A way to reconcile and retire a duplicate without orphaning the advisor copies already adopted from it (25 here).
+- Prefer `source=ai_document` over `source=manual` when they conflict, or at least surface which is which.
+
+**Demand signal:** one ticket so far, but 110 clients sit on Elite 10 copies across 17 states, and the bonus actually used is hand-edited all over the place (Arkansas alone shows 26/20/21/25/23 against a table that has no AR override). That spread suggests advisors already don't trust the defaults and are typing in their own — which works, but means the library is not doing its job.
+
+**Estimated effort:** **half a day** for the publish-time duplicate warning and the rate-sheet date fields. The reconcile-and-retire path is a day or two more, mostly deciding what happens to copies already adopted.
+
+---
+
 ## Supabase capacity + client churn (production outage, Oct 5 2026)
 
 **The pitch:** Production went down for roughly 90 minutes. Every advisor saw the app load but no data and no login — Cloudflare 522 on both REST and auth. The dashboard read **STATUS: Unhealthy, COMPUTE: Nano, RAM 83%, Conns Unavailable**: the connection pool was exhausted on the smallest compute tier Supabase sells, carrying 50,424 requests in 24 hours plus the projection engine, PDF generation and Whisper transcription. A project restart cleared it; nothing about the capacity changed, so it can recur.
