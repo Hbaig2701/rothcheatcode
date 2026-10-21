@@ -60,7 +60,10 @@ const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SU
   { auth: { autoRefreshToken: false, persistSession: false } });
 
 const CHART_A_CHARGES = [12, 12, 12, 11, 10, 9, 8, 7, 6, 4];        // yrs 1-10; 11+ is 0%
-const CHART_A_VESTING = [0, 0, 0, 0, 0, 0, 20, 40, 60, 80, 100];     // yrs 1-11+
+// Chart A runs years 1-11+ as 0,0,0,0,0,0,20,40,60,80,100. Stored as 10 entries
+// to match vesting_years, same convention surrenderSchema enforces for the charge
+// schedule — the trailing "fully vested from year 11" row is implicit.
+const CHART_A_VESTING = [0, 0, 0, 0, 0, 0, 20, 40, 60, 80];
 const LOW_MIN_STATES = ['CT', 'ID', 'MN', 'NJ', 'OH', 'OR', 'PA', 'UT', 'WA'];
 
 async function main() {

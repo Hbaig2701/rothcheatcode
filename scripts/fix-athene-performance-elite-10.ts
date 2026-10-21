@@ -88,7 +88,10 @@ async function main() {
       ...(cfg.state_availability ?? {}),
       not_available: ['NY'],
       bonus_overrides: {},
-      confidence: 'unverified',
+      // 'unverified' is NOT in the ConfidenceLevel enum (verified | assumed |
+      // not_found | partial) and silently broke productConfigSchema on both rows.
+      // 'partial' is the accurate word anyway: the state table is incomplete.
+      confidence: 'partial',
     };
 
     const name = isPlus ? 'Athene Performance Elite 10 Plus' : 'Athene Performance Elite 10';
