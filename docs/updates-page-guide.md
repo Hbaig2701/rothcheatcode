@@ -96,7 +96,11 @@ advisor's first worry about any change is whether their saved work moved.
 4. Add entries above the current top one, continuing the id sequence.
 5. `npx tsc --noEmit` and `npm run build` — a missing icon import only shows up
    at build time.
-6. Commit to a **branch** and open a PR. **Never push to `main`.** This is
-   customer-facing copy and a human reads it before advisors do.
+6. Commit to a **branch**, open a PR, then **squash-merge it yourself** once
+   `tsc` passes and the diff touches only `updates-list.tsx`. Hamza wants the
+   page published every week without waiting on a review (changed Oct 23,
+   2026, after three weekly PRs sat unmerged). Never push to `main` directly —
+   the PR is the record of what went out. If an older `updates/weekly-*` PR is
+   still open, close it if its entries are already on `main`.
 7. If nothing qualifies, stop. Do not open an empty PR, and do not pad the page
    with fixes to make the week look productive.
