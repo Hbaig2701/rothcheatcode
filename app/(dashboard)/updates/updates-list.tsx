@@ -1,9 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield, Table2, ArrowUpDown, MoveHorizontal, UserCog, Columns, Tags, HandCoins, Heart, Sparkles, GitCompare, SlidersHorizontal, MessageCircle, GraduationCap, Scale, BookOpen, Calculator, Wrench, TrendingUp, PiggyBank, Split, CalendarClock, LineChart, Building2, ShieldCheck, Maximize2, CalendarDays } from 'lucide-react'
+import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck, Printer, Shield, Table2, ArrowUpDown, MoveHorizontal, UserCog, Columns, Tags, HandCoins, Heart, Sparkles, GitCompare, SlidersHorizontal, MessageCircle, GraduationCap, Scale, BookOpen, Calculator, Wrench, TrendingUp, PiggyBank, Split, CalendarClock, LineChart, Building2, ShieldCheck, Maximize2, CalendarDays, Mic } from 'lucide-react'
 
 const updates = [
+  {
+    id: '55',
+    date: 'October 19, 2026',
+    title: 'Download Your Sales Call Analysis as a PDF',
+    description: "Every completed call in Sales Calls now has a Download PDF button at the top of the call page, plus a PDF + Transcript option that attaches the full transcript to the same document.\n\nUse it to keep a clean written record of each conversation, share the takeaways with a colleague or compliance, or review a call on your own time without opening the app.\n\nLonger recordings are welcome too: uploads can now be up to 50MB.",
+    category: 'New Feature',
+    icon: Mic,
+  },
   {
     id: '54',
     date: 'October 14, 2026',
