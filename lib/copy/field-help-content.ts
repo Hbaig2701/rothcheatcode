@@ -308,6 +308,11 @@ export const FIELD_HELP = {
     body: "Models the fee you bill for managing the client's retirement assets. Unlike the AUM Allocation below, this does NOT take money out of the IRA — the Roth conversion runs exactly as planned and the fee simply rides on whatever accounts the money is sitting in (Traditional, Roth and taxable). That is what lets you show \"convert the whole IRA to a Roth and I keep managing it\": a Roth is the better fee story, because the balance is never drawn down by RMDs. The fee reduces balances only — it is not deductible post-TCJA, and a fee paid from an IRA out of its own assets is not a taxable distribution, so it never changes income, MAGI, IRMAA or the client's brackets.",
     example: "Convert 100% to a Roth and bill 1%/yr on it → leave AUM Allocation off, set the fee to 1.",
   },
+  rider_fee_percent: {
+    title: "Annual Rider Fee",
+    body: "The carrier's annual rider charge, taken from the annuity's account value each year of the surrender period. It starts at the product's own fee (the High-Bonus Growth presets carry 0.95%). Change it to match the contract you are illustrating, or enter 0 if it has no rider. Clear the box to go back to the product's fee. Picking a different product resets it to that product's fee.",
+    example: "Contract with no income rider → enter 0. Carrier charges 1.1% → enter 1.1.",
+  },
   advisory_fee_percent: {
     title: "Advisory Fee (%/yr)",
     body: "Your annual fee, charged at end of year on the Traditional + Roth + taxable balances. Leave at 0 to turn the feature off. If the client's money is in an annuity that you do not bill on, leave this at 0 — the carrier's own rider fee is modelled separately.",

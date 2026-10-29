@@ -135,11 +135,12 @@ export function runGrowthFormulaScenario(
   // Surrender schedule (array of charge percentages by year)
   const surrenderSchedule = isNoAnnuity ? null : (client.surrender_schedule ?? null);
 
-  // Rider fee — custom product overrides the system preset when present.
-  // Only applied during the surrender period.
+  // Rider fee — the scenario's own rider_fee_percent wins, then the custom
+  // product, then the system preset. Only applied during the surrender period.
   const riderFeePercent = isNoAnnuity ? 0 : getEffectiveGrowthRiderFee(
     client.blueprint_type as FormulaType,
-    customProduct
+    customProduct,
+    client.rider_fee_percent
   );
   const surrenderYears = isNoAnnuity ? 0 : (client.surrender_years ?? 0);
 

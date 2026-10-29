@@ -96,6 +96,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             // null reads as 'taxable' in the engine — leave it null so existing
             // clients keep the original brokerage behaviour untouched.
             aum_destination: client?.aum_destination ?? null,
+            rider_fee_percent: client?.rider_fee_percent ?? null,
             protect_initial_premium: client?.protect_initial_premium ?? true,
             withdrawal_type: client?.withdrawal_type ?? "no_withdrawals",
             payout_type: client?.payout_type ?? "individual",

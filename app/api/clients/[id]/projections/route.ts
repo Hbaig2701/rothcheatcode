@@ -160,6 +160,9 @@ function generateInputHash(client: Client, customProduct?: CustomProductRow | nu
     // Flipping the destination switches between two completely different
     // strategies, so it MUST invalidate the cached projection.
     aum_destination: client.aum_destination ?? null,
+    // Per-scenario rider fee override changes the annuity's balance every
+    // surrender year, so it must invalidate the cached projection.
+    rider_fee_percent: client.rider_fee_percent ?? null,
   };
   return crypto.createHash('sha256').update(JSON.stringify(relevantFields)).digest('hex');
 }

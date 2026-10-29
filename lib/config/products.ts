@@ -150,12 +150,14 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
     id: 'high-bonus-long-term-growth',
     label: 'High-Bonus Long-Term Growth',
     category: 'Growth',
-    description: 'High-bonus FIA — 22% default premium bonus (editable), 15-year surrender, 0.95% annual rider fee',
+    description: 'High-bonus FIA — 22% default premium bonus (editable), 15-year surrender, 0.95% default annual rider fee (editable)',
     // `bonus` is intentionally NOT locked: real high-bonus FIAs vary their premium
     // bonus by carrier and rate environment (typically ~20-24%), so advisors need
     // to match the actual product's bonus (e.g., a 22% carrier here, 24% elsewhere).
     // The preset still defaults to 22% on selection; the advisor can override.
-    lockedFields: ['carrierName', 'productName', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
+    // `riderFee` is likewise NOT locked: carriers' rider fees vary and some contracts
+    // carry none, so the advisor can override it per scenario (clients.rider_fee_percent).
+    lockedFields: ['carrierName', 'productName', 'surrenderYears', 'penaltyFreePercent'],
     defaults: {
       carrierName: 'Insurance Carrier',
       productName: 'High-Bonus Long-Term Growth',
@@ -172,11 +174,11 @@ export const GROWTH_PRODUCTS: Record<GrowthFormulaType, ProductConfig> = {
     id: 'high-bonus-medium-term-growth',
     label: 'High-Bonus Medium-Term Growth',
     category: 'Growth',
-    description: 'High-bonus FIA — 20% default premium bonus (editable), 10-year surrender, 0.95% annual rider fee',
+    description: 'High-bonus FIA — 20% default premium bonus (editable), 10-year surrender, 0.95% default annual rider fee (editable)',
     // `bonus` is intentionally NOT locked — see high-bonus-long-term-growth above.
     // Advisors hit the 10-year 0.95%-rider product but needed a 22% bonus (Stephen
     // Gillman / Jorge Tola ticket, July 2026); the locked 20% blocked them.
-    lockedFields: ['carrierName', 'productName', 'surrenderYears', 'penaltyFreePercent', 'riderFee'],
+    lockedFields: ['carrierName', 'productName', 'surrenderYears', 'penaltyFreePercent'],
     defaults: {
       carrierName: 'Insurance Carrier',
       productName: 'High-Bonus Medium-Term Growth',

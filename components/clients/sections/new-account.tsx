@@ -8,6 +8,8 @@ import { Field, FieldLabel, FieldError, FieldDescription } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PercentInput } from "@/components/ui/percent-input";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { getEffectiveGrowthRiderFee } from "@/lib/calculations/resolvers/product-resolver";
 import {
   Select,
   SelectContent,
@@ -173,6 +175,8 @@ export function NewAccountSection() {
     form.setValue("anniversary_bonus_percent", cfg.bonus.anniversary_rate ?? null);
     form.setValue("anniversary_bonus_years", cfg.bonus.anniversary_years ?? null);
     form.setValue("surrender_schedule", surrenderSchedule.length ? surrenderSchedule : null);
+    // A new product brings its own rider fee — drop any per-scenario override.
+    form.setValue("rider_fee_percent", null);
 
     // Sync GI defaults from the engine_preset (custom products use system GI internals)
     const giData = GI_PRODUCT_DATA[product.engine_preset as GuaranteedIncomeFormulaType];
@@ -279,6 +283,8 @@ export function NewAccountSection() {
     form.setValue("anniversary_bonus_percent", product.defaults.anniversaryBonus ?? null);
     form.setValue("anniversary_bonus_years", product.defaults.anniversaryBonusYears ?? null);
     form.setValue("surrender_schedule", product.defaults.surrenderSchedule ?? null);
+    // A new product brings its own rider fee — drop any per-scenario override.
+    form.setValue("rider_fee_percent", null);
 
     // Set GI-specific defaults when switching to a GI product
     const giData = GI_PRODUCT_DATA[value as GuaranteedIncomeFormulaType];
@@ -329,6 +335,10 @@ export function NewAccountSection() {
     : null;
   const displayRiderFee =
     selectedCustomProduct?.config?.fees?.annual_rider_fee ?? giData?.riderFee ?? 0;
+  // Growth products: the fee the engine uses when the scenario has no override.
+  // Same resolver as the engine, so the form can't disagree with the projection.
+  const productRiderFee =
+    getEffectiveGrowthRiderFee(formulaType, selectedCustomProduct) * 100;
 
   return (
     <FormSection title="3. New Account Data" description="Insurance product details">
@@ -637,6 +647,33 @@ export function NewAccountSection() {
         />
       )}
 
+      {/* Rider Fee - Editable per scenario for Growth products. Blank = the
+          product's own fee (custom product, else preset); 0 = no rider. */}
+      {!isGI && !isNoAnnuity && (
+        <Controller
+          name="rider_fee_percent"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor="rider_fee_percent" className="flex items-center gap-1.5">
+                Annual Rider Fee
+                <FieldHelp {...FIELD_HELP.rider_fee_percent} />
+              </FieldLabel>
+              <RiderFeeInput
+                value={field.value ?? null}
+                productFee={productRiderFee}
+                onChange={field.onChange}
+                aria-invalid={fieldState.invalid}
+              />
+              <FieldDescription>
+                Deducted from account value each surrender year. Product default: {productRiderFee.toFixed(2)}%. Enter 0 if the contract has no rider fee.
+              </FieldDescription>
+              <FieldError errors={[fieldState.error]} />
+            </Field>
+          )}
+        />
+      )}
+
       {/* Rider Fee - Locked display for GI products */}
       {isGI && giData && (
         <Field>
@@ -889,5 +926,54 @@ export function NewAccountSection() {
         </>
       )}
     </FormSection>
+  );
+}
+
+// Rider fee % input whose blank state means "use the product's fee". It keeps
+// its own text while focused, so clearing the box to retype doesn't snap back
+// to the default mid-edit; on blur a blank box shows the product fee again
+// (that is what the engine will use).
+function RiderFeeInput({
+  value,
+  productFee,
+  onChange,
+  "aria-invalid": ariaInvalid,
+}: {
+  value: number | null;
+  productFee: number;
+  onChange: (v: number | null) => void;
+  "aria-invalid"?: boolean;
+}) {
+  const fmt = (n: number) => String(Math.round(n * 100) / 100);
+  const [focused, setFocused] = useState(false);
+  const [text, setText] = useState(fmt(value ?? productFee));
+
+  useEffect(() => {
+    if (!focused) setText(fmt(value ?? productFee));
+  }, [value, productFee, focused]);
+
+  return (
+    <InputGroup className="w-full">
+      <InputGroupInput
+        id="rider_fee_percent"
+        type="text"
+        inputMode="decimal"
+        value={text}
+        onFocus={(e) => {
+          setFocused(true);
+          e.currentTarget.select();
+        }}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw !== "" && !/^\d*\.?\d{0,2}$/.test(raw)) return;
+          setText(raw);
+          const n = parseFloat(raw);
+          onChange(Number.isNaN(n) ? null : n);
+        }}
+        aria-invalid={ariaInvalid}
+      />
+      <InputGroupAddon align="inline-end">%</InputGroupAddon>
+    </InputGroup>
   );
 }

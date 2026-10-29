@@ -1095,7 +1095,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   // resolver — getEffectiveGrowthRiderFee returns the decimal (0.0095 for 0.95%),
   // so we multiply by 100 for display. Displayed on the Performance Report's
   // Contract Details card so advisors can point to the fee line item.
-  const productRiderFee = getEffectiveGrowthRiderFee(client.blueprint_type as FormulaType, customProduct) * 100;
+  const productRiderFee = getEffectiveGrowthRiderFee(client.blueprint_type as FormulaType, customProduct, client.rider_fee_percent) * 100;
   // Premium bonus in dollars received at contract issue — applied only on the
   // strategy side (baseline is a "do nothing" scenario, no product bonus).
   // Used for the "Premium Bonus Received" / "Net Tax Cost" rows in the

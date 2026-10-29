@@ -274,6 +274,10 @@ export interface Client {
   advisory_fee_percent?: number | null;      // %/yr. 0/null = feature off.
   advisory_fee_in_baseline?: boolean | null; // null -> true (fee on both sides).
 
+  // Growth products: annual rider fee %/yr for THIS scenario, overriding the
+  // product's fee. null = use the product (custom product, else system preset).
+  rider_fee_percent?: number | null;
+
   // ===== Legacy fields (kept for backwards compatibility) =====
   date_of_birth: string | null;  // ISO date string YYYY-MM-DD. Synthesized as Jan 1 of (year - age) unless date_of_birth_exact.
   spouse_dob: string | null;

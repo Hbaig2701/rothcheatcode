@@ -137,6 +137,7 @@ export function InputDrawer({ client, onClose, expanded = false, onToggleExpand 
       // null reads as 'taxable' in the engine — leave it null so existing
       // clients keep the original brokerage behaviour untouched.
       aum_destination: client?.aum_destination ?? null,
+      rider_fee_percent: client?.rider_fee_percent ?? null,
       surrender_schedule: client?.surrender_schedule ?? null,
       taxable_accounts: client?.taxable_accounts ?? 0,
       roth_ira: client?.roth_ira ?? 0,

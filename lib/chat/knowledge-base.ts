@@ -436,7 +436,7 @@ This is a real interpretation choice, not a bug. With the "Respect Contract Pena
 If an advisor reports "my conversion is way bigger than 10% of the balance," ask which interpretation they want. Default is "Only the tax payment" — switch to "Every dollar that leaves the IRA" if they want conversions capped too.
 
 **"Why does my custom product have a rider fee but Vesting Bonus Growth doesn't?"**
-Of the five Growth presets, only **High-Bonus Long-Term Growth** and **High-Bonus Medium-Term Growth** carry an annual rider fee (0.95%). Short-Term Cap, Phased Bonus, and Vesting Bonus have no rider fee. GI products have rider fees too (varies by product). If a Custom Product needs a rider fee, set it in Settings → "My Products".
+Of the five Growth presets, only **High-Bonus Long-Term Growth** and **High-Bonus Medium-Term Growth** carry an annual rider fee (0.95%). Short-Term Cap, Phased Bonus, and Vesting Bonus have no rider fee. GI products have rider fees too (varies by product). For any Growth product the fee can be changed per scenario in section "3. New Account Data" → "Annual Rider Fee" (enter 0 for no rider; clearing the box returns to the product's fee). A Custom Product's default fee is set in Settings → "My Products".
 
 **"What's the Anniversary Bonus on Phased Bonus Growth?"**
 Phased Bonus Growth adds 4% to the contract value on each of the first 3 contract anniversaries (separate from any upfront premium bonus). The engine applies this automatically. Custom Products can set their own anniversary % and number of years.

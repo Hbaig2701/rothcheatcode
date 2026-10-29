@@ -379,6 +379,8 @@ export const clientFormulaBaseSchema = z.object({
   // brokerage, converts nothing); 'roth' Roth-converts it and manages it in a
   // Roth sleeve. See lib/calculations/utils/aum-destination.ts.
   aum_destination: z.enum(['taxable', 'roth']).nullable().optional(),
+  // Growth products: per-scenario rider fee %/yr. null = use the product's fee.
+  rider_fee_percent: z.number().min(0).max(5).nullable().optional(),
 
   // Additional fields needed for calculations
   taxable_accounts: z.number().int().min(0).default(0),
@@ -660,6 +662,8 @@ export const clientFullBaseSchema = z.object({
   // brokerage, converts nothing); 'roth' Roth-converts it and manages it in a
   // Roth sleeve. See lib/calculations/utils/aum-destination.ts.
   aum_destination: z.enum(['taxable', 'roth']).nullable().optional(),
+  // Growth products: per-scenario rider fee %/yr. null = use the product's fee.
+  rider_fee_percent: z.number().min(0).max(5).nullable().optional(),
 });
 
 // Partial schema for updates
@@ -826,6 +830,7 @@ export type ClientFormData = {
   advisory_fee_percent?: number | null;
   advisory_fee_in_baseline?: boolean | null;
   aum_destination?: "taxable" | "roth" | null;
+  rider_fee_percent?: number | null;
 
   // Additional
   taxable_accounts: number;

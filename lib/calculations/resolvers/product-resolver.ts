@@ -341,12 +341,20 @@ export function getEffectiveIncreasingIncomeRate(
 
 /**
  * Returns the rider fee percentage (as a decimal, e.g. 0.0095 for 0.95%) for
- * growth products. Custom products override the system preset's value.
+ * growth products. Precedence: the scenario's own `rider_fee_percent`, then the
+ * custom product's fee, then the system preset's. Pass `clientOverride` as the
+ * raw percentage (0.95 for 0.95%); null/undefined means "use the product".
  */
 export function getEffectiveGrowthRiderFee(
   formulaType: FormulaType,
-  customProduct?: CustomProductRow | null
+  customProduct?: CustomProductRow | null,
+  clientOverride?: number | null
 ): number {
+  // `!= null` (not truthiness) so an explicit 0 — "this contract has no rider"
+  // — wins over the product's fee.
+  if (clientOverride != null && Number.isFinite(clientOverride)) {
+    return clientOverride / 100;
+  }
   // Guard the numeric fee, not just the presence of a `fees` block: older rows,
   // direct seeds, and partial AI extractions can carry a `fees` object with no
   // `annual_rider_fee`, and `undefined / 100 = NaN` would silently NaN-poison
