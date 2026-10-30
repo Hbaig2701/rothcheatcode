@@ -5,6 +5,14 @@ import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck
 
 const updates = [
   {
+    id: '56',
+    date: 'October 29, 2026',
+    title: 'Set the Rider Fee on Growth Products',
+    description: "Growth products now have an Annual Rider Fee field in Section 3 (New Account Data). Type the exact percentage from your client's contract, or enter 0 if there is no rider.\n\nLeave it blank to use the product's standard fee, which is shown beneath the field. Each client scenario keeps its own fee, and choosing a different product returns the field to that product's default.\n\nIt lets you illustrate the contract in front of you rather than a generic preset, so the numbers you walk through match the paperwork your client will sign.",
+    category: 'New Feature',
+    icon: SlidersHorizontal,
+  },
+  {
     id: '55',
     date: 'October 19, 2026',
     title: 'Download Your Sales Call Analysis as a PDF',
