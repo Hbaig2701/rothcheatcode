@@ -563,3 +563,24 @@ driven by RMDs starting in 2032. Generalises well beyond him.
 **Estimated effort:** **2-3 days** — the window gate itself is small (the
 condition exists), the spread solve and the derived-bracket plumbing to the form
 and report are the bulk.
+
+---
+
+## IRA after-tax basis (Form 8606) + pro-rata rule
+
+**The pitch:** Clients who made nondeductible IRA contributions, or rolled after-tax 401(k) money into an IRA, have **basis**: dollars already taxed that come out tax-free. We treat the whole IRA as pre-tax, so for those clients we **overstate the tax** on every conversion, RMD and withdrawal, which makes conversions look more expensive than they are.
+
+**How the rule works:** the pro-rata rule means you can't convert only the basis. Each dollar out is tax-free in the ratio basis ÷ total Traditional/SEP/SIMPLE IRA balance (aggregated across all IRAs as of Dec 31; 401(k)s excluded). Example: $50K basis in a $500K IRA → 10% of each conversion/RMD is tax-free; converting $100K is $90K taxable. Basis is used up proportionally as money comes out.
+
+**Today:** not modeled at all. No basis/8606 field exists anywhere in `lib/`, `app/` or `components/` (checked Oct 23 2026).
+
+**What it requires:**
+- One client input: "After-tax IRA basis (Form 8606, line 14)", default $0.
+- Engine: each year, exclude `distribution × (remaining basis ÷ year-end IRA balance + distributions)` from taxable income for conversions, RMDs and withdrawals; reduce remaining basis by the excluded amount. Must land in all three engines (`formula.ts`, `growth-formula.ts`, GI) plus the taxable-income/MAGI paths (IRMAA, SS taxation).
+- Baseline and strategy both get the same basis so the comparison stays fair; a conversion just uses it up faster.
+- Audit-suite cases: $0 basis is a no-op (golden fixtures unchanged), and conservation (total excluded = starting basis when the IRA is fully drained).
+- Out of scope for v1: the 401(k) "backdoor" aggregation nuance (rolling pre-tax money into a 401(k) to isolate basis).
+
+**Demand signal:** none from tickets yet; surfaced in an internal discussion. Most clients have $0 basis, but it matters a lot for anyone with years of nondeductible contributions.
+
+**Estimated effort:** **2-4 days.** The input and the formula are small; the cost is threading it through three engines and the MAGI paths, plus a cache bump.
