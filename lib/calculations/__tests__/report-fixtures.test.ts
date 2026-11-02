@@ -597,11 +597,14 @@ const SPRENGEL_EXPECTED = {
     // IRMAA 2026 brackets corrected (Lori Avant). Sprengel's baseline MAGI stays
     // above the raised thresholds, so the higher 2026 surcharges add ~$2,340 of
     // lifetime IRMAA drag → net worth −$233,985 cents (648,268,744 → 648,034,759).
-    finalNetWorth:        649_008_532,
+    // Re-locked v87 (2026-11-02): forced RMDs now pay their MARGINAL fed+state
+    // tax (was a pro-rata average-rate share) and the IRMAA they cause comes out
+    // of the reinvested account (was displayed, never deducted). −$37,162.58.
+    finalNetWorth:        645_292_274,
     finalTraditional:     401_190_516,
     finalRoth:                      0,
-    finalTaxable:         247_818_016,
-    lifetimeWealth:       488_532_326,
+    finalTaxable:         244_101_758,
+    lifetimeWealth:       484_816_068,
     forcedDistributions:  396_578_978,
     totalFedStateTax:     189_248_915,
     taxOnRMDs:            109_610_171,
@@ -707,22 +710,25 @@ const RUSSELL_OPT_EXPECTED = {
   // reverted, year one reports $156,647.80 of tax against a $195,504.20
   // conversion (80.1%, ceiling 45.3%) — Larry Russell's real figures to the
   // cent.
+  // Re-locked v87 (2026-11-02): baseline −$299,991.91 (RMDs pay marginal tax +
+  // their IRMAA); strategy −$63,783.99 (conversion-caused IRMAA now deducted).
+  // Same baseline change applies to RUSSELL_PART below (strategy −$167,570.05).
   base: {
-    finalNetWorth:         727_030_636,
+    finalNetWorth:         697_031_445,
     finalTraditional:      334_394_846,
     finalRoth:             0,
-    finalTaxable:          392_635_790,
-    lifetimeWealth:        593_272_698,
+    finalTaxable:          362_636_599,
+    lifetimeWealth:        563_273_507,
     forcedDistributions:   330_551_096,
     totalFedStateTax:      418_024_292,
     taxOnRMDs:             113_178_124,
   },
   blue: {
-    finalNetWorth:         630_219_275,
+    finalNetWorth:         623_840_876,
     finalTraditional:      0,
     finalRoth:             584_725_447,
     finalTaxable:          45_493_828,
-    lifetimeWealth:        630_219_275,
+    lifetimeWealth:        623_840_876,
     taxOnConversions:      64_252_312,
     totalFedStateTax:      421_878_539,
     taxOnRMDs:             0,
@@ -735,21 +741,21 @@ const RUSSELL_PART_EXPECTED = {
   // to the end (unlike the optimized fixture) — the only fixture where a
   // from_ira partial leaves RMDs to tax in the strategy.
   base: {
-    finalNetWorth:         727_030_636,
+    finalNetWorth:         697_031_445,
     finalTraditional:      334_394_846,
     finalRoth:             0,
-    finalTaxable:          392_635_790,
-    lifetimeWealth:        593_272_698,
+    finalTaxable:          362_636_599,
+    lifetimeWealth:        563_273_507,
     forcedDistributions:   330_551_096,
     totalFedStateTax:      418_024_292,
     taxOnRMDs:             113_178_124,
   },
   blue: {
-    finalNetWorth:         669_124_585,
+    finalNetWorth:         652_367_580,
     finalTraditional:      99_855_271,
     finalRoth:             408_375_548,
     finalTaxable:          160_893_766,
-    lifetimeWealth:        629_182_477,
+    lifetimeWealth:        612_425_472,
     taxOnConversions:      42_799_795,
     totalFedStateTax:      419_102_451,
     taxOnRMDs:             36_148_842,

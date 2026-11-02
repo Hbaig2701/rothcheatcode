@@ -256,6 +256,10 @@ export function runGrowthFormulaScenario(
 
   // Income history for IRMAA 2-year lookback
   const incomeHistory = new Map<number, number>();
+  // MAGI with no IRA distributions, conversions or AUM pulls — other income +
+  // SS only. Same basis as baseline.ts, so both sides charge only the IRMAA the
+  // IRA activity causes (iraAttributableIrmaa).
+  const noIraIncomeHistory = new Map<number, number>();
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
@@ -354,6 +358,19 @@ export function runGrowthFormulaScenario(
       taxYear: year,
     });
     const existingTaxableIncome = existingTaxInfo.taxableIncome;
+    // Same year with NO IRA money at all — basis for the RMD's marginal tax and
+    // for the IRMAA the IRA activity causes.
+    const noIraBasisTaxInfo = computeTaxableIncomeWithSS({
+      otherIncome,
+      ssBenefits: ssIncome,
+      taxExemptInterest: taxExemptNonSSI,
+      deductions,
+      filingStatus: client.filing_status,
+      age,
+      spouseAge: currentSpouseAgeForDeduction,
+      taxYear: year,
+    });
+    noIraIncomeHistory.set(year, noIraBasisTaxInfo.agi + taxExemptNonSSI);
 
     // Helper: marginal conversion tax at a given conversion amount.
     // Uses SS-aware delta calculation so the extra tax from newly-taxable
@@ -476,15 +493,27 @@ export function runGrowthFormulaScenario(
       irmaaSurcharge = irmaaResult.annualSurcharge;
       irmaaTier = irmaaResult.tier;
     }
-    // After-tax forced RMD available to fund the conversion tax (Kwanza Ellis
-    // RMD-funds-tax, v64). Same method/basis as the reinvested-RMD figure below.
-    const noConvFedStateTax = forcedRmdShortfall > 0
-      ? calculateFederalTax({ taxableIncome: existingTaxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax
-        + calculateStateTax({ taxableIncome: existingTaxableIncome, state: client.state ?? 'CA', filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax
+    // IRMAA caused by IRA activity (conversions, RMDs, AUM pulls) — the
+    // surcharge above what other income + SS alone would trigger. Debited from
+    // wealth at year end. Previously the strategy's IRMAA was displayed but
+    // never deducted, so conversion-driven IRMAA was free (Barbara M-B 2026-11).
+    const irmaaWithoutIra = age >= 65
+      ? calculateIRMAAWithLookback(year, noIraIncomeHistory, client.filing_status).annualSurcharge
       : 0;
-    const grossOrdinaryIncome = effectiveIraDistribution + otherIncome;
-    const rmdShareOfOrdinary = grossOrdinaryIncome > 0 ? forcedRmdShortfall / grossOrdinaryIncome : 0;
-    const rmdAttributableTax = Math.round((noConvFedStateTax + irmaaSurcharge) * rmdShareOfOrdinary);
+    const iraAttributableIrmaa = Math.max(0, irmaaSurcharge - irmaaWithoutIra);
+    // After-tax forced RMD available to fund the conversion tax (Kwanza Ellis
+    // RMD-funds-tax, v64). Same method/basis as baseline.ts: the forced RMD's
+    // MARGINAL fed+state tax (Tax(no conversion) − Tax(no IRA money)), its
+    // pro-rata slice when a voluntary withdrawal shares the distribution.
+    const fedStateTaxAt = (taxableIncome: number) =>
+      calculateFederalTax({ taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax
+      + calculateStateTax({ taxableIncome, state: client.state ?? 'CA', filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax;
+    const rmdMarginalFedStateTax = forcedRmdShortfall > 0
+      ? Math.max(0, fedStateTaxAt(existingTaxableIncome) - fedStateTaxAt(noIraBasisTaxInfo.taxableIncome))
+      : 0;
+    const rmdAttributableTax = effectiveIraDistribution > 0
+      ? Math.round(rmdMarginalFedStateTax * forcedRmdShortfall / effectiveIraDistribution)
+      : 0;
     const afterTaxForcedRmd = forcedRmdShortfall - rmdAttributableTax;
 
     // Self-consistent gross-up: when the conversion tax is paid from the IRA and
@@ -1512,7 +1541,7 @@ export function runGrowthFormulaScenario(
     // partial-conversion clients in reinvested mode (ticket 2a95f2e9 follow-up).
     const conversionFedStateTax = conversionFederalTax + conversionStateTax;
     const externalConversionTax = payTaxFromIRA ? 0 : conversionFedStateTax;
-    // Forced-RMD attributable tax (noConvFedStateTax, rmdShareOfOrdinary,
+    // Forced-RMD attributable tax (rmdMarginalFedStateTax,
     // rmdAttributableTax, afterTaxForcedRmd) is computed ABOVE — before the
     // conversion-tax split — because the RMD-funds-tax logic needs the after-tax
     // RMD figure to decide how much of the conversion tax to fund from the RMD.
@@ -1542,6 +1571,22 @@ export function runGrowthFormulaScenario(
       ? boyTaxable - externalConversionTax
       : boyTaxable + reinvestedRmdToTaxable + taxableInterest - externalConversionTax;
     taxableBalance = Math.max(0, desiredTaxableBalance);
+    // IRA-caused IRMAA is paid from this year's after-tax RMD cash first (in
+    // 'reinvested'/'cash' that cash is already in the brokerage; in 'spent' it
+    // is the spent RMD), then the brokerage, then the Roth — same order as
+    // baseline.ts. The annuity is never drawn: an untracked IRA debit would
+    // break the traditional-balance tie-out. Anything left (no RMD, brokerage
+    // or Roth to draw on) goes unpaid, as it did before v87.
+    let irmaaDue = iraAttributableIrmaa;
+    if (rmdTreatment === 'spent') {
+      irmaaDue -= Math.min(irmaaDue, Math.max(0, afterTaxForcedRmd - conversionTaxFundedFromRmd));
+    }
+    const irmaaFromTaxable = Math.min(irmaaDue, taxableBalance);
+    taxableBalance -= irmaaFromTaxable;
+    irmaaDue -= irmaaFromTaxable;
+    const irmaaFromRoth = Math.min(irmaaDue, rothBalance);
+    rothBalance -= irmaaFromRoth;
+    rothMirrorBalance = Math.min(rothMirrorBalance, rothBalance);
 
     // Advisory fee on the taxable brokerage (the Traditional + Roth portion was
     // charged in Step 3.6, before the surrender value was struck).

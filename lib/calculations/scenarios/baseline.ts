@@ -69,6 +69,11 @@ export function runBaselineScenario(
 
   // Income history for IRMAA lookback
   const incomeHistory = new Map<number, number>();
+  // MAGI with NO IRA distributions (other income + SS only). The IRMAA this
+  // history would trigger is caused by income that exists identically on both
+  // sides; only the surcharge ABOVE it is attributable to the IRA and reduces
+  // wealth (see iraAttributableIrmaa below). Mirrors growth-formula.ts.
+  const noIraIncomeHistory = new Map<number, number>();
 
   // SSI parameters (simplified: SSI treated as tax-exempt per spec)
   // Primary SSI
@@ -303,6 +308,27 @@ export function runBaselineScenario(
       irmaaTierFromLookback = irmaaResult.tier;
     }
 
+    // Tax picture WITHOUT any IRA distribution — the basis for attributing tax
+    // and IRMAA to the RMD at the margin.
+    const noIraTaxInfo = computeTaxableIncomeWithSS({
+      otherIncome, // wages / non-SSI ordinary income only — no IRA $
+      ssBenefits: ssIncome,
+      taxExemptInterest: taxExemptNonSSI,
+      deductions,
+      filingStatus: client.filing_status,
+      age,
+      spouseAge: spouseAge ?? undefined,
+      taxYear: year,
+    });
+    noIraIncomeHistory.set(year, computeIrmaaMagi(noIraTaxInfo.agi, taxExemptNonSSI));
+    const irmaaWithoutIra = age >= 65
+      ? calculateIRMAAWithLookback(year, noIraIncomeHistory, client.filing_status).annualSurcharge
+      : 0;
+    // IRMAA caused by IRA distributions. Previously never deducted from wealth on
+    // either side, so the strategy's conversion-driven IRMAA was free (Barbara
+    // M-B audit 2026-11).
+    const iraAttributableIrmaa = Math.max(0, irmaaSurcharge - irmaaWithoutIra);
+
     // Total tax — federal + state + IRMAA + 10% early-withdrawal penalty for
     // any pre-59.5 voluntary IRA pull. RMDs themselves don't trigger the
     // penalty (RMD start age is well above 59.5).
@@ -317,23 +343,21 @@ export function runBaselineScenario(
     // IRA distribution) − Tax(year without). Skipped when there's no
     // distribution.
     let federalTaxOnIRAWithdrawal = 0;
+    let iraMarginalFedStateTax = 0;
     if (effectiveIraDistribution > 0) {
-      const noIraTaxInfo = computeTaxableIncomeWithSS({
-        otherIncome, // wages / non-SSI ordinary income only — no IRA $
-        ssBenefits: ssIncome,
-        taxExemptInterest: taxExemptNonSSI,
-        deductions,
-        filingStatus: client.filing_status,
-        age,
-        spouseAge: spouseAge ?? undefined,
-        taxYear: year,
-      });
       const noIraFederalTax = calculateFederalTax({
         taxableIncome: noIraTaxInfo.taxableIncome,
         filingStatus: client.filing_status,
         taxYear: year,
       }).totalTax;
+      const noIraStateTax = calculateStateTax({
+        taxableIncome: noIraTaxInfo.taxableIncome,
+        state: client.state,
+        filingStatus: client.filing_status,
+        overrideRate: stateTaxRateOverride,
+      }).totalTax;
       federalTaxOnIRAWithdrawal = Math.max(0, federalResult.totalTax - noIraFederalTax);
+      iraMarginalFedStateTax = Math.max(0, federalResult.totalTax + stateResult.totalTax - noIraFederalTax - noIraStateTax);
     }
 
     // Calculate interest AFTER distribution.
@@ -372,15 +396,19 @@ export function runBaselineScenario(
     // After-tax forced-RMD must use ONLY the tax attributable to that
     // portion, not the year's full totalTax — totalTax includes tax on
     // wages, SS, voluntary IRA pulls, and other income, which the client
-    // pays out of THOSE income streams, not out of the forced RMD. Pro-rata
-    // allocation by share of taxable income is approximate (a true marginal
-    // calc would re-run the tax engine without the RMD), but it correctly
-    // stops the previous behavior where a working retiree with $50K RMD
-    // and $75K total tax saw afterTaxRmd clamp to 0.
-    const forcedRmdShareOfTaxable = grossTaxableIncome > 0
-      ? forcedRmdShortfall / grossTaxableIncome
+    // pays out of THOSE income streams, not out of the forced RMD.
+    //
+    // The attributable tax is MARGINAL — Tax(with IRA distribution) −
+    // Tax(without) — the same basis the strategy uses for conversion tax. The
+    // old pro-rata share of totalTax charged the RMD only its AVERAGE rate and
+    // pushed the rest onto the other income's (untracked) spending, overstating
+    // this do-nothing side by ~9 points of every RMD (Barbara M-B audit
+    // 2026-11). When a voluntary withdrawal shares the distribution, the forced
+    // portion takes its pro-rata slice of the marginal tax. IRMAA is charged
+    // separately below (iraAttributableIrmaa), not netted from the RMD.
+    const forcedRmdAttributableTax = effectiveIraDistribution > 0
+      ? Math.round(iraMarginalFedStateTax * forcedRmdShortfall / effectiveIraDistribution)
       : 0;
-    const forcedRmdAttributableTax = Math.round(totalTax * forcedRmdShareOfTaxable);
     const afterTaxForcedRmd = forcedRmdShortfall - forcedRmdAttributableTax;
     // Tax on income OTHER than the forced RMD (SS, wages, non-SSI income) is
     // funded by those income streams themselves — NOT drawn from the taxable
@@ -398,23 +426,31 @@ export function runBaselineScenario(
     // first RMD year"). The earlier $0-clamp (Jorge V., ticket 809a5774) was
     // a band-aid over this same root cause; it now only acts as a defensive
     // floor and should virtually never bind.
+    //
+    // IRA-caused IRMAA (iraAttributableIrmaa) is paid from this year's after-tax
+    // RMD cash first, then the brokerage, then the Roth — same order as
+    // growth-formula.ts. In 'cash'/'reinvested' the RMD cash is already in the
+    // brokerage, so one subtraction covers the first two legs.
     let desiredTaxableBalance: number;
     if (rmdTreatment === 'spent') {
       // Forced RMD is spent on living expenses - don't accumulate in taxable.
       // Track as distributions received (for Lifetime Wealth calculation).
-      cumulativeAfterTaxDistributions += Math.max(0, afterTaxForcedRmd);
-      // Taxable balance stays flat — same as before this fix.
-      desiredTaxableBalance = boyTaxable;
+      const irmaaFromSpentRmd = Math.min(iraAttributableIrmaa, Math.max(0, afterTaxForcedRmd));
+      cumulativeAfterTaxDistributions += Math.max(0, afterTaxForcedRmd) - irmaaFromSpentRmd;
+      // Taxable balance stays flat apart from IRMAA the RMD couldn't cover.
+      desiredTaxableBalance = boyTaxable - (iraAttributableIrmaa - irmaaFromSpentRmd);
     } else if (rmdTreatment === 'cash') {
       // Forced RMD (net of its own attributable tax) accumulates in cash but
       // doesn't earn interest.
-      desiredTaxableBalance = boyTaxable + afterTaxForcedRmd;
+      desiredTaxableBalance = boyTaxable + afterTaxForcedRmd - iraAttributableIrmaa;
     } else {
       // 'reinvested' (default): forced RMD (net of its own attributable tax)
       // flows into the taxable account and earns interest going forward.
-      desiredTaxableBalance = boyTaxable + afterTaxForcedRmd + taxableInterest;
+      desiredTaxableBalance = boyTaxable + afterTaxForcedRmd + taxableInterest - iraAttributableIrmaa;
     }
     taxableBalance = Math.max(0, desiredTaxableBalance);
+    // Only the IRMAA can push the brokerage below zero here; the Roth covers it.
+    rothBalance -= Math.min(rothBalance, Math.max(0, -desiredTaxableBalance));
 
     // Advisory fee on managed balances, charged pro-rata from each bucket at
     // end of year (after growth, after the RMD has been routed). No tax effect:

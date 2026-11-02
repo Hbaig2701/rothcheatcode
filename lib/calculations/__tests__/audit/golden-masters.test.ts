@@ -66,14 +66,22 @@ const growth = summarize(makeClient({
 // 506,892,485) and leaving less to convert (totalConversions 114,310,724 →
 // 112,874,098; totalTax 44,576,110 → 43,921,577). Baseline is UNCHANGED (no
 // conversions, no rider). Verified: invariants 0 breaches.
+//
+// formulaFinalNetWorth/Roth + totalRiderFee re-locked v87 (2026-11-02): the
+// strategy now pays the IRMAA its conversions cause ($10,711/yr 2028-2030 here,
+// $32,133 total) instead of displaying it for free. No outside account, so it
+// comes out of the Roth; compounded 25 years net of the rider fee that is the
+// −$124,265 (507,778,178 → 495,351,673), and the smaller Roth annuity pays
+// less rider fee (23,938,972 → 23,478,553). Baseline UNCHANGED: with SS as the
+// only other income the old pro-rata RMD tax equals the new marginal one.
 const GROWTH_EXPECTED = {
   baseFinalNetWorth: 556_827_203,
   baseFinalTraditional: 229_665_771,
-  formulaFinalNetWorth: 507_778_178,
-  formulaFinalRoth: 507_778_178,
+  formulaFinalNetWorth: 495_351_673,
+  formulaFinalRoth: 495_351_673,
   totalConversions: 113_073_067,
   totalTax: 43_718_993,
-  totalRiderFee: 23_938_972,
+  totalRiderFee: 23_478_553,
 };
 
 // ---- GI master: compound roll-up income, single, deferral to 74 ----
