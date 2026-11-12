@@ -485,7 +485,7 @@ They disagree on the bonus by 4 points AND on the surrender period by a year, wh
 
 **What it requires:** a percentage split, threaded through the four engine sites that branch on `payTaxFromIRA`, plus baseline accounting so the taxable bucket is debited for exactly its share.
 
-**Demand signal:** Airinhos Serradas (ticket Sep 11 2026) — "may be a blend of Non-Q $$ and Directly from SEP-IRA, need to model both." Modelling them separately answers the immediate need; a true blend does not exist.
+**Demand signal:** Airinhos Serradas (ticket Sep 11 2026) — "may be a blend of Non-Q $$ and Directly from SEP-IRA, need to model both." Modelling them separately answers the immediate need; a true blend does not exist. Ruth Barrios (ticket 3ac55b02, Nov 12 2026) — client Will Clark, $250K taxable vs $1.85M lifetime conversion tax at a 35% ceiling: the whole strategy flipped to IRA-funded and she read it as a bug ("tax is being withdrawn from the IRA instead of the nonqualified accounts"). Spending the $250K first, then the IRA, is what she expected.
 
 **Estimated effort:** **2–3 days.**
 
