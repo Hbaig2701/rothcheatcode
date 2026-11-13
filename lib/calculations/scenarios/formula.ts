@@ -21,6 +21,7 @@ import {
 } from '../tax-helpers';
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 import { managedRothShare, managedRothGrowthRate } from '../utils/aum-destination';
+import { brokerageInterest, nextTaxableCash } from '../utils/taxable-cash';
 
 /**
  * Run Formula scenario: strategic Roth conversions
@@ -65,6 +66,8 @@ export function runFormulaScenario(
 
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
+  // Idle RMD cash inside taxableBalance ('cash' mode only) — see utils/taxable-cash.ts.
+  let taxableCash = 0;
 
   // Advisory fee on managed balances (Traditional + Roth + taxable). The
   // advisor's own fee, charged on whatever accounts the money sits in — which
@@ -167,6 +170,7 @@ export function runFormulaScenario(
     const boyIRA = iraBalance;
     const boyRoth = rothBalance;
     const boyTaxable = taxableBalance;
+    const boyTaxableCash = taxableCash;
     const boyCombined = boyIRA + boyRoth;
 
     // RMD (Required Minimum Distribution) — kicks in at the SECURE-Act
@@ -858,15 +862,16 @@ export function runFormulaScenario(
     // afterTaxForcedRmd are computed ABOVE — before the conversion-tax split —
     // because the RMD-funds-tax logic needs the after-tax RMD figure. Same
     // method/basis as baseline.ts; reused here for the reinvested-RMD inflow.
-    // Reinvested mode earns interest on the prior-year taxable balance; cash
-    // mode accumulates without growth. Clamp at $0 (Jorge V., ticket 809a5774)
-    // remains only as a defensive floor and should virtually never bind now.
-    const taxableInterest = rmdTreatment === 'reinvested' ? Math.round(boyTaxable * growthRate) : 0;
+    // The brokerage earns interest in every mode; only idle RMD cash ('cash'
+    // mode) doesn't, and 'spent' just means the RMD never lands here (v88 — see
+    // baseline.ts). Clamp at $0 (Jorge V., ticket 809a5774) remains only as a
+    // defensive floor and should virtually never bind now.
+    const taxableInterest = brokerageInterest(boyTaxable, boyTaxableCash, growthRate);
     // RMD-funds-tax (reinvested mode): conversion tax withheld from the RMD goes
     // to the IRS, not the brokerage — subtract it so the cash isn't double-counted.
     const reinvestedRmdToTaxable = Math.max(0, afterTaxForcedRmd - conversionTaxFundedFromRmd);
     const desiredTaxableBalance = rmdTreatment === 'spent'
-      ? boyTaxable - externalConversionTax
+      ? boyTaxable + taxableInterest - externalConversionTax
       : boyTaxable + reinvestedRmdToTaxable + taxableInterest - externalConversionTax;
     taxableBalance = Math.max(0, desiredTaxableBalance);
 
@@ -892,6 +897,7 @@ export function runFormulaScenario(
       taxableBalance -= fee.taxable;
       yearAdvisoryFee = fee.total;
     }
+    taxableCash = nextTaxableCash(rmdTreatment, boyTaxableCash, reinvestedRmdToTaxable, taxableBalance);
 
     // Split federal/state tax between "on conversion" and "on ordinary/SS income"
     // for display breakdowns. Ordinary portion is what remains after subtracting

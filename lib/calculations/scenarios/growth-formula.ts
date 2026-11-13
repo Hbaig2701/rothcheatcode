@@ -22,6 +22,7 @@ import { getEffectiveGrowthRiderFee, getEffectiveCumulativePenaltyFree, getEffec
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 import { managedRothShare, managedRothGrowthRate } from '../utils/aum-destination';
+import { brokerageInterest, nextTaxableCash } from '../utils/taxable-cash';
 import type { CustomProductRow } from '@/lib/products/types';
 
 /**
@@ -93,6 +94,8 @@ export function runGrowthFormulaScenario(
   // sent an independent re-derivation of the advisory fee chasing a phantom bug.
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
+  // Idle RMD cash inside taxableBalance ('cash' mode only) — see utils/taxable-cash.ts.
+  let taxableCash = 0;
   // Running balance of ONLY the Roth dollars that came from conversions into the
   // mirrored Roth annuity (excludes any pre-existing external Roth IRA above).
   // Used as the base for the anniversary bonus on converted money — see
@@ -269,6 +272,7 @@ export function runGrowthFormulaScenario(
     const boyIRA = iraBalance;
     const boyRoth = rothBalance;
     const boyTaxable = taxableBalance;
+    const boyTaxableCash = taxableCash;
 
     // Primary SSI income (with COLA)
     // SS is entered in TODAY'S dollars. COLA years = min(yearOffset, age - startAge):
@@ -1549,13 +1553,14 @@ export function runGrowthFormulaScenario(
     // as baseline.ts: the forced RMD's share of the NO-conversion ordinary tax.
     // The reinvested-RMD brokerage is a SIDE taxable account (not the FIA), so
     // it grows at the same market/comparison rate the baseline uses for its
-    // taxable account — never the FIA contract rate. Cash mode: no growth.
+    // taxable account — never the FIA contract rate. It grows in every mode;
+    // only idle RMD cash ('cash' mode) earns nothing (v88 — see baseline.ts).
     // Clamp at $0 (Jorge V., ticket 809a5774) remains only as a defensive
     // floor and should virtually never bind now. Only the FORCED RMD shortfall
     // flows in — the voluntary IRA portion is presumed spent, matching the
     // voluntary-withdrawal semantics elsewhere in the engine.
     const taxableBrokerageRate = (client.baseline_comparison_rate ?? client.growth_rate ?? 7) / 100;
-    const taxableInterest = rmdTreatment === 'reinvested' ? Math.round(boyTaxable * taxableBrokerageRate) : 0;
+    const taxableInterest = brokerageInterest(boyTaxable, boyTaxableCash, taxableBrokerageRate);
     // Tax-credit savings are retained as cash in the taxable bucket: the dollars
     // the client did NOT send to the IRS this year stay with them. (Modeling
     // simplification: they land in taxable even when the tax would've been paid
@@ -1568,7 +1573,7 @@ export function runGrowthFormulaScenario(
     // the IRA keeps the un-pulled tax; the brokerage receives that much less.
     const reinvestedRmdToTaxable = Math.max(0, afterTaxForcedRmd - conversionTaxFundedFromRmd);
     const desiredTaxableBalance = rmdTreatment === 'spent'
-      ? boyTaxable - externalConversionTax
+      ? boyTaxable + taxableInterest - externalConversionTax
       : boyTaxable + reinvestedRmdToTaxable + taxableInterest - externalConversionTax;
     taxableBalance = Math.max(0, desiredTaxableBalance);
     // IRA-caused IRMAA is paid from this year's after-tax RMD cash first (in
@@ -1599,6 +1604,7 @@ export function runGrowthFormulaScenario(
       taxableBalance -= taxableFee.taxable;
       yearAdvisoryFee += taxableFee.total;
     }
+    taxableCash = nextTaxableCash(rmdTreatment, boyTaxableCash, reinvestedRmdToTaxable, taxableBalance);
 
     // Product bonus applied this year. Two sources:
     //  1. Upfront premium bonus (year 0 only) — bonus_percent × initial deposit.
@@ -1627,7 +1633,7 @@ export function runGrowthFormulaScenario(
     // bonus column. Only anniversary bonuses count as in-year growth credits.
     const traditionalGrowth = iraInterest + anniversaryBonusThisYear;
     const rothGrowth = rothInterest + rothMirrorBonus;
-    const taxableGrowth = taxableInterest; // interest on the reinvested-RMD side brokerage ('reinvested' mode); 0 for cash/spent
+    const taxableGrowth = taxableInterest; // brokerage interest (excludes idle RMD cash in 'cash' mode)
 
     // Tax component breakdown. Marginal conversion tax was computed above
     // (conversionFederalTax / conversionStateTax). The remainder is split

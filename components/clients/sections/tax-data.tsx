@@ -65,7 +65,7 @@ const QLAC_DEATH_BENEFIT_OPTIONS = [
 const RMD_TREATMENT_OPTIONS = [
   { value: "spent", label: "Spent on Living Expenses", description: "RMDs are consumed during retirement" },
   { value: "reinvested", label: "Reinvested (Taxable Brokerage)", description: "RMDs grow at rate of return" },
-  { value: "cash", label: "Sits in Cash (No Growth)", description: "RMDs accumulate without growth" },
+  { value: "cash", label: "Sits in Cash (No Growth)", description: "RMD cash earns nothing; existing taxable accounts still grow" },
 ] as const;
 
 // Valid federal tax brackets - must match what's in federal-brackets-2026.ts

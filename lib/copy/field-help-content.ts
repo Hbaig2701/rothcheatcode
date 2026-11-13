@@ -183,7 +183,7 @@ export const FIELD_HELP = {
   },
   rmd_treatment: {
     title: "RMD Treatment (Baseline)",
-    body: "How Required Minimum Distributions are handled in the 'do nothing' baseline scenario for comparison. Spent = consumed for living expenses (gone). Reinvested = redeposited into a taxable brokerage where they keep growing. Cash = sits in a checking account earning nothing. Only affects the baseline; the strategy projection is unaffected.",
+    body: "How Required Minimum Distributions are handled in the 'do nothing' baseline scenario for comparison. Spent = consumed for living expenses (gone). Reinvested = redeposited into a taxable brokerage where they keep growing. Cash = sits in a checking account earning nothing. This only decides where the RMD money goes — the client's existing taxable accounts keep growing at the comparison rate under every option.",
     example: "Most retirees use RMDs to live on → Spent. Wealthy client who doesn't need the income → Reinvested.",
   },
   rmds_handled_externally: {

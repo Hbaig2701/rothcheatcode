@@ -12,6 +12,7 @@ import { rateFromSchedule } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA, netIraTargetForYear } from '../utils/withdrawals';
 import { getMarginalBracket, computeTaxableIncomeWithSS, computeIrmaaMagi } from '../tax-helpers';
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
+import { brokerageInterest, nextTaxableCash } from '../utils/taxable-cash';
 
 /**
  * Run Baseline scenario: no Roth conversions, just RMDs
@@ -66,6 +67,10 @@ export function runBaselineScenario(
   let iraBalance = client.qualified_account_value ?? client.traditional_ira ?? 0;
   let rothBalance = client.roth_ira ?? 0;
   let taxableBalance = client.taxable_accounts ?? 0;
+  // The part of taxableBalance that is idle RMD cash ('cash' mode only). The
+  // client's own brokerage always earns the market rate whatever rmd_treatment
+  // says; only RMD cash that "sits in cash" doesn't. See utils/taxable-cash.ts.
+  let taxableCash = 0;
 
   // Income history for IRMAA lookback
   const incomeHistory = new Map<number, number>();
@@ -127,6 +132,7 @@ export function runBaselineScenario(
     const boyIRA = iraBalance;
     const boyRoth = rothBalance;
     const boyTaxable = taxableBalance;
+    const boyTaxableCash = taxableCash;
 
     // Calculate the RMD requirement based on prior year-end balance.
     // SHORT-CIRCUIT: when rmds_handled_externally is true, the advisor is
@@ -373,10 +379,13 @@ export function runBaselineScenario(
     const rothAfterWithdrawal = boyRoth - rothWithdrawal;
     const rothInterest = Math.round(rothAfterWithdrawal * annuityRate);
 
-    // Taxable interest only applies in 'reinvested' mode
-    const taxableInterest = rmdTreatment === 'reinvested'
-      ? Math.round(boyTaxable * growthRate)
-      : 0;
+    // The brokerage earns the market rate in every rmd_treatment mode; only the
+    // idle RMD cash ('cash' mode) is excluded. Before v88 growth was gated on
+    // 'reinvested', which froze the client's own brokerage at 0% in 'cash' and
+    // 'spent' modes on BOTH sides — so conversion tax paid from it cost no lost
+    // growth and strategies looked far better than they are (Mike Owens /
+    // Vince Haggard, Nov 2026: +$1.44M vs +$150K).
+    const taxableInterest = brokerageInterest(boyTaxable, boyTaxableCash, growthRate);
 
     // End of Year balances
     // E.O.Y. = B.O.Y. - Distribution + Interest. The voluntary withdrawal
@@ -438,11 +447,12 @@ export function runBaselineScenario(
       const irmaaFromSpentRmd = Math.min(iraAttributableIrmaa, Math.max(0, afterTaxForcedRmd));
       cumulativeAfterTaxDistributions += Math.max(0, afterTaxForcedRmd) - irmaaFromSpentRmd;
       // Taxable balance stays flat apart from IRMAA the RMD couldn't cover.
-      desiredTaxableBalance = boyTaxable - (iraAttributableIrmaa - irmaaFromSpentRmd);
+      // The brokerage still grows; it just doesn't receive the RMD.
+      desiredTaxableBalance = boyTaxable + taxableInterest - (iraAttributableIrmaa - irmaaFromSpentRmd);
     } else if (rmdTreatment === 'cash') {
       // Forced RMD (net of its own attributable tax) accumulates in cash but
-      // doesn't earn interest.
-      desiredTaxableBalance = boyTaxable + afterTaxForcedRmd - iraAttributableIrmaa;
+      // doesn't earn interest; the rest of the brokerage still does.
+      desiredTaxableBalance = boyTaxable + afterTaxForcedRmd + taxableInterest - iraAttributableIrmaa;
     } else {
       // 'reinvested' (default): forced RMD (net of its own attributable tax)
       // flows into the taxable account and earns interest going forward.
@@ -470,6 +480,7 @@ export function runBaselineScenario(
       taxableBalance -= fee.taxable;
       yearAdvisoryFee = fee.total;
     }
+    taxableCash = nextTaxableCash(rmdTreatment, boyTaxableCash, afterTaxForcedRmd, taxableBalance);
 
     // Determine tax bracket
     const bracket = determineTaxBracket(taxableIncome, client.filing_status, year);
