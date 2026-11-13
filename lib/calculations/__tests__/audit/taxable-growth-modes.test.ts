@@ -10,7 +10,8 @@
  * strategy looked far better than it is (Mike Owens / Vince Haggard, Nov 2026:
  * +$1.44M "Sits in Cash" vs +$150K "Reinvested" on the same client).
  *
- * What is locked here, for the standard (formula.ts) and growth engines:
+ * What is locked here, for the standard (formula.ts), growth and GI (legacy
+ * mode) engines:
  *  1. Year 1 of the do-nothing baseline (no RMD, no conversion, under 65) grows
  *     the brokerage by exactly the comparison rate in every mode.
  *  2. Before RMDs start, the mode cannot matter: baseline and strategy taxable
@@ -45,8 +46,11 @@ const BASE: Partial<ClientType> = {
 
 const MODES = ['reinvested', 'cash', 'spent'] as const;
 
-for (const blueprint_type of ['fia', 'high-bonus-long-term-growth'] as const) {
-  const runs = Object.fromEntries(MODES.map((m) => [m, dispatch(makeClient({ ...BASE, blueprint_type, rmd_treatment: m }))]));
+for (const blueprint_type of ['fia', 'high-bonus-long-term-growth', 'compound-rollup-income'] as const) {
+  // GI's normal income mode never routes baseline RMDs to the brokerage (see
+  // WISHLIST "GI do-nothing baseline should take pre-income RMDs"); legacy mode does.
+  const gi_legacy_mode = blueprint_type === 'compound-rollup-income';
+  const runs = Object.fromEntries(MODES.map((m) => [m, dispatch(makeClient({ ...BASE, blueprint_type, gi_legacy_mode, rmd_treatment: m }))]));
   const fx = `${F}:${runs.reinvested.engine}`;
 
   // 1. Year-1 baseline growth is exactly the comparison rate, every mode.

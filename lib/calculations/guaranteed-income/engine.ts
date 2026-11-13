@@ -51,6 +51,7 @@ import { applyTaxCreditCarryforward } from '../utils/tax-credits';
 import type { CustomProductRow } from '@/lib/products/types';
 import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear, getPreferentialIncomeForYear } from '../utils/income';
 import { calculateMAGI, calculateAGI, getMarginalBracket, computeTaxableIncomeWithSS } from '../tax-helpers';
+import { brokerageInterest, nextTaxableCash } from '../utils/taxable-cash';
 
 // ---------------------------------------------------------------------------
 // Helper Functions
@@ -1364,6 +1365,9 @@ function runGIBaselineScenario(
   let cumulativeIncome = 0;
 
   let taxableBalance = client.taxable_accounts ?? 0;
+  // Idle RMD cash inside taxableBalance ('cash' mode only) — see utils/taxable-cash.ts.
+  let taxableCash = 0;
+  const baselineRmdTreatment = client.rmd_treatment ?? 'reinvested';
 
   // --- Tracking ---
   const incomeHistory = new Map<number, number>();
@@ -1380,6 +1384,7 @@ function runGIBaselineScenario(
 
     const boyAccount = accountValue;
     const boyTaxable = taxableBalance;
+    const boyTaxableCash = taxableCash;
 
     // --- SSI income ---
     // SS is entered in TODAY'S dollars. COLA years = min(yearOffset, age - startAge):
@@ -1478,9 +1483,10 @@ function runGIBaselineScenario(
       const treatmentW = client.rmd_treatment ?? 'reinvested';
       const rmdToTaxableW = treatmentW === 'spent' ? 0 : rmdNetW;
 
-      // 'cash' = no growth on the accumulated balance; otherwise it grows.
-      const taxableInterest = treatmentW === 'cash' ? 0 : Math.round(boyTaxable * rateOfReturn);
+      // Only idle RMD cash ('cash' mode) earns nothing; the client's own brokerage always grows (v88).
+      const taxableInterest = brokerageInterest(boyTaxable, boyTaxableCash, rateOfReturn);
       taxableBalance = boyTaxable + taxableInterest + rmdToTaxableW;
+      taxableCash = nextTaxableCash(baselineRmdTreatment, boyTaxableCash, rmdToTaxableW, taxableBalance);
 
       // IRMAA. Voluntary IRA pulls + forced RMD feed into MAGI/income like ordinary income.
       const magi = otherIncome + iraWithdrawalW + rmdAmount + taxExemptNonSSI + ssIncome;
@@ -1642,8 +1648,9 @@ function runGIBaselineScenario(
       const purchaseRollUpGrowth = incomeBase - incomeBasePrePurchaseRollUp;
 
       // Taxable account grows
-      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      const taxableInterest = brokerageInterest(boyTaxable, boyTaxableCash, rateOfReturn);
       taxableBalance = boyTaxable + taxableInterest;
+      taxableCash = nextTaxableCash(baselineRmdTreatment, boyTaxableCash, 0, taxableBalance);
 
       // IRMAA
       const magi = otherIncome + taxExemptNonSSI + ssIncome;
@@ -1850,9 +1857,10 @@ function runGIBaselineScenario(
       const treatment = client.rmd_treatment ?? 'reinvested';
       const rmdToTaxable = treatment === 'spent' ? 0 : rmdNet;
 
-      // 'cash' = no growth on the accumulated balance; otherwise it grows.
-      const taxableInterest = treatment === 'cash' ? 0 : Math.round(boyTaxable * rateOfReturn);
+      // Only idle RMD cash ('cash' mode) earns nothing; the client's own brokerage always grows (v88).
+      const taxableInterest = brokerageInterest(boyTaxable, boyTaxableCash, rateOfReturn);
       taxableBalance = boyTaxable + taxableInterest + rmdToTaxable;
+      taxableCash = nextTaxableCash(baselineRmdTreatment, boyTaxableCash, rmdToTaxable, taxableBalance);
 
       // IRMAA (the RMD counts toward MAGI)
       const magi = otherIncome + rmdAmount + taxExemptNonSSI + ssIncome;
@@ -2079,8 +2087,9 @@ function runGIBaselineScenario(
       }
 
       // Taxable account receives after-tax GI income
-      const taxableInterest = Math.round(boyTaxable * rateOfReturn);
+      const taxableInterest = brokerageInterest(boyTaxable, boyTaxableCash, rateOfReturn);
       taxableBalance = boyTaxable + grossGI + taxableInterest - totalTax;
+      taxableCash = nextTaxableCash(baselineRmdTreatment, boyTaxableCash, 0, taxableBalance);
 
       // Calculate tax details. AGI/taxable-SS already computed above.
       const totalIncome = grossTaxableIncome + ssIncome;
