@@ -23,7 +23,7 @@ import {
   type DualPayoutTable,
   type RollUpConfig,
 } from "@/lib/config/gi-product-data";
-import { ALL_PRODUCTS, type FormulaType, type GuaranteedIncomeFormulaType } from "@/lib/config/products";
+import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType, type GuaranteedIncomeFormulaType } from "@/lib/config/products";
 import type { CustomProductRow } from "@/lib/products/types";
 
 // ---------------------------------------------------------------------------
@@ -338,6 +338,26 @@ export function getEffectiveIncreasingIncomeRate(
 // ---------------------------------------------------------------------------
 // Growth: Effective rider fee
 // ---------------------------------------------------------------------------
+
+/**
+ * Anniversary bonus a growth contract credits on top of the upfront premium
+ * bonus — e.g. Phased Bonus Growth: 4% on contract anniversaries 1, 2 and 3.
+ * The scenario's own fields win (the advisor may have customized them), else
+ * the preset's defaults; legacy rows saved with nulls still get the preset.
+ * `percent` is whole-number (4 = 4%). Always 0/0 for No Annuity.
+ */
+export function getEffectiveAnniversaryBonus(client: {
+  blueprint_type?: string | null;
+  anniversary_bonus_percent?: number | null;
+  anniversary_bonus_years?: number | null;
+}): { percent: number; years: number } {
+  if (isNoAnnuityProduct(client.blueprint_type)) return { percent: 0, years: 0 };
+  const preset = ALL_PRODUCTS[client.blueprint_type as FormulaType]?.defaults;
+  return {
+    percent: (client.anniversary_bonus_percent ?? preset?.anniversaryBonus) ?? 0,
+    years: (client.anniversary_bonus_years ?? preset?.anniversaryBonusYears) ?? 0,
+  };
+}
 
 /**
  * Returns the rider fee percentage (as a decimal, e.g. 0.0095 for 0.95%) for

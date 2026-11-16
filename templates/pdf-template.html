@@ -478,6 +478,12 @@
           <span class="metric-value">{{bonusRate}}%</span>
         </div>
         {{/unless}}
+        {{#if anniversaryBonusYears}}{{#if anniversaryBonusPercent}}
+        <div class="metric-row">
+          <span class="metric-label">Anniversary Bonus</span>
+          <span class="metric-value">{{anniversaryBonusPercent}}% × {{anniversaryBonusYears}} yrs</span>
+        </div>
+        {{/if}}{{/if}}
         {{#if hasBonus}}
         <div class="metric-row">
           <span class="metric-label">Starting Balance (with bonus)</span>

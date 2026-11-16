@@ -18,7 +18,7 @@ import {
 } from '../tax-helpers';
 import { calculateRMD } from '../modules/rmd';
 import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from '@/lib/config/products';
-import { getEffectiveGrowthRiderFee, getEffectiveCumulativePenaltyFree, getEffectiveRateSchedule, rateFromSchedule } from '../resolvers/product-resolver';
+import { getEffectiveGrowthRiderFee, getEffectiveCumulativePenaltyFree, getEffectiveRateSchedule, rateFromSchedule, getEffectiveAnniversaryBonus } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 import { managedRothShare, managedRothGrowthRate } from '../utils/aum-destination';
@@ -119,16 +119,12 @@ export function runGrowthFormulaScenario(
   // without the fallback, a Phased Bonus Growth client with null anniversary
   // values would silently model as a no-anniversary product.
   const productConfig = ALL_PRODUCTS[client.blueprint_type as FormulaType];
-  const presetAnnivBonus = productConfig?.defaults.anniversaryBonus ?? null;
-  const presetAnnivYears = productConfig?.defaults.anniversaryBonusYears ?? null;
 
   // Anniversary bonus (e.g., Phased Bonus Growth: 4% at end of years 1, 2, 3).
-  // Prefer the value on the client record (advisor may have customized it),
-  // otherwise fall back to the preset default.
-  const anniversaryBonusPercent = isNoAnnuity ? 0 :
-    ((client.anniversary_bonus_percent ?? presetAnnivBonus) ?? 0) / 100;
-  const anniversaryBonusYears = isNoAnnuity ? 0 :
-    (client.anniversary_bonus_years ?? presetAnnivYears) ?? 0;
+  // Shared with the PDF's Contract Details so both always agree.
+  const anniversaryBonus = getEffectiveAnniversaryBonus(client);
+  const anniversaryBonusPercent = anniversaryBonus.percent / 100;
+  const anniversaryBonusYears = anniversaryBonus.years;
   // Per-product: does the anniversary bonus keep crediting on Roth-converted
   // money (mirrored Roth annuity)? Confirmed true for EquiTrust (phased-bonus-
   // growth); false everywhere else until each carrier is confirmed. Read from

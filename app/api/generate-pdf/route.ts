@@ -8,7 +8,7 @@ import path from 'path';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getVisibleUserIds } from '@/lib/auth/visibleUserIds';
-import { isGuaranteedIncomeProduct, isNoAnnuityProduct, type FormulaType } from '@/lib/config/products';
+import { isGuaranteedIncomeProduct, isGrowthProduct, isNoAnnuityProduct, type FormulaType } from '@/lib/config/products';
 import { checkUsageLimit, incrementUsage, getEffectivePlan } from '@/lib/usage';
 import { hasFeature, hasFullAccess } from '@/lib/config/plans';
 import { determineTaxBracket, calculateFederalTax } from '@/lib/calculations/modules/federal-tax';
@@ -21,7 +21,7 @@ import { getClientRMDStartAge } from '@/lib/calculations/utils/age';
 import { getBracketCeiling } from '@/lib/data/federal-brackets-2026';
 import { getTaxExemptIncomeForYear } from '@/lib/calculations/utils/income';
 import { getCustomProduct } from '@/lib/products/repository';
-import { getEffectiveGrowthRiderFee, getEffectiveGIData } from '@/lib/calculations/resolvers/product-resolver';
+import { getEffectiveGrowthRiderFee, getEffectiveGIData, getEffectiveAnniversaryBonus } from '@/lib/calculations/resolvers/product-resolver';
 import type { CustomProductRow } from '@/lib/products/types';
 
 // Force dynamic rendering for this route
@@ -305,6 +305,8 @@ interface TemplateData {
   bonusAmount: string;
   startingWithBonus: string;
   hasBonus: boolean;
+  anniversaryBonusPercent: number;
+  anniversaryBonusYears: number;
   riderFee: number;
   rateOfReturn: number;
   rateOfReturnPercent: string;
@@ -1095,6 +1097,9 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   // resolver — getEffectiveGrowthRiderFee returns the decimal (0.0095 for 0.95%),
   // so we multiply by 100 for display. Displayed on the Performance Report's
   // Contract Details card so advisors can point to the fee line item.
+  const anniversaryBonus = isGrowthProduct(client.blueprint_type as FormulaType)
+    ? getEffectiveAnniversaryBonus(client)
+    : { percent: 0, years: 0 };
   const productRiderFee = getEffectiveGrowthRiderFee(client.blueprint_type as FormulaType, customProduct, client.rider_fee_percent) * 100;
   // Premium bonus in dollars received at contract issue — applied only on the
   // strategy side (baseline is a "do nothing" scenario, no product bonus).
@@ -1145,6 +1150,10 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     bonusAmount: formatCurrency(iraSplit.bonusDollars),
     startingWithBonus: formatCurrency(iraSplit.rothSidePortion + iraSplit.bonusDollars),
     hasBonus: (client.bonus_percent ?? 0) > 0,
+    // Anniversary bonus (e.g. 4% on contract anniversaries 1-3). Only the growth
+    // engine credits it, so only growth products show the row.
+    anniversaryBonusPercent: anniversaryBonus.percent,
+    anniversaryBonusYears: anniversaryBonus.years,
     riderFee: productRiderFee,
     rateOfReturn: client.rate_of_return ?? 7,
     rateOfReturnPercent: String(client.rate_of_return ?? 7),
