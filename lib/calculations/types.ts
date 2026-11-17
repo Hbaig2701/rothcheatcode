@@ -140,6 +140,10 @@ export interface YearlyResult {
   year: number;
   age: number;
   spouseAge: number | null;
+  /** Filing status the engine taxed this year under. Differs from the
+   *  client's only when widow modeling switches the survivor to 'single'
+   *  after the first death (utils/widow.ts). Optional: older cached rows lack it. */
+  filingStatus?: FilingStatus;
 
   // Account balances (end of year, in cents)
   traditionalBalance: number;

@@ -128,9 +128,18 @@ export async function GET(
   ) {
     try {
       if (isGI || isGrowth) {
+        // v90: the Growth engine itself now files Single from the first death
+        // (utils/widow.ts), so its projection is already the survivor's. The
+        // card's "married" comparator must be the counterfactual where both
+        // spouses live — the same strategy re-run with widow modeling off —
+        // or it would re-price single against single and show $0. The GI
+        // engine doesn't model the switch yet, so its projection IS married.
+        const marriedFormula = isGrowth
+          ? runEngine({ ...strategyClient, widow_analysis: false }).formula
+          : baseResult.formula;
         response.widow = analyzeWidowPenaltyFromProjection({
           client: typedClient,
-          formulaYears: baseResult.formula,
+          formulaYears: marriedFormula,
         });
       } else {
         response.widow = analyzeWidowPenalty(typedClient);

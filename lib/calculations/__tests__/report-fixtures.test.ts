@@ -121,6 +121,7 @@ function canonicalTaxOnRMDs(years: Array<{
   age: number;
   spouseAge?: number | null;
   year: number;
+  filingStatus?: Client['filing_status'];
 }>, client: Client): number {
   const stateOverride = client.state_tax_rate != null ? client.state_tax_rate / 100 : undefined;
   let total = 0;
@@ -128,8 +129,10 @@ function canonicalTaxOnRMDs(years: Array<{
     const rmd = y.rmdAmount ?? 0;
     if (rmd <= 0) continue;
     const taxWith = (y.federalTax ?? 0) + (y.stateTax ?? 0);
+    // Per-row status: 'single' in survivor years when widow modeling is on.
+    const fs = y.filingStatus ?? client.filing_status;
     const deductions = y.standardDeduction
-      ?? getStandardDeduction(client.filing_status, y.age, y.spouseAge ?? undefined, y.year);
+      ?? getStandardDeduction(fs, y.age, y.spouseAge ?? undefined, y.year);
     // Isolate the RMD's marginal tax by keeping any Roth conversion IN the
     // "no-RMD" baseline (same definition the production computeMarginalRMDTax
     // helper uses) — otherwise a strategy year with both an RMD and a
@@ -139,20 +142,20 @@ function canonicalTaxOnRMDs(years: Array<{
       ssBenefits: y.ssIncome ?? 0,
       taxExemptInterest: client.tax_exempt_non_ssi ?? 0,
       deductions,
-      filingStatus: client.filing_status,
+      filingStatus: fs,
       age: y.age,
       spouseAge: y.spouseAge ?? undefined,
       taxYear: y.year,
     });
     const fedNo = calculateFederalTax({
       taxableIncome: noRMD.taxableIncome,
-      filingStatus: client.filing_status,
+      filingStatus: fs,
       taxYear: y.year,
     }).totalTax;
     const stateNo = calculateStateTax({
       taxableIncome: noRMD.taxableIncome,
       state: client.state,
-      filingStatus: client.filing_status,
+      filingStatus: fs,
       overrideRate: stateOverride,
     }).totalTax;
     total += Math.max(0, taxWith - (fedNo + stateNo));
@@ -600,14 +603,18 @@ const SPRENGEL_EXPECTED = {
     // Re-locked v87 (2026-11-02): forced RMDs now pay their MARGINAL fed+state
     // tax (was a pro-rata average-rate share) and the IRMAA they cause comes out
     // of the reinvested account (was displayed, never deducted). −$37,162.58.
-    finalNetWorth:        645_292_274,
+    // Re-locked v90 (2026-11-16): widow's penalty is now IN the projection. This
+    // fixture has widow_analysis on (no death age → older spouse at 85 = 2056),
+    // so the last 6 years file Single with one SS check: baseline RMD tax
+    // +$59,740, total fed+state +$62,360, net worth −$61,313.
+    finalNetWorth:        639_160_938,
     finalTraditional:     401_190_516,
     finalRoth:                      0,
-    finalTaxable:         244_101_758,
-    lifetimeWealth:       484_816_068,
+    finalTaxable:         237_970_422,
+    lifetimeWealth:       478_684_732,
     forcedDistributions:  396_578_978,
-    totalFedStateTax:     189_248_915,
-    taxOnRMDs:            109_610_171,
+    totalFedStateTax:     195_484_870,
+    taxOnRMDs:            115_584_229,
   },
   blue: {
     // finalTraditional was -$22,971 (a NEGATIVE IRA balance) before the
@@ -627,7 +634,9 @@ const SPRENGEL_EXPECTED = {
     finalTaxable:                   0,
     lifetimeWealth:       796_648_734,
     taxOnConversions:      34_438_062,
-    totalFedStateTax:     121_664_353,
+    // v90: +$2,619 — survivor-years tax on non-IRA income at single rates
+    // (not deducted from wealth on either side, so finalNetWorth is unchanged).
+    totalFedStateTax:     121_926_250,
     // Full conversion drains the Traditional IRA before age 73, so there are
     // no RMDs in the strategy phase — marginal RMD tax must be exactly $0.
     // If this ever shows non-zero, full-conversion semantics broke.

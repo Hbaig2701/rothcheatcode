@@ -13,6 +13,7 @@ import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA, netIraTargetFor
 import { getMarginalBracket, computeTaxableIncomeWithSS, computeIrmaaMagi } from '../tax-helpers';
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 import { brokerageInterest, nextTaxableCash } from '../utils/taxable-cash';
+import { makeSurvivorResolver, householdSocialSecurity } from '../utils/widow';
 
 /**
  * Run Baseline scenario: no Roth conversions, just RMDs
@@ -110,6 +111,9 @@ export function runBaselineScenario(
   // RMD treatment option (default to 'reinvested' for backwards compatibility)
   const rmdTreatment = client.rmd_treatment ?? 'reinvested';
 
+  // Survivor filing per year (widow modeling — utils/widow.ts).
+  const survivorFor = makeSurvivorResolver(client);
+
   // Track cumulative after-tax distributions for 'spent' scenario
   let cumulativeAfterTaxDistributions = 0;
 
@@ -127,6 +131,14 @@ export function runBaselineScenario(
     const spouseAge = initialSpouseAge !== null
       ? initialSpouseAge + yearOffset
       : (isMarriedFiler && client.spouse_dob ? calculateAge(client.spouse_dob, year) : null);
+    // Widow modeling (utils/widow.ts): from the first-death year the survivor
+    // files Single — single brackets/deduction/IRMAA thresholds, no spouse age
+    // in the deduction. Married-joint every year when Widow Analysis is off.
+    const { survivor, filingStatus } = survivorFor(year);
+    // IRMAA is set from the return 2 years back, filed under THAT year's
+    // status — the first two survivor years still use joint thresholds.
+    const irmaaFilingStatus = survivorFor(year - 2).filingStatus;
+    const taxSpouseAge = survivor ? undefined : (spouseAge ?? undefined);
 
     // Beginning of Year balances
     const boyIRA = iraBalance;
@@ -190,7 +202,8 @@ export function runBaselineScenario(
         : 0;
     }
 
-    const ssIncome = primarySsIncome + spouseSsIncome;
+    // Widow modeling: after the first death the survivor keeps the larger check.
+    const ssIncome = householdSocialSecurity(primarySsIncome, spouseSsIncome, survivor);
 
     // Other taxable income (non-SSI) - year-specific from income table
     const otherIncome = getNonSSIIncomeForYear(client, year);
@@ -211,7 +224,7 @@ export function runBaselineScenario(
     // A (deduction isolation): additional_deductions are a STRATEGY-only benefit;
     // the do-nothing baseline gets only the standard/senior deduction. See
     // growth-baseline.ts for the full rationale (Mark Nichols audit 2026-07).
-    const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, null);
+    const deductions = getEffectiveDeduction(filingStatus, age, taxSpouseAge, year, null);
 
     // NET (after-tax) withdrawal gross-up — BASELINE side only. If the advisor
     // marked this withdrawal as an after-tax target, solve for the gross IRA
@@ -230,13 +243,13 @@ export function runBaselineScenario(
           ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI,
           deductions,
-          filingStatus: client.filing_status,
+          filingStatus,
           age,
-          spouseAge: spouseAge ?? undefined,
+          spouseAge: taxSpouseAge,
           taxYear: year,
         });
-        const fed = calculateFederalTax({ taxableIncome: ti.taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax;
-        const st = calculateStateTax({ taxableIncome: ti.taxableIncome, state: client.state, filingStatus: client.filing_status, overrideRate: stateOverride }).totalTax;
+        const fed = calculateFederalTax({ taxableIncome: ti.taxableIncome, filingStatus, taxYear: year }).totalTax;
+        const st = calculateStateTax({ taxableIncome: ti.taxableIncome, state: client.state, filingStatus, overrideRate: stateOverride }).totalTax;
         return fed + st;
       };
       // Marginal tax caused by the VOLUNTARY pull (above the forced RMD).
@@ -265,9 +278,9 @@ export function runBaselineScenario(
       ssBenefits: ssIncome,
       taxExemptInterest: taxExemptNonSSI,
       deductions,
-      filingStatus: client.filing_status,
+      filingStatus,
       age,
-      spouseAge: spouseAge ?? undefined,
+      spouseAge: taxSpouseAge,
       taxYear: year,
     });
     const taxableIncome = taxInfo.taxableIncome;
@@ -276,7 +289,7 @@ export function runBaselineScenario(
     // Federal tax
     const federalResult = calculateFederalTax({
       taxableIncome,
-      filingStatus: client.filing_status,
+      filingStatus,
       taxYear: year
     });
 
@@ -284,7 +297,7 @@ export function runBaselineScenario(
     const stateResult = calculateStateTax({
       taxableIncome,
       state: client.state,
-      filingStatus: client.filing_status,
+      filingStatus,
       overrideRate: stateTaxRateOverride
     });
 
@@ -309,7 +322,7 @@ export function runBaselineScenario(
     let irmaaSurcharge = 0;
     let irmaaTierFromLookback = 0;
     if (age >= 65) {
-      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, irmaaFilingStatus);
       irmaaSurcharge = irmaaResult.annualSurcharge;
       irmaaTierFromLookback = irmaaResult.tier;
     }
@@ -321,14 +334,14 @@ export function runBaselineScenario(
       ssBenefits: ssIncome,
       taxExemptInterest: taxExemptNonSSI,
       deductions,
-      filingStatus: client.filing_status,
+      filingStatus,
       age,
-      spouseAge: spouseAge ?? undefined,
+      spouseAge: taxSpouseAge,
       taxYear: year,
     });
     noIraIncomeHistory.set(year, computeIrmaaMagi(noIraTaxInfo.agi, taxExemptNonSSI));
     const irmaaWithoutIra = age >= 65
-      ? calculateIRMAAWithLookback(year, noIraIncomeHistory, client.filing_status).annualSurcharge
+      ? calculateIRMAAWithLookback(year, noIraIncomeHistory, irmaaFilingStatus).annualSurcharge
       : 0;
     // IRMAA caused by IRA distributions. Previously never deducted from wealth on
     // either side, so the strategy's conversion-driven IRMAA was free (Barbara
@@ -353,13 +366,13 @@ export function runBaselineScenario(
     if (effectiveIraDistribution > 0) {
       const noIraFederalTax = calculateFederalTax({
         taxableIncome: noIraTaxInfo.taxableIncome,
-        filingStatus: client.filing_status,
+        filingStatus,
         taxYear: year,
       }).totalTax;
       const noIraStateTax = calculateStateTax({
         taxableIncome: noIraTaxInfo.taxableIncome,
         state: client.state,
-        filingStatus: client.filing_status,
+        filingStatus,
         overrideRate: stateTaxRateOverride,
       }).totalTax;
       federalTaxOnIRAWithdrawal = Math.max(0, federalResult.totalTax - noIraFederalTax);
@@ -483,12 +496,12 @@ export function runBaselineScenario(
     taxableCash = nextTaxableCash(rmdTreatment, boyTaxableCash, afterTaxForcedRmd, taxableBalance);
 
     // Determine tax bracket
-    const bracket = determineTaxBracket(taxableIncome, client.filing_status, year);
+    const bracket = determineTaxBracket(taxableIncome, filingStatus, year);
 
     // Calculate extended fields for adjustable columns. irmaaTier mirrors
     // irmaaTierFromLookback above so the display column matches the
     // surcharge dollars on the same row.
-    const federalTaxBracket = getMarginalBracket(taxableIncome, client.filing_status, year);
+    const federalTaxBracket = getMarginalBracket(taxableIncome, filingStatus, year);
     const irmaaTier = irmaaTierFromLookback;
 
     // Calculate growth/interest for each account
@@ -515,7 +528,8 @@ export function runBaselineScenario(
     results.push({
       year,
       age,
-      spouseAge,
+      spouseAge: survivor ? null : spouseAge,
+      filingStatus,
       traditionalBalance: iraBalance,
       rothBalance,
       taxableBalance,

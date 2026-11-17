@@ -8,6 +8,7 @@ import { calculateIRMAA } from '../modules/irmaa';
 import { runWidowScenario } from '../scenarios/widow';
 import { runBaselineScenario } from '../scenarios/baseline';
 import { adjustForInflation } from '../modules/inflation';
+import { getFirstDeathYear } from '../utils/widow';
 
 /**
  * Calculate tax impact for a single year of married vs widow filing
@@ -70,70 +71,6 @@ export function calculateWidowTaxImpact(input: {
 }
 
 /**
- * Resolve the death year used to anchor the widow's analysis. Priority:
- *   1. `client.widow_death_age` — advisor's explicit override (UI: "First-Death Age").
- *      Resolved against the OLDER spouse's birth year so the resulting calendar
- *      year matches the advisor's expectation ("first to die at age N").
- *   2. Older spouse's birth year + 85 (life-expectancy heuristic) when DOB known.
- *   3. 15 years from now (last-resort default).
- *
- * Past anchors are passed through unmodified — they reflect "death already
- * happened, treat the entire projection as widow" which is a legitimate
- * scenario. The for-loop in the analyzer skips years before the death year,
- * and a past anchor naturally means no years are skipped.
- */
-function getDefaultDeathYear(client: Client): number {
-  const currentYear = new Date().getFullYear();
-
-  // Resolve a birth year for each spouse. Prefer DOB; fall back to age.
-  // Number.isFinite guards against malformed DOB strings (e.g. "" or "not-a-date")
-  // producing NaN, which would silently propagate as NaN death year.
-  const toBirthYear = (dob: string | null, age: number | null | undefined): number | null => {
-    if (dob) {
-      // Parse the year from the string, NOT via `new Date(dob).getFullYear()`
-      // — that reads ISO dates as UTC midnight and returns the year minus one
-      // in US timezones (e.g. "1960-01-01" → 1959), which can flip the RMD age.
-      const parsed = parseInt(dob.substring(0, 4), 10);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-    if (age != null && Number.isFinite(age) && age > 0) {
-      return currentYear - age;
-    }
-    return null;
-  };
-
-  const clientBirthYear = toBirthYear(client.date_of_birth, client.age);
-  const spouseBirthYear = toBirthYear(client.spouse_dob, client.spouse_age);
-
-  let olderBirthYear: number | null = null;
-  if (clientBirthYear !== null && spouseBirthYear !== null) {
-    olderBirthYear = Math.min(clientBirthYear, spouseBirthYear); // earlier birth = older spouse
-  } else {
-    olderBirthYear = clientBirthYear ?? spouseBirthYear;
-  }
-
-  // Advisor override: "first to die at age N" anchored on the older spouse.
-  // If no birth year is available we still honor the override by treating
-  // widow_death_age as "years from now" — silently dropping the advisor's
-  // explicit choice would be worse than this fallback.
-  if (client.widow_death_age != null) {
-    if (olderBirthYear !== null) {
-      return olderBirthYear + client.widow_death_age;
-    }
-    return currentYear + client.widow_death_age;
-  }
-
-  // Heuristic default: older spouse + 85. If older spouse is already past 85
-  // (rare but possible — e.g., advisor illustrating an existing widow),
-  // the resulting past year naturally means "treat all years as widow."
-  if (olderBirthYear !== null) {
-    return olderBirthYear + 85;
-  }
-
-  return currentYear + 15;
-}
-
-/**
  * Full widow's penalty analysis
  * Compares married baseline vs single-filer widow scenario
  */
@@ -147,7 +84,7 @@ export function analyzeWidowPenalty(
   }
 
   const currentYear = new Date().getFullYear();
-  const resolvedDeathYear = deathYear ?? getDefaultDeathYear(client);
+  const resolvedDeathYear = deathYear ?? getFirstDeathYear(client);
 
   // Years from now to death
   const yearsToDeathYear = resolvedDeathYear - currentYear;
@@ -270,7 +207,7 @@ export function analyzeWidowPenaltyFromProjection(
     throw new Error('Widow analysis requires at least one projection year');
   }
 
-  const resolvedDeathYear = input.deathYear ?? getDefaultDeathYear(client);
+  const resolvedDeathYear = input.deathYear ?? getFirstDeathYear(client);
 
   // SS amounts in cents at year 0 (un-inflated)
   const primarySS = client.ssi_annual_amount ?? client.ss_self ?? 0;

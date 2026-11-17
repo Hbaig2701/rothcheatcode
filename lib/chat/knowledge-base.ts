@@ -276,7 +276,7 @@ Key behaviors:
 
 ## Widow's penalty
 
-When the "Show Widow's Penalty" checkbox is on (in section "9. Advanced Data") and the client is MFJ, the engine simulates one spouse passing away at the configured "First-Death Age" (or a heuristic age if blank). From that point on, the survivor files Single. Same income, narrower brackets → noticeably higher tax. The widow analysis surfaces how much extra tax is owed if conversions WEREN'T done before the first death. This is one of the strongest arguments for converting earlier when one spouse has materially worse health.
+When the "Show Widow's Penalty" checkbox is on (in section "9. Advanced Data") and the client is MFJ, the engine simulates one spouse passing away at the configured "First-Death Age" (or a heuristic age if blank). From that point on, the survivor files Single on BOTH sides of the comparison (single brackets, single standard deduction, single IRMAA thresholds — IRMAA switches 2 years later because it uses the return from 2 years back) and keeps one Social Security check (the larger of the two). Same income, narrower brackets → noticeably higher tax on any IRA money still left, which is why it usually WIDENS the strategy's advantage and flows straight into the headline. It is not in the guaranteed-income engine yet (the GI report still shows it as a card only). If RMDs are "spent" or handled externally, or the strategy leaves no IRA behind, the headline may barely move. The Widow's Penalty card surfaces how much extra tax is owed if conversions WEREN'T done before the first death. This is one of the strongest arguments for converting earlier when one spouse has materially worse health.
 
 ## Engine assumptions (defaults)
 

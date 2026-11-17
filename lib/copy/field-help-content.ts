@@ -398,8 +398,8 @@ export const FIELD_HELP = {
   },
   widow_analysis: {
     title: "Widow's Penalty Analysis",
-    body: "Models the 'widow's penalty' — when one spouse dies, the survivor files single instead of MFJ. Single-filer brackets compress dramatically, so the survivor often pays much higher taxes on the same income. Only available for married couples.",
-    example: "MFJ couple has $150K income at 22%. Husband dies. Wife files single on same $150K → jumps to 24%. Toggle ON to show this in the report.",
+    body: "Models the 'widow's penalty' — when one spouse dies, the survivor files single instead of MFJ. Single-filer brackets compress dramatically, so the survivor often pays much higher taxes on the same income. When ON, the projection itself switches the survivor to single from the first-death year — on BOTH the do-nothing and strategy sides — with the single standard deduction and IRMAA thresholds, and one Social Security check (the larger of the two) instead of two. That flows into the headline. Only available for married couples.",
+    example: "MFJ couple has $150K income at 22%. Husband dies. Wife files single on same $150K → jumps to 24%. Toggle ON to include this in the projection and show the Widow's Penalty card.",
   },
   widow_death_age: {
     title: "First-Death Age",

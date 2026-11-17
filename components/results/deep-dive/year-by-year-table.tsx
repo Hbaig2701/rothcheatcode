@@ -97,14 +97,18 @@ export function YearByYearTable({
 
     return years.map((y) => {
       const typeBreakdown = byYear.get(y.year);
-      // Filing status: defaults to the client's status. When widow analysis
-      // is on AND the row is at-or-after the configured death age, the
-      // surviving spouse files single — same heuristic the engine uses.
+      // Filing status: defaults to the client's status. The engine stamps each
+      // row with the status it actually taxed under (utils/widow.ts) — 'single'
+      // for a married client means the survivor years after the first death.
+      // Rows cached before v90 lack the stamp: fall back to the old age check.
       let perYearFilingStatus: string = filingStatusLabel;
-      if (widowAnalysis && widowDeathAge != null && y.age >= widowDeathAge && filingStatusLabel === "MFJ") {
+      const survivorRow = y.filingStatus != null
+        ? y.filingStatus === "single"
+        : (widowAnalysis && widowDeathAge != null && y.age >= widowDeathAge);
+      if (survivorRow && filingStatusLabel === "MFJ") {
         perYearFilingStatus = "Single (Widow)";
       }
-      const merged: YearlyResult & Record<string, unknown> = {
+      const merged: Omit<YearlyResult, "filingStatus"> & Record<string, unknown> = {
         ...y,
         ...(typeBreakdown ?? {}),
         filingStatus: perYearFilingStatus,

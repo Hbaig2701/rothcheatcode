@@ -468,17 +468,17 @@ function processYearlyData(years: any[], client: any, scenario: 'baseline' | 'fo
     // the table reconciles (AGI − Deduction = Taxable Income). year.taxableIncome
     // already reflects it via computeTaxableIncomeWithSS; standardDeduction does
     // not (it's the standard + additional deduction only), so add it back here.
-    const stdDeduction = year.standardDeduction ?? getStandardDeduction(client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
+    const stdDeduction = year.standardDeduction ?? getStandardDeduction(year.filingStatus ?? client.filing_status, year.age, year.spouseAge ?? undefined, year.year);
     // Prefer the engine's own figure: recomputing from the PDF's reconstructed
     // `agi` lands on a different point of the OBBA phase-out whenever that agi
     // differs from the engine's (QLAC/held-back rows, or pre-field projections),
     // which breaks AGI − Deduction = Taxable Income by a few hundred dollars.
     // Fall back to recomputing only for rows predating the field.
     const seniorDeduction = year.seniorBonusDeduction
-      ?? getSeniorBonusDeduction(client.filing_status, agi, year.age, year.spouseAge ?? undefined, year.year);
+      ?? getSeniorBonusDeduction(year.filingStatus ?? client.filing_status, agi, year.age, year.spouseAge ?? undefined, year.year);
     const deduction = stdDeduction + seniorDeduction;
     const taxableIncomeVal = year.taxableIncome ?? Math.max(0, agi - deduction);
-    const bracket = year.federalTaxBracket ?? determineTaxBracket(taxableIncomeVal, client.filing_status, year.year);
+    const bracket = year.federalTaxBracket ?? determineTaxBracket(taxableIncomeVal, year.filingStatus ?? client.filing_status, year.year);
     const magi = year.magi ?? (agi + taxExemptNonSSI + (year.ssIncome - (year.taxableSS ?? 0)));
     // Net (After-Tax) = what actually hits the client's bank account this year.
     //
@@ -1063,7 +1063,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
       // funded from the IRA. Falls back to conversion alone for external-tax
       // scenarios where the two are equal.
       distribution: formatCurrency(distributionAmount),
-      bracketCeiling: formatCurrency(getBracketCeiling(client.filing_status, client.max_tax_rate ?? 24, year.year)),
+      bracketCeiling: formatCurrency(getBracketCeiling(year.filingStatus ?? client.filing_status, client.max_tax_rate ?? 24, year.year)),
       // Marginal tax cost of the conversion — the extra federal + state tax
       // the client owes because of this conversion (including any SS that
       // became taxable as the conversion raised provisional income).

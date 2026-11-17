@@ -70,7 +70,7 @@ export function computePerYearMarginalConversionTax(
     year.standardDeduction ??
     getStandardDeduction(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      client.filing_status as any,
+      (year.filingStatus ?? client.filing_status) as any,
       year.age,
       year.spouseAge ?? undefined,
       year.year
@@ -82,7 +82,7 @@ export function computePerYearMarginalConversionTax(
     taxExemptInterest: taxExemptNonSSI,
     deductions,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    filingStatus: client.filing_status as any,
+    filingStatus: (year.filingStatus ?? client.filing_status) as any,
     age: year.age,
     spouseAge: year.spouseAge ?? undefined,
     taxYear: year.year,
@@ -91,7 +91,7 @@ export function computePerYearMarginalConversionTax(
   const fedNoConv = calculateFederalTax({
     taxableIncome: taxInfoNoConv.taxableIncome,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    filingStatus: client.filing_status as any,
+    filingStatus: (year.filingStatus ?? client.filing_status) as any,
     taxYear: year.year,
   }).totalTax;
 
@@ -99,7 +99,7 @@ export function computePerYearMarginalConversionTax(
     taxableIncome: taxInfoNoConv.taxableIncome,
     state: client.state ?? "",
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    filingStatus: client.filing_status as any,
+    filingStatus: (year.filingStatus ?? client.filing_status) as any,
     overrideRate: stateTaxRateOverride,
   }).totalTax;
 

@@ -23,6 +23,7 @@ import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 import { managedRothShare, managedRothGrowthRate } from '../utils/aum-destination';
 import { brokerageInterest, nextTaxableCash } from '../utils/taxable-cash';
+import { makeSurvivorResolver, householdSocialSecurity } from '../utils/widow';
 import type { CustomProductRow } from '@/lib/products/types';
 
 /**
@@ -259,6 +260,8 @@ export function runGrowthFormulaScenario(
   // SS only. Same basis as baseline.ts, so both sides charge only the IRMAA the
   // IRA activity causes (iraAttributableIrmaa).
   const noIraIncomeHistory = new Map<number, number>();
+  // Survivor filing per year (widow modeling — utils/widow.ts).
+  const survivorFor = makeSurvivorResolver(client);
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
@@ -289,7 +292,15 @@ export function runGrowthFormulaScenario(
         : 0;
     }
 
-    const ssIncome = primarySsIncome + spouseSsIncome;
+    // Widow modeling (utils/widow.ts): from the first-death year the survivor
+    // files Single (brackets, deduction, IRMAA thresholds, no spouse age in the
+    // deduction) and keeps only the larger Social Security check. Married-joint
+    // every year when Widow Analysis is off. Mirrors baseline.ts.
+    const { survivor, filingStatus } = survivorFor(year);
+    // IRMAA is set from the return 2 years back, filed under THAT year's
+    // status — the first two survivor years still use joint thresholds.
+    const irmaaFilingStatus = survivorFor(year - 2).filingStatus;
+    const ssIncome = householdSocialSecurity(primarySsIncome, spouseSsIncome, survivor);
 
     // Other income for bracket calculations (year-specific from income table)
     const otherIncome = getNonSSIIncomeForYear(client, year);
@@ -307,8 +318,8 @@ export function runGrowthFormulaScenario(
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year) + preferentialIncome;
 
     // Standard deduction (age-adjusted)
-    const currentSpouseAgeForDeduction = initialSpouseAge !== null ? initialSpouseAge + yearOffset : undefined;
-    const deductions = getEffectiveDeduction(client.filing_status, age, currentSpouseAgeForDeduction, year, client.additional_deductions);
+    const currentSpouseAgeForDeduction = !survivor && initialSpouseAge !== null ? initialSpouseAge + yearOffset : undefined;
+    const deductions = getEffectiveDeduction(filingStatus, age, currentSpouseAgeForDeduction, year, client.additional_deductions);
 
     // Step 0: Calculate the RMD requirement if the client is old enough and
     // still has a traditional IRA balance. This handles the case where
@@ -352,7 +363,7 @@ export function runGrowthFormulaScenario(
       ssBenefits: ssIncome,
       taxExemptInterest: taxExemptNonSSI,
       deductions,
-      filingStatus: client.filing_status,
+      filingStatus,
       age,
       spouseAge: currentSpouseAgeForDeduction,
       taxYear: year,
@@ -365,7 +376,7 @@ export function runGrowthFormulaScenario(
       ssBenefits: ssIncome,
       taxExemptInterest: taxExemptNonSSI,
       deductions,
-      filingStatus: client.filing_status,
+      filingStatus,
       age,
       spouseAge: currentSpouseAgeForDeduction,
       taxYear: year,
@@ -382,7 +393,7 @@ export function runGrowthFormulaScenario(
         ssBenefits: ssIncome,
         taxExemptInterest: taxExemptNonSSI,
         deductions,
-        filingStatus: client.filing_status,
+        filingStatus,
         taxYear: year,
         age,
         spouseAge: currentSpouseAgeForDeduction,
@@ -489,7 +500,7 @@ export function runGrowthFormulaScenario(
     let irmaaSurcharge = 0;
     let irmaaTier = 0;
     if (age >= 65) {
-      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, irmaaFilingStatus);
       irmaaSurcharge = irmaaResult.annualSurcharge;
       irmaaTier = irmaaResult.tier;
     }
@@ -498,7 +509,7 @@ export function runGrowthFormulaScenario(
     // wealth at year end. Previously the strategy's IRMAA was displayed but
     // never deducted, so conversion-driven IRMAA was free (Barbara M-B 2026-11).
     const irmaaWithoutIra = age >= 65
-      ? calculateIRMAAWithLookback(year, noIraIncomeHistory, client.filing_status).annualSurcharge
+      ? calculateIRMAAWithLookback(year, noIraIncomeHistory, irmaaFilingStatus).annualSurcharge
       : 0;
     const iraAttributableIrmaa = Math.max(0, irmaaSurcharge - irmaaWithoutIra);
     // After-tax forced RMD available to fund the conversion tax (Kwanza Ellis
@@ -506,8 +517,8 @@ export function runGrowthFormulaScenario(
     // MARGINAL fed+state tax (Tax(no conversion) − Tax(no IRA money)), its
     // pro-rata slice when a voluntary withdrawal shares the distribution.
     const fedStateTaxAt = (taxableIncome: number) =>
-      calculateFederalTax({ taxableIncome, filingStatus: client.filing_status, taxYear: year }).totalTax
-      + calculateStateTax({ taxableIncome, state: client.state ?? 'CA', filingStatus: client.filing_status, overrideRate: stateTaxRateDecimal }).totalTax;
+      calculateFederalTax({ taxableIncome, filingStatus, taxYear: year }).totalTax
+      + calculateStateTax({ taxableIncome, state: client.state ?? 'CA', filingStatus, overrideRate: stateTaxRateDecimal }).totalTax;
     const rmdMarginalFedStateTax = forcedRmdShortfall > 0
       ? Math.max(0, fedStateTaxAt(existingTaxableIncome) - fedStateTaxAt(noIraBasisTaxInfo.taxableIncome))
       : 0;
@@ -760,7 +771,7 @@ export function runGrowthFormulaScenario(
             taxExemptInterest: taxExemptNonSSI,
             deductions,
             maxBracketRate: maxTaxRate,
-            filingStatus: client.filing_status,
+            filingStatus,
             taxYear: year,
             age,
             spouseAge: currentSpouseAgeForDeduction,
@@ -785,7 +796,7 @@ export function runGrowthFormulaScenario(
             taxExemptInterest: taxExemptNonSSI,
             deductions,
             maxBracketRate: maxTaxRate,
-            filingStatus: client.filing_status,
+            filingStatus,
             taxYear: year,
             age,
             spouseAge: currentSpouseAgeForDeduction,
@@ -804,7 +815,7 @@ export function runGrowthFormulaScenario(
             taxExemptInterest: taxExemptNonSSI,
             deductions,
             maxBracketRate: maxTaxRate,
-            filingStatus: client.filing_status,
+            filingStatus,
             taxYear: year,
             age,
             spouseAge: currentSpouseAgeForDeduction,
@@ -868,7 +879,7 @@ export function runGrowthFormulaScenario(
         )[targetTierStr] ?? 0;
         const targetHeadroom = calculateIRMAAHeadroomToTarget(
           preConversionMagi,
-          client.filing_status,
+          filingStatus,
           targetTier,
           year,
         );
@@ -884,7 +895,7 @@ export function runGrowthFormulaScenario(
           // tier so conversions don't push MAGI higher than necessary.
           irmaaHeadroom = calculateIRMAAHeadroom(
             preConversionMagi,
-            client.filing_status,
+            filingStatus,
             year,
           );
         }
@@ -924,7 +935,7 @@ export function runGrowthFormulaScenario(
                 taxExemptInterest: taxExemptNonSSI,
                 deductions,
                 maxBracketRate: maxTaxRate,
-                filingStatus: client.filing_status,
+                filingStatus,
                 taxYear: year,
                 age,
                 spouseAge: currentSpouseAgeForDeduction,
@@ -973,7 +984,7 @@ export function runGrowthFormulaScenario(
             taxExemptInterest: taxExemptNonSSI,
             deductions,
             maxBracketRate: maxTaxRate,
-            filingStatus: client.filing_status,
+            filingStatus,
             taxYear: year,
             age,
             spouseAge: currentSpouseAgeForDeduction,
@@ -1399,7 +1410,7 @@ export function runGrowthFormulaScenario(
       ssBenefits: ssIncome,
       taxExemptInterest: taxExemptNonSSI,
       deductions,
-      filingStatus: client.filing_status,
+      filingStatus,
       age,
       spouseAge: currentSpouseAgeForDeduction,
       taxYear: year,
@@ -1419,18 +1430,18 @@ export function runGrowthFormulaScenario(
     // Without year, the function defaults to 2026 — which made the year-by-year
     // display show much higher marginal brackets than the actual conversion math
     // was using (the conversion engine itself uses inflation-adjusted brackets).
-    const federalTaxBracket = getMarginalBracket(taxableIncomeForTax, client.filing_status, year);
+    const federalTaxBracket = getMarginalBracket(taxableIncomeForTax, filingStatus, year);
 
     // Full federal/state tax on the year's total taxable income.
     const totalFederalTax = calculateFederalTax({
       taxableIncome: taxableIncomeForTax,
-      filingStatus: client.filing_status,
+      filingStatus,
       taxYear: year,
     }).totalTax;
     const totalStateTax = calculateStateTax({
       taxableIncome: taxableIncomeForTax,
       state: client.state ?? 'CA',
-      filingStatus: client.filing_status,
+      filingStatus,
       overrideRate: stateTaxRateDecimal,
     }).totalTax;
 
@@ -1470,14 +1481,14 @@ export function runGrowthFormulaScenario(
         ssBenefits: ssIncome,
         taxExemptInterest: taxExemptNonSSI,
         deductions,
-        filingStatus: client.filing_status,
+        filingStatus,
         age,
         spouseAge: currentSpouseAgeForDeduction,
         taxYear: year,
       });
       const noIraFederalTax = calculateFederalTax({
         taxableIncome: noIraTaxInfo.taxableIncome,
-        filingStatus: client.filing_status,
+        filingStatus,
         taxYear: year,
       }).totalTax;
       federalTaxOnIRAWithdrawal = Math.max(0, totalFederalTax - noIraFederalTax);
@@ -1655,7 +1666,8 @@ export function runGrowthFormulaScenario(
     results.push({
       year,
       age,
-      spouseAge: currentSpouseAge,
+      spouseAge: survivor ? null : currentSpouseAge,
+      filingStatus,
       traditionalBalance: iraBalance,
       rothBalance,
       taxableBalance,

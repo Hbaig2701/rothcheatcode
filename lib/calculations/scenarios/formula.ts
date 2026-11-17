@@ -22,6 +22,7 @@ import {
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 import { managedRothShare, managedRothGrowthRate } from '../utils/aum-destination';
 import { brokerageInterest, nextTaxableCash } from '../utils/taxable-cash';
+import { makeSurvivorResolver, householdSocialSecurity } from '../utils/widow';
 
 /**
  * Run Formula scenario: strategic Roth conversions
@@ -148,6 +149,9 @@ export function runFormulaScenario(
   // big comment further down where taxableBalance is set each year.
   const rmdTreatment = client.rmd_treatment ?? 'reinvested';
 
+  // Survivor filing per year (widow modeling — utils/widow.ts).
+  const survivorFor = makeSurvivorResolver(client);
+
   // Cumulative converted across the projection — used by 'partial_amount' to
   // cap total conversions across years.
   let cumulativeConverted = 0;
@@ -206,7 +210,16 @@ export function runFormulaScenario(
         : 0;
     }
 
-    const ssIncome = primarySsIncome + spouseSsIncome;
+    // Widow modeling (utils/widow.ts): from the first-death year the survivor
+    // files Single (brackets, deduction, IRMAA thresholds, no spouse age in the
+    // deduction) and keeps only the larger Social Security check. Married-joint
+    // every year when Widow Analysis is off. Mirrors baseline.ts.
+    const { survivor, filingStatus } = survivorFor(year);
+    // IRMAA is set from the return 2 years back, filed under THAT year's
+    // status — the first two survivor years still use joint thresholds.
+    const irmaaFilingStatus = survivorFor(year - 2).filingStatus;
+    const taxSpouseAge = survivor ? undefined : (spouseAge ?? undefined);
+    const ssIncome = householdSocialSecurity(primarySsIncome, spouseSsIncome, survivor);
 
     // Other taxable income (non-SSI) - year-specific from income table
     const otherIncome = getNonSSIIncomeForYear(client, year);
@@ -217,7 +230,7 @@ export function runFormulaScenario(
     const taxExemptNonSSI = getTaxExemptIncomeForYear(client, year) + preferentialIncome;
 
     // Standard deduction (age-adjusted) + any advisor-entered additional deductions
-    const deductions = getEffectiveDeduction(client.filing_status, age, spouseAge ?? undefined, year, client.additional_deductions);
+    const deductions = getEffectiveDeduction(filingStatus, age, taxSpouseAge, year, client.additional_deductions);
 
     // Base ordinary income for ALL marginal-conversion-tax and bracket-fill
     // calculations: it MUST include the forced RMD, because the RMD is "first
@@ -236,10 +249,10 @@ export function runFormulaScenario(
       ssBenefits: ssIncome,
       taxExemptInterest: taxExemptNonSSI,
       deductions,
-      filingStatus: client.filing_status,
+      filingStatus,
       taxYear: year,
       age,
-      spouseAge: spouseAge ?? undefined,
+      spouseAge: taxSpouseAge,
       state: client.state ?? 'CA',
       stateTaxRateDecimal,
     });
@@ -252,20 +265,20 @@ export function runFormulaScenario(
       ssBenefits: ssIncome,
       taxExemptInterest: taxExemptNonSSI,
       deductions,
-      filingStatus: client.filing_status,
+      filingStatus,
       age,
-      spouseAge: spouseAge ?? undefined,
+      spouseAge: taxSpouseAge,
       taxYear: year,
     });
     const fedNoConv = calculateFederalTax({
       taxableIncome: taxInfoNoConv.taxableIncome,
-      filingStatus: client.filing_status,
+      filingStatus,
       taxYear: year,
     }).totalTax;
     const stateNoConv = calculateStateTax({
       taxableIncome: taxInfoNoConv.taxableIncome,
       state: client.state,
-      filingStatus: client.filing_status,
+      filingStatus,
       overrideRate: stateTaxRateDecimal,
     }).totalTax;
 
@@ -328,7 +341,7 @@ export function runFormulaScenario(
     let irmaaSurcharge = 0;
     let irmaaTierFromLookback = 0;
     if (age >= 65) {
-      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, client.filing_status);
+      const irmaaResult = calculateIRMAAWithLookback(year, incomeHistory, irmaaFilingStatus);
       irmaaSurcharge = irmaaResult.annualSurcharge;
       irmaaTierFromLookback = irmaaResult.tier;
     }
@@ -388,10 +401,10 @@ export function runFormulaScenario(
               ssBenefits: ssIncome,
               taxExemptInterest: taxExemptNonSSI,
               deductions,
-              filingStatus: client.filing_status,
+              filingStatus,
               taxYear: year,
               age,
-              spouseAge: spouseAge ?? undefined,
+              spouseAge: taxSpouseAge,
               state: client.state ?? 'CA',
               stateTaxRateDecimal,
             });
@@ -531,10 +544,10 @@ export function runFormulaScenario(
             taxExemptInterest: taxExemptNonSSI,
             deductions,
             maxBracketRate: maxTaxRate,
-            filingStatus: client.filing_status,
+            filingStatus,
             taxYear: year,
             age,
-            spouseAge: spouseAge ?? undefined,
+            spouseAge: taxSpouseAge,
           });
           const tFull = convTaxAt(bracketRoom);
           const extraPull = Math.max(0, tFull.federalTax + tFull.stateTax - R);
@@ -552,10 +565,10 @@ export function runFormulaScenario(
             taxExemptInterest: taxExemptNonSSI,
             deductions,
             maxBracketRate: maxTaxRate,
-            filingStatus: client.filing_status,
+            filingStatus,
             taxYear: year,
             age,
-            spouseAge: spouseAge ?? undefined,
+            spouseAge: taxSpouseAge,
             state: client.state,
             stateTaxRateDecimal,
           });
@@ -585,10 +598,10 @@ export function runFormulaScenario(
                 taxExemptInterest: taxExemptNonSSI,
                 deductions,
                 maxBracketRate: maxTaxRate,
-                filingStatus: client.filing_status,
+                filingStatus,
                 taxYear: year,
                 age,
-                spouseAge: spouseAge ?? undefined,
+                spouseAge: taxSpouseAge,
                 state: client.state,
                 stateTaxRateDecimal,
               });
@@ -615,10 +628,10 @@ export function runFormulaScenario(
             taxExemptInterest: taxExemptNonSSI,
             deductions,
             maxBracketRate: maxTaxRate,
-            filingStatus: client.filing_status,
+            filingStatus,
             taxYear: year,
             age,
-            spouseAge: spouseAge ?? undefined,
+            spouseAge: taxSpouseAge,
           });
           totalIRAWithdrawal = conversionAmount;
         }
@@ -647,8 +660,8 @@ export function runFormulaScenario(
         const capTax0 = calculateConversionTaxWithSS({
           conversionAmount, otherIncome: otherIncomeForTax, ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI, deductions,
-          filingStatus: client.filing_status, taxYear: year,
-          age, spouseAge: spouseAge ?? undefined,
+          filingStatus, taxYear: year,
+          age, spouseAge: taxSpouseAge,
           state: client.state ?? 'CA', stateTaxRateDecimal,
         });
         if (capTax0.federalTax + capTax0.stateTax > taxCap) {
@@ -658,8 +671,8 @@ export function runFormulaScenario(
             const t = calculateConversionTaxWithSS({
               conversionAmount: mid, otherIncome: otherIncomeForTax, ssBenefits: ssIncome,
               taxExemptInterest: taxExemptNonSSI, deductions,
-              filingStatus: client.filing_status, taxYear: year,
-              age, spouseAge: spouseAge ?? undefined,
+              filingStatus, taxYear: year,
+              age, spouseAge: taxSpouseAge,
               state: client.state ?? 'CA', stateTaxRateDecimal,
             });
             if (t.federalTax + t.stateTax <= taxCap) lo = mid; else hi = mid;
@@ -668,8 +681,8 @@ export function runFormulaScenario(
           const finalTax = calculateConversionTaxWithSS({
             conversionAmount, otherIncome: otherIncomeForTax, ssBenefits: ssIncome,
             taxExemptInterest: taxExemptNonSSI, deductions,
-            filingStatus: client.filing_status, taxYear: year,
-            age, spouseAge: spouseAge ?? undefined,
+            filingStatus, taxYear: year,
+            age, spouseAge: taxSpouseAge,
             state: client.state ?? 'CA', stateTaxRateDecimal,
           });
           federalConversionTax = finalTax.federalTax;
@@ -688,20 +701,20 @@ export function runFormulaScenario(
           ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI,
           deductions,
-          filingStatus: client.filing_status,
+          filingStatus,
           age,
-          spouseAge: spouseAge ?? undefined,
+          spouseAge: taxSpouseAge,
           taxYear: year,
         });
         const fedWithConv = calculateFederalTax({
           taxableIncome: taxInfoWithConv.taxableIncome,
-          filingStatus: client.filing_status,
+          filingStatus,
           taxYear: year,
         }).totalTax;
         const stateWithConv = calculateStateTax({
           taxableIncome: taxInfoWithConv.taxableIncome,
           state: client.state,
-          filingStatus: client.filing_status,
+          filingStatus,
           overrideRate: stateTaxRateDecimal,
         }).totalTax;
         federalConversionTax = Math.max(0, fedWithConv - fedNoConv);
@@ -783,21 +796,21 @@ export function runFormulaScenario(
           ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI,
           deductions,
-          filingStatus: client.filing_status,
+          filingStatus,
           age,
-          spouseAge: spouseAge ?? undefined,
+          spouseAge: taxSpouseAge,
           taxYear: year,
         })
       : taxInfoNoConv;
     const federalResult = calculateFederalTax({
       taxableIncome: taxInfoFinal.taxableIncome,
-      filingStatus: client.filing_status,
+      filingStatus,
       taxYear: year,
     });
     const stateResult = calculateStateTax({
       taxableIncome: taxInfoFinal.taxableIncome,
       state: client.state,
-      filingStatus: client.filing_status,
+      filingStatus,
       overrideRate: stateTaxRateDecimal,
     });
 
@@ -933,15 +946,16 @@ export function runFormulaScenario(
       : 0;
     const stateTaxOnOrdinaryIncomeVal = stateTaxOnOrdinaryAndSS - stateTaxOnSSVal;
 
-    const bracket = determineTaxBracket(taxInfoFinal.taxableIncome, client.filing_status, year);
+    const bracket = determineTaxBracket(taxInfoFinal.taxableIncome, filingStatus, year);
     const totalIncome = grossIncomeWithWithdrawal + ssIncome;
     const irmaaTier = irmaaTierFromLookback;
-    const federalTaxBracket = getMarginalBracket(taxInfoFinal.taxableIncome, client.filing_status, year);
+    const federalTaxBracket = getMarginalBracket(taxInfoFinal.taxableIncome, filingStatus, year);
 
     results.push({
       year,
       age,
-      spouseAge,
+      spouseAge: survivor ? null : spouseAge,
+      filingStatus,
       traditionalBalance: iraBalance,
       rothBalance,
       taxableBalance,
