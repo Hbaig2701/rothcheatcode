@@ -140,6 +140,11 @@ export async function GET(
       response.widow = analyzeWidowPenaltyFromProjection({
         client: typedClient,
         formulaYears: marriedFormula,
+        // Roth engines: the survivor projection already carries the exact
+        // survivor SS (the larger check, each spouse's own claim age + COLA).
+        survivorSsByYear: isGI
+          ? undefined
+          : new Map(baseResult.formula.map((y) => [y.year, y.ssIncome])),
       });
     } catch (err) {
       console.error('[Analysis] Widow analysis error:', err);

@@ -193,6 +193,13 @@ interface AnalyzeWidowFromProjectionInput {
   formulaYears: YearlyResult[];
   /** Optional override; defaults to older spouse's life-expectancy-ish */
   deathYear?: number;
+  /**
+   * The survivor's actual Social Security by year, from an engine run that
+   * models the first death (Roth engines, v90: ssIncome = the larger check,
+   * with each spouse's own claim age and COLA). When absent (GI), it's
+   * estimated from the client inputs below.
+   */
+  survivorSsByYear?: Map<number, number>;
 }
 
 export function analyzeWidowPenaltyFromProjection(
@@ -230,7 +237,7 @@ export function analyzeWidowPenaltyFromProjection(
     const ssStartAge = client.ssi_payout_age ?? client.ss_start_age ?? 67;
     const yearsFromStart = yearData.year - formulaYears[0].year;
     const yearsCollecting = yearData.age >= ssStartAge ? Math.min(yearsFromStart, yearData.age - ssStartAge) : 0;
-    const inflatedSurvivorSS = Math.round(
+    const inflatedSurvivorSS = input.survivorSsByYear?.get(yearData.year) ?? Math.round(
       survivorBaseSS * Math.pow(1 + ssColaRate, yearsCollecting)
     );
 
