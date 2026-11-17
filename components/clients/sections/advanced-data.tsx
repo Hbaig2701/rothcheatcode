@@ -284,10 +284,10 @@ export function AdvancedDataSection() {
                   onCheckedChange={field.onChange}
                 />
                 <FieldLabel htmlFor="widow_analysis" className="flex items-center gap-1.5">
-                  Show Widow&apos;s Penalty
+                  Model Widow&apos;s Penalty
                   <FieldHelp {...FIELD_HELP.widow_analysis} />
                 </FieldLabel>
-                <FieldDescription>Include analysis of single-filer tax impact</FieldDescription>
+                <FieldDescription>Survivor files single after the first death. Changes the projection (card only for guaranteed-income products)</FieldDescription>
               </Field>
             )}
           />
@@ -328,9 +328,9 @@ export function AdvancedDataSection() {
                   />
                   <FieldDescription>
                     Age of the older spouse when first death occurs. Leave blank to use 85
-                    (older spouse&apos;s life expectancy). Range 60-100. The widow analysis
-                    re-prices every projection year from this point forward at single-filer
-                    brackets.
+                    (older spouse&apos;s life expectancy). Range 60-100. From this year on the
+                    projection files single: single brackets and deduction, one Social
+                    Security check, and single IRMAA thresholds two years later.
                   </FieldDescription>
                   <FieldError errors={[fieldState.error]} />
                 </Field>
