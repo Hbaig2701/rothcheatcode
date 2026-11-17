@@ -193,6 +193,8 @@ export function runWidowScenario(
       rothGrowth: rothGrowthAmt,
       taxableGrowth,
       productBonusApplied: 0,
+      premiumBonusApplied: 0,
+      anniversaryBonusApplied: 0,
       magi,
       agi: grossIncome,
       standardDeduction: deductions,

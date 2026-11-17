@@ -982,6 +982,8 @@ export function runFormulaScenario(
       rothGrowth: rothInterest,
       taxableGrowth: taxableInterest, // interest earned on the reinvested-RMD taxable account ('reinvested' mode); 0 for cash/spent
       productBonusApplied: 0, // Bonus applied at year 0 only (in initial balance)
+      premiumBonusApplied: 0,
+      anniversaryBonusApplied: 0,
       magi,
       agi: taxInfoFinal.agi,
       standardDeduction: deductions,

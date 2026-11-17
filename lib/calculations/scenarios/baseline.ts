@@ -556,6 +556,8 @@ export function runBaselineScenario(
       rothGrowth,
       taxableGrowth,
       productBonusApplied: 0, // No bonus in baseline
+      premiumBonusApplied: 0,
+      anniversaryBonusApplied: 0,
       magi,
       agi,
       standardDeduction: deductions,

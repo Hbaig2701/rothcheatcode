@@ -128,6 +128,8 @@ export function runGrowthBaselineScenario(
       rothGrowth: 0,
       taxableGrowth: 0,
       productBonusApplied: 0,
+      premiumBonusApplied: 0,
+      anniversaryBonusApplied: 0,
       magi: computeIrmaaMagi(growthBaselineTaxInfo.agi, 0),
       agi: growthBaselineTaxInfo.agi,
       standardDeduction: growthBaselineDeductions,
