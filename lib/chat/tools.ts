@@ -17,7 +17,7 @@ import { withExactBirthDates } from "@/lib/calculations/utils/age";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifySlackNewTicket } from "@/lib/notifications/slack";
 import type { SupportSeverity, SupportCategory } from "@/lib/types/support";
-import { getColumnsForProduct } from "@/lib/table-columns/column-definitions";
+import { getColumnsForProduct, filingStatusDisplayLabel } from "@/lib/table-columns/column-definitions";
 
 export interface ChatTool {
   name: string;
@@ -501,10 +501,23 @@ async function runGetYearBreakdown(
   // hand-picked ~24-field subset that OMITTED the growth/BOY columns, so the
   // assistant was blind to values sitting right on screen and had to guess.
   const columns = getColumnsForProduct(productType);
+  // The table injects the Filing Status label at render time from the row's
+  // stamp + the client's status (e.g. "Single (Widow)"); do the same here or the
+  // assistant sees the raw enum ("single") or "—" for GI rows.
+  const { data: clientRow } = await ctx.supabase
+    .from("clients")
+    .select("filing_status")
+    .eq("id", clientId)
+    .maybeSingle();
+  const clientFilingStatus = (clientRow as { filing_status?: string } | null)?.filing_status ?? null;
   const render = (row: Row | undefined): Record<string, string> | null => {
     if (!row) return null;
     const out: Record<string, string> = {};
     for (const col of columns) {
+      if (col.id === "filingStatus") {
+        out[col.label] = filingStatusDisplayLabel(row.filingStatus as string | undefined, clientFilingStatus);
+        continue;
+      }
       // Honor the column's accessor, exactly as the table does
       // (resizable-table.tsx renderCell). Computed columns — "Tax on Conversion"
       // (federal + state) and "Other Income" (net of the external-RMD breakout) —

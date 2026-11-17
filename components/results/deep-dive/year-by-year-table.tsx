@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import type { YearlyResult } from "@/lib/calculations/types";
 import type { NonSSIIncomeEntry } from "@/lib/types/client";
-import { COLUMN_DEFINITIONS } from "@/lib/table-columns/column-definitions";
+import { COLUMN_DEFINITIONS, filingStatusDisplayLabel } from "@/lib/table-columns/column-definitions";
 import { resolveColumnPreferences, saveColumnPreferences, loadColumnPreferences, reconcileColumnPreferences, loadUserDefaultColumnPreferences, fetchColumnPreferenceFromDb, userDefaultScopeKey } from "@/lib/table-columns/storage";
 import { ColumnSelectorModal } from "./column-selector-modal";
 import { ResizableTable } from "./resizable-table";
@@ -79,28 +79,12 @@ export function YearByYearTable({
       byYear.set(entry.year, existing);
     }
 
-    // Map filing_status enum -> human label for the column.
-    const filingStatusLabel = (() => {
-      switch (filingStatus) {
-        case "married_filing_jointly": return "MFJ";
-        case "married_filing_separately": return "MFS";
-        case "head_of_household": return "HoH";
-        case "single": return "Single";
-        default: return "—";
-      }
-    })();
-
     return years.map((y) => {
       const typeBreakdown = byYear.get(y.year);
-      // Filing status: defaults to the client's status. The engine stamps each
-      // row with the status it actually taxed under (utils/widow.ts) — 'single'
-      // for a married client means the survivor years after the first death.
-      // No fallback for unstamped rows: the GI engine doesn't model the death
-      // (its years are taxed MFJ), and pre-v90 caches are recomputed on read.
-      let perYearFilingStatus: string = filingStatusLabel;
-      if (y.filingStatus === "single" && filingStatusLabel === "MFJ") {
-        perYearFilingStatus = "Single (Widow)";
-      }
+      // Filing status label: the engine's per-year stamp ('single' for a
+      // married client = survivor years after the first death), else the
+      // client's status. Same helper the chat assistant uses.
+      const perYearFilingStatus = filingStatusDisplayLabel(y.filingStatus, filingStatus);
       const merged: Omit<YearlyResult, "filingStatus"> & Record<string, unknown> = {
         ...y,
         ...(typeBreakdown ?? {}),

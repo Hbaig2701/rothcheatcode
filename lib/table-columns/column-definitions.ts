@@ -102,6 +102,30 @@ function formatGIPhase(value: string | null | undefined): string {
 /**
  * Complete column registry (~40 columns)
  */
+/**
+ * Label for the "Filing Status" column. Shared by the year-by-year table and
+ * the chat assistant's get_year_breakdown so both show the same string.
+ * `rowStatus` is the engine's per-year stamp (Roth engines, v90+); GI rows have
+ * none and fall back to the client's status. A married client's row stamped
+ * 'single' is a survivor year after the first death.
+ */
+export function filingStatusDisplayLabel(
+  rowStatus: string | null | undefined,
+  clientStatus: string | null | undefined,
+): string {
+  const label = (s: string | null | undefined) => {
+    switch (s) {
+      case 'married_filing_jointly': return 'MFJ';
+      case 'married_filing_separately': return 'MFS';
+      case 'head_of_household': return 'HoH';
+      case 'single': return 'Single';
+      default: return '—';
+    }
+  };
+  if (rowStatus === 'single' && clientStatus === 'married_filing_jointly') return 'Single (Widow)';
+  return label(clientStatus);
+}
+
 export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
   // ============================================================
   // CORE (Always Frozen)
@@ -143,7 +167,7 @@ export const COLUMN_DEFINITIONS: ColumnDefinition[] = [
     id: 'filingStatus',
     label: 'Filing Status',
     category: 'core',
-    description: 'Filing status for the projection year. Mostly informational, but when widow analysis is enabled this column visibly switches from MFJ to Single starting at the configured first-death age — useful for explaining why baseline RMDs jump in tax that year. The actual value is injected at render time by year-by-year-table.tsx; the engine doesn\'t track filing status per year.',
+    description: 'Filing status for the projection year. Mostly informational, but when widow analysis is enabled this column switches from MFJ to "Single (Widow)" in the first-death year — useful for explaining why baseline RMDs jump in tax that year. The engine stamps each row with the status it taxed under; the label comes from filingStatusDisplayLabel().',
     formatter: (v) => (typeof v === 'string' ? v : '—'),
     defaultVisible: false,
     visibleForProducts: ['all'],
