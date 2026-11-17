@@ -103,8 +103,6 @@ export function DeepDiveTabs({ projection, client }: DeepDiveTabsProps) {
           nonSsiIncome={client.non_ssi_income}
           clientId={client.id}
           filingStatus={client.filing_status}
-          widowAnalysis={client.widow_analysis}
-          widowDeathAge={client.widow_death_age}
           isNoAnnuity={noAnnuity}
         />
       </TabsContent>
@@ -118,8 +116,6 @@ export function DeepDiveTabs({ projection, client }: DeepDiveTabsProps) {
           nonSsiIncome={client.non_ssi_income}
           clientId={client.id}
           filingStatus={client.filing_status}
-          widowAnalysis={client.widow_analysis}
-          widowDeathAge={client.widow_death_age}
           isNoAnnuity={noAnnuity}
         />
       </TabsContent>

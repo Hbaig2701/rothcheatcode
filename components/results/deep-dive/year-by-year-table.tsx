@@ -29,11 +29,9 @@ interface YearByYearTableProps {
   clientId?: string; // Per-client column preferences
   filingStatus?: string; // When non-married, the Spouse Age column is suppressed.
   /**
-   * When widow analysis is on, the engine doesn't tag each year with a filing
-   * status — but the report needs to surface the MFJ → Single switch in the
-   * "Filing Status" column. We compute the per-year value at render time
-   * using the death age + the row's age. Pass these through so the table can
-   * inject the right value before the formatter runs.
+   * Unused since v90 (kept so callers needn't change): the Roth engines stamp
+   * each row with the filing status they taxed under, and the table reads that.
+   * The GI engine doesn't model the first death, so its rows stay MFJ.
    */
   widowAnalysis?: boolean;
   widowDeathAge?: number | null;
@@ -57,8 +55,6 @@ export function YearByYearTable({
   nonSsiIncome,
   clientId,
   filingStatus,
-  widowAnalysis = false,
-  widowDeathAge = null,
   isNoAnnuity = false,
 }: YearByYearTableProps) {
   const [modalOpen, setModalOpen] = useState(false);
@@ -70,9 +66,8 @@ export function YearByYearTable({
   // Inject per-type income breakdowns into each row so columns like
   // "Pension", "Rental Income", etc. can display values. This is computed
   // at the display layer — the engine doesn't track income by type.
-  // Also injects a per-year filing status string when widow analysis is on,
-  // so the "Filing Status" column shows the MFJ → Single switch at the
-  // configured death age. Engine doesn't track filing status per year.
+  // Also injects a per-year filing status label from the row's own
+  // filingStatus, so the "Filing Status" column shows the MFJ → Single switch.
   const enrichedYears = useMemo(() => {
     // Build the per-year non-SSI income breakdown lookup.
     const byYear = new Map<number, Record<string, number>>();
@@ -100,12 +95,10 @@ export function YearByYearTable({
       // Filing status: defaults to the client's status. The engine stamps each
       // row with the status it actually taxed under (utils/widow.ts) — 'single'
       // for a married client means the survivor years after the first death.
-      // Rows cached before v90 lack the stamp: fall back to the old age check.
+      // No fallback for unstamped rows: the GI engine doesn't model the death
+      // (its years are taxed MFJ), and pre-v90 caches are recomputed on read.
       let perYearFilingStatus: string = filingStatusLabel;
-      const survivorRow = y.filingStatus != null
-        ? y.filingStatus === "single"
-        : (widowAnalysis && widowDeathAge != null && y.age >= widowDeathAge);
-      if (survivorRow && filingStatusLabel === "MFJ") {
+      if (y.filingStatus === "single" && filingStatusLabel === "MFJ") {
         perYearFilingStatus = "Single (Widow)";
       }
       const merged: Omit<YearlyResult, "filingStatus"> & Record<string, unknown> = {
@@ -115,7 +108,7 @@ export function YearByYearTable({
       };
       return merged;
     });
-  }, [years, nonSsiIncome, filingStatus, widowAnalysis, widowDeathAge]);
+  }, [years, nonSsiIncome, filingStatus]);
 
   // Load column preferences via the fallback chain:
   //   per-client (this storageKey) → user "favourite columns" default

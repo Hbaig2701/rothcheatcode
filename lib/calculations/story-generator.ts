@@ -6,8 +6,8 @@ import type { Projection } from '@/lib/types/projection';
 // fields directly — see audit F10 — so the marginal-conversion-tax helper is no
 // longer imported here; it remains available for any all-in-cost display.)
 import { getClientRMDStartAge } from './utils/age';
-import { isWidowModeled, getFirstDeathYear } from './utils/widow';
-import { isNoAnnuityProduct } from '@/lib/config/products';
+import { isWidowModeled } from './utils/widow';
+import { isNoAnnuityProduct, isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
 
 // Story entry types
 export type StoryTrigger =
@@ -212,7 +212,6 @@ export function generateStory(
   // always the primary client's age.
   const widowAnalysisActive = isWidowModeled(client);
   const widowDeathAge = client.widow_death_age ?? null;
-  const widowDeathYear = widowAnalysisActive ? getFirstDeathYear(client) : null;
 
   // QLAC context. The premium leaves the IRA in year 1 (strategy side; both
   // sides when qlac_in_baseline), so the strategy's Traditional balance and
@@ -357,9 +356,12 @@ export function generateStory(
   if (widowAnalysisActive) {
     setupDetails.push({
       label: "Widow's penalty",
-      value: widowDeathAge != null
-        ? `Modeled · first-death age ${widowDeathAge}`
-        : 'Modeled · first death assumed when the older spouse turns 85',
+      // GI engine doesn't model the first death yet — only the side card does.
+      value: client.blueprint_type && isGuaranteedIncomeProduct(client.blueprint_type as FormulaType)
+        ? 'Shown in the Widow\'s Penalty card only (not in this projection for guaranteed-income products)'
+        : widowDeathAge != null
+          ? `Modeled · first-death age ${widowDeathAge} (older spouse)`
+          : 'Modeled · first death assumed when the older spouse turns 85',
     });
   }
 
@@ -714,11 +716,10 @@ export function generateStory(
     // analysis is on). The card flags that surviving-spouse single-bracket
     // RMDs are about to crush the baseline side, justifying the strategy.
     // Fire on the first projection year the engine files Single (row
-    // filingStatus); rows without it fall back to the computed death year.
+    // filingStatus). GI rows carry no stamp — that engine doesn't model the
+    // death — so no event is claimed for them.
     const prevRow = index > 0 ? years[index - 1] : undefined;
-    const switchesToSingle = year.filingStatus !== undefined
-      ? year.filingStatus === 'single' && (prevRow?.filingStatus ?? 'married_filing_jointly') !== 'single'
-      : widowDeathYear !== null && year.year === widowDeathYear;
+    const switchesToSingle = year.filingStatus === 'single' && prevRow?.filingStatus !== 'single';
     if (widowAnalysisActive && switchesToSingle) {
       storyEntries.push({
         year: year.year,
