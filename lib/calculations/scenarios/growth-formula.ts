@@ -1694,6 +1694,8 @@ export function runGrowthFormulaScenario(
       rothGrowth,
       taxableGrowth,
       productBonusApplied,
+      premiumBonusApplied: upfrontBonusThisYear,
+      anniversaryBonusApplied: anniversaryBonusThisYear + rothMirrorBonus,
       magi,
       agi,
       standardDeduction,

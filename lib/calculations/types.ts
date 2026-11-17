@@ -200,6 +200,11 @@ export interface YearlyResult {
 
   // Product-specific (Growth FIA)
   productBonusApplied?: number; // Annual bonus applied this year (in cents)
+  // Growth engine only: productBonusApplied split by source, so the table can
+  // show an 11% premium bonus and the first 4% anniversary bonus as two
+  // separate credits even though both land in year 1.
+  premiumBonusApplied?: number; // upfront premium bonus (year 1 only, cents)
+  anniversaryBonusApplied?: number; // anniversary bonus incl. in-annuity Roth mirror (cents)
 
   // Tax calculation details (in cents except percentages)
   magi?: number; // Modified Adjusted Gross Income
