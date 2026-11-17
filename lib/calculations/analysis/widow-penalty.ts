@@ -285,7 +285,10 @@ export function analyzeWidowPenaltyFromProjection(
     const widowMagi = computeIrmaaMagi(widowTaxInfo.agi, taxExemptInterest);
     const widowIRMAAResult =
       yearData.age >= 65
-        ? calculateIRMAA({ magi: widowMagi, filingStatus: 'single' })
+        // year: index the thresholds the same way the engine indexed the
+        // married comparator (yearData.irmaaSurcharge); without it the single
+        // side priced against flat 2026 tiers and inflated later-year penalties.
+        ? calculateIRMAA({ magi: widowMagi, filingStatus: 'single', year: yearData.year })
         : { annualSurcharge: 0 };
     const widowFederalTax = widowFederalResult.totalTax;
     const widowIRMAA = widowIRMAAResult.annualSurcharge;

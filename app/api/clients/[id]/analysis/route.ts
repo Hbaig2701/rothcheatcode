@@ -6,7 +6,7 @@ import { resolveQlacSides, applyQlacToResult } from '@/lib/calculations/utils/ql
 import { applyHeldBackIraRmd } from '@/lib/calculations/utils/held-back-ira';
 import { analyzeBreakEven } from '@/lib/calculations/analysis/breakeven';
 import { runSensitivityAnalysis } from '@/lib/calculations/analysis/sensitivity';
-import { analyzeWidowPenalty, analyzeWidowPenaltyFromProjection } from '@/lib/calculations/analysis/widow-penalty';
+import { analyzeWidowPenaltyFromProjection } from '@/lib/calculations/analysis/widow-penalty';
 import { runSimulation, createSimulationInput, runGrowthSimulation, runGuaranteedIncomeSimulation } from '@/lib/calculations';
 import { logCalculation } from '@/lib/audit/log';
 import { isGuaranteedIncomeProduct, isGrowthProduct, type FormulaType } from '@/lib/config/products';
@@ -117,33 +117,30 @@ export async function GET(
 
   // Widow analysis: re-prices the strategy projection year-by-year using Single
   // brackets + the smaller standard deduction, with the surviving spouse's SS
-  // check (the larger of the two). For Growth FIA and GI clients we use the
-  // engine-aware path that consumes the already-computed projection — this
-  // preserves all product-specific math (bonuses, surrender, GI roll-up) and
-  // produces numbers consistent with the main report. For legacy/standard
-  // clients we keep the original analyzer that runs its own simulations.
+  // check (the larger of the two). Every engine uses the projection-based path
+  // so the card sees the same product math as the main report. (The old
+  // standalone analyzer used for standard clients restarted the survivor from
+  // TODAY's balances at the death year, kept only the primary's SS check and
+  // read the deprecated ss_spouse field — it disagreed with the projection.)
+  //
+  // v90: the Roth engines themselves file Single from the first death
+  // (utils/widow.ts), so their projection is already the survivor's. The card's
+  // "married" comparator must be the counterfactual where both spouses live —
+  // the same strategy re-run with widow modeling off — or it would re-price
+  // single against single and show $0. The GI engine doesn't model the switch
+  // yet, so its projection IS married.
   if (
     typedClient.widow_analysis &&
     typedClient.filing_status === 'married_filing_jointly'
   ) {
     try {
-      if (isGI || isGrowth) {
-        // v90: the Growth engine itself now files Single from the first death
-        // (utils/widow.ts), so its projection is already the survivor's. The
-        // card's "married" comparator must be the counterfactual where both
-        // spouses live — the same strategy re-run with widow modeling off —
-        // or it would re-price single against single and show $0. The GI
-        // engine doesn't model the switch yet, so its projection IS married.
-        const marriedFormula = isGrowth
-          ? runEngine({ ...strategyClient, widow_analysis: false }).formula
-          : baseResult.formula;
-        response.widow = analyzeWidowPenaltyFromProjection({
-          client: typedClient,
-          formulaYears: marriedFormula,
-        });
-      } else {
-        response.widow = analyzeWidowPenalty(typedClient);
-      }
+      const marriedFormula = isGI
+        ? baseResult.formula
+        : runEngine({ ...strategyClient, widow_analysis: false }).formula;
+      response.widow = analyzeWidowPenaltyFromProjection({
+        client: typedClient,
+        formulaYears: marriedFormula,
+      });
     } catch (err) {
       console.error('[Analysis] Widow analysis error:', err);
       // Don't fail the whole request, just return null
