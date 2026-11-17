@@ -6,6 +6,7 @@ import type { Projection } from '@/lib/types/projection';
 // fields directly — see audit F10 — so the marginal-conversion-tax helper is no
 // longer imported here; it remains available for any all-in-cost display.)
 import { getClientRMDStartAge } from './utils/age';
+import { isWidowModeled, getFirstDeathYear } from './utils/widow';
 import { isNoAnnuityProduct } from '@/lib/config/products';
 
 // Story entry types
@@ -206,8 +207,12 @@ export function generateStory(
     : 0;
 
   // Widow analysis context.
-  const widowAnalysisActive = client.widow_analysis === true;
+  // Same gate + death year the engines use (utils/widow.ts): MFJ only, and the
+  // first-death age is anchored on the OLDER spouse — not year.age, which is
+  // always the primary client's age.
+  const widowAnalysisActive = isWidowModeled(client);
   const widowDeathAge = client.widow_death_age ?? null;
+  const widowDeathYear = widowAnalysisActive ? getFirstDeathYear(client) : null;
 
   // QLAC context. The premium leaves the IRA in year 1 (strategy side; both
   // sides when qlac_in_baseline), so the strategy's Traditional balance and
@@ -354,7 +359,7 @@ export function generateStory(
       label: "Widow's penalty",
       value: widowDeathAge != null
         ? `Modeled · first-death age ${widowDeathAge}`
-        : 'Modeled · first-death age uses default heuristic',
+        : 'Modeled · first death assumed when the older spouse turns 85',
     });
   }
 
@@ -708,13 +713,19 @@ export function generateStory(
     // WIDOW FIRST DEATH — fires the year first death occurs (when widow
     // analysis is on). The card flags that surviving-spouse single-bracket
     // RMDs are about to crush the baseline side, justifying the strategy.
-    if (widowAnalysisActive && widowDeathAge != null && year.age === widowDeathAge) {
+    // Fire on the first projection year the engine files Single (row
+    // filingStatus); rows without it fall back to the computed death year.
+    const prevRow = index > 0 ? years[index - 1] : undefined;
+    const switchesToSingle = year.filingStatus !== undefined
+      ? year.filingStatus === 'single' && (prevRow?.filingStatus ?? 'married_filing_jointly') !== 'single'
+      : widowDeathYear !== null && year.year === widowDeathYear;
+    if (widowAnalysisActive && switchesToSingle) {
       storyEntries.push({
         year: year.year,
         age: year.age,
         trigger: 'widow_first_death',
         headline: 'Filing Status Switches to Single',
-        body: `In this year, the widow-analysis model assumes the first death occurs. From here on, the surviving spouse files single — narrower tax brackets and a smaller standard deduction. In the baseline scenario, every remaining RMD dollar is now taxed harder, which is one of the strategy's biggest advantages: the Roth has no RMDs to expose to those single brackets.`,
+        body: `In this year, the widow-analysis model assumes the first death occurs. From here on, the surviving spouse files single — narrower tax brackets, a smaller standard deduction, one Social Security check (the larger of the two) instead of two, and single IRMAA thresholds two years later. In the baseline scenario, every remaining RMD dollar is now taxed harder, which is one of the strategy's biggest advantages: the Roth has no RMDs to expose to those single brackets.`,
         runningTotals: {
           totalConverted: formatCurrency(totalConverted),
           totalTaxPaid: formatCurrency(totalTaxPaid),

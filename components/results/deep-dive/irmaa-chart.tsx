@@ -1,14 +1,14 @@
 'use client';
 
 import {
-  BarChart,
+  ComposedChart,
   Bar,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  ReferenceLine,
 } from 'recharts';
 import { YearlyResult } from '@/lib/calculations/types';
 import { IRMAA_TIERS_2026 } from '@/lib/data/irmaa-brackets';
@@ -21,26 +21,43 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 
-interface IRMAAThreshold {
-  value: number;
-  label: string;
-  color: string;
+const TIER_COLORS = ['#22c55e', '#eab308', '#f97316', '#ef4444', '#991b1b'];
+const TIER_KEYS = ['t1', 't2', 't3', 't4', 't5'] as const;
+// Same indexing the engine uses (lib/data/irmaa-brackets.ts getIRMAATier):
+// 2026 thresholds grown 2.5%/yr, rounded to the dollar.
+const IRMAA_INFLATION_RATE = 0.025;
+
+function tierLowers(isJoint: boolean, year: number): number[] {
+  const factor = year > 2026 ? Math.pow(1 + IRMAA_INFLATION_RATE, year - 2026) : 1;
+  return IRMAA_TIERS_2026.slice(1).map((tier) =>
+    Math.round((isJoint ? tier.jointLower : tier.singleLower) * factor / 100) * 100,
+  );
 }
 
-/**
- * Get IRMAA tier thresholds with colors for visualization
- * Returns tiers 1-5 (skips tier 0 which is standard/no surcharge)
- */
-function getIRMAAThresholds(isJoint: boolean): IRMAAThreshold[] {
-  // Colors from green to dark red for increasing severity
-  const colors = ['#22c55e', '#eab308', '#f97316', '#ef4444', '#991b1b'];
+interface IRMAAChartRow {
+  age: number;
+  year: number;
+  isJoint: boolean;
+  magi: number;
+  t1: number; t2: number; t3: number; t4: number; t5: number;
+}
 
-  // Skip tier 0 (standard), get tiers 1-5
-  return IRMAA_TIERS_2026.slice(1).map((tier, index) => ({
-    value: isJoint ? tier.jointLower : tier.singleLower,
-    label: `Tier ${index + 1}`,
-    color: colors[index],
-  }));
+function IRMAATooltip({ active, payload }: {
+  active?: boolean;
+  payload?: Array<{ payload: IRMAAChartRow }>;
+}) {
+  const data = active ? payload?.[0]?.payload : undefined;
+  if (!data) return null;
+  return (
+    <div className="bg-card border border-border p-3 rounded-lg shadow-lg">
+      <p className="font-medium">Age {data.age}</p>
+      <p className="text-muted-foreground text-sm">Year {data.year}</p>
+      <p className="text-[#F5B800] font-medium mt-1">MAGI: {formatCurrency(data.magi)}</p>
+      <p className="text-muted-foreground text-xs mt-1">
+        Tier 1 starts at {formatCurrency(data.t1)} ({data.isJoint ? 'joint' : 'single'}, premium year {data.year + 2})
+      </p>
+    </div>
+  );
 }
 
 interface IRMAAChartProps {
@@ -50,40 +67,28 @@ interface IRMAAChartProps {
 
 /**
  * IRMAA Income Visualization Chart
- * Displays MAGI (total income) as bars with horizontal reference lines
- * showing IRMAA tier thresholds to help advisors visualize cliff risk
+ * Bars: each year's MAGI. Step lines: the IRMAA tier thresholds that MAGI is
+ * judged against. Medicare looks back 2 years, so year Y's income sets the
+ * premium in Y+2 — the line under each bar is the Y+2 threshold, indexed the
+ * same way the engine indexes it, for the filing status on year Y's return
+ * (Single after the first death when widow modeling is on).
  */
 export function IRMAAChart({ years, filingStatus }: IRMAAChartProps) {
-  const isJoint = filingStatus === 'married_filing_jointly';
-  const thresholds = getIRMAAThresholds(isJoint);
-
-  // Transform data for chart - extract age and totalIncome (proxy for MAGI)
-  const chartData = years.map((year) => ({
-    age: year.age,
-    year: year.year,
-    magi: year.totalIncome,
-  }));
-
-  // Custom tooltip component
-  const CustomTooltip = ({ active, payload, label }: {
-    active?: boolean;
-    payload?: Array<{ value: number; dataKey: string }>;
-    label?: string | number;
-  }) => {
-    if (active && payload && payload.length) {
-      const data = chartData.find(d => d.age === label);
-      return (
-        <div className="bg-card border border-border p-3 rounded-lg shadow-lg">
-          <p className="font-medium">Age {label}</p>
-          {data && <p className="text-muted-foreground text-sm">Year {data.year}</p>}
-          <p className="text-[#F5B800] font-medium mt-1">
-            MAGI: {formatCurrency(payload[0].value)}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
+  const chartData: IRMAAChartRow[] = years.map((year) => {
+    const isJoint = (year.filingStatus ?? filingStatus) === 'married_filing_jointly';
+    const lowers = tierLowers(isJoint, year.year + 2);
+    return {
+      age: year.age,
+      year: year.year,
+      isJoint,
+      // MAGI = AGI + tax-exempt interest (what IRMAA uses). totalIncome counts
+      // gross Social Security and overstates it; fall back only for old rows.
+      magi: year.magi ?? year.totalIncome,
+      t1: lowers[0], t2: lowers[1], t3: lowers[2], t4: lowers[3], t5: lowers[4],
+    };
+  });
+  const first = chartData[0];
+  const switchRow = chartData.find((d) => first && d.isJoint !== first.isJoint);
 
   return (
     <Card>
@@ -96,7 +101,7 @@ export function IRMAAChart({ years, filingStatus }: IRMAAChartProps) {
       <CardContent>
         <div className="h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 20, right: 80, left: 20, bottom: 20 }}>
+            <ComposedChart data={chartData} margin={{ top: 20, right: 80, left: 20, bottom: 20 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
               <XAxis
                 dataKey="age"
@@ -108,51 +113,52 @@ export function IRMAAChart({ years, filingStatus }: IRMAAChartProps) {
                 tick={{ fontSize: 12 }}
                 width={70}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<IRMAATooltip />} />
               <Bar
                 dataKey="magi"
                 fill="#F5B800"
                 name="MAGI"
                 radius={[2, 2, 0, 0]}
               />
-              {thresholds.map((threshold) => (
-                <ReferenceLine
-                  key={threshold.label}
-                  y={threshold.value}
-                  stroke={threshold.color}
+              {TIER_KEYS.map((key, i) => (
+                <Line
+                  key={key}
+                  dataKey={key}
+                  name={`Tier ${i + 1}`}
+                  type="stepAfter"
+                  stroke={TIER_COLORS[i]}
                   strokeDasharray="5 5"
                   strokeWidth={2}
-                  label={{
-                    value: threshold.label,
-                    position: 'right',
-                    fill: threshold.color,
-                    fontSize: 11,
-                  }}
+                  dot={false}
+                  activeDot={false}
+                  isAnimationActive={false}
                 />
               ))}
-            </BarChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </div>
 
         {/* Threshold legend */}
-        <div className="mt-4 pt-4 border-t border-border">
-          <p className="text-sm font-medium text-muted-foreground mb-2">
-            IRMAA Tier Thresholds ({isJoint ? 'Married Filing Jointly' : 'Single'})
-          </p>
-          <div className="flex flex-wrap gap-4">
-            {thresholds.map((threshold) => (
-              <div key={threshold.label} className="flex items-center gap-2">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: threshold.color }}
-                />
-                <span className="text-sm">
-                  {threshold.label}: {formatCurrency(threshold.value)}
-                </span>
-              </div>
-            ))}
+        {first && (
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="text-sm font-medium text-muted-foreground mb-2">
+              IRMAA tier thresholds for {first.year}&apos;s income ({first.isJoint ? 'Married Filing Jointly' : 'Single'}; premium year {first.year + 2}). Lines rise 2.5%/yr with indexing.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              {TIER_KEYS.map((key, i) => (
+                <div key={key} className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: TIER_COLORS[i] }} />
+                  <span className="text-sm">Tier {i + 1}: {formatCurrency(first[key])}</span>
+                </div>
+              ))}
+            </div>
+            {switchRow && (
+              <p className="text-xs text-muted-foreground mt-2">
+                From {switchRow.year} (age {switchRow.age}) the survivor files {switchRow.isJoint ? 'jointly' : 'Single'}, so the lines drop to the {switchRow.isJoint ? 'joint' : 'single'} thresholds.
+              </p>
+            )}
           </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -201,6 +201,8 @@ function combineRothAndAum(roth: YearlyResult[], aum: YearlyResult[]): YearlyRes
       year: r.year,
       age: r.age,
       spouseAge: r.spouseAge,
+      // v90: survivor years file Single — display helpers re-price with this.
+      filingStatus: r.filingStatus,
 
       // Balances: sum across both buckets.
       traditionalBalance: r.traditionalBalance + a.traditionalBalance,
