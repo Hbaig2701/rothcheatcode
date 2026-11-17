@@ -225,6 +225,7 @@ export function analyzeWidowPenaltyFromProjection(
 
   const taxImpactByYear: WidowTaxImpact[] = [];
   let totalAdditionalTax = 0;
+  const widowMagiByYear = new Map<number, number>();
 
   for (const yearData of formulaYears) {
     // Pre-death: no widow impact this year
@@ -290,13 +291,18 @@ export function analyzeWidowPenaltyFromProjection(
     // survivor re-price must use the same definition or the widow penalty is
     // inflated by a phantom SS-driven IRMAA jump. (Mark Nichols audit 2026-07.)
     const widowMagi = computeIrmaaMagi(widowTaxInfo.agi, taxExemptInterest);
+    widowMagiByYear.set(yearData.year, widowMagi);
+    // IRMAA uses the return from 2 years back (same lookback as the engine).
+    // For the first two survivor years that return was still the JOINT one, so
+    // the survivor pays exactly what the couple would have: no penalty there.
+    // year: index thresholds the same way the engine indexed the married side.
+    const lookbackMagi = widowMagiByYear.get(yearData.year - 2);
     const widowIRMAAResult =
-      yearData.age >= 65
-        // year: index the thresholds the same way the engine indexed the
-        // married comparator (yearData.irmaaSurcharge); without it the single
-        // side priced against flat 2026 tiers and inflated later-year penalties.
-        ? calculateIRMAA({ magi: widowMagi, filingStatus: 'single', year: yearData.year })
-        : { annualSurcharge: 0 };
+      yearData.age < 65
+        ? { annualSurcharge: 0 }
+        : lookbackMagi === undefined
+          ? { annualSurcharge: marriedIRMAA }
+          : calculateIRMAA({ magi: lookbackMagi, filingStatus: 'single', year: yearData.year });
     const widowFederalTax = widowFederalResult.totalTax;
     const widowIRMAA = widowIRMAAResult.annualSurcharge;
     const widowTotalFederal = widowFederalTax + widowIRMAA;
