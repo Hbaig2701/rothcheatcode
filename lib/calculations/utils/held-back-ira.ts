@@ -128,7 +128,8 @@ export function afterTaxHeldBackRmd(
 ): number {
   if (!row || rmd <= 0) return 0;
   const base = Math.max(0, (row.taxableIncome ?? 0) - (row.conversionAmount ?? 0) - rmd);
-  const marginalFed = calculateConversionFederalTax(rmd, base, filingStatus, row.year);
+  // v90: survivor years carry their own status (Single after the first death).
+  const marginalFed = calculateConversionFederalTax(rmd, base, row.filingStatus ?? filingStatus, row.year);
   const marginalState = Math.round(rmd * stateRate);
   return rmd - marginalFed - marginalState;
 }
