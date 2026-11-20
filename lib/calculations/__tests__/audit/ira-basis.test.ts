@@ -142,6 +142,26 @@ for (const conversion_type of ['optimized_amount', 'fixed_amount', 'full_convers
   check(Math.abs((y0b.taxableIncome ?? 0) - (y0a.taxableIncome ?? 0)) <= 200, `bracket fill: taxable income should match (${y0b.taxableIncome} vs ${y0a.taxableIncome})`);
 }
 
+// Under 59½: the 10% penalty applies only to the taxable share.
+{
+  const young = { age: 50, spouse_age: 50, tax_payment_source: 'from_ira', conversion_type: 'fixed_amount', fixed_conversion_amount: c(100000) } as Partial<Client>;
+  const a = run(young);
+  const b = run({ ...young, ira_basis: c(128713) } as Partial<Client>);
+  const pa = a.formula[0].earlyWithdrawalPenalty ?? 0, pb = b.formula[0].earlyWithdrawalPenalty ?? 0;
+  check(pa > 0 && pb < pa, `under-59½ penalty should shrink with basis (${pb} vs ${pa})`);
+}
+
+// totalIncome stays taxable non-SS income + SS on both sides (the widow card
+// reads totalIncome − ssIncome as taxable income).
+{
+  const b = run({ ira_basis: c(128713), conversion_type: 'fixed_amount', fixed_conversion_amount: c(114000) } as Partial<Client>);
+  for (const side of ['formula', 'baseline'] as const) {
+    for (const y of b[side]) {
+      check((y.totalIncome - y.ssIncome) <= (y.agi ?? 0) - (y.taxableSS ?? 0) + 2, `${side} y${y.year}: totalIncome includes tax-free basis`);
+    }
+  }
+}
+
 console.log('\n=== IRA basis (Form 8606) — Jim Ray worksheet + engines ===');
 console.log(`checks: ${checks}, breaches: ${breaches.length}`);
 if (breaches.length) { for (const b of breaches.slice(0, 40)) console.log('  ✗ ' + b); process.exit(1); }

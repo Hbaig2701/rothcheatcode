@@ -1472,7 +1472,10 @@ export function runGrowthFormulaScenario(
       spouseAge: currentSpouseAgeForDeduction,
       taxYear: year,
     });
-    const totalIncome = conversionAmount + extraPullForTax + effectiveIraDistribution + otherIncome + ssIncome; // For display only (gross, incl. tax-free basis)
+    // Taxable non-SS income + gross SS, as before. With basis this excludes the
+    // tax-free share (same as the baseline), because consumers like the widow
+    // card read totalIncome − ssIncome as TAXABLE income.
+    const totalIncome = grossNonSSIncome + ssIncome; // For display only
     const agi = finalTaxInfo.agi;
     // MAGI for IRMAA = AGI + tax-exempt interest (SSA POMS HI 01101.010). AGI
     // (finalTaxInfo.agi = otherIncome + TAXABLE SS) already includes only the
@@ -1567,11 +1570,18 @@ export function runGrowthFormulaScenario(
     // The penalty applies to the EXTRA distribution pulled to cover taxes — not
     // the portion withheld from an RMD (RMDs are age 73+, never under 59.5, so
     // extraPullForTax == conversionTaxFromIRA whenever age < 60 anyway).
+    // With after-tax basis only the TAXABLE share of a distribution is subject
+    // to the 10% penalty (basis comes back penalty-free); every IRA dollar out
+    // this year carries the same pro-rata share.
+    const totalIraOut = effectiveIraDistribution + conversionAmount + extraPullForTax;
+    const penaltyShare = (amount: number) => basisYr.active && totalIraOut > 0
+      ? Math.round(amount * basisYr.taxable(totalIraOut) / totalIraOut)
+      : amount;
     const conversionTaxPenalty =
       extraPullForTax > 0 && age < 60
-        ? Math.round(extraPullForTax * 0.10)
+        ? Math.round(penaltyShare(extraPullForTax) * 0.10)
         : 0;
-    const voluntaryWithdrawalPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
+    const voluntaryWithdrawalPenalty = earlyWithdrawalPenaltyOnIRA(age, penaltyShare(iraWithdrawal));
     const earlyWithdrawalPenalty = conversionTaxPenalty + voluntaryWithdrawalPenalty;
 
     // Taxes paid from external funds (may reduce taxable balance — see below)

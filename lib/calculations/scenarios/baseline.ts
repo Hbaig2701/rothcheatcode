@@ -193,7 +193,9 @@ export function runBaselineScenario(
     // 10% early-withdrawal penalty applies only to voluntary IRA pulls under
     // 59.5 — at any age where an RMD requirement exists (73+), 59.5 is long
     // past, so there's no penalty interaction.
-    let earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
+    let earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, basisYr.active && effectiveIraDistribution > 0
+      ? Math.round(iraWithdrawal * basisYr.taxable(effectiveIraDistribution) / effectiveIraDistribution)
+      : iraWithdrawal);
 
     // Primary SSI income (with COLA)
     // SS is entered in TODAY'S dollars. COLA years = min(yearOffset, age - startAge):
@@ -280,7 +282,9 @@ export function runBaselineScenario(
       iraWithdrawal = Math.min(Math.round(g), boyIRA);
       forcedRmdShortfall = Math.max(0, rmdRequired - iraWithdrawal);
       effectiveIraDistribution = iraWithdrawal + forcedRmdShortfall;
-      earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
+      earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, basisYr.active && effectiveIraDistribution > 0
+      ? Math.round(iraWithdrawal * basisYr.taxable(effectiveIraDistribution) / effectiveIraDistribution)
+      : iraWithdrawal);
       grossTaxableIncome = basisYr.taxable(effectiveIraDistribution) + otherIncome;
     }
 
