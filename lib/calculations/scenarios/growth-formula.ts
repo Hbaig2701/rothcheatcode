@@ -18,7 +18,7 @@ import {
 } from '../tax-helpers';
 import { calculateRMD } from '../modules/rmd';
 import { ALL_PRODUCTS, isNoAnnuityProduct, type FormulaType } from '@/lib/config/products';
-import { getEffectiveGrowthRiderFee, getEffectiveCumulativePenaltyFree, getEffectiveRateSchedule, rateFromSchedule, getEffectiveAnniversaryBonus } from '../resolvers/product-resolver';
+import { getEffectiveGrowthRiderFee, getEffectiveGrowthRiderFeeYears, getEffectiveCumulativePenaltyFree, getEffectiveRateSchedule, rateFromSchedule, getEffectiveAnniversaryBonus } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA } from '../utils/withdrawals';
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 import { managedRothShare, managedRothGrowthRate } from '../utils/aum-destination';
@@ -136,13 +136,16 @@ export function runGrowthFormulaScenario(
   const surrenderSchedule = isNoAnnuity ? null : (client.surrender_schedule ?? null);
 
   // Rider fee — the scenario's own rider_fee_percent wins, then the custom
-  // product, then the system preset. Only applied during the surrender period.
+  // product, then the system preset. Charged for riderFeeYears (below).
   const riderFeePercent = isNoAnnuity ? 0 : getEffectiveGrowthRiderFee(
     client.blueprint_type as FormulaType,
     customProduct,
     client.rider_fee_percent
   );
   const surrenderYears = isNoAnnuity ? 0 : (client.surrender_years ?? 0);
+  // Years the rider/product fee runs: the surrender period unless the product
+  // says otherwise (fee_duration 'lifetime' or a year count).
+  const riderFeeYears = isNoAnnuity ? 0 : getEffectiveGrowthRiderFeeYears(customProduct, surrenderYears);
 
   // Advisory fee on managed balances (Traditional + Roth + taxable). Distinct
   // from riderFeePercent above, which is the CARRIER's charge on the annuity:
@@ -1319,7 +1322,7 @@ export function runGrowthFormulaScenario(
     // We take the fee from the Traditional balance first, then from the Roth mirror
     // once the Traditional side is exhausted.
     let yearRiderFee = 0;
-    if (riderFeePercent > 0 && yearOffset < surrenderYears) {
+    if (riderFeePercent > 0 && yearOffset < riderFeeYears) {
       const annuityAccountValue = iraBalance + rothMirrorBalance;
       yearRiderFee = Math.round(annuityAccountValue * riderFeePercent);
       const feeFromIra = Math.min(iraBalance, yearRiderFee);

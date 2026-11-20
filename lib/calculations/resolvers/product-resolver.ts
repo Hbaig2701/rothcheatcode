@@ -388,6 +388,28 @@ export function getEffectiveGrowthRiderFee(
 }
 
 /**
+ * How many contract years the growth rider / product fee is charged.
+ * `config.fees.fee_duration`:
+ *  - "surrender_period" (default, and every product before Nov 2026): the
+ *    surrender period only — the engine's historical behavior.
+ *  - "lifetime": every year (e.g. Revol One BonusRev Max, whose 0.95% Annual
+ *    Product Fee is deducted "on every anniversary date thereafter").
+ *  - a positive number: that many contract years.
+ * Anything else (0, missing, malformed) falls back to the surrender period, so
+ * no existing product changes.
+ */
+export function getEffectiveGrowthRiderFeeYears(
+  customProduct: CustomProductRow | null | undefined,
+  surrenderYears: number,
+): number {
+  const d = customProduct?.config?.fees?.fee_duration as unknown;
+  if (d === "lifetime") return Number.POSITIVE_INFINITY;
+  const n = typeof d === "number" ? d : typeof d === "string" && d.trim() !== "" ? Number(d) : NaN;
+  if (Number.isFinite(n) && n > 0) return Math.floor(n);
+  return surrenderYears;
+}
+
+/**
  * Cumulative (accumulating) free-withdrawal rule for growth products.
  *
  * Some carriers let an unused free-withdrawal allowance carry forward — e.g.

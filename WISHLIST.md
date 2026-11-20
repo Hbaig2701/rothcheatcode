@@ -584,3 +584,29 @@ and report are the bulk.
 **Demand signal:** none from tickets yet; surfaced in an internal discussion. Most clients have $0 basis, but it matters a lot for anyone with years of nondeductible contributions.
 
 **Estimated effort:** **2-4 days.** The input and the formula are small; the cost is threading it through three engines and the MAGI paths, plus a cache bump.
+
+---
+
+## Unvested premium bonus excluded from a conversion's taxable amount
+
+**The pitch:** Some carriers (Revol One BonusRev) move the unvested part of the premium bonus into the Roth child contract and report only the vested value as taxable — e.g. converting $12,000 of value with a 20% unvested bonus reports $10,000. Converting the whole contract in year 1 with a 22% bonus (0% vested) is taxed on the premium only.
+
+**Today:** the growth engine credits the full bonus at issue and taxes every converted dollar, bonus included. For BonusRev that overstates the conversion tax by up to the bonus percentage while the bonus is unvested (the report is conservative, not optimistic). The carrier notes the client is ultimately responsible for that tax position.
+
+**What it requires:** a product flag (e.g. `bonus.unvested_converts_tax_free`), the vesting schedule actually simulated (bonus vesting base moving with interest/withdrawals), and `taxableConversion = conversion × (1 − unvested share)` threaded through the conversion sizing, bracket fill, and tax-from-IRA gross-up. Also gives a correct surrender value (see the surrender-value bonus-recapture gap).
+
+**Demand signal:** Andrew Perri (ticket c446fdd8, Nov 19 2026) — BonusRev, "they allow the client to convert 100% in first year."
+
+**Estimated effort:** **2–3 days** including golden fixtures.
+
+---
+
+## Penalty-free allowance as a % of initial premium
+
+**The pitch:** Some contracts (Revol One BonusRev: "10% of initial Premium") base the free withdrawal on premium, not contract value. The engine uses contract value, so with a 22% bonus the strict penalty-free cap is ~22% looser than the contract and widens as the value grows. Only matters when the advisor turns on the cap with the strict scope.
+
+**What it requires:** `withdrawals.penalty_free_basis: 'contract_value' | 'premium'` and the cap base switched in growth-formula.ts.
+
+**Demand signal:** surfaced building BonusRev for Andrew Perri (Nov 2026); no advisor has asked yet.
+
+**Estimated effort:** **half a day.**
