@@ -17,6 +17,8 @@
  * surrender year (the legacy solver overshot by ~0.1%); under the tax_only cap,
  * the tax pulled from the IRA <= allowance. Runs the growth engine AND the
  * standard engine (formula.ts), which also lacked the Dana Gibson tax_only fix.
+ * Both constraint types: irmaa_threshold full/fixed were on the legacy path
+ * too (the Chris Cavanna exclusion) with ~$68K unpaid pre-RMD on $800K.
  */
 import { makeClient } from './factory';
 import { Reporter } from './assertions';
@@ -43,16 +45,18 @@ const CONV = [
 ] as const;
 
 for (const engine of ['growth', 'standard'] as const)
+for (const constraint of ['bracket_ceiling', 'irmaa_threshold'] as const)
 for (const scope of ['tax_only', 'all_distributions'] as const)
   for (const respect of [true, false])
     for (const conv of CONV)
       for (const state of ['NJ', 'TX']) {
-        const tag = `${F}/${engine}/${scope}/${respect ? 'cap' : 'nocap'}/${conv.conversion_type}/${state}`;
+        const tag = `${F}/${engine}/${constraint}/${scope}/${respect ? 'cap' : 'nocap'}/${conv.conversion_type}/${state}`;
         const c = makeClient({
           age: 60, state, filing_status: 'single', qualified_account_value: 80_000_000, taxable_accounts: 0,
           tax_payment_source: 'from_ira', ssi_annual_amount: 0, end_age: 90, blueprint_type: 'vesting-bonus-growth',
           bonus_percent: 16, surrender_years: 10, surrender_schedule: [10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
-          penalty_free_percent: 10, respect_penalty_free_limit: respect, penalty_free_scope: scope, ...conv,
+          penalty_free_percent: 10, respect_penalty_free_limit: respect, penalty_free_scope: scope,
+          constraint_type: constraint, target_irmaa_tier: 'standard', ...conv,
         });
         const f = engine === 'growth'
           ? runGrowthSimulation(createSimulationInput(c, prod)).formula
@@ -65,6 +69,17 @@ for (const scope of ['tax_only', 'all_distributions'] as const)
         r.ran();
         if (Math.abs(gap) > 50_00) {
           r.record({ fixture: tag, scenario: 'formula', check: 'tax-booked-equals-tax-paid', actual: gap, note: `pre-RMD tax booked minus tax paid = $${Math.round(gap / 100)}` });
+        }
+        // Growth honors the IRMAA ceiling on the WHOLE distribution (conversion +
+        // the pull for tax): a 'standard' target with no other income must never
+        // pay IRMAA before RMDs (the legacy full/fixed path let the tax pull push
+        // MAGI over — Chris Cavanna paid 6 years of IRMAA).
+        if (engine === 'growth' && constraint === 'irmaa_threshold') {
+          for (const y of f) {
+            if (y.age >= 73) break;
+            r.ran();
+            if (y.irmaaSurcharge > 0) r.record({ fixture: tag, scenario: 'formula', check: 'irmaa-target-held', year: y.year, actual: y.irmaaSurcharge });
+          }
         }
         if (respect && scope === 'tax_only') {
           for (let i = 0; i < Math.min(10, f.length); i++) {

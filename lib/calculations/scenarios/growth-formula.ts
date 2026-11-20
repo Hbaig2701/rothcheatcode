@@ -583,9 +583,13 @@ export function runGrowthFormulaScenario(
     // the conversion alone, so the tax on the pull that funds the tax was booked
     // but never debited (~3.5% of the conversion each capped year; BonusRev
     // test, Nov 2026) — the same bug fixed for tax_only above.
-    const useSelfConsistentDrain = payTaxFromIRA
-      && !(client.constraint_type === 'irmaa_threshold'
-        && (conversionType === 'full_conversion' || conversionType === 'fixed_amount'));
+    // irmaa_threshold included too (Nov 2026): the Chris Cavanna coupling — the
+    // drain set the tax for emptying the IRA, then the IRMAA cap clawed back
+    // only the conversion — is handled in the IRMAA block, which now caps the
+    // WHOLE self-consistent distribution and re-prices its tax. The legacy path
+    // these clients used left the tax on the tax unpaid (~$68K pre-RMD on $800K)
+    // and let the tax pull push MAGI past the IRMAA ceiling.
+    const useSelfConsistentDrain = payTaxFromIRA;
     // Set when full/fixed produced an authoritative self-consistent tax, so the
     // generic convTaxAt(conversion) recompute below doesn't clobber it.
     let selfConsistentTaxFromIra = false;
@@ -977,6 +981,22 @@ export function runGrowthFormulaScenario(
               conversionAmount = cappedPlan.conversion;
               federalTax = cappedPlan.federalTaxFromIRA;
               stateTax = cappedPlan.stateTaxFromIRA;
+            }
+          } else if (selfConsistentTaxFromIra) {
+            // full/fixed self-consistent: MAGI grows by the whole distribution
+            // D = conversion + the extra pull for tax (the part of the tax the
+            // after-tax RMD funds isn't new income). Cap D at the headroom and
+            // re-price its tax, then split it back into conversion + pull — so
+            // the tax set by the drain solver is never left assuming a bigger
+            // conversion than the one made (Chris Cavanna).
+            const R = Math.max(0, afterTaxForcedRmd);
+            const D = conversionAmount + Math.max(0, federalTax + stateTax - R);
+            if (D > irmaaCap) {
+              const t = convTaxAt(irmaaCap);
+              federalTax = t.federalTax;
+              stateTax = t.stateTax;
+              conversionAmount = Math.max(0, irmaaCap - Math.max(0, federalTax + stateTax - R));
+              conversionCapLimited = true;
             }
           } else {
             conversionAmount = Math.min(conversionAmount, irmaaCap);

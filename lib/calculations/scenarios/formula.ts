@@ -378,9 +378,11 @@ export function runFormulaScenario(
     // was booked but never debited (Dana Gibson / Chau Tran; strict cap found
     // testing Revol One BonusRev, Nov 2026). A tax_only cap is enforced on the
     // self-consistent tax further down by shrinking the whole distribution.
-    const useSelfConsistentDrain = payTaxFromIRA
-      && !(client.constraint_type === 'irmaa_threshold'
-        && (conversionType === 'full_conversion' || conversionType === 'fixed_amount'));
+    // No irmaa_threshold exclusion here: this engine has no IRMAA conversion
+    // ceiling (the constraint is growth-engine only), so the Chris Cavanna
+    // claw-back coupling can't occur and excluding it only left the tax on the
+    // tax unpaid.
+    const useSelfConsistentDrain = payTaxFromIRA;
     // Set when a full/fixed self-consistent branch ran, so the display
     // attribution can recompute the conversion-ONLY tax (the branch leaves
     // federalConversionTax = tax on the FULL distribution, which is the correct
