@@ -759,15 +759,20 @@ const RUSSELL_PART_EXPECTED = {
     totalFedStateTax:      418_024_292,
     taxOnRMDs:             113_178_124,
   },
+  // blue re-locked 2026-11-20: the final partial year (conversion trimmed to
+  // hit the $1M target) scaled its tax by conversion ratio — average rate on
+  // dollars trimmed off the top bracket — so the IRA paid more tax than the
+  // year owed and the excess vanished. Now re-solved on the trimmed conversion:
+  // IRA +$1,044, net worth +$2,159, tax −$26. Base unchanged.
   blue: {
-    finalNetWorth:         652_367_580,
-    finalTraditional:      99_855_271,
+    finalNetWorth:         652_583_528,
+    finalTraditional:      99_959_700,
     finalRoth:             408_375_548,
     finalTaxable:          160_893_766,
-    lifetimeWealth:        612_425_472,
+    lifetimeWealth:        612_599_648,
     taxOnConversions:      42_799_795,
-    totalFedStateTax:      419_102_451,
-    taxOnRMDs:             36_148_842,
+    totalFedStateTax:      419_099_875,
+    taxOnRMDs:             36_186_899,
   },
 };
 

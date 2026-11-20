@@ -493,7 +493,9 @@ export function runGrowthFormulaScenario(
     // the conversion twice.
     let skipGrossDown = false;
     // Set when the penalty-free cap shrank a full/fixed conversion this year.
-    let conversionCapLimited = false;
+    // The strict outflow cap counts too: when it binds, whatever stays in the
+    // IRA is held back BY the cap and must not be swept into the conversion.
+    let conversionCapLimited = useOutflowCap && conversionRoomUnderOutflowCap < iraAfterDistribution;
 
     // --- IRMAA surcharge + after-tax forced RMD (computed BEFORE conversion
     // sizing so the self-consistent gross-up below can use the after-tax RMD).
@@ -574,8 +576,14 @@ export function runGrowthFormulaScenario(
     // total distribution until its tax fits the allowance. optimized/partial keep
     // their planner path (already correct under the cap) — this flag only
     // feeds the draining branches.
+    // The strict 'all_distributions' outflow cap is included too: there the
+    // conversion room (effectiveIraForConversion) is already bounded to the
+    // allowance, and the self-consistent solver prices the tax on the whole
+    // distribution inside it. The legacy solver it used to take priced the tax on
+    // the conversion alone, so the tax on the pull that funds the tax was booked
+    // but never debited (~3.5% of the conversion each capped year; BonusRev
+    // test, Nov 2026) — the same bug fixed for tax_only above.
     const useSelfConsistentDrain = payTaxFromIRA
-      && !useOutflowCap
       && !(client.constraint_type === 'irmaa_threshold'
         && (conversionType === 'full_conversion' || conversionType === 'fixed_amount'));
     // Set when full/fixed produced an authoritative self-consistent tax, so the
@@ -831,10 +839,31 @@ export function runGrowthFormulaScenario(
         // is a hard ceiling on Roth dollars regardless of which branch ran. Scale
         // the tax with the conversion so the pair stays self-consistent.
         if (conversionType === 'partial_amount' && conversionAmount > partialRemaining) {
-          const scale = conversionAmount > 0 ? partialRemaining / conversionAmount : 0;
           conversionAmount = partialRemaining;
-          federalTax = Math.round(federalTax * scale);
-          stateTax = Math.round(stateTax * scale);
+          if (payTaxFromIRA) {
+            // Re-solve the tax for the trimmed conversion. Scaling it by
+            // partialRemaining/conversion kept the AVERAGE rate, but the trimmed
+            // dollars came off the top bracket, so the scaled tax exceeded what
+            // the final recompute charges and the excess left the IRA unbooked
+            // (~$1.6K on a $400K target, BonusRev test Nov 2026). Same fixed
+            // point as the fixed_amount solver: the pull that funds the tax is
+            // itself taxable; the self-consistent path credits the after-tax RMD.
+            const R = useSelfConsistent ? Math.max(0, afterTaxForcedRmd) : 0;
+            let extraPull = 0;
+            let tF = 0, tS = 0;
+            for (let i = 0; i < 12; i++) {
+              const t = convTaxAt(conversionAmount + extraPull);
+              tF = t.federalTax; tS = t.stateTax;
+              const newExtra = Math.max(0, tF + tS - R);
+              if (Math.abs(newExtra - extraPull) <= 1) { extraPull = newExtra; break; }
+              extraPull = newExtra;
+            }
+            federalTax = tF;
+            stateTax = tS;
+          } else {
+            federalTax = 0;
+            stateTax = 0;
+          }
         }
       }
 
