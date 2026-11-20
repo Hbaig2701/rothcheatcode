@@ -371,6 +371,16 @@ export function runFormulaScenario(
       // so those types DO use the self-consistent path (fixed 2026-09-25).
       && !(client.constraint_type === 'irmaa_threshold'
         && (conversionType === 'full_conversion' || conversionType === 'fixed_amount'));
+    // full_conversion / fixed_amount use the self-consistent solvers under the
+    // penalty-free caps too (tax_only AND the strict all_distributions outflow
+    // cap) — mirror of growth-formula.ts useSelfConsistentDrain. The legacy
+    // solver taxed the conversion alone, so the tax on the pull funding the tax
+    // was booked but never debited (Dana Gibson / Chau Tran; strict cap found
+    // testing Revol One BonusRev, Nov 2026). A tax_only cap is enforced on the
+    // self-consistent tax further down by shrinking the whole distribution.
+    const useSelfConsistentDrain = payTaxFromIRA
+      && !(client.constraint_type === 'irmaa_threshold'
+        && (conversionType === 'full_conversion' || conversionType === 'fixed_amount'));
     // Set when a full/fixed self-consistent branch ran, so the display
     // attribution can recompute the conversion-ONLY tax (the branch leaves
     // federalConversionTax = tax on the FULL distribution, which is the correct
@@ -393,7 +403,7 @@ export function runFormulaScenario(
           // has already been bounded by the outflow cap, so Regime A's
           // conv + tax = effectiveIra solver naturally keeps total outflow
           // within the carrier allowance.
-          if (taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap) {
+          if (taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap && !useSelfConsistentDrain) {
             const tryConv = Math.max(0, effectiveIraForConversion - taxCap);
             const tryTax = calculateConversionTaxWithSS({
               conversionAmount: tryConv,
@@ -416,7 +426,7 @@ export function runFormulaScenario(
               useRegimeB = true;
             }
           }
-          if (!useRegimeB && useSelfConsistent) {
+          if (!useRegimeB && useSelfConsistentDrain) {
             // Regime A (self-consistent): empty the IRA. The whole distribution
             // (conversion + the extra pull funding the tax) is taxable, so the
             // conversion tax is on the full distribution; funded from the
@@ -447,7 +457,7 @@ export function runFormulaScenario(
           totalIRAWithdrawal = conversionAmount;
         }
       } else if (conversionType === 'fixed_amount' && fixedConversionAmount > 0) {
-        if (payTaxFromIRA && useSelfConsistent) {
+        if (payTaxFromIRA && useSelfConsistentDrain) {
           // Self-consistent gross-up coupled with RMD funding. Convert fixed X;
           // tax = convTaxAt(X + extraPull); extraPull = max(0, tax − afterTaxRMD).
           // Coupled, so iterate. If X + extraPull won't fit, empty the IRA.
@@ -640,11 +650,29 @@ export function runFormulaScenario(
         // dollars. The gross-up above should land at or under it, but clamp
         // regardless of which branch ran, scaling the tax to stay consistent.
         if (conversionType === 'partial_amount' && conversionAmount > partialRemaining) {
-          const scale = conversionAmount > 0 ? partialRemaining / conversionAmount : 0;
           conversionAmount = partialRemaining;
-          federalConversionTax = Math.round(federalConversionTax * scale);
-          stateConversionTax = Math.round(stateConversionTax * scale);
-          totalIRAWithdrawal = Math.round(totalIRAWithdrawal * scale);
+          if (payTaxFromIRA) {
+            // Re-solve the tax on the trimmed conversion (mirror of growth-
+            // formula.ts). Scaling by the trim ratio kept the AVERAGE rate on
+            // dollars trimmed off the top bracket, over-pulling tax that then
+            // left the IRA unbooked. The pull that funds the tax is taxable; the
+            // self-consistent path credits the after-tax RMD.
+            const R = useSelfConsistent ? Math.max(0, afterTaxForcedRmd) : 0;
+            let extraPull = 0, tF = 0, tS = 0;
+            for (let i = 0; i < 12; i++) {
+              const t = convTaxAt(conversionAmount + extraPull);
+              tF = t.federalTax; tS = t.stateTax;
+              const newExtra = Math.max(0, tF + tS - R);
+              if (Math.abs(newExtra - extraPull) <= 1) { extraPull = newExtra; break; }
+              extraPull = newExtra;
+            }
+            federalConversionTax = tF;
+            stateConversionTax = tS;
+            totalIRAWithdrawal = conversionAmount + tF + tS;
+            taxAlreadyComputed = true;
+          } else {
+            totalIRAWithdrawal = conversionAmount;
+          }
         }
       }
 
@@ -655,7 +683,30 @@ export function runFormulaScenario(
       // and routing the tax overflow to external funds a from_ira client doesn't
       // have. Recomputes tax + totalIRAWithdrawal inline since these branches set
       // taxAlreadyComputed. Mirrors growth-formula.ts (Joshua Williamson follow-up).
-      if (payTaxFromIRA && conversionAmount > 0 && taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
+      if (selfConsistentTaxFromIra && conversionAmount > 0 && taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
+          && (conversionType === 'fixed_amount' || conversionType === 'full_conversion')
+          && federalConversionTax + stateConversionTax > taxCap) {
+        // Self-consistent version (mirror of growth-formula.ts): the tax was
+        // priced on the whole distribution D = conversion + extra pull, so meet
+        // the cap on THAT tax — largest D whose tax fits — then split D back
+        // into conversion + pull (tax funded from the after-tax RMD first).
+        const R = Math.max(0, afterTaxForcedRmd);
+        const currentD = conversionAmount + Math.max(0, federalConversionTax + stateConversionTax - R);
+        let lo = 0, hi = currentD;
+        for (let i = 0; i < 40; i++) {
+          const mid = (lo + hi) / 2;
+          const t = convTaxAt(mid);
+          if (t.federalTax + t.stateTax <= taxCap) lo = mid; else hi = mid;
+        }
+        const capD = Math.floor(lo);
+        const capTax = convTaxAt(capD);
+        federalConversionTax = capTax.federalTax;
+        stateConversionTax = capTax.stateTax;
+        conversionAmount = Math.max(0, capD - Math.max(0, federalConversionTax + stateConversionTax - R));
+        totalIRAWithdrawal = conversionAmount + federalConversionTax + stateConversionTax;
+        taxAlreadyComputed = true;
+      } else if (payTaxFromIRA && conversionAmount > 0 && taxCap !== Number.POSITIVE_INFINITY && !useOutflowCap
+          && !selfConsistentTaxFromIra
           && (conversionType === 'fixed_amount' || conversionType === 'full_conversion')) {
         const capTax0 = calculateConversionTaxWithSS({
           conversionAmount, otherIncome: otherIncomeForTax, ssBenefits: ssIncome,
