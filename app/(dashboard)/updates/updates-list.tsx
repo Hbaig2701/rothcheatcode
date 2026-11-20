@@ -5,6 +5,14 @@ import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck
 
 const updates = [
   {
+    id: '57',
+    date: 'November 17, 2026',
+    title: 'Premium Bonus and Anniversary Bonus Columns',
+    description: "Growth products with a phased bonus can now show each part of the bonus on its own. Two new optional columns, Premium Bonus and Anniversary Bonus, are available from Adjust Columns on the year-by-year table. Premium Bonus shows the upfront bonus credited at issue, and Anniversary Bonus shows the bonus credited on each contract anniversary within the bonus period.\n\nThe PDF's Contract Details also lists an Anniversary Bonus row (for example 4% \u00d7 3 yrs) for growth products that credit one, so clients can see the full bonus structure of the contract at a glance.",
+    category: 'New Feature',
+    icon: Columns,
+  },
+  {
     id: '56',
     date: 'October 29, 2026',
     title: 'Set the Rider Fee on Growth Products',
