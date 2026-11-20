@@ -1220,6 +1220,12 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
                   </div>
                 </>
               )}
+              {(client.ira_basis ?? 0) > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-text-muted">After-Tax IRA Basis (Form 8606)</span>
+                  <span className="text-base font-mono text-text-dim">{toUSD(client.ira_basis ?? 0)}</span>
+                </div>
+              )}
               <div className="flex justify-between items-center">
                 <span className="text-sm text-text-muted">Final Traditional IRA<span className="text-text-dim font-normal">{asOfAge}</span></span>
                 <span className="text-base font-mono text-text-dim">{toUSD(blueFinalTraditional)}</span>

@@ -307,6 +307,9 @@ interface TemplateData {
   hasBonus: boolean;
   anniversaryBonusPercent: number;
   anniversaryBonusYears: number;
+  // After-tax IRA basis (Form 8606), formatted; '' hides the row. Growth only
+  // (the GI engine doesn't apply basis yet).
+  iraBasis: string;
   riderFee: number;
   rateOfReturn: number;
   rateOfReturnPercent: string;
@@ -1154,6 +1157,9 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
     // engine credits it, so only growth products show the row.
     anniversaryBonusPercent: anniversaryBonus.percent,
     anniversaryBonusYears: anniversaryBonus.years,
+    iraBasis: isGrowthProduct(client.blueprint_type as FormulaType) && (client.ira_basis ?? 0) > 0
+      ? formatCurrency(client.ira_basis ?? 0)
+      : '',
     riderFee: productRiderFee,
     rateOfReturn: client.rate_of_return ?? 7,
     rateOfReturnPercent: String(client.rate_of_return ?? 7),

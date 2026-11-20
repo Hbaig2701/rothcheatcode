@@ -490,6 +490,12 @@
           <span class="metric-value">{{startingWithBonus}}</span>
         </div>
         {{/if}}
+        {{#if iraBasis}}
+        <div class="metric-row">
+          <span class="metric-label">After-Tax IRA Basis (Form 8606)</span>
+          <span class="metric-value">{{iraBasis}}</span>
+        </div>
+        {{/if}}
         {{#if riderFee}}
         <div class="metric-row">
           <span class="metric-label">Annual Rider Fee</span>
