@@ -581,7 +581,7 @@ and report are the bulk.
 - Audit-suite cases: $0 basis is a no-op (golden fixtures unchanged), and conservation (total excluded = starting basis when the IRA is fully drained).
 - Out of scope for v1: the 401(k) "backdoor" aggregation nuance (rolling pre-tax money into a 401(k) to isolate basis).
 
-**Demand signal:** none from tickets yet; surfaced in an internal discussion. Most clients have $0 basis, but it matters a lot for anyone with years of nondeductible contributions.
+**Demand signal:** Jim Ray (jim@jraycpa.com, CPA), ticket fb25d58e, Oct 29 2026: client Mike Martin has IRA basis that needs releasing pro-rata over the conversion years per Form 8606; he has a worksheet (Google Sheet, not shared with us yet). First surfaced in an internal discussion. Most clients have $0 basis, but it matters a lot for anyone with years of nondeductible contributions.
 
 **Estimated effort:** **2-4 days.** The input and the formula are small; the cost is threading it through three engines and the MAGI paths, plus a cache bump.
 
