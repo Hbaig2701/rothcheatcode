@@ -1,5 +1,6 @@
 import type { PrepFacts, PrepInput } from './types';
 import { isNoAnnuityProduct } from '@/lib/config/products';
+import { heirTaxableIra } from "@/lib/calculations/utils/heir-tax";
 
 /**
  * Build the fact sheet from a finished projection.
@@ -26,10 +27,11 @@ export function computePrepFacts(input: PrepInput): PrepFacts {
   const sum = (rows: typeof B, pick: (y: (typeof B)[number]) => number) =>
     rows.reduce((s, y) => s + (pick(y) || 0), 0);
 
-  const baselineHeirTax = Math.round(lastB.traditionalBalance * heirRate);
+  // Remaining after-tax IRA basis (Form 8606) is inherited untaxed.
+  const baselineHeirTax = Math.round(heirTaxableIra(lastB.traditionalBalance, lastB.iraBasisRemaining) * heirRate);
   const baselineNetLegacy = lastB.netWorth - baselineHeirTax;
   const strategyNetLegacy =
-    lastF.netWorth - Math.round(lastF.traditionalBalance * heirRate);
+    lastF.netWorth - Math.round(heirTaxableIra(lastF.traditionalBalance, lastF.iraBasisRemaining) * heirRate);
 
   const convRows = F.filter((y) => y.conversionAmount > 0);
   const convTaxOf = (y: (typeof F)[number]) =>

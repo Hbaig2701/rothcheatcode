@@ -29,6 +29,7 @@ import { FirmDisclosure } from "@/components/report/firm-disclosure";
 import { resolveColumnPreferences, saveColumnPreferences, getDefaultColumns, loadColumnPreferences, reconcileColumnPreferences, loadUserDefaultColumnPreferences, fetchColumnPreferenceFromDb, userDefaultScopeKey } from "@/lib/table-columns/storage";
 import { AdvancedFeaturesSection } from "@/components/results/advanced-features-section";
 import { WidowSection } from "@/components/report/widow-section";
+import { finalIraBasis, heirTaxableIra } from "@/lib/calculations/utils/heir-tax";
 
 interface GrowthReportDashboardProps {
   client: Client;
@@ -293,7 +294,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // Heir tax only applies to traditional IRA portion (Roth and taxable are already taxed)
   // — plus the QLAC's unrecovered premium, which is inherited pre-tax the same way.
   const baseFinalQlac = projection.baseline_final_qlac_death_benefit ?? 0;
-  const baseHeirTax = Math.round((baseFinalTraditional + baseFinalQlac) * heirTaxRate);
+  const baseHeirTax = Math.round((heirTaxableIra(baseFinalTraditional, finalIraBasis(projection.baseline_years)) + baseFinalQlac) * heirTaxRate);
   // Net legacy = final net worth (includes taxable account) minus heir taxes on traditional
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
 
@@ -336,7 +337,7 @@ export function GrowthReportDashboard({ client, projection }: GrowthReportDashbo
   // Heir tax only applies to remaining traditional IRA (if any) + the QLAC's
   // unrecovered premium (return-of-premium death benefit, inherited pre-tax).
   const blueFinalQlac = projection.blueprint_final_qlac_death_benefit ?? 0;
-  const blueHeirTax = Math.round((blueFinalTraditional + blueFinalQlac) * heirTaxRate);
+  const blueHeirTax = Math.round((heirTaxableIra(blueFinalTraditional, finalIraBasis(projection.blueprint_years)) + blueFinalQlac) * heirTaxRate);
   // Net legacy = final net worth minus heir taxes on traditional
   const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
   // Lifetime wealth = net legacy (conversion taxes/IRMAA already deducted from taxable in engine)

@@ -18,6 +18,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifySlackNewTicket } from "@/lib/notifications/slack";
 import type { SupportSeverity, SupportCategory } from "@/lib/types/support";
 import { getColumnsForProduct, filingStatusDisplayLabel } from "@/lib/table-columns/column-definitions";
+import { heirTaxableIra } from "@/lib/calculations/utils/heir-tax";
 
 export interface ChatTool {
   name: string;
@@ -366,7 +367,7 @@ async function runGetProjectionSummary(
   const { data: projectionRaw, error } = await ctx.supabase
     .from("projections")
     .select(
-      "client_id, break_even_age, total_tax_savings, heir_benefit, baseline_final_traditional, baseline_final_roth, baseline_final_taxable, baseline_final_net_worth, blueprint_final_traditional, blueprint_final_roth, blueprint_final_taxable, blueprint_final_net_worth, baseline_final_qlac_death_benefit, blueprint_final_qlac_death_benefit, strategy, projection_years"
+      "client_id, break_even_age, total_tax_savings, heir_benefit, baseline_final_traditional, baseline_final_roth, baseline_final_taxable, baseline_final_net_worth, blueprint_final_traditional, blueprint_final_roth, blueprint_final_taxable, blueprint_final_net_worth, baseline_final_qlac_death_benefit, blueprint_final_qlac_death_benefit, strategy, projection_years, baseline_ira_basis:baseline_years->-1->iraBasisRemaining, blueprint_ira_basis:blueprint_years->-1->iraBasisRemaining"
     )
     .eq("client_id", clientId)
     .order("created_at", { ascending: false })
@@ -397,6 +398,9 @@ async function runGetProjectionSummary(
     blueprint_final_qlac_death_benefit: number | null;
     strategy: string;
     projection_years: number;
+    // Remaining after-tax IRA basis (Form 8606) at the end — inherited untaxed.
+    baseline_ira_basis: number | null;
+    blueprint_ira_basis: number | null;
   };
 
   // Engine is in cents. Normalize to dollars + add roll-ups the dashboard
@@ -418,8 +422,8 @@ async function runGetProjectionSummary(
     : (heirRow?.heir_bracket ? (parseInt(heirRow.heir_bracket, 10) || 40) : 40);
   const heirTaxRate = heirRatePct / 100;
   // Heir tax on the Traditional remainder + the QLAC's unrecovered premium (inherited pre-tax).
-  const baseHeirTax = Math.round((projection.baseline_final_traditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
-  const blueHeirTax = Math.round((projection.blueprint_final_traditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+  const baseHeirTax = Math.round((heirTaxableIra(projection.baseline_final_traditional, projection.baseline_ira_basis) + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+  const blueHeirTax = Math.round((heirTaxableIra(projection.blueprint_final_traditional, projection.blueprint_ira_basis) + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
   const baseLifetimeWealth = projection.baseline_final_net_worth - baseHeirTax;
   const blueLifetimeWealth = projection.blueprint_final_net_worth - blueHeirTax;
 

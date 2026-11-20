@@ -17,6 +17,8 @@
 import { makeBasisYear } from '../../utils/ira-basis';
 import { runGrowthSimulation, createSimulationInput } from '../../index';
 import type { Client } from '../../../types/client';
+import { finalIraBasis, heirTaxableIra, iraBasisShare } from '../../utils/heir-tax';
+import { extractSummaryMetrics, transformToChartData } from '../../transforms';
 
 let checks = 0;
 const breaches: string[] = [];
@@ -160,6 +162,35 @@ for (const conversion_type of ['optimized_amount', 'fixed_amount', 'full_convers
       check((y.totalIncome - y.ssIncome) <= (y.agi ?? 0) - (y.taxableSS ?? 0) + 2, `${side} y${y.year}: totalIncome includes tax-free basis`);
     }
   }
+}
+
+// Heir tax: remaining basis is inherited untaxed. A no-conversion client keeps
+// all its basis to the end, so the baseline's heir tax must fall by exactly
+// rate × final basis, and the chart / summary cards must agree with it.
+{
+  const rate = 0.4;
+  const noConv = { conversion_type: 'no_conversion', rmds_handled_externally: true } as Partial<Client>;
+  const a = run(noConv);
+  const b = run({ ...noConv, ira_basis: c(128713) } as Partial<Client>);
+  const la = a.baseline[a.baseline.length - 1], lb = b.baseline[b.baseline.length - 1];
+  const basis = finalIraBasis(b.baseline);
+  check(basis === c(128713), `untouched IRA should keep all its basis (${basis})`);
+  check(heirTaxableIra(la.traditionalBalance, finalIraBasis(a.baseline)) === la.traditionalBalance, 'no basis → heir-taxable = full balance');
+  const taxA = Math.round(heirTaxableIra(la.traditionalBalance, 0) * rate);
+  const taxB = Math.round(heirTaxableIra(lb.traditionalBalance, basis) * rate);
+  check(Math.abs((taxA - taxB) - Math.round(basis * rate)) <= 1, `heir tax should fall by rate × basis (${taxA - taxB} vs ${Math.round(basis * rate)})`);
+  const mB = extractSummaryMetrics(b, rate);
+  check(mB.baselineEndWealth === lb.netWorth - taxB, `summary card should exclude basis from heir tax (${mB.baselineEndWealth} vs ${lb.netWorth - taxB})`);
+  const chart = transformToChartData(b, rate);
+  const lastPt = chart[chart.length - 1];
+  check(Math.abs(lastPt.baseline - mB.baselineEndWealth) <= 1, `chart end point should match the card (${lastPt.baseline} vs ${mB.baselineEndWealth})`);
+  // Clients without basis: chart + cards byte-identical to the old formula.
+  const mA = extractSummaryMetrics(a, rate);
+  check(mA.baselineEndWealth === la.netWorth - Math.round(la.traditionalBalance * rate), 'no-basis card unchanged');
+  const chartA = transformToChartData(a, rate);
+  a.baseline.forEach((y, i) => check(chartA[i].baseline === Math.round(y.traditionalBalance * (1 - rate)) + y.rothBalance + (y.taxableBalance || 0), `no-basis chart y${y.year} unchanged`));
+  // Share never exceeds the balance.
+  check(iraBasisShare(100, 500) === 100 && heirTaxableIra(100, 500) === 0, 'basis share capped at balance');
 }
 
 console.log('\n=== IRA basis (Form 8606) — Jim Ray worksheet + engines ===');

@@ -3,6 +3,7 @@ import type { SimulationInput, SimulationResult, YearlyResult } from './types';
 import { runBaselineScenario } from './scenarios/baseline';
 import { runGrowthFormulaScenario } from './scenarios/growth-formula';
 import { getEffectiveRateSchedule } from './resolvers/product-resolver';
+import { heirTaxableIra } from './utils/heir-tax';
 
 /**
  * Default heir tax rate (40%)
@@ -64,10 +65,11 @@ function calculateHeirBenefit(
   const heirRate = heirTaxRate / 100;
 
   // Baseline: all traditional, taxed at heir rate
-  const baselineHeirTax = Math.round(lastBaseline.traditionalBalance * heirRate);
+  // Remaining after-tax IRA basis (Form 8606) is inherited untaxed.
+  const baselineHeirTax = Math.round(heirTaxableIra(lastBaseline.traditionalBalance, lastBaseline.iraBasisRemaining) * heirRate);
 
   // Formula: traditional taxed, Roth is tax-free
-  const formulaHeirTax = Math.round(lastFormula.traditionalBalance * heirRate);
+  const formulaHeirTax = Math.round(heirTaxableIra(lastFormula.traditionalBalance, lastFormula.iraBasisRemaining) * heirRate);
 
   // Heir benefit = reduced taxes for heirs
   return baselineHeirTax - formulaHeirTax;

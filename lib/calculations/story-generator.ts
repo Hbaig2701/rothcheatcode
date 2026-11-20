@@ -6,6 +6,7 @@ import type { Projection } from '@/lib/types/projection';
 // fields directly — see audit F10 — so the marginal-conversion-tax helper is no
 // longer imported here; it remains available for any all-in-cost display.)
 import { getClientRMDStartAge } from './utils/age';
+import { finalIraBasis, heirTaxableIra } from './utils/heir-tax';
 import { isWidowModeled } from './utils/widow';
 import { isNoAnnuityProduct, isGuaranteedIncomeProduct, type FormulaType } from '@/lib/config/products';
 
@@ -1021,7 +1022,8 @@ export function generateStory(
       if (isNoConversion) {
         // BASELINE pain framing: snapshot the Traditional bucket and the
         // tax bite the heirs would face on it. No Roth involved.
-        const heirTaxBite = Math.round(year.traditionalBalance * heirTaxRate);
+        // After-tax IRA basis (Form 8606) is inherited untaxed.
+        const heirTaxBite = Math.round(heirTaxableIra(year.traditionalBalance, year.iraBasisRemaining) * heirTaxRate);
         storyEntries.push({
           year: year.year,
           age: year.age,
@@ -1081,10 +1083,10 @@ export function generateStory(
   const finalYear = years[years.length - 1];
   const baseFinalTraditional = projection.baseline_final_traditional;
   const baseQlacDeathBenefit = finalQlacDeathBenefit(baselineYears);
-  const baseHeirTax = Math.round((baseFinalTraditional + baseQlacDeathBenefit) * heirTaxRate);
+  const baseHeirTax = Math.round((heirTaxableIra(baseFinalTraditional, finalIraBasis(baselineYears)) + baseQlacDeathBenefit) * heirTaxRate);
   const baselineNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
   const strategyQlacDeathBenefit = finalQlacDeathBenefit(years);
-  const strategyHeirTax = Math.round((finalYear.traditionalBalance + strategyQlacDeathBenefit) * heirTaxRate);
+  const strategyHeirTax = Math.round((heirTaxableIra(finalYear.traditionalBalance, finalYear.iraBasisRemaining) + strategyQlacDeathBenefit) * heirTaxRate);
   const strategyLegacy = projection.blueprint_final_net_worth - strategyHeirTax;
   const difference = strategyLegacy - baselineNetLegacy;
   const qlacLegacyClause = qlacActive

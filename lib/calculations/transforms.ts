@@ -1,6 +1,7 @@
 import { Projection, GIYearlyData } from '@/lib/types/projection';
 import { SimulationResult, YearlyResult } from './types';
 import type { SensitivityResult } from './analysis/types';
+import { finalIraBasis, heirTaxableIra, iraBasisShare } from './utils/heir-tax';
 
 /**
  * Data point for wealth chart
@@ -51,7 +52,9 @@ function isProjection(input: Projection | SimulationResult): input is Projection
  */
 function calculateFormulaLegacyToHeirs(years: YearlyResult[], heirTaxRate: number = 0.40): number[] {
   return years.map(year => {
-    const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    // After-tax IRA basis (Form 8606) passes to heirs untaxed.
+    const traditionalToHeirs = Math.round(heirTaxableIra(year.traditionalBalance, year.iraBasisRemaining) * (1 - heirTaxRate))
+      + iraBasisShare(year.traditionalBalance, year.iraBasisRemaining);
     // QLAC return-of-premium value is inherited pre-tax, like the Traditional.
     const qlacToHeirs = Math.round((year.qlacDeathBenefit ?? 0) * (1 - heirTaxRate));
     const rothToHeirs = year.rothBalance;
@@ -73,7 +76,9 @@ function calculateFormulaLegacyToHeirs(years: YearlyResult[], heirTaxRate: numbe
  */
 function calculateBaselineLegacyToHeirs(years: YearlyResult[], heirTaxRate: number = 0.40): number[] {
   return years.map(year => {
-    const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    // After-tax IRA basis (Form 8606) passes to heirs untaxed.
+    const traditionalToHeirs = Math.round(heirTaxableIra(year.traditionalBalance, year.iraBasisRemaining) * (1 - heirTaxRate))
+      + iraBasisShare(year.traditionalBalance, year.iraBasisRemaining);
     // QLAC return-of-premium value is inherited pre-tax, like the Traditional.
     const qlacToHeirs = Math.round((year.qlacDeathBenefit ?? 0) * (1 - heirTaxRate));
     const rothToHeirs = year.rothBalance;
@@ -226,8 +231,9 @@ export function extractSummaryMetrics(
   if (isProjection(data)) {
     // Database Projection - uses pre-calculated final values
     // Heir tax on the Traditional remainder + the QLAC's unrecovered premium (inherited pre-tax).
-    const baselineNetLegacy = data.baseline_final_net_worth - Math.round(((data.baseline_final_traditional ?? 0) + (data.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
-    const formulaNetLegacy = data.blueprint_final_net_worth - Math.round(((data.blueprint_final_traditional ?? 0) + (data.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+    // Remaining after-tax IRA basis (Form 8606) is inherited untaxed.
+    const baselineNetLegacy = data.baseline_final_net_worth - Math.round((heirTaxableIra(data.baseline_final_traditional ?? 0, finalIraBasis(data.baseline_years)) + (data.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+    const formulaNetLegacy = data.blueprint_final_net_worth - Math.round((heirTaxableIra(data.blueprint_final_traditional ?? 0, finalIraBasis(data.blueprint_years)) + (data.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     return {
       baselineEndWealth: baselineNetLegacy,
       formulaEndWealth: formulaNetLegacy,
@@ -240,8 +246,8 @@ export function extractSummaryMetrics(
     // In-memory SimulationResult - extract from arrays
     const lastBaseline = data.baseline[data.baseline.length - 1];
     const lastFormula = data.formula[data.formula.length - 1];
-    const baselineNetLegacy = (lastBaseline.netWorth ?? 0) - Math.round(((lastBaseline.traditionalBalance ?? 0) + (lastBaseline.qlacDeathBenefit ?? 0)) * heirTaxRate);
-    const formulaNetLegacy = (lastFormula.netWorth ?? 0) - Math.round(((lastFormula.traditionalBalance ?? 0) + (lastFormula.qlacDeathBenefit ?? 0)) * heirTaxRate);
+    const baselineNetLegacy = (lastBaseline.netWorth ?? 0) - Math.round((heirTaxableIra(lastBaseline.traditionalBalance ?? 0, lastBaseline.iraBasisRemaining) + (lastBaseline.qlacDeathBenefit ?? 0)) * heirTaxRate);
+    const formulaNetLegacy = (lastFormula.netWorth ?? 0) - Math.round((heirTaxableIra(lastFormula.traditionalBalance ?? 0, lastFormula.iraBasisRemaining) + (lastFormula.qlacDeathBenefit ?? 0)) * heirTaxRate);
 
     return {
       baselineEndWealth: baselineNetLegacy,

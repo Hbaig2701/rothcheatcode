@@ -14,6 +14,7 @@
 
 import type { YearlyResult } from '../types';
 import type { BreakEvenAnalysis, CrossoverPoint, TaxPaybackPoint } from './types';
+import { heirTaxableIra } from '../utils/heir-tax';
 
 /**
  * Build the per-year cumulative-tax comparison series used by the chart
@@ -143,8 +144,8 @@ export function analyzeBreakEven(
   const lastFormula = formula[formula.length - 1];
   const heirTaxSavings =
     lastBaseline && lastFormula
-      ? Math.round((lastBaseline.traditionalBalance + (lastBaseline.qlacDeathBenefit ?? 0)) * heirRate)
-        - Math.round((lastFormula.traditionalBalance + (lastFormula.qlacDeathBenefit ?? 0)) * heirRate)
+      ? Math.round((heirTaxableIra(lastBaseline.traditionalBalance, lastBaseline.iraBasisRemaining) + (lastBaseline.qlacDeathBenefit ?? 0)) * heirRate)
+        - Math.round((heirTaxableIra(lastFormula.traditionalBalance, lastFormula.iraBasisRemaining) + (lastFormula.qlacDeathBenefit ?? 0)) * heirRate)
       : 0;
 
   return {

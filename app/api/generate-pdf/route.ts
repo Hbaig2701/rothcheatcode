@@ -23,6 +23,7 @@ import { getTaxExemptIncomeForYear } from '@/lib/calculations/utils/income';
 import { getCustomProduct } from '@/lib/products/repository';
 import { getEffectiveGrowthRiderFee, getEffectiveGIData, getEffectiveAnniversaryBonus } from '@/lib/calculations/resolvers/product-resolver';
 import type { CustomProductRow } from '@/lib/products/types';
+import { finalIraBasis, heirTaxableIra, iraBasisShare } from "@/lib/calculations/utils/heir-tax";
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic';
@@ -752,7 +753,9 @@ function generateLegacyChartSVG(projection: any, heirTaxRate: number, isNoConver
   // with the Page 1 Net Legacy figure by exactly that tax amount.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const baselineData = baselineYears.map((year: any) => {
-    const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    // After-tax IRA basis (Form 8606) passes to heirs untaxed.
+    const traditionalToHeirs = Math.round(heirTaxableIra(year.traditionalBalance, year.iraBasisRemaining) * (1 - heirTaxRate))
+      + iraBasisShare(year.traditionalBalance, year.iraBasisRemaining);
     const rothToHeirs = year.rothBalance || 0;
     const cashToHeirs = year.taxableBalance || 0;
     return { age: year.age, value: traditionalToHeirs + rothToHeirs + cashToHeirs };
@@ -760,7 +763,9 @@ function generateLegacyChartSVG(projection: any, heirTaxRate: number, isNoConver
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const formulaData = formulaYears.map((year: any) => {
-    const traditionalToHeirs = Math.round(year.traditionalBalance * (1 - heirTaxRate));
+    // After-tax IRA basis (Form 8606) passes to heirs untaxed.
+    const traditionalToHeirs = Math.round(heirTaxableIra(year.traditionalBalance, year.iraBasisRemaining) * (1 - heirTaxRate))
+      + iraBasisShare(year.traditionalBalance, year.iraBasisRemaining);
     const rothToHeirs = year.rothBalance || 0;
     const cashToHeirs = year.taxableBalance || 0;
     return { age: year.age, value: traditionalToHeirs + rothToHeirs + cashToHeirs };
@@ -947,7 +952,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const baseFinalTraditional = projection.baseline_final_traditional;
   // Heir tax only applies to traditional IRA portion (Roth and taxable are already taxed)
   // — plus the QLAC's unrecovered premium, inherited pre-tax the same way.
-  const baseHeirTax = Math.round((baseFinalTraditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+  const baseHeirTax = Math.round((heirTaxableIra(baseFinalTraditional, finalIraBasis(projection.baseline_years)) + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
   // Net legacy = final net worth (includes taxable account) minus heir taxes on traditional
   const baseNetLegacy = projection.baseline_final_net_worth - baseHeirTax;
   // Cumulative after-tax distributions — kept for the Distributions row in
@@ -988,7 +993,7 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
   const blueIrmaa = sum(projection.blueprint_years, 'irmaaSurcharge');
   const blueFinalTraditional = projection.blueprint_final_traditional;
   // Heir tax only applies to remaining traditional IRA (if any) + QLAC death benefit
-  const blueHeirTax = Math.round((blueFinalTraditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+  const blueHeirTax = Math.round((heirTaxableIra(blueFinalTraditional, finalIraBasis(projection.blueprint_years)) + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
   // Net legacy = final net worth minus heir taxes on traditional
   const blueNetLegacy = projection.blueprint_final_net_worth - blueHeirTax;
   // Lifetime wealth = net legacy (conversion taxes/IRMAA already deducted from taxable in engine)
@@ -1353,8 +1358,8 @@ function prepareTemplateData(reportData: any, branding: BrandingData): TemplateD
         // "Legacy to Heirs" stat card. When conversion tax is paid externally,
         // taxableBalance goes negative and is a real cost; omitting it inflated
         // strategy legacy by the conversion-tax amount.
-        const baseLegacy = Math.round(baseYear.traditionalBalance * (1 - heirTaxRate)) + (baseYear.rothBalance || 0) + (baseYear.taxableBalance || 0);
-        const stratLegacy = Math.round(year.traditionalBalance * (1 - heirTaxRate)) + (year.rothBalance || 0) + (year.taxableBalance || 0);
+        const baseLegacy = Math.round(heirTaxableIra(baseYear.traditionalBalance, baseYear.iraBasisRemaining) * (1 - heirTaxRate)) + iraBasisShare(baseYear.traditionalBalance, baseYear.iraBasisRemaining) + (baseYear.rothBalance || 0) + (baseYear.taxableBalance || 0);
+        const stratLegacy = Math.round(heirTaxableIra(year.traditionalBalance, year.iraBasisRemaining) * (1 - heirTaxRate)) + iraBasisShare(year.traditionalBalance, year.iraBasisRemaining) + (year.rothBalance || 0) + (year.taxableBalance || 0);
         const diff = stratLegacy - baseLegacy;
         return {
           year: year.year,

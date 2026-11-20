@@ -18,6 +18,7 @@ import { isGuaranteedIncomeProduct, type FormulaType } from "@/lib/config/produc
 import type { YearlyResult } from "@/lib/calculations";
 import type { Client } from "@/lib/types/client";
 import type { Projection } from "@/lib/types/projection";
+import { finalIraBasis, heirTaxableIra } from "@/lib/calculations/utils/heir-tax";
 
 interface ResultsPageProps {
   params: Promise<{ id: string }>;
@@ -94,11 +95,11 @@ export default function ResultsPage({ params }: ResultsPageProps) {
     const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
 
     // Baseline: heir tax only on traditional portion
-    const baseHeirTax = Math.round((projection.baseline_final_traditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+    const baseHeirTax = Math.round((heirTaxableIra(projection.baseline_final_traditional, finalIraBasis(projection.baseline_years)) + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     const baseLifetime = projection.baseline_final_net_worth - baseHeirTax;
 
     // Strategy: heir tax only on remaining traditional, taxes already deducted in engine
-    const blueHeirTax = Math.round((projection.blueprint_final_traditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+    const blueHeirTax = Math.round((heirTaxableIra(projection.blueprint_final_traditional, finalIraBasis(projection.blueprint_years)) + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     const blueLifetime = projection.blueprint_final_net_worth - blueHeirTax;
 
     const diff = blueLifetime - baseLifetime;

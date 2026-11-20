@@ -28,9 +28,10 @@ type ProjectionScope = { userIds: string[] } | { clientIds: string[] };
 
 /** Scalar columns the clients list + scenarios endpoints need for the delta badge. */
 export const DELTA_COLUMNS =
-  "client_id, baseline_final_net_worth, blueprint_final_net_worth, gi_tax_free_wealth_created, baseline_final_traditional, blueprint_final_traditional, baseline_final_qlac_death_benefit, blueprint_final_qlac_death_benefit";
+  "id, client_id, baseline_final_net_worth, blueprint_final_net_worth, gi_tax_free_wealth_created, baseline_final_traditional, blueprint_final_traditional, baseline_final_qlac_death_benefit, blueprint_final_qlac_death_benefit";
 
 export interface DeltaProjectionRow {
+  id: string;
   client_id: string;
   baseline_final_net_worth: number;
   blueprint_final_net_worth: number;
@@ -93,4 +94,30 @@ export async function fetchProjectionColumnsByIds<T extends { id: string }>(
     }),
   );
   return batches.flat();
+}
+
+/**
+ * Remaining after-tax IRA basis (Form 8606) at the END of each projection,
+ * per side, keyed by projection id. Heirs inherit that basis untaxed, so the
+ * delta badge's heir tax must exclude it (lib/calculations/utils/heir-tax.ts).
+ *
+ * Pass only the projections whose client has `ira_basis > 0` (rare) — this
+ * reads the last element of the JSONB year arrays server-side, which detoasts
+ * the column, so it must not run across a whole book.
+ */
+export async function fetchFinalIraBasis(
+  supabase: AnySupabase,
+  projectionIds: string[],
+): Promise<Map<string, { baseline: number; blueprint: number }>> {
+  const out = new Map<string, { baseline: number; blueprint: number }>();
+  if (projectionIds.length === 0) return out;
+  const rows = await fetchProjectionColumnsByIds<{ id: string; bb: number | null; pb: number | null }>(
+    supabase,
+    projectionIds,
+    "id, bb:baseline_years->-1->iraBasisRemaining, pb:blueprint_years->-1->iraBasisRemaining",
+  );
+  for (const r of rows) {
+    out.set(r.id, { baseline: Math.max(0, Number(r.bb) || 0), blueprint: Math.max(0, Number(r.pb) || 0) });
+  }
+  return out;
 }

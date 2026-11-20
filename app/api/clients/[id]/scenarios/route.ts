@@ -2,7 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 import { isGuaranteedIncomeProduct } from "@/lib/config/products";
 import { getVisibleUserIds } from "@/lib/auth/visibleUserIds";
-import { fetchLatestProjections, DELTA_COLUMNS, type DeltaProjectionRow } from "@/lib/projections/latest";
+import { fetchLatestProjections, fetchFinalIraBasis, DELTA_COLUMNS, type DeltaProjectionRow } from "@/lib/projections/latest";
+import { heirTaxableIra } from "@/lib/calculations/utils/heir-tax";
 
 export async function GET(
   request: NextRequest,
@@ -63,6 +64,16 @@ export async function GET(
 
   // Build per-scenario delta map from latest projection
   const deltaMap = new Map<string, number>();
+  // Final after-tax IRA basis (inherited untaxed) — fetched only for the few
+  // clients that have basis, so the badge matches the report.
+  const basisClientIds = new Set((clients).filter(c => (c.ira_basis ?? 0) > 0).map(c => c.id));
+  const finalBasis = await fetchFinalIraBasis(
+    supabase,
+    [...latestProjections.values()].filter(p => basisClientIds.has(p.client_id)).map(p => p.id),
+  ).catch((error) => {
+    console.error("Error fetching final IRA basis:", error);
+    return new Map<string, { baseline: number; blueprint: number }>();
+  });
   {
     for (const p of latestProjections.values()) {
       if (p.baseline_final_net_worth > 0) {
@@ -78,11 +89,11 @@ export async function GET(
             const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
 
             // Baseline
-            const baseHeirTax = Math.round((p.baseline_final_traditional + (p.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+            const baseHeirTax = Math.round((heirTaxableIra(p.baseline_final_traditional, finalBasis.get(p.id)?.baseline) + (p.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
             const baseLifetime = p.baseline_final_net_worth - baseHeirTax;
 
             // Strategy
-            const blueHeirTax = Math.round((p.blueprint_final_traditional + (p.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+            const blueHeirTax = Math.round((heirTaxableIra(p.blueprint_final_traditional, finalBasis.get(p.id)?.blueprint) + (p.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
             const blueLifetime = p.blueprint_final_net_worth - blueHeirTax;
             
             const diff = blueLifetime - baseLifetime;

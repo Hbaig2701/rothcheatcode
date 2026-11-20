@@ -10,6 +10,7 @@ import type { Client } from "@/lib/types/client";
 import { ArrowLeft, Pencil, X } from "lucide-react";
 import { useAnnotation } from "@/hooks/use-annotation";
 import { AnnotationCanvas } from "@/components/report/annotation-canvas";
+import { finalIraBasis, heirTaxableIra } from "@/lib/calculations/utils/heir-tax";
 
 interface PresentationModeProps {
   client: Client;
@@ -64,12 +65,12 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
   const heirTaxRate = (client.heir_tax_rate ?? 40) / 100;
 
   const calculateBaselineLifetimeWealth = (finalNetWorth: number) => {
-    const baseHeirTax = Math.round((projection.baseline_final_traditional + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+    const baseHeirTax = Math.round((heirTaxableIra(projection.baseline_final_traditional, finalIraBasis(projection.baseline_years)) + (projection.baseline_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     return finalNetWorth - baseHeirTax;
   };
 
   const calculateFormulaLifetimeWealth = () => {
-    const blueHeirTax = Math.round((projection.blueprint_final_traditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+    const blueHeirTax = Math.round((heirTaxableIra(projection.blueprint_final_traditional, finalIraBasis(projection.blueprint_years)) + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     return projection.blueprint_final_net_worth - blueHeirTax;
   };
 
@@ -81,7 +82,7 @@ export function PresentationMode({ client, onExit }: PresentationModeProps) {
     // separately, but it ALSO used a netLegacy that excluded taxable —
     // so the add was canceling the omission. Now that we use the proper
     // final_net_worth, the add is no longer needed.)
-    const blueHeirTax = Math.round((projection.blueprint_final_traditional + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
+    const blueHeirTax = Math.round((heirTaxableIra(projection.blueprint_final_traditional, finalIraBasis(projection.blueprint_years)) + (projection.blueprint_final_qlac_death_benefit ?? 0)) * heirTaxRate);
     return projection.blueprint_final_net_worth - blueHeirTax;
   };
 
