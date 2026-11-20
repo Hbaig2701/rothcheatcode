@@ -71,6 +71,11 @@ export const FIELD_HELP = {
     body: "The client's existing Roth IRA balance — money that's already been taxed and grows tax-free. The engine starts converted dollars into this same Roth bucket so they keep compounding.",
     example: "Client opened a backdoor Roth in 2019 and now has $85,000. Enter $85,000. If they have no Roth, leave at $0.",
   },
+  ira_basis: {
+    title: "IRA Basis (Form 8606)",
+    body: "After-tax dollars already inside the Traditional IRA: nondeductible contributions or after-tax money rolled in from a 401(k). It's the total basis on the client's latest Form 8606 (line 14). Keep the IRA balance above at its full value, basis included. Each year, every dollar that leaves the IRA (conversions, RMDs, withdrawals) is tax-free in the ratio of remaining basis to the IRA's year-end value plus that year's distributions, and the basis is used up as it's released. You can't convert only the basis.",
+    example: "IRA worth $911,000 including $128,700 of nondeductible contributions. Enter $911,000 as the Qualified Account Value and $128,700 here. In the first year about 13.6% of each dollar converted is tax-free.",
+  },
   taxable_accounts: {
     title: "Taxable Account Balance",
     body: "Non-retirement brokerage and savings — money that's already been taxed and pays tax on dividends/gains each year. Important if the client is paying conversion taxes 'from outside' (taxable), because the engine draws from this bucket.",

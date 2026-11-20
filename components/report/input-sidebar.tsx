@@ -70,6 +70,7 @@ export function InputSidebar({ client }: InputSidebarProps) {
             qlac_death_benefit: client?.qlac_death_benefit ?? null,
             qlac_in_baseline: client?.qlac_in_baseline ?? null,
             tax_credits: client?.tax_credits ?? null,
+            ira_basis: client?.ira_basis ?? null,
 
             ssi_payout_age: client?.ssi_payout_age ?? 67,
             ssi_annual_amount: client?.ssi_annual_amount ?? 2400000,

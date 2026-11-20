@@ -109,6 +109,11 @@ export function applyQlacToClient(client: Client): Client {
   return {
     ...mergeIncomeScheduleIntoClient(client, computeQlacPayoutSchedule(client)),
     qualified_account_value: (client.qualified_account_value ?? 0) - premium,
+    // The QLAC premium leaves the IRA as a pro-rata slice, taking its share of
+    // any after-tax basis with it (Form 8606 aggregation).
+    ...((client.ira_basis ?? 0) > 0 && (client.qualified_account_value ?? 0) > 0
+      ? { ira_basis: Math.round((client.ira_basis ?? 0) * (1 - premium / (client.qualified_account_value ?? 1))) }
+      : {}),
   };
 }
 

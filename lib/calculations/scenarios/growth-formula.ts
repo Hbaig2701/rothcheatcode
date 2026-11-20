@@ -25,6 +25,7 @@ import { managedRothShare, managedRothGrowthRate } from '../utils/aum-destinatio
 import { brokerageInterest, nextTaxableCash } from '../utils/taxable-cash';
 import { makeSurvivorResolver, householdSocialSecurity } from '../utils/widow';
 import type { CustomProductRow } from '@/lib/products/types';
+import { makeBasisYear } from '../utils/ira-basis';
 
 /**
  * Run Growth FIA Formula scenario: Roth conversions with FIA product features
@@ -266,6 +267,9 @@ export function runGrowthFormulaScenario(
   // Survivor filing per year (widow modeling — utils/widow.ts).
   const survivorFor = makeSurvivorResolver(client);
 
+  // After-tax IRA basis (Form 8606) still to recover — utils/ira-basis.ts.
+  let iraBasisRemaining = Math.max(0, client.ira_basis ?? 0);
+
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
     const age = getAgeAtYearOffset(clientAge, yearOffset);
@@ -360,7 +364,22 @@ export function runGrowthFormulaScenario(
 
     // Existing taxable income (effective IRA distribution + other + taxable
     // SS) — used to seed marginal tax calculations and the SS-aware optimizer.
-    const existingNonSSIncome = effectiveIraDistribution + otherIncome;
+    // After-tax IRA basis (Form 8606): the tax-free share of every IRA dollar
+    // out this year. Identity when the client has no basis, so everything
+    // below is byte-identical for them. The growth rate mirrors iraGrowthRate
+    // (Step 2) — the 8606 denominator is year-end value + distributions.
+    const basisYr = makeBasisYear(
+      iraBasisRemaining,
+      boyIRA,
+      (rateSchedule ? rateFromSchedule(rateSchedule, yearOffset) : null)
+        ?? (surrenderYears === 0 || yearOffset < surrenderYears ? contractRate : postContractRate),
+    );
+    // Gross IRA dollars (on top of this year's RMD/withdrawal) ⇄ the taxable
+    // income they add. Planners work in taxable dollars; conversions are gross.
+    const taxableCap = (grossAmount: number) => basisYr.incTaxable(effectiveIraDistribution, grossAmount);
+    const toGross = (taxableAmount: number) => basisYr.grossFor(effectiveIraDistribution, taxableAmount);
+
+    const existingNonSSIncome = basisYr.taxable(effectiveIraDistribution) + otherIncome;
     const existingTaxInfo = computeTaxableIncomeWithSS({
       otherIncome: existingNonSSIncome,
       ssBenefits: ssIncome,
@@ -391,7 +410,7 @@ export function runGrowthFormulaScenario(
     // SS (tax torpedo) is attributed to the conversion.
     const convTaxAt = (amount: number) =>
       calculateConversionTaxWithSS({
-        conversionAmount: amount,
+        conversionAmount: taxableCap(amount),
         otherIncome: existingNonSSIncome,
         ssBenefits: ssIncome,
         taxExemptInterest: taxExemptNonSSI,
@@ -403,6 +422,45 @@ export function runGrowthFormulaScenario(
         state: client.state ?? 'CA',
         stateTaxRateDecimal,
       });
+
+    // Bracket-fill planners, basis-aware. Both planners treat every IRA dollar
+    // as taxable, so hand them the TAXABLE capacity of the gross budget and map
+    // their taxable answer back to the larger gross distribution it allows
+    // (with 13% basis, filling the bracket converts ~15% more). Identity —
+    // the exact original call — when there's no basis.
+    const optimalConversion = (grossCap: number) => toGross(calculateSSAwareOptimalConversion({
+      iraBalance: taxableCap(grossCap),
+      otherIncome: existingNonSSIncome,
+      ssBenefits: ssIncome,
+      taxExemptInterest: taxExemptNonSSI,
+      deductions,
+      maxBracketRate: maxTaxRate,
+      filingStatus,
+      taxYear: year,
+      age,
+      spouseAge: currentSpouseAgeForDeduction,
+    }));
+    const withdrawalPlan = (grossCap: number) => {
+      const p = calculateSSAwareIRAWithdrawalPlan({
+        iraBalance: taxableCap(grossCap),
+        otherIncome: existingNonSSIncome,
+        ssBenefits: ssIncome,
+        taxExemptInterest: taxExemptNonSSI,
+        deductions,
+        maxBracketRate: maxTaxRate,
+        filingStatus,
+        taxYear: year,
+        age,
+        spouseAge: currentSpouseAgeForDeduction,
+        state: client.state ?? 'CA',
+        stateTaxRateDecimal,
+      });
+      if (!basisYr.active) return p;
+      // The plan's taxable withdrawal (conversion + tax) maps to a larger gross
+      // pull; the tax is unchanged, the extra gross is all conversion.
+      const tax = p.federalTaxFromIRA + p.stateTaxFromIRA;
+      return { ...p, conversion: Math.max(0, toGross(p.conversion + tax) - tax) };
+    };
 
     // Step 1: Handle Roth conversions (on IRA balance AFTER RMD has been taken)
     let conversionAmount = 0;
@@ -779,18 +837,7 @@ export function runGrowthFormulaScenario(
           // taxable distribution that fills the bracket = conversion + extraPull
           // = bracketRoom; extraPull = max(0, tax(bracketRoom) − afterTaxRMD).
           const R = Math.max(0, afterTaxForcedRmd);
-          const bracketRoom = calculateSSAwareOptimalConversion({
-            iraBalance: cappedIra,
-            otherIncome: existingNonSSIncome,
-            ssBenefits: ssIncome,
-            taxExemptInterest: taxExemptNonSSI,
-            deductions,
-            maxBracketRate: maxTaxRate,
-            filingStatus,
-            taxYear: year,
-            age,
-            spouseAge: currentSpouseAgeForDeduction,
-          });
+          const bracketRoom = optimalConversion(cappedIra);
           const tFull = convTaxAt(bracketRoom);
           const extraPull = Math.max(0, tFull.federalTax + tFull.stateTax - R);
           conversionAmount = Math.max(0, Math.min(bracketRoom - extraPull, cappedIra));
@@ -804,37 +851,13 @@ export function runGrowthFormulaScenario(
           // and tax_from_IRA happens after the bracket check, so both are
           // correctly below the ceiling. This is the self-consistent
           // replacement for the legacy `conversion × (1 − rate)` haircut.
-          const plan = calculateSSAwareIRAWithdrawalPlan({
-            iraBalance: cappedIra,
-            otherIncome: existingNonSSIncome,
-            ssBenefits: ssIncome,
-            taxExemptInterest: taxExemptNonSSI,
-            deductions,
-            maxBracketRate: maxTaxRate,
-            filingStatus,
-            taxYear: year,
-            age,
-            spouseAge: currentSpouseAgeForDeduction,
-            state: client.state ?? 'CA',
-            stateTaxRateDecimal,
-          });
+          const plan = withdrawalPlan(cappedIra);
           conversionAmount = plan.conversion;
           federalTax = plan.federalTaxFromIRA;
           stateTax = plan.stateTaxFromIRA;
           skipGrossDown = true;
         } else {
-          conversionAmount = calculateSSAwareOptimalConversion({
-            iraBalance: cappedIra,
-            otherIncome: existingNonSSIncome,
-            ssBenefits: ssIncome,
-            taxExemptInterest: taxExemptNonSSI,
-            deductions,
-            maxBracketRate: maxTaxRate,
-            filingStatus,
-            taxYear: year,
-            age,
-            spouseAge: currentSpouseAgeForDeduction,
-          });
+          conversionAmount = optimalConversion(cappedIra);
         }
 
         // Belt-and-braces: never convert past the remaining net target. With the
@@ -881,7 +904,7 @@ export function runGrowthFormulaScenario(
         // Pre-conversion MAGI = baseline taxable + tax-exempt + SSI (no conversion yet).
         // Effective IRA distribution covers both forced RMD and voluntary
         // (whichever is larger) without double-counting them.
-        const preConversionGrossTaxable = effectiveIraDistribution + otherIncome;
+        const preConversionGrossTaxable = basisYr.taxable(effectiveIraDistribution) + otherIncome;
         const preConversionMagi =
           calculateMAGI(preConversionGrossTaxable, taxExemptNonSSI) +
           primarySsIncome + spouseSsIncome + externalMagiIncome;
@@ -942,7 +965,9 @@ export function runGrowthFormulaScenario(
         // current MAGI is exactly on a tier boundary), also skip cap.
         if (Number.isFinite(irmaaHeadroom) && irmaaHeadroom > 0) {
           // Leave 1-cent buffer since IRMAA uses cliff thresholds.
-          const irmaaCap = Math.max(0, irmaaHeadroom - 1);
+          // Headroom is in MAGI (taxable) dollars; with basis a larger gross
+          // distribution fits under it. toGross is the identity without basis.
+          const irmaaCap = toGross(Math.max(0, irmaaHeadroom - 1));
 
           // For internal tax + optimized_amount: MAGI is increased by the FULL
           // IRA withdrawal (conversion + tax withheld), not just the conversion.
@@ -964,20 +989,7 @@ export function runGrowthFormulaScenario(
               const partialRemainingForIrmaa = conversionType === 'partial_amount'
                 ? Math.max(0, targetPartialAmount - cumulativeConverted)
                 : Number.POSITIVE_INFINITY;
-              const cappedPlan = calculateSSAwareIRAWithdrawalPlan({
-                iraBalance: Math.min(effectiveIraForConversion, irmaaCap, partialRemainingForIrmaa),
-                otherIncome: existingNonSSIncome,
-                ssBenefits: ssIncome,
-                taxExemptInterest: taxExemptNonSSI,
-                deductions,
-                maxBracketRate: maxTaxRate,
-                filingStatus,
-                taxYear: year,
-                age,
-                spouseAge: currentSpouseAgeForDeduction,
-                state: client.state ?? 'CA',
-                stateTaxRateDecimal,
-              });
+              const cappedPlan = withdrawalPlan(Math.min(effectiveIraForConversion, irmaaCap, partialRemainingForIrmaa));
               conversionAmount = cappedPlan.conversion;
               federalTax = cappedPlan.federalTaxFromIRA;
               stateTax = cappedPlan.stateTaxFromIRA;
@@ -1029,20 +1041,7 @@ export function runGrowthFormulaScenario(
         let bestConv = 0, bestFed = 0, bestState = 0;
         for (let i = 0; i < 40; i++) {
           const mid = (lo + hi) / 2;
-          const p = calculateSSAwareIRAWithdrawalPlan({
-            iraBalance: mid,
-            otherIncome: existingNonSSIncome,
-            ssBenefits: ssIncome,
-            taxExemptInterest: taxExemptNonSSI,
-            deductions,
-            maxBracketRate: maxTaxRate,
-            filingStatus,
-            taxYear: year,
-            age,
-            spouseAge: currentSpouseAgeForDeduction,
-            state: client.state ?? 'CA',
-            stateTaxRateDecimal,
-          });
+          const p = withdrawalPlan(mid);
           if (p.federalTaxFromIRA + p.stateTaxFromIRA <= taxCap) {
             bestConv = p.conversion;
             bestFed = p.federalTaxFromIRA;
@@ -1214,6 +1213,10 @@ export function runGrowthFormulaScenario(
       conversionAmount += iraAfterConversion;
       iraAfterConversion = 0;
     }
+    // Basis released by everything that left the IRA this year (Form 8606),
+    // after the residual sweep so a drained IRA releases all its basis.
+    const iraBasisRecovered = basisYr.nontaxable(effectiveIraDistribution + conversionAmount + extraPullForTax);
+    iraBasisRemaining = Math.max(0, iraBasisRemaining - iraBasisRecovered);
     const rothAfterConversion = rothAfterWithdrawal + conversionAmount;
 
     // Track cumulative withdrawals for the principal protection floor.
@@ -1456,7 +1459,9 @@ export function runGrowthFormulaScenario(
     // EXTRA pull beyond the RMD is incremental income. Using extraPullForTax here
     // (rather than the full conversionTaxFromIRA) is what stops the from-IRA
     // double-count: the RMD's withholding isn't recognized twice.
-    const grossNonSSIncome = conversionAmount + extraPullForTax + effectiveIraDistribution + otherIncome;
+    // Only the TAXABLE share of the year's IRA distributions is income (basis
+    // is tax-free); identical to the gross sum when there's no basis.
+    const grossNonSSIncome = basisYr.taxable(conversionAmount + extraPullForTax + effectiveIraDistribution) + otherIncome;
     const finalTaxInfo = computeTaxableIncomeWithSS({
       otherIncome: grossNonSSIncome,
       ssBenefits: ssIncome,
@@ -1467,7 +1472,7 @@ export function runGrowthFormulaScenario(
       spouseAge: currentSpouseAgeForDeduction,
       taxYear: year,
     });
-    const totalIncome = grossNonSSIncome + ssIncome; // For display only
+    const totalIncome = conversionAmount + extraPullForTax + effectiveIraDistribution + otherIncome + ssIncome; // For display only (gross, incl. tax-free basis)
     const agi = finalTaxInfo.agi;
     // MAGI for IRMAA = AGI + tax-exempt interest (SSA POMS HI 01101.010). AGI
     // (finalTaxInfo.agi = otherIncome + TAXABLE SS) already includes only the
@@ -1701,7 +1706,7 @@ export function runGrowthFormulaScenario(
     const stateTaxOnConversions = conversionStateTax;
     const residualFederalTax = Math.max(0, federalTax - federalTaxOnConversions);
     const residualStateTax = Math.max(0, stateTax - stateTaxOnConversions);
-    const ordinaryBaseline = effectiveIraDistribution + otherIncome;
+    const ordinaryBaseline = basisYr.taxable(effectiveIraDistribution) + otherIncome;
     const ssTaxableBaseline = finalTaxInfo.taxableSS;
     const residualDenominator = ordinaryBaseline + ssTaxableBaseline;
     const federalTaxOnSS = residualDenominator > 0 && ssTaxableBaseline > 0
@@ -1748,6 +1753,8 @@ export function runGrowthFormulaScenario(
       productBonusApplied,
       premiumBonusApplied: upfrontBonusThisYear,
       anniversaryBonusApplied: anniversaryBonusThisYear + rothMirrorBonus,
+      iraBasisRecovered,
+      iraBasisRemaining,
       magi,
       agi,
       standardDeduction,

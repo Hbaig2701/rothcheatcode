@@ -275,6 +275,9 @@ export const clientFormulaBaseSchema = z.object({
   // income tax dollar-for-dollar. Must be in THIS schema or the form input is
   // silently discarded on save — same reason as additional_deductions above.
   tax_credits: z.number().int().min(0).optional().nullable().default(null),
+  // After-tax IRA basis (Form 8606, cents). Must be in this schema or the
+  // input is silently dropped on save.
+  ira_basis: z.number().int().min(0).optional().nullable().default(null),
 
   // Section 5: Taxable Income Calculation
   // Upper cap is 100, not 70: clients who delayed claiming past 70 (no
@@ -579,6 +582,8 @@ export const clientFullBaseSchema = z.object({
   // Total available tax CREDIT pool (cents, carryforward). Offsets federal
   // income tax dollar-for-dollar until exhausted. Null = 0.
   tax_credits: z.number().int().min(0).optional().nullable().default(null),
+  // After-tax IRA basis (Form 8606, cents). Null = 0.
+  ira_basis: z.number().int().min(0).optional().nullable().default(null),
 
   // Income Sources (legacy)
   ss_self: z.number().int().min(0).default(0),
@@ -748,6 +753,7 @@ export type ClientFormData = {
   max_tax_rate: number;
   additional_deductions?: number | null;
   tax_credits?: number | null;
+  ira_basis?: number | null;
   tax_payment_source: "from_ira" | "from_taxable";
   state_tax_rate: number | null;
 

@@ -20,6 +20,7 @@
  */
 
 export const INPUT_FEATURE_KEYS = [
+  "ira_basis",
   "qlac",
   "additional_deductions",
   "tax_credits",
@@ -54,6 +55,14 @@ const num = (x: unknown) => (typeof x === "number" ? x : Number(x) || 0);
 const PREFERENTIAL_INCOME_TYPES = ["capital_gains", "qualified_dividends"];
 
 export const INPUT_FEATURES: readonly InputFeatureDef[] = [
+  {
+    key: "ira_basis",
+    label: "IRA Basis (Form 8606)",
+    description: "After-tax money already in the IRA (nondeductible contributions, after-tax rollovers). Released tax-free pro-rata over conversions and RMDs.",
+    location: "2. Current Account Data",
+    fields: ["ira_basis"],
+    inUse: (v) => num(v.ira_basis) > 0,
+  },
   {
     key: "qlac",
     label: "QLAC",

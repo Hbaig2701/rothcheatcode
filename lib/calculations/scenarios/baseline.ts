@@ -11,6 +11,7 @@ import { getNonSSIIncomeForYear, getTaxExemptIncomeForYear, getPreferentialIncom
 import { rateFromSchedule } from '../resolvers/product-resolver';
 import { resolveWithdrawalsForYear, earlyWithdrawalPenaltyOnIRA, netIraTargetForYear } from '../utils/withdrawals';
 import { getMarginalBracket, computeTaxableIncomeWithSS, computeIrmaaMagi } from '../tax-helpers';
+import { makeBasisYear } from '../utils/ira-basis';
 import { getAdvisoryFeeRate, advisoryFeeCharge } from '../utils/advisory-fee';
 import { brokerageInterest, nextTaxableCash } from '../utils/taxable-cash';
 import { makeSurvivorResolver, householdSocialSecurity } from '../utils/widow';
@@ -116,6 +117,11 @@ export function runBaselineScenario(
 
   // Track cumulative after-tax distributions for 'spent' scenario
   let cumulativeAfterTaxDistributions = 0;
+  // After-tax IRA basis (Form 8606) still to recover — see utils/ira-basis.ts.
+  // The baseline gets the SAME basis as the strategy so the comparison stays
+  // fair: its RMDs/withdrawals release it pro-rata; a conversion just uses it
+  // up faster.
+  let iraBasisRemaining = Math.max(0, client.ira_basis ?? 0);
 
   for (let yearOffset = 0; yearOffset < projectionYears; yearOffset++) {
     const year = startYear + yearOffset;
@@ -145,6 +151,12 @@ export function runBaselineScenario(
     const boyRoth = rothBalance;
     const boyTaxable = taxableBalance;
     const boyTaxableCash = taxableCash;
+    // Pro-rata basis for this year. Inactive (identity) when there's no basis.
+    const basisYr = makeBasisYear(
+      iraBasisRemaining,
+      boyIRA,
+      rateSchedule ? rateFromSchedule(rateSchedule, yearOffset) : growthRate,
+    );
 
     // Calculate the RMD requirement based on prior year-end balance.
     // SHORT-CIRCUIT: when rmds_handled_externally is true, the advisor is
@@ -218,7 +230,7 @@ export function runBaselineScenario(
     // taxable IRA distribution is max(rmdRequired, iraWithdrawal) =
     // effectiveIraDistribution — never the sum. Roth withdrawals are tax-free
     // (assumed qualified) and excluded.
-    let grossTaxableIncome = effectiveIraDistribution + otherIncome;
+    let grossTaxableIncome = basisYr.taxable(effectiveIraDistribution) + otherIncome;
 
     // Standard deduction (age-adjusted) + any advisor-entered additional deductions
     // A (deduction isolation): additional_deductions are a STRATEGY-only benefit;
@@ -239,7 +251,7 @@ export function runBaselineScenario(
       const taxAt = (voluntaryGross: number): number => {
         const dist = Math.max(rmdRequired, voluntaryGross);
         const ti = computeTaxableIncomeWithSS({
-          otherIncome: dist + otherIncome,
+          otherIncome: basisYr.taxable(dist) + otherIncome,
           ssBenefits: ssIncome,
           taxExemptInterest: taxExemptNonSSI,
           deductions,
@@ -269,7 +281,7 @@ export function runBaselineScenario(
       forcedRmdShortfall = Math.max(0, rmdRequired - iraWithdrawal);
       effectiveIraDistribution = iraWithdrawal + forcedRmdShortfall;
       earlyPenalty = earlyWithdrawalPenaltyOnIRA(age, iraWithdrawal);
-      grossTaxableIncome = effectiveIraDistribution + otherIncome;
+      grossTaxableIncome = basisYr.taxable(effectiveIraDistribution) + otherIncome;
     }
 
     // Compute taxable income with proper SS taxation (tax torpedo).
@@ -384,6 +396,8 @@ export function runBaselineScenario(
     // Distribution = max(rmdRequired, iraWithdrawal); see note above on the
     // RMD-satisfaction rule.
     const iraAfterDistribution = boyIRA - effectiveIraDistribution;
+    const iraBasisRecovered = basisYr.nontaxable(effectiveIraDistribution);
+    iraBasisRemaining = Math.max(0, iraBasisRemaining - iraBasisRecovered);
     // Annuity buckets (IRA + Roth) follow the product's per-year schedule when
     // present, else the flat baseline rate. The brokerage (below) always uses the
     // market rate — reinvested RMD cash isn't in the annuity.
@@ -556,6 +570,8 @@ export function runBaselineScenario(
       rothGrowth,
       taxableGrowth,
       productBonusApplied: 0, // No bonus in baseline
+      iraBasisRecovered,
+      iraBasisRemaining,
       premiumBonusApplied: 0,
       anniversaryBonusApplied: 0,
       magi,

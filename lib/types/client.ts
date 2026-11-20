@@ -127,6 +127,10 @@ export interface Client {
   // income tax dollar-for-dollar until the pool is exhausted. Optional —
   // null/undefined is treated as $0 (no credit). See utils/tax-credits.ts.
   tax_credits?: number | null;
+  // After-tax IRA basis (Form 8606 line 14), in cents: nondeductible
+  // contributions / after-tax rollovers already taxed. Recovered pro-rata from
+  // every IRA distribution (utils/ira-basis.ts). Null/0 = all pre-tax.
+  ira_basis?: number | null;
   ssi_payout_age: number;         // Age to start SSI (primary)
   ssi_annual_amount: number;      // Annual SSI (primary) in cents
   spouse_ssi_payout_age: number | null;  // Spouse SSI start age (MFJ only)
@@ -352,6 +356,7 @@ export interface FormulaFormData {
   tax_exempt_non_ssi: number;
   additional_deductions: number | null;
   tax_credits: number | null;
+  ira_basis?: number | null;
   ssi_payout_age: number;
   ssi_annual_amount: number;
   spouse_ssi_payout_age: number | null;

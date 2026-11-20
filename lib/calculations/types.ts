@@ -206,6 +206,11 @@ export interface YearlyResult {
   premiumBonusApplied?: number; // upfront premium bonus (year 1 only, cents)
   anniversaryBonusApplied?: number; // anniversary bonus incl. in-annuity Roth mirror (cents)
 
+  // After-tax IRA basis (Form 8606) — utils/ira-basis.ts. Absent/0 when the
+  // client has no basis.
+  iraBasisRecovered?: number; // tax-free part of this year's IRA distributions (cents)
+  iraBasisRemaining?: number; // basis left after this year (cents)
+
   // Tax calculation details (in cents except percentages)
   magi?: number; // Modified Adjusted Gross Income
   agi?: number; // Adjusted Gross Income

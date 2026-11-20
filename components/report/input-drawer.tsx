@@ -72,6 +72,7 @@ export function InputDrawer({ client, onClose, expanded = false, onToggleExpand 
       // OVERWRITES the saved deduction with null on every scenario save.
       additional_deductions: client?.additional_deductions ?? null,
       tax_credits: client?.tax_credits ?? null,
+      ira_basis: client?.ira_basis ?? null,
       ssi_payout_age: client?.ssi_payout_age ?? 67,
       ssi_annual_amount: client?.ssi_annual_amount ?? 2400000,
       spouse_ssi_payout_age: client?.spouse_ssi_payout_age ?? 67,

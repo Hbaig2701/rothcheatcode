@@ -15,6 +15,7 @@ Source: \`components/clients/sections/client-data.tsx\`
 
 ## 2. Current Account Data
 Source: \`components/clients/sections/current-account.tsx\`
+- **IRA Basis (Form 8606)** (\`ira_basis\`) — number, range: 0 to +∞
 - **Qualified Account Value** (\`qualified_account_value\`) — number, range: 0 to +∞
 - **Roth IRA Balance** (\`roth_ira\`) — number, range: 0 to +∞
 - **Taxable Account Balance** (\`taxable_accounts\`) — number, range: 0 to +∞
@@ -125,6 +126,7 @@ Authoritative one-paragraph explanation of every named form field, taken verbati
 - **Spouse Age** (\`spouse_age\`): The spouse's current age. Drives spousal RMD timing, spousal Social Security start, and the Widow's Penalty analysis (which prices brackets at single-filer rates after the older spouse passes).
 - **Qualified Account Value** (\`qualified_account_value\`): Total balance the client wants modeled in the strategy — this is the bucket the Roth conversion or annuity strategy runs on. Combine Traditional IRA, 401(k), 403(b), and any other pre-tax retirement accounts they're rolling into the new product.
 - **Roth IRA Balance** (\`roth_ira\`): The client's existing Roth IRA balance — money that's already been taxed and grows tax-free. The engine starts converted dollars into this same Roth bucket so they keep compounding.
+- **IRA Basis (Form 8606)** (\`ira_basis\`): After-tax dollars already inside the Traditional IRA: nondeductible contributions or after-tax money rolled in from a 401(k). It's the total basis on the client's latest Form 8606 (line 14). Keep the IRA balance above at its full value, basis included. Each year, every dollar that leaves the IRA (conversions, RMDs, withdrawals) is tax-free in the ratio of remaining basis to the IRA's year-end value plus that year's distributions, and the basis is used up as it's released. You can't convert only the basis.
 - **Taxable Account Balance** (\`taxable_accounts\`): Non-retirement brokerage and savings — money that's already been taxed and pays tax on dividends/gains each year. Important if the client is paying conversion taxes 'from outside' (taxable), because the engine draws from this bucket.
 - **Other Retirement** (\`other_retirement\`): Pre-tax retirement balances NOT being rolled into the strategy product — e.g., a 401(k) still at a former employer, a TSP, or a 403(b) they're keeping in place. Tracked separately so legacy and net-worth views are complete.
 - **Product Preset** (\`blueprint_type\`): The annuity product the strategy uses. 'Growth' products focus on accumulation and Roth conversions; 'Guaranteed Income' products provide income payments. Pick a system preset, one of your own custom products, or a starred favorite for a one-click selection.
