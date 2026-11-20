@@ -566,9 +566,12 @@ audit — the engine was internally consistent but applied the wrong rule.
 - **Impact (F18+F19):** 265/1,099 production scenarios change, all limit-ticked with tax
   from the IRA; 0 unexpected changes, 0 baselines moved. Most strategy results DROP (unpaid
   tax now paid; conversions follow the advisor's bracket instead of a throttled trickle).
-- **Still open:** full/fixed + `irmaa_threshold` (15 scenarios) stay on the legacy path with
-  the same gap (Chris Cavanna coupling); `formula.ts` has the same latent bugs (no cap-on
-  clients); the GI engine ignores `respect_penalty_free_limit` entirely (8 scenarios ticked);
+- **Closed Nov 2026 (v92):** full/fixed + `irmaa_threshold` now use the self-consistent
+  solver with the IRMAA ceiling on the whole distribution (HOWARD had $92K-$138K/yr unpaid);
+  the strict `all_distributions` cap and the last `partial_amount` year had the same class of
+  gap; `formula.ts` got all of these plus the tax_only fix. Guard: `audit/tax-funding.test.ts`.
+- **Still open:** `formula.ts` ignores `irmaa_threshold` entirely (no live clients use that
+  engine); the GI engine ignores `respect_penalty_free_limit` entirely (8 scenarios ticked);
   `scripts/test-penalty-free-cap.ts` asserts pre-v59 behavior and fails on main too.
 
 ## Recurrence guard 🛡️
