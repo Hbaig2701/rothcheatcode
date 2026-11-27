@@ -5,6 +5,14 @@ import { Star, Video, Sun, PenTool, FileText, Users, Copy, DollarSign, FileCheck
 
 const updates = [
   {
+    id: '58',
+    date: 'November 20, 2026',
+    title: 'Model Clients with After-Tax IRA Money (Form 8606 Basis)',
+    description: "You can now enter a client's after-tax IRA basis, the nondeductible contributions or after-tax rollover money already inside their Traditional IRA. Switch on \"IRA Basis (Form 8606)\" in Settings \u2192 Input Panel, then enter the total from line 14 of their latest Form 8606 in Section 2 (Current Account), alongside the IRA balance.\n\nThe projection releases that basis tax-free in proportion to each conversion, RMD and withdrawal, using the same pro-rata approach as Form 8606, until it is used up. The year-by-year table gains optional Tax-Free Basis Used and Remaining IRA Basis columns in Adjust Columns, and the Account Summary and PDF show the basis amount for clients who have one. It applies to Growth and No Annuity scenarios.\n\nIt lets you show clients with after-tax IRA dollars a conversion plan that reflects their own tax picture, which makes the conversation more specific and personal.",
+    category: 'New Feature',
+    icon: Calculator,
+  },
+  {
     id: '57',
     date: 'November 17, 2026',
     title: 'Premium Bonus and Anniversary Bonus Columns',
